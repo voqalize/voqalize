@@ -1,8 +1,9 @@
 # Fernhollow — UI ↔ brain contract (v0)
 
-Fernhollow is a fictional home & furniture store and a Voqalize voice demo. Emily, the design adviser,
-talks (voice **Emily**, `Voice.OMNIVOICE_EMILY`; face: avatar character `emily`; English only) and drives
-the store's screen. Design doc: https://claude.ai/artifact/Venfo8c5tvd8u3iG5Jm3zA
+Fernhollow is a fictional home & furniture store and a Voqalize voice demo. Its agent (today Emily, the
+design adviser: voice `omnivoice/emily`, avatar character `emily`, English only — all of it in
+`persona.json`, see v5) talks and drives the store's screen. "Emily" below means whoever `persona.json`
+names. Design doc: https://claude.ai/artifact/Venfo8c5tvd8u3iG5Jm3zA
 
 This file is the agreement between `frontend/` (React, Vite) and `backend/` (the brain). Both sides build
 against it in parallel; change it only by editing this file in the same PR as the code.
@@ -14,8 +15,9 @@ against it in parallel; change it only by editing this file in the same PR as th
   `data/build_catalog.py`. Product `id` = URL handle. Images: `images[].file` is `<id>/<n>`; the frontend
   serves them as `/demos/fernhollow/img/<file>-<400|1000>.webp`.
 - **No invented product facts.** Nothing outside catalog fields, words in the product's own
-  title/intro/highlights/options, authored store policies and authored editorial content. No dimensions,
-  stock levels or delivery dates anywhere in UI or speech.
+  title/intro/highlights/options, authored store policies and authored editorial content. No product dimensions,
+  stock levels or delivery dates anywhere in UI or speech — v5 adds the authored size guide (guide-level
+  advice only) and the three sample orders' authored delivery slots, and nothing else.
 
 ## Brain → UI actions (`session.dispatch`, RTVI `ui-command`)
 
@@ -211,3 +213,122 @@ whole sequence deterministically with `stage.send(..., queue=False)`: find → s
 reason + condition → next → resolution → next → collection (+ window) → next → review, and reports back
 which step it reached and any refusal. Emily asks only for what is missing, one question at a time, then
 calls it; she never relies on many spoken cues to fill a form. Every turn that acts also says one line.
+
+## v5 — the front of house: one brain, a job per landing page (owner, 2026-11-18)
+
+Fernhollow is now the front of house for every e-commerce agent in the catalogue: one brain, one
+character, and a **job** chosen by the page the call starts on. The brain still follows the shopper to
+any page and switches job when they land on another job's page.
+
+| landing | job | what the agent does |
+| --- | --- | --- |
+| `/` | `shop` | furnishes a room within budget, finds, compares, fills the cart (v0–v3) |
+| `/returns` | `returns` | opens the order, sets up the return or the swap, waits for the yes (v1, v4) |
+| `/size-guide` | `size` | asks about the bed, mattress, room or window; picks the size from the guide; rings it on the product page |
+| `/gifts` | `gifts` | turns "for my sister's new flat, under $80" into a short list with a reason each; adds to cart |
+| `/orders` | `orders` | says where the parcel is in plain words; moves the delivery day to an authored slot; hands a delivered order to returns |
+| `/kiosk` | `kiosk` | the showroom totem: attract screen, three short questions, three picks with reasons, a QR code to the phone |
+
+**Persona in one place.** `persona.json` (character id for `@voqalize/avatar`, display name, role, voice
+per language, the languages offered, the default) is read by the brain (`backend/persona.py`) and the page
+(`frontend/src/persona.ts`). No name, voice or language is written anywhere else; the authored Markdown
+pages write `{{agent}}` for the name.
+
+**`init`** (the connect request's opaque blob): `{surface: "fernhollow-web", landing: "<path>", lang:
+"<code>"}`. `landing` is the router path the call started on (`/size-guide`, `/kiosk`…) and picks the
+job and the greeting; `lang` is one of `persona.languages` (English only today) and the brain sets both
+legs from `persona.voices[lang]` in `on_session_start`. A later `page_viewed` whose path starts with one
+of the six landings switches the job; any other page (a product, the cart) keeps it.
+
+**No invented facts, still.** The size guide is authored guide-level advice (`content/size_guide.json`):
+which size suits which mattress, where a Small or Large vase sits, rug placement against a sofa,
+curtain drop and rod height — plus the general US standard mattress sizes, labelled as the standard.
+Nothing states a product's own measurements. Only beds, bedding, vases and faux stems sell a Size
+(Queen/King, Small/Large: 59 products); rugs and curtains are sold by fabric, so their sections advise and
+pick no size. Delivery days exist only in the three authored sample orders.
+
+### Data
+
+- `content/size_guide.json` — sections (beds, vases, rugs, curtains), the finder's questions (each with
+  `when`, the answers it applies under) and the rules that pick a size with the guide's reason.
+  `backend/sizing.py` and `frontend/src/sizing/finder.ts` evaluate the same file the same way: the first
+  rule whose `if` all hold; the next question is the first whose `when` holds and is unanswered.
+- `content/gift_guide.json` — recipients, occasions (category weights), budget chips (30, 50, 80, 100,
+  150, 250, 500 dollars) and one authored line per category. `content/kiosk.json` — the kiosk's three
+  questions; a feel lists the catalog's own attribute words it means.
+- `backend/data/edits.json` — generated by `backend/edits.py` from those and the catalog: for every
+  `recipient|occasion|budget` the gift short list (6), for every `room|feel|budget` the kiosk's three,
+  each `{product_id, variant_id, reason}`. The page and the brain read this one file, so what is said is
+  what is shown. A spoken budget becomes the largest chip at or under it ("under $90" → 80).
+- `data/demo_orders.json` — three orders carry a `tracking` block: `FH-31207` packed (can move),
+  `FH-31188` on the van (cannot move; `why_not`), `FH-31042` delivered 3 days ago (returnable: the
+  returns desk finds it like any demo order). `tracking.events[{stage, days_ago, time, text}]`,
+  `tracking.delivery.slot` (the booked slot id), `tracking.slots[{id, days_from_now, window, hours}]`
+  (the only days it can move to), `can_reschedule`, `why_not`. Days are relative; the page shows
+  `Thu 20 Nov`, the brain says "Thursday 20 November".
+
+### Pages (all work by click alone)
+
+- `/size-guide` — the four sections (anchors `#beds`, `#vases`, `#rugs`, `#curtains`), the **size
+  finder** (chips per question, `data-stage-part="size:<question>:<value>"`), its answer card (size +
+  reason, or the placement advice), and the sized products of the section with the picked size: each
+  card opens `product/<id>?variant=<variant_id>`.
+- `/gifts` — the gift edit: recipient, occasion and budget chips
+  (`data-stage-part="gift:<control>:<value>"`), the short list with each pick's reason and an Add to cart
+  button. A query string `?for=sibling&occasion=housewarming&budget=80` sets the controls.
+- `/orders` — "Your orders": the three tracked orders as cards with a status pill; `/orders?order=FH-31207`
+  opens one: its lines, a timeline (Ordered → Packed → Out for delivery → Delivered, with the authored
+  times), the delivery slot, **Change delivery day** (a list of the authored slots; Save) when it can
+  move or `why_not` when it cannot, and for a delivered order **Return or exchange an item** →
+  `/returns/start?order=FH-31042`.
+- `/kiosk` — a full-screen portrait showroom layout (designed at 1080×1920; on a landscape screen the
+  portrait frame is centred and scaled): attract screen → room → feel → budget (big tiles,
+  `data-stage-part="kiosk:<question>:<value>"`) → three picks with reasons and a QR code. The QR encodes
+  `<origin>/demos/fernhollow/my-picks?ids=<id>,<id>,<id>&from=kiosk`. Start over returns to attract;
+  the kiosk also returns there after 90 s untouched on the picks.
+- `/my-picks?ids=…` — "Your picks from the showroom": the products with Add to cart, on the phone.
+
+### Stage moves (`frontend/src/stage/scene.json`, spec id `fernhollow`)
+
+Registered once in the app shell (not per page), so a move sent right after a navigation is never
+"not on screen": each performer opens its own page first if it is not showing, waits for the part,
+rings it, then changes it, and answers one short line. Tool-driven only (no `say`, so no cue verbs).
+
+| move | class | args | does |
+| --- | --- | --- | --- |
+| `size.answer` | reversible | `question` (kind, mattress, sleepers, room, place, layout, drop), `value` | rings the finder chip and chooses it; `kind` clears the answers under it |
+| `gifts.set` | reversible | `recipient?`, `occasion?`, `budget?` (a chip) | rings and sets each control in turn; the list follows |
+| `orders.open` | look | `order_number` | opens that order's timeline and rings it |
+| `orders.reschedule` | reversible | `order_number`, `slot` | opens the picker, rings the slot, chooses and saves it; refused (with the offered slots) when it cannot move |
+| `kiosk.start` | reversible | — | attract → first question |
+| `kiosk.answer` | reversible | `question` (room, feel, budget), `value` | rings the tile and chooses it; the third shows the picks and QR |
+| `kiosk.restart` | reversible | — | clears the answers, back to attract |
+
+Events (slices `size_finder`, `gift_edit`, `orders`, `kiosk`; all `note`, `by` visitor or agent):
+`size.answered{question, value, size?}`, `gifts.changed{recipient, occasion, budget}`,
+`orders.opened{order_number}`, `orders.delivery_changed{order_number, slot}`,
+`kiosk.screen{screen}`, `kiosk.answered{question, value}`. The brain folds the visitor's into its
+mirror (a delivery day the shopper changed by hand is the one it then says).
+
+### Brain tools (new)
+
+- `size_finder(kind, mattress?, sleepers?, room?, place?, layout?, drop?)` — `@needs_result_now`. Sends
+  `size.answer` for each answer given (opening `/size-guide`), and returns the guide's size and reason
+  with the section's products in that size, or the one next question to ask.
+- `pick_size(product, size)` — opens the product page with that Size selected and the options ringed
+  (`open_product` with `variant_id`, `focus: "options"`), with the guide's reason. Refused, naming the
+  sizes it comes in, when the product has no such size or sells no sizes.
+- `gift_edit(recipient, occasion, budget)` — `@needs_result_now`. Sends `gifts.set` (opening `/gifts`)
+  and returns the list from `edits.json` with each reason; `add_to_cart` adds a pick.
+- `track_order(order_number?)` — `@needs_result_now`. Without a number, the account's three orders in one
+  line each; with one, sends `orders.open` and returns where it is in plain words, the booked slot, and
+  the slots it can move to (or why not). A delivered order says it can go back and how many days are
+  left; `find_order` then opens the returns form (the hand-off).
+- `change_delivery(order_number, slot)` — sends `orders.reschedule` for an authored slot; refused when
+  the order cannot move or the slot is not offered.
+- `kiosk_answer(room?, feel?, budget?)` — `@needs_result_now`. Sends `kiosk.start` (from attract) and
+  `kiosk.answer` for each answer given; with all three, returns the three picks and their reasons (the QR
+  shows them on the phone); otherwise the next question. `kiosk_restart()` sends `kiosk.restart`.
+
+**Kiosk job:** short turns (one sentence, at most two), one question at a time, the tile names as the
+options, never a product that is not one of the three on screen.

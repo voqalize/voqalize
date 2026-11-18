@@ -1,5 +1,5 @@
 {
- "$comment": "Fictional demo orders for the Fernhollow returns desk. Real catalog products; dates are relative (days ago) so eligibility holds whenever the demo runs. Emails use the reserved example.com domain.",
+ "$comment": "Fictional demo orders for the Fernhollow returns desk. Real catalog products; dates are relative (days ago) so eligibility holds whenever the demo runs. Emails use the reserved example.com domain. Orders with a `tracking` block are the account's orders page (/orders): stage, a timeline of authored events (days ago), the delivery slot and the authored slots the day can move to — the only delivery days anywhere in the demo.",
  "return_window_days": 30,
  "orders": [
   {
@@ -113,6 +113,221 @@
    ],
    "note": "Not delivered yet: a return can start once it arrives.",
    "total": 254.0
+  },
+  {
+   "number": "FH-31207",
+   "email": "sam.rivera@example.com",
+   "name": "Sam Rivera",
+   "placed_days_ago": 2,
+   "delivered_days_ago": null,
+   "status": "packed",
+   "lines": [
+    {
+     "product_id": "natural-wood-bedframe-with-slatted-headboard",
+     "variant_id": "27169",
+     "title": "Natural Wood Bedframe With Slatted Headboard",
+     "variant": "Queen",
+     "qty": 1,
+     "unit_price": 249.0
+    },
+    {
+     "product_id": "soft-taupe-linen-quilt",
+     "variant_id": "27185",
+     "title": "Soft taupe linen quilt",
+     "variant": "Queen",
+     "qty": 1,
+     "unit_price": 179.0
+    }
+   ],
+   "total": 477.0,
+   "note": "Tracking demo: packed at the warehouse, delivery day can still change (authored slots).",
+   "tracking": {
+    "stage": "packed",
+    "events": [
+     {
+      "stage": "ordered",
+      "days_ago": 2,
+      "time": "9:14 am",
+      "text": "Order placed"
+     },
+     {
+      "stage": "packed",
+      "days_ago": 0,
+      "time": "7:40 am",
+      "text": "Packed at the Fernhollow warehouse and waiting for its van"
+     }
+    ],
+    "delivery": {
+     "slot": "d3-morning"
+    },
+    "slots": [
+     {
+      "id": "d2-afternoon",
+      "days_from_now": 2,
+      "window": "afternoon",
+      "hours": "12 pm to 5 pm"
+     },
+     {
+      "id": "d3-morning",
+      "days_from_now": 3,
+      "window": "morning",
+      "hours": "8 am to 12 pm"
+     },
+     {
+      "id": "d3-evening",
+      "days_from_now": 3,
+      "window": "evening",
+      "hours": "5 pm to 9 pm"
+     },
+     {
+      "id": "d4-morning",
+      "days_from_now": 4,
+      "window": "morning",
+      "hours": "8 am to 12 pm"
+     },
+     {
+      "id": "d5-afternoon",
+      "days_from_now": 5,
+      "window": "afternoon",
+      "hours": "12 pm to 5 pm"
+     }
+    ],
+    "can_reschedule": true,
+    "two_person": true
+   },
+   "delivery_fee": 49
+  },
+  {
+   "number": "FH-31188",
+   "email": "sam.rivera@example.com",
+   "name": "Sam Rivera",
+   "placed_days_ago": 5,
+   "delivered_days_ago": null,
+   "status": "out_for_delivery",
+   "lines": [
+    {
+     "product_id": "taupe-linen-lounge-chair-with-wide-seat",
+     "variant_id": "27546",
+     "title": "Taupe linen lounge chair with wide seat",
+     "variant": "Boucle",
+     "qty": 1,
+     "unit_price": 485.0
+    },
+    {
+     "product_id": "textured-linen-cushion-cover-in-sandstone-hue",
+     "variant_id": "30656",
+     "title": "Textured Linen Cushion Cover In Sandstone Hue",
+     "variant": "Linen",
+     "qty": 2,
+     "unit_price": 38.0
+    }
+   ],
+   "total": 561.0,
+   "note": "Tracking demo: on the van today; the day can no longer change.",
+   "tracking": {
+    "stage": "out_for_delivery",
+    "events": [
+     {
+      "stage": "ordered",
+      "days_ago": 5,
+      "time": "8:02 pm",
+      "text": "Order placed"
+     },
+     {
+      "stage": "packed",
+      "days_ago": 2,
+      "time": "3:15 pm",
+      "text": "Packed at the Fernhollow warehouse"
+     },
+     {
+      "stage": "out_for_delivery",
+      "days_ago": 0,
+      "time": "8:05 am",
+      "text": "On the van with today's deliveries"
+     }
+    ],
+    "delivery": {
+     "slot": "d0-afternoon",
+     "stops_before": 4
+    },
+    "slots": [
+     {
+      "id": "d0-afternoon",
+      "days_from_now": 0,
+      "window": "afternoon",
+      "hours": "12 pm to 5 pm"
+     }
+    ],
+    "can_reschedule": false,
+    "why_not": "The van has already left with it, so today's delivery can no longer be moved. If nobody will be home, contact the store and we arrange another day."
+   },
+   "delivery_fee": 0
+  },
+  {
+   "number": "FH-31042",
+   "email": "sam.rivera@example.com",
+   "name": "Sam Rivera",
+   "placed_days_ago": 9,
+   "delivered_days_ago": 3,
+   "status": "delivered",
+   "lines": [
+    {
+     "product_id": "matte-ceramic-vase-porcelain-cream",
+     "variant_id": "30893",
+     "title": "Matte Ceramic Vase Porcelain Cream",
+     "variant": "Large",
+     "qty": 1,
+     "unit_price": 56.0
+    },
+    {
+     "product_id": "minimalist-ceramic-table-lamp",
+     "variant_id": "30308",
+     "title": "Minimalist ceramic table lamp",
+     "variant": "Brushed Brass",
+     "qty": 1,
+     "unit_price": 96.0
+    }
+   ],
+   "total": 201.0,
+   "note": "Tracking demo: delivered three days ago; hands off to the returns desk.",
+   "tracking": {
+    "stage": "delivered",
+    "events": [
+     {
+      "stage": "ordered",
+      "days_ago": 9,
+      "time": "1:47 pm",
+      "text": "Order placed"
+     },
+     {
+      "stage": "packed",
+      "days_ago": 6,
+      "time": "10:20 am",
+      "text": "Packed at the Fernhollow warehouse"
+     },
+     {
+      "stage": "out_for_delivery",
+      "days_ago": 3,
+      "time": "7:55 am",
+      "text": "On the van with the day's deliveries"
+     },
+     {
+      "stage": "delivered",
+      "days_ago": 3,
+      "time": "11:32 am",
+      "text": "Delivered and signed for at the front door"
+     }
+    ],
+    "delivery": {
+     "days_from_now": -3,
+     "window": "morning",
+     "hours": "8 am to 12 pm"
+    },
+    "slots": [],
+    "can_reschedule": false,
+    "why_not": "It has already been delivered."
+   },
+   "delivery_fee": 49
   }
  ]
 }

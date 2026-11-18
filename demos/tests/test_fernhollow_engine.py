@@ -441,6 +441,18 @@ def _calls(brain: fb.FernhollowBrain) -> list[tuple[str, Any]]:
                 pickup_window="weekday_morning",
             ),
         ),
+        # The front of house (CONTRACT v5).
+        ("size_finder", fb.SizeFinderRequest(kind="bed", mattress="king")),
+        (
+            "pick_size",
+            fb.PickSizeRequest(product="natural-wood-bedframe-with-slatted-headboard", size="King"),
+        ),
+        ("gift_edit", fb.GiftRequest(recipient="sibling", occasion="housewarming", budget=80)),
+        ("track_order", fb.TrackRequest()),
+        ("track_order", fb.TrackRequest(order_number="FH-31207")),
+        ("change_delivery", fb.DeliveryRequest(order_number="FH-31207", slot="d4-morning")),
+        ("kiosk_answer", fb.KioskRequest(room="living", feel="warm_wood", budget="400")),
+        ("kiosk_restart", None),
     ]
 
 
@@ -876,3 +888,57 @@ async def test_a_page_answered_act_says_its_outcome_once(
     assert [a.move for a in screen.sent if type(a).__name__ == "StageMove"].count(
         "returns.submit"
     ) == 1
+
+
+# ─── The front of house's data (CONTRACT.md, v5) ──────────────────────────────
+
+
+def test_edits_json_is_built_from_the_authored_rules() -> None:
+    """The page and the brain read backend/data/edits.json: it must be what
+    backend/edits.py builds from the authored rules and today's catalog."""
+    from voqalize_demos._loaded.fernhollow import edits
+
+    assert edits.EDITS_PATH.read_text() == edits.render(), (
+        "stale: cd demos && uv run python -c 'from voqalize_demos.discovery import discover; "
+        "discover(); from voqalize_demos._loaded.fernhollow import edits; edits.main([])'"
+    )
+
+
+def test_every_pick_is_inside_its_budget_and_varied() -> None:
+    from voqalize_demos._loaded.fernhollow import edits
+
+    built = edits.build()
+    for key, picks in built["gifts"].items():
+        budget = float(key.split("|")[2])
+        assert 1 <= len(picks) <= edits.GIFTS["picks"], key
+        for x in picks:
+            p = CATALOG.products[x["product_id"]]
+            assert p.variant_for(None).id == x["variant_id"] and p.variant_for(None).price <= budget
+    for key, picks in built["kiosk"].items():
+        room, _, budget = key.split("|")
+        assert len(picks) == 3, key
+        for x in picks:
+            p = CATALOG.products[x["product_id"]]
+            assert p.room == room
+            assert budget == "any" or p.price <= float(budget)
+
+
+def test_the_size_guide_answers_every_path_and_sizes_only_what_sells_sizes() -> None:
+    from voqalize_demos._loaded.fernhollow import sizing
+
+    beds = {"kind": "bed"}
+    assert sizing.next_question(beds)["id"] == "mattress"  # type: ignore[index]
+    assert sizing.advise({**beds, "mattress": "queen"}).size == "Queen"  # type: ignore[union-attr]
+    unsure = {**beds, "mattress": "none"}
+    for sleepers in ("one", "two", "more"):
+        for room in ("snug", "average", "roomy"):
+            got = sizing.advise({**unsure, "sleepers": sleepers, "room": room})
+            assert got is not None and got.size in ("Queen", "King"), (sleepers, room)
+    for place in ("shelf", "bedside", "desk", "dining_table", "console", "floor"):
+        assert sizing.advise({"kind": "vase", "place": place}).size in ("Small", "Large")  # type: ignore[union-attr]
+    assert sizing.advise({"kind": "rug", "layout": "front_legs"}).size is None  # type: ignore[union-attr]
+    king = sizing.sized_products("beds", "King")
+    assert king and all("King" in sizing.size_of(p) and v.value == "King" for p, v in king)
+    assert "linen-throw-with-fringe-edges" not in {p.id for p, _ in king}
+    total = sum(1 for p in CATALOG.products.values() if sizing.size_of(p))
+    assert total == 59

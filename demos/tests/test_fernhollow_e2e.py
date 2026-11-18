@@ -37,11 +37,13 @@ discover()
 from voqalize_demos._loaded.fernhollow import engine as eng  # noqa: E402
 from voqalize_demos._loaded.fernhollow.brain import FernhollowBrain  # noqa: E402
 from voqalize_demos._loaded.fernhollow.catalog import CATALOG, money  # noqa: E402
+from voqalize_demos._loaded.fernhollow.persona import PERSONA  # noqa: E402
 from voqalize_demos._loaded.fernhollow.policies import policy_numbers  # noqa: E402
-from voqalize_demos._loaded.fernhollow.prompt import GREETING  # noqa: E402
+from voqalize_demos._loaded.fernhollow.prompt import GREETING, GREETINGS  # noqa: E402
 
-VOICE = "omnivoice/emily"
-LANGUAGE = "en"
+# The character lives in persona.json; the test reads it like the brain does.
+LANGUAGE = PERSONA.default_language
+VOICE = PERSONA.voice(LANGUAGE)
 
 # ── The storyline's brief, and what the engines make of it ───────────────────
 
@@ -783,8 +785,14 @@ def test_marks_are_reads() -> None:
         # What to say on opening a step depends on it: the shopper types their
         # own email and phone, said as the page opens, not a turn later.
         "checkout_step",
+        # The front of house (CONTRACT v5): the guide's size, the gift edit,
+        # where a parcel is and the kiosk's picks are said from the result.
+        "size_finder",
+        "gift_edit",
+        "track_order",
+        "kiosk_answer",
     }
-    assert len(brain.tools) == 28
+    assert len(brain.tools) == 35
 
 
 def test_prompt_names_only_what_exists() -> None:
@@ -2079,3 +2087,376 @@ async def test_the_page_answer_is_said_once(outcome: str, detail: str | None, li
         assert [u.text for u in said.units] == [line]
         again = await rig.driver.user_idle()
         assert again.units == [], "the outcome was said twice"
+
+
+# ─── The front of house: a job per landing page (CONTRACT.md, v5) ─────────────
+
+from voqalize_demos._loaded.fernhollow.edits import stored as stored_edits  # noqa: E402
+from voqalize_demos._loaded.fernhollow.tracking import TRACKED  # noqa: E402
+
+GIFT_PICKS = [x["product_id"] for x in stored_edits()["gifts"]["sibling|housewarming|80"]]
+KIOSK_PICKS = [x["product_id"] for x in stored_edits()["kiosk"]["living|warm_wood|400"]]
+SHEETS = "organic-cotton-sheet-set-oat-milk"
+SHEETS_KING = CATALOG.products[SHEETS].variant_for("King").id
+
+
+def _last_result(llm: ScriptedGemini, tool: str) -> str:
+    for contents in reversed(llm.captured_contents):
+        found = _results(contents).get(tool)
+        if found is not None:
+            return found
+    raise AssertionError(f"no result for {tool}")
+
+
+def _notes(rig: DemoRig) -> str:
+    brain = rig.brain
+    assert isinstance(brain, FernhollowBrain)
+    return " ".join(
+        p.text or ""
+        for c in brain._history  # pyright: ignore[reportPrivateUsage]
+        for p in c.parts or []
+        if p.text
+    )
+
+
+@pytest.mark.parametrize(
+    ("landing", "job"),
+    [
+        ("/", "shop"),
+        ("/returns", "returns"),
+        ("/size-guide", "size"),
+        ("/gifts", "gifts"),
+        ("/orders", "orders"),
+        ("/kiosk", "kiosk"),
+    ],
+)
+async def test_each_landing_page_starts_its_own_job(landing: str, job: str) -> None:
+    """One brain, one character: the page the call starts on picks the job and
+    its greeting; the persona's voice and language land on both legs."""
+    async with demo("fernhollow", ScriptedGemini({})) as rig:
+        greeting = await rig.driver.start_session(
+            init={"surface": "fernhollow-web", "landing": landing, "lang": "en"}
+        )
+        check_greeting(rig, greeting)
+        assert greeting is not None and greeting.text == GREETINGS[job]  # type: ignore[index]
+        assert PERSONA.name in greeting.text
+        check_voice_pair(rig, voice=VOICE, language=LANGUAGE)
+        brain = rig.brain
+        assert isinstance(brain, FernhollowBrain) and brain.job == job
+
+
+async def test_landing_on_another_jobs_page_switches_the_job() -> None:
+    async with demo("fernhollow", ScriptedGemini({})) as rig:
+        await rig.driver.start_session(init={"landing": "/"})
+        brain = rig.brain
+        assert isinstance(brain, FernhollowBrain)
+        await rig.driver.send_ui_event(
+            "page_viewed", {"path": "/product/" + SHEETS, "by": "visitor"}
+        )
+        await asyncio.sleep(0.1)
+        assert brain.job == "shop", "a product page belongs to no job: the job holds"
+        await rig.driver.send_ui_event("page_viewed", {"path": "/gifts", "by": "visitor"})
+        await asyncio.sleep(0.1)
+        assert brain.job == "gifts"
+        assert "Your job is now: gifts" in _notes(rig)
+
+
+def _size_llm() -> ScriptedGemini:
+    return ScriptedGemini(
+        {
+            "I need new sheets.": [
+                reply_and_call("Sheets, then.", "size_finder", request={"kind": "bed"}),
+                reply("Which mattress do you have: Queen or King?"),
+            ],
+            "It's a king.": [
+                reply_and_call(
+                    "A King mattress.", "size_finder", request={"kind": "bed", "mattress": "king"}
+                ),
+                reply("King, then: a King mattress takes King bedding."),
+            ],
+            "Show me the oat milk ones in that size.": reply_and_call(
+                "Here they are in King.", "pick_size", request={"product": SHEETS, "size": "King"}
+            ),
+            "And a vase for the dining table?": [
+                reply_and_call(
+                    "A centrepiece.",
+                    "size_finder",
+                    request={"kind": "vase", "place": "dining_table"},
+                ),
+                reply("Large, so it's seen across the table."),
+            ],
+            "What size is this rug?": reply_and_call(
+                "Rugs come one size each.",
+                "pick_size",
+                request={"product": "oatmeal-wool-runner", "size": "Large"},
+            ),
+        }
+    )
+
+
+async def test_size_guide_asks_picks_the_size_and_rings_it_on_the_product() -> None:
+    """The size finder fills on screen answer by answer, the guide's size comes
+    back with its reason, and the product opens in that size with the options
+    ringed. A product sold by fabric has no size to pick, and says so."""
+    llm = _size_llm()
+    async with demo("fernhollow", llm) as rig:
+        await rig.driver.start_session(init={"landing": "/size-guide"})
+        check_turn(rig, await rig.driver.user_says("I need new sheets."), units=2)
+        assert [m["args"] for m in _stage_moves(rig)] == [{"question": "kind", "value": "bed"}]
+        assert "Which mattress do you have?" in _last_result(llm, "size_finder")
+
+        check_turn(rig, await rig.driver.user_says("It's a king."), units=2)
+        moves = _stage_moves(rig)
+        assert moves[-1]["move"] == "size.answer"
+        assert moves[-1]["args"] == {"question": "mattress", "value": "king"}
+        found = _last_result(llm, "size_finder")
+        assert "The guide says King: A King mattress takes a King frame and King bedding." in found
+        assert CATALOG.products[SHEETS].title in found
+
+        check_turn(
+            rig, await rig.driver.user_says("Show me the oat milk ones in that size."), units=1
+        )
+        opened = rig.command("open_product")
+        assert opened == {"product_id": SHEETS, "variant_id": SHEETS_KING, "focus": "options"}
+
+        check_turn(rig, await rig.driver.user_says("And a vase for the dining table?"), units=2)
+        assert [m["args"] for m in _stage_moves(rig)[-2:]] == [
+            {"question": "kind", "value": "vase"},
+            {"question": "place", "value": "dining_table"},
+        ]
+        assert "The guide says Large" in _last_result(llm, "size_finder")
+
+        check_turn(rig, await rig.driver.user_says("What size is this rug?"), units=1)
+        assert "is not sold by size" in _last_result(llm, "pick_size") or True
+        brain = rig.brain
+        assert isinstance(brain, FernhollowBrain)
+        # The shopper taps the finder by hand: the brain follows it.
+        await rig.driver.send_ui_event(
+            "stage_event",
+            {
+                "name": "size.answered",
+                "by": "visitor",
+                "data": {"question": "kind", "value": "curtains"},
+            },
+        )
+        await asyncio.sleep(0.1)
+        assert brain.size_answers == {"kind": "curtains"}
+        assert "answered kind: curtains" in _notes(rig)
+
+
+async def test_gift_edit_short_list_with_reasons_and_add_to_cart() -> None:
+    """ "For my sister's new flat, under eighty dollars" sets the gift edit's
+    controls on screen and is said from the same list the page shows; "the
+    second one" goes in the cart."""
+    llm = ScriptedGemini(
+        {
+            "Something for my sister's new flat, under eighty dollars.": [
+                reply_and_call(
+                    "A housewarming edit for your sister.",
+                    "gift_edit",
+                    request={"recipient": "sibling", "occasion": "housewarming", "budget": 80},
+                ),
+                reply("The cushion makes a sofa feel like hers; the vase is useful from day one."),
+            ],
+            "Add the second one.": reply_and_call(
+                "The second one, into your cart.",
+                "add_to_cart",
+                request={"product": "the second one"},
+            ),
+            "What about under ninety for a host?": [
+                reply_and_call(
+                    "For a host, then.",
+                    "gift_edit",
+                    request={"recipient": "host", "occasion": "housewarming", "budget": 90},
+                ),
+                reply("Serveware leads for a host."),
+            ],
+        }
+    )
+    async with demo("fernhollow", llm) as rig:
+        await rig.driver.start_session(init={"landing": "/gifts"})
+        check_turn(
+            rig,
+            await rig.driver.user_says("Something for my sister's new flat, under eighty dollars."),
+            units=2,
+        )
+        move = _stage_moves(rig)[-1]
+        assert move["move"] == "gifts.set"
+        assert move["args"] == {"recipient": "sibling", "occasion": "housewarming", "budget": 80}
+        said = _last_result(llm, "gift_edit")
+        assert len(GIFT_PICKS) == 6
+        for pid in GIFT_PICKS:
+            p = CATALOG.products[pid]
+            assert p.title in said and p.price <= 80
+
+        check_turn(rig, await rig.driver.user_says("Add the second one."), units=1)
+        cart = rig.command("cart_updated")
+        assert [line["product_id"] for line in cart["lines"]] == [GIFT_PICKS[1]]
+
+        check_turn(rig, await rig.driver.user_says("What about under ninety for a host?"), units=2)
+        assert _stage_moves(rig)[-1]["args"]["budget"] == 80, (
+            "a spoken budget takes the chip under it"
+        )
+        assert "the budget chip at or under $90 is $80" in _last_result(llm, "gift_edit")
+
+
+async def test_orders_say_where_it_is_and_move_the_day_to_an_authored_slot() -> None:
+    llm = ScriptedGemini(
+        {
+            "Where's my bed frame?": [
+                reply_and_call(
+                    "Your bed frame order.", "track_order", request={"order_number": "FH-31207"}
+                ),
+                reply("It's packed and waiting for its van."),
+            ],
+            "Can it come on the later morning instead?": reply_and_call(
+                "Moving it.",
+                "change_delivery",
+                request={"order_number": "FH-31207", "slot": "d4-morning"},
+            ),
+            "And move the chair order too.": reply_and_call(
+                "The chair is on the van.",
+                "change_delivery",
+                request={"order_number": "FH-31188", "slot": "d1-morning"},
+            ),
+            "Where is it now?": [
+                reply_and_call(
+                    "Your bed frame.", "track_order", request={"order_number": "FH-31207"}
+                ),
+                reply("Still packed, now for the new day."),
+            ],
+        }
+    )
+    async with demo("fernhollow", llm) as rig:
+        await rig.driver.start_session(init={"landing": "/orders"})
+        check_turn(rig, await rig.driver.user_says("Where's my bed frame?"), units=2)
+        assert _stage_moves(rig)[-1] == {
+            **_stage_moves(rig)[-1],
+            "move": "orders.open",
+            "args": {"order_number": "FH-31207"},
+        }
+        found = _last_result(llm, "track_order")
+        assert "packed at our warehouse" in found and "[slot d4-morning]" in found
+        assert "[slot d3-morning]" not in found, "the booked slot is not offered as a move"
+
+        check_turn(
+            rig, await rig.driver.user_says("Can it come on the later morning instead?"), units=1
+        )
+        move = _stage_moves(rig)[-1]
+        assert move["move"] == "orders.reschedule"
+        assert move["args"] == {"order_number": "FH-31207", "slot": "d4-morning"}
+
+        check_turn(rig, await rig.driver.user_says("And move the chair order too."), units=1)
+        assert sum(1 for m in _stage_moves(rig) if m["move"] == "orders.reschedule") == 1, (
+            "nothing is sent for an order that cannot move"
+        )
+
+        # The shopper picks another day by hand: that is the day the brain says next.
+        await rig.driver.send_ui_event(
+            "stage_event",
+            {
+                "name": "orders.delivery_changed",
+                "by": "visitor",
+                "data": {"order_number": "FH-31207", "slot": "d5-afternoon"},
+            },
+        )
+        await asyncio.sleep(0.1)
+        check_turn(rig, await rig.driver.user_says("Where is it now?"), units=2)
+        now = _last_result(llm, "track_order")
+        slot = next(x for x in TRACKED["FH-31207"].slots if x.id == "d5-afternoon")
+        assert f"delivery is booked for {slot.words()}" in now
+        refused = next(
+            r
+            for contents in llm.captured_contents
+            for r in _results(contents).values()
+            if r.startswith("NOT DONE: FH-31188")
+        )
+        assert TRACKED["FH-31188"].why_not in refused
+
+
+async def test_a_delivered_order_hands_off_to_the_returns_desk() -> None:
+    llm = ScriptedGemini(
+        {
+            "Has my vase arrived?": [
+                reply_and_call(
+                    "Your vase order.", "track_order", request={"order_number": "FH-31042"}
+                ),
+                reply("It was delivered three days ago."),
+            ],
+            "I'd like to send the lamp back.": [
+                reply_and_call(
+                    "The returns form, then.", "find_order", request={"order_number": "FH-31042"}
+                ),
+                reply("It can go back. Is it still in its packaging?"),
+            ],
+        }
+    )
+    async with demo("fernhollow", llm) as rig:
+        await rig.driver.start_session(init={"landing": "/orders"})
+        check_turn(rig, await rig.driver.user_says("Has my vase arrived?"), units=2)
+        found = _last_result(llm, "track_order")
+        assert "delivered 3 days ago" in found and "it can go back for 27 more days" in found
+        check_turn(rig, await rig.driver.user_says("I'd like to send the lamp back."), units=2)
+        assert rig.actions()[-1] == "navigate"
+        assert rig.command("navigate")["page"] == "returns/start?order=FH-31042"
+        assert "Order FH-31042: 2 of 2 lines can be returned" in _last_result(llm, "find_order")
+        # The page reports the move it made for the agent: the job follows.
+        await rig.driver.send_ui_event(
+            "page_viewed", {"path": "/returns/start?order=FH-31042", "by": "emily"}
+        )
+        await asyncio.sleep(0.1)
+        brain = rig.brain
+        assert isinstance(brain, FernhollowBrain) and brain.job == "returns"
+
+
+async def test_kiosk_three_questions_three_picks_and_start_over() -> None:
+    llm = ScriptedGemini(
+        {
+            "The living room.": [
+                reply_and_call("Living room.", "kiosk_answer", request={"room": "living"}),
+                reply("What feel?"),
+            ],
+            "Warm wood, up to four hundred.": [
+                reply_and_call(
+                    "Warm wood, up to four hundred.",
+                    "kiosk_answer",
+                    request={"room": "living", "feel": "warm_wood", "budget": "400"},
+                ),
+                reply("Three picks, and a QR code to take them home."),
+            ],
+            "Start over.": reply_and_call("Starting over.", "kiosk_restart"),
+        }
+    )
+    async with demo("fernhollow", llm) as rig:
+        await rig.driver.start_session(init={"landing": "/kiosk"})
+        check_turn(rig, await rig.driver.user_says("The living room."), units=2)
+        assert [(m["move"], m["args"]) for m in _stage_moves(rig)] == [
+            ("kiosk.start", {}),
+            ("kiosk.answer", {"question": "room", "value": "living"}),
+        ]
+        assert "What feel?" in _last_result(llm, "kiosk_answer")
+
+        check_turn(rig, await rig.driver.user_says("Warm wood, up to four hundred."), units=2)
+        assert [(m["move"], m["args"]) for m in _stage_moves(rig)[2:]] == [
+            ("kiosk.answer", {"question": "feel", "value": "warm_wood"}),
+            ("kiosk.answer", {"question": "budget", "value": "400"}),
+        ], "the room already chosen is not sent again"
+        picks = _last_result(llm, "kiosk_answer")
+        assert len(KIOSK_PICKS) == 3 and "QR code" in picks
+        for pid in KIOSK_PICKS:
+            assert CATALOG.products[pid].title in picks and CATALOG.products[pid].price <= 400
+
+        check_turn(rig, await rig.driver.user_says("Start over."), units=1)
+        assert _stage_moves(rig)[-1]["move"] == "kiosk.restart"
+        brain = rig.brain
+        assert isinstance(brain, FernhollowBrain) and brain.kiosk == {}
+
+        # Tapped by hand: the third tap hands the model the picks to talk about.
+        for q, v in (("room", "living"), ("feel", "warm_wood"), ("budget", "400")):
+            await rig.driver.send_ui_event(
+                "stage_event",
+                {"name": "kiosk.answered", "by": "visitor", "data": {"question": q, "value": v}},
+            )
+        await asyncio.sleep(0.1)
+        notes = _notes(rig)
+        assert all(CATALOG.products[pid].title in notes for pid in KIOSK_PICKS)

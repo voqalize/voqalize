@@ -1,7 +1,7 @@
 {
   "$schema": "../../../../../sdk/js/stage/stage.schema.json",
   "stage": 1,
-  "id": "fernhollow_returns",
+  "id": "fernhollow",
   "languages": [
     "en"
   ],
@@ -124,6 +124,156 @@
       "objects": [
         "return"
       ]
+    },
+    {
+      "id": "size.answer",
+      "class": "reversible",
+      "args": [
+        {
+          "name": "question",
+          "doc": "A size-finder question by its id.",
+          "enum": [
+            "kind",
+            "mattress",
+            "sleepers",
+            "room",
+            "place",
+            "layout",
+            "drop"
+          ]
+        },
+        {
+          "name": "value",
+          "doc": "One of the question's option values as content/size_guide.json names them: bed, queen, none, roomy, dining_table, front_legs, floor."
+        }
+      ],
+      "doc": "On the size guide, ring the finder's option and choose it, as a tap does. Choosing what is being sized (kind) clears the answers under it. Refused with the question's values when the value is not one of them.",
+      "claims": [
+        "for your",
+        "in the size"
+      ],
+      "objects": [
+        "size",
+        "guide"
+      ]
+    },
+    {
+      "id": "gifts.set",
+      "class": "reversible",
+      "args": [
+        {
+          "name": "recipient",
+          "doc": "Who it is for, by the gift edit's id.",
+          "optional": true,
+          "enum": [
+            "partner",
+            "parent",
+            "sibling",
+            "friend",
+            "host",
+            "colleague"
+          ]
+        },
+        {
+          "name": "occasion",
+          "doc": "The occasion, by the gift edit's id.",
+          "optional": true,
+          "enum": [
+            "housewarming",
+            "birthday",
+            "thank_you",
+            "wedding",
+            "just_because"
+          ]
+        },
+        {
+          "name": "budget",
+          "doc": "A budget chip in dollars: 30, 50, 80, 100, 150, 250 or 500.",
+          "type": "integer",
+          "optional": true
+        }
+      ],
+      "doc": "On the gift edit, ring each control given and set it, one after another, as taps do; the short list below follows. Refused with the chips when a budget is not one of them.",
+      "objects": [
+        "gift",
+        "edit"
+      ]
+    },
+    {
+      "id": "orders.open",
+      "class": "look",
+      "args": [
+        {
+          "name": "order_number",
+          "doc": "A sample order's number, FH-31207."
+        }
+      ],
+      "doc": "On the orders page, open one order's tracking timeline and ring it.",
+      "objects": [
+        "order"
+      ]
+    },
+    {
+      "id": "orders.reschedule",
+      "class": "reversible",
+      "args": [
+        {
+          "name": "order_number",
+          "doc": "The order's number, FH-31207."
+        },
+        {
+          "name": "slot",
+          "doc": "One of the order's authored delivery slots by id, d3-morning."
+        }
+      ],
+      "doc": "Open the order's delivery-day picker, ring the slot and choose it, as a tap and Save do. Refused when the order cannot move (it is on the van or delivered) or the slot is not one it offers, with the slots it does offer.",
+      "claims": [
+        "moved your delivery",
+        "moving your delivery"
+      ],
+      "objects": [
+        "delivery",
+        "order"
+      ]
+    },
+    {
+      "id": "kiosk.start",
+      "class": "reversible",
+      "doc": "On the showroom kiosk, leave the attract screen for the first question, as a tap on it does.",
+      "objects": [
+        "kiosk"
+      ]
+    },
+    {
+      "id": "kiosk.answer",
+      "class": "reversible",
+      "args": [
+        {
+          "name": "question",
+          "doc": "A kiosk question by its id.",
+          "enum": [
+            "room",
+            "feel",
+            "budget"
+          ]
+        },
+        {
+          "name": "value",
+          "doc": "One of its option values as content/kiosk.json names them: living, warm_wood, 400."
+        }
+      ],
+      "doc": "On the kiosk, ring an option tile and choose it; after the third answer the three picks and the QR code show. Refused with the options when the value is not one of them.",
+      "objects": [
+        "kiosk"
+      ]
+    },
+    {
+      "id": "kiosk.restart",
+      "class": "reversible",
+      "doc": "Clear the kiosk's answers and go back to the attract screen, as Start over does.",
+      "objects": [
+        "kiosk"
+      ]
     }
   ],
   "slices": [
@@ -153,6 +303,75 @@
           "doc": "The return's reference, once submitted: RT-20418-1."
         }
       ]
+    },
+    {
+      "id": "size_finder",
+      "doc": "the size guide's finder: the question just answered, its value and the size the guide picked, if any",
+      "fields": [
+        {
+          "name": "question",
+          "optional": true
+        },
+        {
+          "name": "value",
+          "optional": true
+        },
+        {
+          "name": "size",
+          "optional": true
+        }
+      ]
+    },
+    {
+      "id": "gift_edit",
+      "doc": "the gift edit's controls: who it is for, the occasion and the budget chip",
+      "fields": [
+        {
+          "name": "recipient",
+          "optional": true
+        },
+        {
+          "name": "occasion",
+          "optional": true
+        },
+        {
+          "name": "budget",
+          "type": "integer",
+          "optional": true
+        }
+      ]
+    },
+    {
+      "id": "orders",
+      "doc": "the orders page: the order open and its delivery slot by id",
+      "fields": [
+        {
+          "name": "order_number",
+          "optional": true
+        },
+        {
+          "name": "slot",
+          "optional": true
+        }
+      ]
+    },
+    {
+      "id": "kiosk",
+      "doc": "the showroom kiosk: the screen it is on (attract, room, feel, budget, picks) and the answer just given",
+      "fields": [
+        {
+          "name": "screen",
+          "optional": true
+        },
+        {
+          "name": "question",
+          "optional": true
+        },
+        {
+          "name": "value",
+          "optional": true
+        }
+      ]
     }
   ],
   "events": [
@@ -180,6 +399,54 @@
       "react": "speak",
       "ask": "thank them and say what happens next, in one line",
       "doc": "The shopper pressed Submit return."
+    },
+    {
+      "id": "size.answered",
+      "slice": "size_finder",
+      "op": "merge",
+      "note": "{by} answered {question}: {value} on the size finder",
+      "react": "note",
+      "doc": "A size-finder question was answered (the size the guide picked rides along)."
+    },
+    {
+      "id": "gifts.changed",
+      "slice": "gift_edit",
+      "op": "merge",
+      "note": "{by} set the gift edit to {recipient}, {occasion}, up to {budget} dollars",
+      "react": "note",
+      "doc": "A gift-edit control changed."
+    },
+    {
+      "id": "orders.opened",
+      "slice": "orders",
+      "op": "merge",
+      "note": "{by} opened order {order_number}",
+      "react": "note",
+      "doc": "An order's tracking was opened."
+    },
+    {
+      "id": "orders.delivery_changed",
+      "slice": "orders",
+      "op": "merge",
+      "note": "{by} moved the delivery of {order_number} to {slot}",
+      "react": "note",
+      "doc": "An order's delivery day was changed and saved."
+    },
+    {
+      "id": "kiosk.screen",
+      "slice": "kiosk",
+      "op": "merge",
+      "note": "the kiosk is on {screen}",
+      "react": "note",
+      "doc": "The kiosk moved to another screen: attract, room, feel, budget or picks."
+    },
+    {
+      "id": "kiosk.answered",
+      "slice": "kiosk",
+      "op": "merge",
+      "note": "{by} chose {value} for {question} on the kiosk",
+      "react": "note",
+      "doc": "A kiosk question was answered."
     }
   ]
 }

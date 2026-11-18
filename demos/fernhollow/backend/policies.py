@@ -12,6 +12,7 @@ import re
 from typing import Any, Literal
 
 from .catalog import POLICIES_PATH
+from .persona import agent_text
 
 __all__ = ["POLICIES", "Topic", "policy_numbers", "policy_page", "policy_text"]
 
@@ -31,7 +32,7 @@ def policy_text(topic: Topic) -> list[str]:
         if key in _SKIP or not isinstance(value, str):
             continue
         label = "" if key in ("summary", "general") else f"{_label(key)}: "
-        text = value.strip()
+        text = agent_text(value.strip())
         out.append(f"{label}{text}" + ("" if text.endswith((".", "!", "?")) else "."))
     return out
 
