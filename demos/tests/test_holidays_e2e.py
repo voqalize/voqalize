@@ -1,0 +1,372 @@
+"""Wanderloom Holidays, end to end over the wire — no network, no LLM key.
+
+The real :class:`HolidaysBrain` on a real ``brain_server`` socket, driven by the
+conformance ``VoqalizeDriver``; only the model is scripted
+(:class:`~voqalize_demos.testing.ScriptedOpenAI`, flat tool arguments). Each
+landing page's main flow: the home page helps choose a destination and starts
+the brief; the trip builder takes a brief in one sentence, builds a priced
+package, edits it item by item ("swap the hotel in Ubud for something by the
+beach"), takes the visitor's own clicks, and ends at checkout with the visitor
+paying. Plus the language: English or Hindi from the page, and a switch mid-call.
+
+Run: ``cd demos && uv run pytest tests/test_holidays_e2e.py``
+"""
+
+from __future__ import annotations
+
+import asyncio
+import json
+from datetime import date
+from typing import Any
+
+from voqalize_demos.discovery import discover
+from voqalize_demos.testing import (
+    ScriptedOpenAI,
+    call,
+    input_texts,
+    replies,
+    reply,
+    reply_and_call,
+    tool_results_of,
+)
+
+from ._harness import DemoRig, check_greeting, check_turn, check_voice_pair, demo, demo_from
+
+discover()
+
+from voqalize_demos._loaded.holidays import engine as eng  # noqa: E402
+from voqalize_demos._loaded.holidays.brain import HolidaysBrain  # noqa: E402
+from voqalize_demos._loaded.holidays.persona import LANGUAGES  # noqa: E402
+
+TODAY = date(2026, 11, 18)
+
+
+def _moves(rig: DemoRig) -> list[dict[str, Any]]:
+    return [
+        dict(c.get("payload") or {})
+        for c in rig.driver.ui_commands
+        if c.get("command") == "stage_move"
+    ]
+
+
+def _move(rig: DemoRig, move: str) -> dict[str, Any]:
+    found = [m for m in _moves(rig) if m["move"] == move]
+    assert found, f"no {move} move; sent: {[m['move'] for m in _moves(rig)]}"
+    return found[-1]
+
+
+async def _page_answers(rig: DemoRig, answered: set[str]) -> None:
+    """The page lands every move it was sent (so the queue moves on)."""
+    for _ in range(4):
+        new = [m for m in _moves(rig) if m["call_ref"] not in answered]
+        if not new:
+            return
+        for m in new:
+            answered.add(m["call_ref"])
+            await rig.driver.send_ui_event(
+                "stage_result",
+                {
+                    "call_ref": m["call_ref"],
+                    "move": m["move"],
+                    "outcome": "applied",
+                    "detail": "done",
+                },
+            )
+        await asyncio.sleep(0.05)
+
+
+def _brain(rig: DemoRig) -> HolidaysBrain:
+    assert isinstance(rig.brain, HolidaysBrain)
+    return rig.brain
+
+
+def _rig(llm: ScriptedOpenAI):
+    return demo_from("holidays", lambda: HolidaysBrain(client=llm, today=TODAY))  # type: ignore[arg-type]
+
+
+async def test_the_trip_builder_takes_a_brief_builds_edits_and_checks_out() -> None:
+    llm = ScriptedOpenAI(
+        {
+            "Delhi to Bali": replies(
+                call(
+                    "set_trip",
+                    from_city="Delhi",
+                    destination="Bali",
+                    month="February",
+                    nights=6,
+                    adults=2,
+                    style="honeymoon",
+                ),
+                reply("Lovely. Shall I build the whole package, or go step by step?"),
+            ),
+            "build the whole thing": replies(
+                call("build_package"),
+                reply("{show: total} Here it is, all in, with two nights' worth of plans in Ubud."),
+            ),
+            "by the beach": replies(
+                call("show_hotels", city="Ubud", want="beach"),
+                reply(
+                    "Ubud is inland, so the beach hotels are in Seminyak. Want another night there?"
+                ),
+            ),
+            "move a night": reply_and_call(
+                "Moving a night to Seminyak.", "set_nights", city="Seminyak", nights=4
+            ),
+            "the flights": replies(
+                call("show_flights"),
+                reply("{show: flight 1} The first is the nonstop-free best value."),
+            ),
+            "second one": reply_and_call("Done.", "choose_flight", choice="2"),
+            "sunrise trek": reply_and_call(
+                "Adding it.", "add_activity", activity="Mount Batur sunrise trek", day=2
+            ),
+            "let's book": reply_and_call("Opening the review page.", "go_to_checkout"),
+        }
+    )
+    answered: set[str] = set()
+    async with _rig(llm) as rig:
+        greeting = await rig.driver.start_session(init={"page": "plan", "lang": "en"})
+        check_greeting(rig, greeting)
+        assert greeting is not None and greeting.text == LANGUAGES["en"].greeting_plan
+        check_voice_pair(rig, voice=LANGUAGES["en"].voice, language="en")
+        brain = _brain(rig)
+
+        # The brief, in one sentence.
+        t1 = await rig.driver.user_says(
+            "Delhi to Bali in February for six nights, my wife and I, it's our honeymoon"
+        )
+        check_turn(rig, t1)
+        brief = _move(rig, "trip.brief")["args"]
+        assert brief == {
+            "from_city": "DEL",
+            "destination": "bali",
+            "start_date": "2027-02-12",
+            "nights": 6,
+            "style": "honeymoon",
+        }, brief
+        result = tool_results_of(llm.captured_inputs[-1], "set_trip")[0]
+        assert "The brief is complete" in result
+        assert "Fri 12 Feb 2027" in result
+        assert brain.trip.split == [3, 3]
+        await _page_answers(rig, answered)
+
+        # The whole package, priced by the engine the page uses too.
+        t2 = await rig.driver.user_says("Just build the whole thing for us")
+        check_turn(rig, t2)
+        built = _move(rig, "trip.build")["args"]
+        expected = eng.build_package(brain.trip)
+        assert built["flight_id"] == expected.flight_id == "DEL-bali-2"
+        assert built["hotels"] == ["ubud:sayan-ridge:pool-villa", "seminyak:seminyak-shore:ocean"]
+        assert built["activities"][0] == "1:ubud-kecak"
+        package = tool_results_of(llm.captured_inputs[-1], "build_package")[0]
+        total = eng.price(brain.trip).total
+        assert eng.money(total) in package and "GST" in package
+        assert "Day 7" in package and "fly home" in package
+        await _page_answers(rig, answered)
+
+        # "Swap the hotel in Ubud for something by the beach": Ubud is inland.
+        t3 = await rig.driver.user_says(
+            "Can you swap the hotel in Ubud for something by the beach?"
+        )
+        check_turn(rig, t3)
+        hotels = tool_results_of(llm.captured_inputs[-1], "show_hotels")[0]
+        assert "No hotel in Ubud fits 'beach'. It is inland." in hotels
+        assert "Seminyak Shore Resort" in hotels
+        assert _move(rig, "trip.hotels")["args"] == {"city": "ubud"}
+        await _page_answers(rig, answered)
+
+        # Move a night to the beach; the itinerary follows.
+        t4 = await rig.driver.user_says("Then move a night to Seminyak")
+        check_turn(rig, t4)
+        assert _move(rig, "trip.nights")["args"] == {"split": ["2", "4"]}
+        assert brain.trip.split == [2, 4]
+        assert all(eng.can_add(brain.trip, a, d) is not None for d, a in brain.trip.activities)
+        await _page_answers(rig, answered)
+
+        # The visitor picks a room by hand: the brain's trip follows, and the
+        # model hears it, with the new total.
+        await rig.driver.send_ui_event(
+            "stage_event",
+            {
+                "name": "trip.hotel_picked",
+                "by": "visitor",
+                "data": {
+                    "city": "seminyak",
+                    "hotel_id": "petitenget-villas",
+                    "room_id": "one-bed",
+                    "label": "Petitenget Pool Villas, One-bedroom Pool Villa, in Seminyak",
+                },
+            },
+        )
+        await asyncio.sleep(0.1)
+        assert brain.trip.hotels["seminyak"] == ("petitenget-villas", "one-bed")
+
+        t5 = await rig.driver.user_says("And what are the flights?")
+        check_turn(rig, t5)
+        heard = input_texts(llm.captured_inputs[-2])
+        assert "The visitor picked Petitenget Pool Villas" in heard
+        assert eng.money(eng.price(brain.trip).total) in heard
+        flights = tool_results_of(llm.captured_inputs[-1], "show_flights")[0]
+        assert flights.startswith("2 options from Delhi")
+        assert "1. Lagoon Air" in flights and "(suggested" in flights
+        assert "18% " not in flights  # no invented numbers: season is said in words
+        await _page_answers(rig, answered)
+
+        t6 = await rig.driver.user_says("Take the second one")
+        check_turn(rig, t6)
+        assert brain.trip.flight_id == "DEL-bali-1"
+        assert _move(rig, "trip.flight")["args"] == {"flight_id": "DEL-bali-1"}
+        await _page_answers(rig, answered)
+
+        # A full-day trek on a day whose morning is taken is refused, with the days it fits.
+        t7 = await rig.driver.user_says("Add the sunrise trek on day 2")
+        check_turn(rig, t7)
+        await _page_answers(rig, answered)
+
+        t8 = await rig.driver.user_says("Looks great, let's book")
+        check_turn(rig, t8)
+        trek = tool_results_of(llm.captured_inputs[-1], "add_activity")[0]
+        assert trek == "Not added: the morning of day 2 is already taken.", trek
+        assert ("2", "ubud-batur-trek") not in [(str(d), a) for d, a in brain.trip.activities]
+        assert _move(rig, "trip.go")["args"] == {"page": "checkout"}
+        await _page_answers(rig, answered)
+
+        # The visitor pays by hand; the planner says the reference in the next quiet spell.
+        await rig.driver.send_ui_event(
+            "stage_event",
+            {"name": "trip.paid", "by": "visitor", "data": {"reference": "WL-482913", "total": 1}},
+        )
+        await asyncio.sleep(0.1)
+        assert brain.booked == "WL-482913"
+        assert brain._say_next is not None  # pyright: ignore[reportPrivateUsage]
+        assert "W L - 4 8 2 9 1 3" in brain._say_next()  # pyright: ignore[reportPrivateUsage]
+
+    # Every move the brain sent is one the page declares, and nothing else went to the page.
+    assert all(c.get("command") in ("stage_move", "stage_cue") for c in rig.driver.ui_commands)
+    assert llm.requests[0]["reasoning"] == {"effort": "medium"}
+
+
+async def test_the_home_page_helps_choose_and_starts_the_brief() -> None:
+    llm = ScriptedOpenAI(
+        {
+            "warm in December": replies(
+                call("list_destinations", month="December", style="family"),
+                reply("Goa and Dubai are both lovely in December. Which sounds better?"),
+            ),
+            "Goa sounds good": replies(
+                call(
+                    "set_trip",
+                    from_city="Bombay",
+                    destination="Goa",
+                    month="December",
+                    nights=4,
+                    adults=2,
+                    kids_ages=[6, 9],
+                    style="family",
+                ),
+                reply("{go: plan} I've put it all in. Shall I build it?"),
+            ),
+        }
+    )
+    async with _rig(llm) as rig:
+        greeting = await rig.driver.start_session(init={"page": "home", "lang": "en"})
+        assert greeting is not None and greeting.text == LANGUAGES["en"].greeting_home
+        assert "home page" in llm.captured_instructions[0] if llm.captured_instructions else True
+
+        t1 = await rig.driver.user_says("Somewhere warm in December with our two kids")
+        check_turn(rig, t1)
+        listed = tool_results_of(llm.captured_inputs[-1], "list_destinations")[0]
+        assert f"From {eng.money(eng.from_price('goa'))} per person from Delhi" in listed
+        assert "Goa (India)" in listed and "In season then." in listed
+        assert "The call started on the home page" in llm.captured_instructions[0]
+
+        t2 = await rig.driver.user_says("Goa sounds good, from Mumbai, four nights")
+        check_turn(rig, t2)
+        args = _move(rig, "trip.brief")["args"]
+        assert args["from_city"] == "BOM" and args["destination"] == "goa"
+        assert args["kids"] == ["6", "9"] and args["start_date"] == "2026-12-11"
+        cues = [
+            dict(c.get("payload") or {})
+            for c in rig.driver.ui_commands
+            if c.get("command") == "stage_cue"
+        ]
+        assert [(c["move"], c["args"]) for c in cues] == [("trip.go", ["plan"])]
+        assert "I've put it all in" in t2.text and "{" not in t2.text
+
+
+async def test_what_is_not_sold_is_said_and_not_invented() -> None:
+    llm = ScriptedOpenAI(
+        {
+            "Patna": replies(
+                call("set_trip", from_city="Patna", destination="Iceland", nights=5),
+                reply("We don't fly from Patna or sell Iceland. Where else could you leave from?"),
+            )
+        }
+    )
+    async with _rig(llm) as rig:
+        await rig.driver.start_session(init={"page": "plan"})
+        t1 = await rig.driver.user_says("From Patna to Iceland for five nights")
+        check_turn(rig, t1)
+        result = tool_results_of(llm.captured_inputs[-1], "set_trip")[0]
+        assert "Wanderloom does not fly from Patna" in result
+        assert "Wanderloom does not sell Iceland" in result
+        assert "Still need: where they fly from, where to, when" in result
+        # Only what the inventory can serve reaches the screen.
+        assert [m["args"] for m in _moves(rig) if m["move"] == "trip.brief"] == [{"nights": 5}]
+
+
+async def test_hindi_from_the_page_and_english_from_the_toggle() -> None:
+    llm = ScriptedOpenAI({"हिंदी": reply("ज़रूर।")})
+    async with _rig(llm) as rig:
+        greeting = await rig.driver.start_session(init={"page": "home", "lang": "hi"})
+        assert greeting is not None and greeting.text == LANGUAGES["hi"].greeting_home
+        check_voice_pair(rig, voice=LANGUAGES["hi"].voice, language="hi")
+        assert "This call is in Hindi" in llm.captured_instructions[0] if llm.requests else True
+
+        await rig.driver.send_ui_event("language_chosen", {"language": "en"})
+        await asyncio.sleep(0.1)
+        check_voice_pair(rig, voice=LANGUAGES["en"].voice, language="en")
+        brain = _brain(rig)
+        assert brain.lang == "en"
+        assert "This call is in English" in brain.system_instruction
+
+
+async def test_a_trip_built_by_hand_before_the_call_is_where_the_call_starts() -> None:
+    trip = {
+        "from_city": "BLR",
+        "destination": "kerala",
+        "start_date": "2026-12-18",
+        "nights": 5,
+        "adults": 2,
+        "kids": [6],
+        "split": [2, 2, 1],
+        "flight_id": "BLR-kerala-1",
+        "hotels": {"munnar": {"hotel_id": "cardamom-hills", "room_id": "family"}},
+        "activities": [{"day": 2, "activity_id": "munnar-tea-museum"}],
+    }
+    llm = ScriptedOpenAI({"total": replies(call("trip_summary"), reply("Here's where it stands."))})
+    async with _rig(llm) as rig:
+        await rig.driver.start_session(init={"page": "plan", "lang": "en", "trip": trip})
+        brain = _brain(rig)
+        assert brain.trip.flight_id == "BLR-kerala-1"
+        assert brain.trip.hotels == {"munnar": ("cardamom-hills", "family")}
+        t1 = await rig.driver.user_says("What's the total so far?")
+        check_turn(rig, t1)
+        summary = tool_results_of(llm.captured_inputs[-1], "trip_summary")[0]
+        assert "Cardamom Hills Inn" in summary and "Tea factory and museum tour" in summary
+        assert eng.money(eng.price(brain.trip).total) in summary
+
+
+def test_the_voice_and_languages_come_from_persona_json() -> None:
+    raw = json.loads((eng.DATA.parent / "persona.json").read_text())
+    assert {t: s.voice for t, s in LANGUAGES.items()} == {
+        t: v["voice"] for t, v in raw["languages"].items()
+    }
+    assert raw["name"] in LANGUAGES["en"].greeting_plan
+
+
+async def test_the_umbrella_factory_builds_the_brain() -> None:
+    async with demo("holidays", ScriptedOpenAI()) as rig:
+        greeting = await rig.driver.start_session()
+        check_greeting(rig, greeting)
+        check_voice_pair(rig, voice=LANGUAGES["en"].voice, language="en")

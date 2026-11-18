@@ -1,0 +1,165 @@
+{
+  "$schema": "../../../../../sdk/js/stage/stage.schema.json",
+  "stage": 1,
+  "id": "wanderloom",
+  "languages": ["en", "hi"],
+  "moves": [
+    {
+      "id": "trip.go",
+      "verb": "go",
+      "class": "navigate",
+      "args": [{ "name": "page", "enum": ["home", "plan", "checkout"], "doc": "home: the landing page with the destinations; plan: the trip builder; checkout: review and pay." }],
+      "say": "{go: plan} at the start of the sentence that takes them to the trip builder; {go: home} for the destinations.",
+      "claims": ["taking you to", "opening the planner", "le chalti hoon"],
+      "objects": ["planner", "checkout", "destinations"],
+      "doc": "Go to one of the site's pages, ringing the link first."
+    },
+    {
+      "id": "trip.step",
+      "verb": "step",
+      "class": "navigate",
+      "args": [{ "name": "step", "enum": ["brief", "flights", "hotels", "days", "package"], "doc": "A step of the trip builder." }],
+      "say": "{step: flights} as you start talking about that step of the trip builder: brief, flights, hotels, days or package.",
+      "doc": "Open a step of the trip builder and ring its tab. Refused while the brief is missing what that step needs."
+    },
+    {
+      "id": "trip.show",
+      "verb": "show",
+      "class": "look",
+      "args": [{ "name": "target", "doc": "Something on screen by the name it shows: flight 2, Sayan Ridge Villas, day 3, total, price breakdown." }],
+      "say": "{show: day 3} right before the sentence about it, to ring it on screen; {show: flight 1}, {show: total}.",
+      "doc": "Scroll to a named thing on the page and ring it. Changes nothing."
+    },
+    {
+      "id": "trip.brief",
+      "class": "reversible",
+      "args": [
+        { "name": "from_city", "optional": true, "doc": "Airport code of the city they fly from: DEL, BOM, BLR, MAA, CCU, HYD, AMD, PNQ." },
+        { "name": "destination", "optional": true, "doc": "Destination id: kerala, goa, rajasthan, bali, dubai, thailand, singapore, maldives, switzerland." },
+        { "name": "start_date", "optional": true, "doc": "Departure date from home, YYYY-MM-DD." },
+        { "name": "nights", "type": "integer", "optional": true },
+        { "name": "adults", "type": "integer", "optional": true },
+        { "name": "kids", "type": "array", "optional": true, "doc": "Each child's age, 0 to 11, as digits (\"6\"). Strings, because a move's array arguments travel as strings." },
+        { "name": "budget", "type": "integer", "optional": true, "doc": "Total budget in rupees for everyone, 0 for none." },
+        { "name": "style", "optional": true, "enum": ["relaxed", "adventure", "honeymoon", "family"] }
+      ],
+      "claims": ["filling in your trip", "putting in your dates"],
+      "objects": ["brief", "dates", "travellers"],
+      "doc": "Fill the trip brief's fields that are given, ringing each one; the page opens the brief step if it is not on it."
+    },
+    {
+      "id": "trip.flights",
+      "class": "navigate",
+      "args": [{ "name": "sort", "enum": ["recommended", "price", "duration", "departure"], "default": "recommended" }],
+      "claims": ["showing you the flights", "pulling up flights"],
+      "objects": ["flights", "flight options", "fares"],
+      "doc": "Open the flights step with the options for the brief, sorted."
+    },
+    {
+      "id": "trip.flight",
+      "class": "reversible",
+      "args": [{ "name": "flight_id", "doc": "A flight option id from the inventory, DEL-bali-2." }],
+      "claims": ["picking the", "booking the flight"],
+      "objects": ["flight"],
+      "doc": "Ring a flight option and select it."
+    },
+    {
+      "id": "trip.hotels",
+      "class": "navigate",
+      "args": [
+        { "name": "city", "doc": "City id: ubud, seminyak, munnar…" },
+        { "name": "want", "optional": true, "doc": "A tag to filter by: beach, pool, budget, luxury, family, honeymoon, relaxed, adventure, culture." }
+      ],
+      "claims": ["showing you hotels", "pulling up hotels"],
+      "objects": ["hotels", "hotel options", "stays"],
+      "doc": "Open the hotels step on one city's tab, optionally filtered by a tag."
+    },
+    {
+      "id": "trip.hotel",
+      "class": "reversible",
+      "args": [
+        { "name": "city", "doc": "City id." },
+        { "name": "hotel_id" },
+        { "name": "room_id" }
+      ],
+      "claims": ["swapping the hotel", "switching the hotel", "booking the hotel"],
+      "objects": ["hotel", "room"],
+      "doc": "Ring a hotel's room in a city and select it, replacing that city's hotel."
+    },
+    {
+      "id": "trip.nights",
+      "class": "reversible",
+      "args": [{ "name": "split", "type": "array", "doc": "Nights in each city of the destination, in route order, as digits (\"2\", \"4\"), summing to the trip's nights. Strings, because a move's array arguments travel as strings." }],
+      "claims": ["moving a night", "changing the nights"],
+      "objects": ["nights"],
+      "doc": "Set how the nights are split across the destination's cities; activities on days that move city are dropped."
+    },
+    {
+      "id": "trip.add",
+      "class": "reversible",
+      "args": [
+        { "name": "activity_id" },
+        { "name": "day", "type": "integer", "doc": "Day of the holiday, 1 = arrival day." }
+      ],
+      "claims": ["adding the", "adding a"],
+      "objects": ["activity", "day", "itinerary"],
+      "doc": "Ring a day and add an activity to it."
+    },
+    {
+      "id": "trip.remove",
+      "class": "reversible",
+      "args": [
+        { "name": "activity_id" },
+        { "name": "day", "type": "integer" }
+      ],
+      "claims": ["removing the", "taking out the", "dropping the"],
+      "objects": ["activity"],
+      "doc": "Ring an activity on a day and take it off."
+    },
+    {
+      "id": "trip.build",
+      "class": "reversible",
+      "args": [
+        { "name": "flight_id" },
+        { "name": "hotels", "type": "array", "doc": "One per city with nights, as city:hotel_id:room_id." },
+        { "name": "activities", "type": "array", "doc": "As day:activity_id." }
+      ],
+      "claims": ["building your package", "putting your package together", "putting the package together"],
+      "objects": ["package", "holiday", "itinerary"],
+      "doc": "Lay a whole package on the page: the flight, a hotel per city, the activities, then open the package step with the priced day-by-day plan."
+    }
+  ],
+  "slices": [
+    {
+      "id": "trip",
+      "doc": "the last change made to the trip on screen, by ids, as the page reports it",
+      "fields": [
+        { "name": "step", "optional": true },
+        { "name": "field", "optional": true },
+        { "name": "value", "optional": true },
+        { "name": "flight_id", "optional": true },
+        { "name": "city", "optional": true },
+        { "name": "hotel_id", "optional": true },
+        { "name": "room_id", "optional": true },
+        { "name": "split", "type": "array", "items": { "type": "integer" }, "optional": true },
+        { "name": "activity_id", "optional": true },
+        { "name": "day", "type": "integer", "optional": true },
+        { "name": "label", "optional": true },
+        { "name": "total", "type": "integer", "optional": true },
+        { "name": "reference", "optional": true },
+        { "name": "page", "optional": true }
+      ]
+    }
+  ],
+  "events": [
+    { "id": "trip.brief_changed", "slice": "trip", "note": "{by} set the brief's {field} to {value}", "doc": "One field of the brief changed." },
+    { "id": "trip.flight_picked", "slice": "trip", "note": "{by} picked the flight {label}" },
+    { "id": "trip.hotel_picked", "slice": "trip", "note": "{by} picked {label}" },
+    { "id": "trip.nights_changed", "slice": "trip", "note": "{by} changed the nights: {label}" },
+    { "id": "trip.activity_added", "slice": "trip", "note": "{by} added {label}" },
+    { "id": "trip.activity_removed", "slice": "trip", "note": "{by} removed {label}" },
+    { "id": "trip.step_changed", "slice": "trip", "react": "silent", "note": "{by} opened the {step} step" },
+    { "id": "trip.page_changed", "slice": "trip", "react": "silent", "note": "{by} is on the {page} page" },
+    { "id": "trip.paid", "slice": "trip", "react": "speak", "ask": "congratulate them in one short line and read the booking reference", "note": "{by} paid; booking {reference}" }
+  ]
+}
