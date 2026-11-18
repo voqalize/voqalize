@@ -1,0 +1,453 @@
+/* ── The front desk's dock and call tile ─────────────────────────────── */
+.dock {
+  position: fixed;
+  left: 50%;
+  bottom: calc(18px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 55;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px;
+  min-width: 300px;
+  max-width: calc(100vw - 32px);
+  background: rgba(255, 255, 255, 0.97);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  box-shadow: 0 16px 40px -14px rgba(22, 41, 42, 0.35);
+  animation: dock-in 0.6s var(--ease) 0.4s both;
+  transition: opacity 0.25s ease, translate 0.3s var(--ease);
+}
+@keyframes dock-in {
+  from {
+    opacity: 0;
+    translate: 0 20px;
+  }
+}
+@keyframes pop {
+  from {
+    opacity: 0;
+    scale: 0.8;
+  }
+}
+.dock-face {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  flex: none;
+}
+.dock-face-slot {
+  background: transparent;
+}
+.dock-avatar {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.dock-text {
+  min-width: 0;
+  flex: 1;
+  padding-right: 4px;
+}
+.dock-name {
+  margin: 0;
+  font-weight: 650;
+  font-size: 14px;
+  line-height: 1.2;
+}
+.dock-status {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 220px;
+}
+.dock.is-listening .dock-status::before {
+  content: "";
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--brand-2);
+  margin-right: 6px;
+  animation: blink 1.4s ease-in-out infinite;
+}
+@keyframes blink {
+  50% {
+    opacity: 0.3;
+  }
+}
+.dock-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 44px;
+  padding: 0 18px;
+  border-radius: 999px;
+  background: var(--brand);
+  color: #fff;
+  font-weight: 600;
+  font-size: 14px;
+  flex: none;
+}
+.dock-cta:hover:not(:disabled) {
+  background: var(--brand-ink);
+}
+.dock-cta:disabled {
+  background: #eef1ec;
+  color: var(--muted);
+}
+.dock-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: #eef1ec;
+  flex: none;
+}
+.dock-btn[aria-pressed="true"] {
+  background: var(--ink);
+  color: #fff;
+}
+.dock-end {
+  background: var(--danger);
+  color: #fff;
+}
+.dock.is-compact {
+  left: auto;
+  right: max(16px, env(safe-area-inset-right));
+  transform: none;
+  min-width: 0;
+  width: auto;
+  gap: 6px;
+  padding: 5px;
+  animation: pop 0.3s var(--ease);
+}
+.dock.is-compact .dock-text,
+.dock.is-compact .dock-cta-label {
+  display: none;
+}
+.dock.is-compact .dock-cta {
+  width: 44px;
+  padding: 0;
+  justify-content: center;
+}
+.dock.is-hidden,
+.dock.is-calling {
+  opacity: 0;
+  translate: 0 24px;
+  pointer-events: none;
+}
+
+.call-tile {
+  position: fixed;
+  z-index: 57;
+  display: flex;
+  flex-direction: column;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--brand-soft);
+  box-shadow: 0 0 0 2px #fff, 0 0 0 3.5px rgba(13, 92, 94, 0.45);
+  transition:
+    left 0.45s var(--ease),
+    top 0.45s var(--ease),
+    width 0.45s var(--ease),
+    height 0.45s var(--ease),
+    border-radius 0.45s var(--ease),
+    opacity 0.25s ease;
+  touch-action: none;
+  outline: none;
+}
+.call-tile.is-docked {
+  pointer-events: none;
+  animation: dock-in 0.6s var(--ease) 0.4s both;
+}
+.app:has(.dock.is-compact) .call-tile.is-docked {
+  animation: pop 0.3s var(--ease);
+}
+.call-tile.is-parked {
+  opacity: 0;
+}
+.call-tile.is-snap {
+  transition: none;
+}
+.call-tile.is-tile {
+  border-radius: 14px;
+  background: var(--brand-ink);
+  color: #fff;
+  box-shadow:
+    0 0 0 5px var(--brand-ink),
+    0 0 0 6px rgba(255, 255, 255, 0.2),
+    0 26px 50px -18px rgba(22, 41, 42, 0.6);
+  cursor: grab;
+}
+.call-tile.is-tile .call-face {
+  border-radius: 10px;
+}
+.call-tile.is-tile .call-who {
+  display: none;
+}
+.call-tile.is-tile .call-bar {
+  justify-content: center;
+  padding: 6px;
+}
+.call-tile.is-mini {
+  border-radius: 50%;
+  cursor: grab;
+}
+.call-tile.is-dragging {
+  cursor: grabbing;
+}
+.call-tile:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+.call-face {
+  position: relative;
+  flex: none;
+  width: 100%;
+  overflow: hidden;
+  background: linear-gradient(180deg, #eef4f2 0%, #dfeae7 100%);
+}
+.call-tile.is-docked .call-face,
+.call-tile.is-mini .call-face {
+  height: 100% !important;
+}
+.call-face > .dock-avatar {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.call-tag {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(8, 63, 65, 0.78);
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 650;
+}
+.call-state {
+  position: absolute;
+  left: 6px;
+  bottom: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 20px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  font-size: 10.5px;
+  font-weight: 620;
+  color: var(--ink-2);
+}
+.call-state::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--muted);
+}
+.call-state.is-listening::before {
+  background: var(--brand-2);
+  animation: blink 1.4s ease-in-out infinite;
+}
+.call-state.is-speaking::before {
+  background: var(--accent);
+  animation: blink 0.7s ease-in-out infinite;
+}
+.call-bar {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 0;
+}
+.call-controls {
+  display: flex;
+  gap: 8px;
+}
+.call-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+}
+.call-btn:hover {
+  background: rgba(255, 255, 255, 0.28);
+}
+.call-btn[aria-pressed="true"] {
+  background: #fff;
+  color: var(--ink);
+}
+.call-btn svg {
+  width: 14px;
+  height: 14px;
+}
+.call-end,
+.call-end:hover {
+  background: var(--danger);
+}
+.call-expand {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: #fff;
+  color: var(--ink);
+}
+@media (max-width: 599px) {
+  .dock {
+    min-width: 0;
+    bottom: calc(12px + env(safe-area-inset-bottom));
+  }
+}
+
+/* ── ?debug=1 move console ──────────────────────────────────────────── */
+.debug {
+  position: fixed;
+  top: calc(var(--header-h) + 10px);
+  right: 10px;
+  z-index: 70;
+  width: 340px;
+  max-height: calc(100vh - var(--header-h) - 120px);
+  overflow: auto;
+  background: #10201f;
+  color: #dfeae7;
+  border-radius: 10px;
+  padding: 10px;
+  font-size: 12px;
+  box-shadow: 0 20px 50px -20px rgba(0, 0, 0, 0.6);
+}
+.debug-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.debug-head span {
+  flex: 1;
+  color: #8fb0aa;
+}
+.debug .icon-btn {
+  color: #dfeae7;
+}
+.debug-moves {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.debug-move,
+.debug button:not(.icon-btn) {
+  padding: 3px 7px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #dfeae7;
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+}
+.debug-move.is-on {
+  background: var(--accent);
+  color: #1a1000;
+}
+.debug-args {
+  width: 100%;
+  height: 150px;
+  margin: 8px 0;
+  background: #0a1716;
+  color: #cfe3de;
+  border: 1px solid #284241;
+  border-radius: 6px;
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+  padding: 6px;
+}
+.debug-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 6px 0;
+}
+.debug .debug-run {
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
+  background: var(--brand-2) !important;
+  color: #fff !important;
+}
+.debug-result {
+  white-space: pre-wrap;
+  background: #0a1716;
+  border-radius: 6px;
+  padding: 6px;
+  font-size: 11px;
+  max-height: 140px;
+  overflow: auto;
+}
+.debug-events p {
+  margin: 6px 0 4px;
+  color: #8fb0aa;
+}
+.debug-events ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 3px;
+}
+.debug-events li {
+  word-break: break-all;
+}
+.debug-events code {
+  color: var(--accent);
+}
+.debug-fab {
+  position: fixed;
+  top: calc(var(--header-h) + 10px);
+  right: 10px;
+  z-index: 70;
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  padding: 7px 11px;
+  border-radius: 999px;
+  background: #10201f;
+  color: #dfeae7;
+  font-size: 12px;
+}
+
+/* Her initial, under the avatar until its runtime has drawn the face. */
+.face-initial {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-family: var(--serif);
+  font-size: clamp(20px, 30%, 80px);
+  color: var(--brand);
+  background: radial-gradient(circle at 50% 36%, #fff 0%, var(--brand-soft) 60%, #cfe2de 100%);
+}
+.call-tile.is-tile .face-initial {
+  font-size: 64px;
+}
+.call-tile.is-docked .face-initial {
+  font-size: 21px;
+}
