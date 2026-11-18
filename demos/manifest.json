@@ -75,6 +75,11 @@
       "name": "fernhollow",
       "title": "Fernhollow Home",
       "tagline": "A home & furniture store where Emily, a design adviser, furnishes a room by voice: matching sets within budget, comparisons, look-alikes and real sale prices, all on screen."
+    },
+    {
+      "name": "property",
+      "title": "Kosha Homes",
+      "tagline": "A residential property site where Karthik, a property guide, narrows homes by budget, BHK and commute as the filters and map move, compares them, works out the EMI and books a site visit, in English or Hindi."
     }
   ]
 }

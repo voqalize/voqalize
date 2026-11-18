@@ -220,6 +220,12 @@ DEMOS: dict[str, Expected] = {
     # a gallery card (the page is Uno Salud's own site). Asserted in
     # test_unosalud_e2e.py.
     "unosalud": Expected(voice="omnivoice/javier", language="es", provider="openai"),
+    # Karthik, Kosha Homes' property guide and visit booker: the persona file
+    # (demos/property/persona.json) names his voice and languages; with no `lang`
+    # in the payload he opens in its default, English, and the toggle or the
+    # visitor's Hindi moves both legs — karthik in both. Asserted in
+    # test_property_e2e.py.
+    "property": Expected(voice="omnivoice/karthik", language="en", provider="openai"),
 }
 
 
