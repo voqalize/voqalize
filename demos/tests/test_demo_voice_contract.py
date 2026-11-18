@@ -220,6 +220,11 @@ DEMOS: dict[str, Expected] = {
     # a gallery card (the page is Uno Salud's own site). Asserted in
     # test_unosalud_e2e.py.
     "unosalud": Expected(voice="omnivoice/javier", language="es", provider="openai"),
+    # Meera, Dantika Dental's front desk (demos/dental/persona.json): the page's
+    # EN / Hindi toggle rides `init.lang` and the brain configures both legs from
+    # it; nothing in the payload means English. Hindi, and the toggle mid-call,
+    # are asserted in test_dental_e2e.py.
+    "dental": Expected(voice="omnivoice/meera", language="en", provider="openai"),
 }
 
 
