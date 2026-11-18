@@ -58,12 +58,16 @@ async function flow(label, path, button, size, fake) {
   await page.waitForTimeout(500);
   if (fake) await page.getByRole("button", { name: fake, exact: true }).click();
   await page.getByRole("button", { name: button }).click();
+  // The console is a dev tool: collapse it as soon as the script starts, so
+  // neither frame shows it over the page (on a phone it covers the content).
+  await page.locator(".debug-head").click();
   await page.waitForTimeout(2600);
   await page.screenshot({ path: `${OUT}/flow-${label}-${size}-mid.png` });
-  await page.waitForFunction(() => !document.querySelector("[data-debug-console] .debug-scripts button:disabled"), null, { timeout: 30000 });
-  await page.waitForTimeout(1200);
-  // The console is a dev tool: collapse it for the final frame.
+  // Open it again only to see when the script has finished, then collapse it.
   await page.locator(".debug-head").click();
+  await page.waitForFunction(() => !document.querySelector("[data-debug-console] .debug-scripts button:disabled"), null, { timeout: 30000 });
+  await page.locator(".debug-head").click();
+  await page.waitForTimeout(1200);
   await page.screenshot({ path: `${OUT}/flow-${label}-${size}-end.png` });
   await page.close();
 }
