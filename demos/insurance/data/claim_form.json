@@ -1,0 +1,85 @@
+{
+  "$comment": "The claim form, read by the brain (backend/claims.py) and the page (frontend/src/claim/). Field ids are the contract: the page's inputs use them as `name` and `data-stage-part`, the brain's claim.fill moves name them. `show_if` hides a field (and drops its requirement) unless another field has one of the listed values. `options_from`: `policies` = the customer's policies of the claim's type; `members` = the insured members of the chosen health policy; `garages` / `hospitals` = data/network.json (plus an `other` option). Dates are YYYY-MM-DD, times HH:MM (24h).",
+  "types": [
+    { "id": "motor", "label": "Motor claim", "hint": "Car or two-wheeler: accident, theft, fire, flood, vandalism or glass", "products": ["car", "bike"] },
+    { "id": "health", "label": "Health claim", "hint": "Hospitalisation: cashless or reimbursement", "products": ["health"] }
+  ],
+  "sections": [
+    { "id": "policy", "title": "Policy and contact", "types": ["motor", "health"], "fields": [
+      { "id": "policy_id", "label": "Policy", "type": "select", "options_from": "policies" },
+      { "id": "contact_phone", "label": "Mobile number", "type": "text", "prefill": "profile.phone" },
+      { "id": "contact_email", "label": "Email", "type": "text", "prefill": "profile.email" }
+    ] },
+    { "id": "incident", "title": "What happened", "types": ["motor"], "fields": [
+      { "id": "incident_kind", "label": "Type of incident", "type": "select", "options": [
+        { "value": "accident", "label": "Accident or collision" }, { "value": "theft", "label": "Theft" }, { "value": "fire", "label": "Fire" },
+        { "value": "flood", "label": "Flood or waterlogging" }, { "value": "vandalism", "label": "Vandalism" }, { "value": "glass", "label": "Glass breakage only" } ] },
+      { "id": "incident_date", "label": "Date", "type": "date" },
+      { "id": "incident_time", "label": "Time (approximate)", "type": "time" },
+      { "id": "incident_city", "label": "City", "type": "text" },
+      { "id": "incident_location", "label": "Place (road, landmark)", "type": "text" },
+      { "id": "description", "label": "What happened, in your words", "type": "textarea" },
+      { "id": "vehicle_drivable", "label": "Can the vehicle be driven?", "type": "select", "options": [ { "value": "yes", "label": "Yes" }, { "value": "no", "label": "No" } ] }
+    ] },
+    { "id": "driver", "title": "Who was driving", "types": ["motor"], "fields": [
+      { "id": "driver_is_policyholder", "label": "Were you driving?", "type": "select", "show_if": { "incident_kind": ["accident", "glass"] }, "options": [ { "value": "yes", "label": "Yes, I was" }, { "value": "no", "label": "Someone else was" } ] },
+      { "id": "driver_name", "label": "Driver's name", "type": "text", "show_if": { "driver_is_policyholder": ["no"] } },
+      { "id": "driver_licence", "label": "Driving licence number", "type": "text", "show_if": { "incident_kind": ["accident", "glass"] } }
+    ] },
+    { "id": "other_party", "title": "Anyone else involved", "types": ["motor"], "fields": [
+      { "id": "other_party_involved", "label": "Was another vehicle or person involved?", "type": "select", "show_if": { "incident_kind": ["accident"] }, "options": [ { "value": "no", "label": "No" }, { "value": "yes", "label": "Yes" } ] },
+      { "id": "other_vehicle_number", "label": "Their vehicle number", "type": "text", "optional": true, "show_if": { "other_party_involved": ["yes"] } },
+      { "id": "other_party_name", "label": "Their name", "type": "text", "optional": true, "show_if": { "other_party_involved": ["yes"] } },
+      { "id": "injuries", "label": "Was anyone hurt?", "type": "select", "show_if": { "incident_kind": ["accident"] }, "options": [ { "value": "none", "label": "No one" }, { "value": "minor", "label": "Minor injuries" }, { "value": "serious", "label": "Serious injuries" } ] }
+    ] },
+    { "id": "police", "title": "Police report", "types": ["motor"], "fields": [
+      { "id": "police_reported", "label": "Was it reported to the police?", "type": "select", "options": [ { "value": "no", "label": "No" }, { "value": "yes", "label": "Yes" } ] },
+      { "id": "fir_number", "label": "FIR or complaint number", "type": "text", "show_if": { "police_reported": ["yes"] } },
+      { "id": "police_station", "label": "Police station", "type": "text", "show_if": { "police_reported": ["yes"] } }
+    ] },
+    { "id": "garage", "title": "Repairs", "types": ["motor"], "fields": [
+      { "id": "garage_id", "label": "Garage", "type": "select", "options_from": "garages", "show_if": { "incident_kind": ["accident", "fire", "flood", "vandalism", "glass"] } },
+      { "id": "garage_other_name", "label": "Garage name and address", "type": "text", "show_if": { "garage_id": ["other"] } },
+      { "id": "vehicle_location", "label": "Where is the vehicle now?", "type": "select", "show_if": { "incident_kind": ["accident", "fire", "flood", "vandalism", "glass"] }, "options": [ { "value": "at_garage", "label": "At the garage" }, { "value": "at_home", "label": "At home" }, { "value": "roadside", "label": "At the spot" } ] },
+      { "id": "estimate_amount", "label": "Repair estimate, if you have one (₹)", "type": "money", "optional": true, "show_if": { "incident_kind": ["accident", "fire", "flood", "vandalism", "glass"] } }
+    ] },
+    { "id": "patient", "title": "Patient and hospital", "types": ["health"], "fields": [
+      { "id": "patient_member", "label": "Patient", "type": "select", "options_from": "members" },
+      { "id": "claim_mode", "label": "Claim type", "type": "select", "options": [ { "value": "cashless", "label": "Cashless (network hospital)" }, { "value": "reimbursement", "label": "Reimbursement (I paid the hospital)" } ] },
+      { "id": "hospital_id", "label": "Hospital", "type": "select", "options_from": "hospitals" },
+      { "id": "hospital_other_name", "label": "Hospital name and city", "type": "text", "show_if": { "hospital_id": ["other"] } }
+    ] },
+    { "id": "treatment", "title": "Treatment", "types": ["health"], "fields": [
+      { "id": "admission_date", "label": "Date of admission", "type": "date" },
+      { "id": "discharge_date", "label": "Date of discharge (leave empty if still admitted)", "type": "date", "optional": true },
+      { "id": "ailment", "label": "Illness or injury", "type": "text" },
+      { "id": "treatment_kind", "label": "Treatment", "type": "select", "options": [ { "value": "medical", "label": "Medical management" }, { "value": "surgical", "label": "Surgery" }, { "value": "daycare", "label": "Day-care procedure" }, { "value": "accident", "label": "Accident treatment" } ] },
+      { "id": "treating_doctor", "label": "Treating doctor", "type": "text" },
+      { "id": "claim_amount", "label": "Amount claimed or estimated (₹)", "type": "money" }
+    ] },
+    { "id": "bank", "title": "Bank account for settlement", "types": ["motor", "health"], "note": "Payments go to this account by NEFT. Your account on file is offered first.", "fields": [
+      { "id": "account_holder", "label": "Account holder", "type": "text" },
+      { "id": "bank_name", "label": "Bank", "type": "text" },
+      { "id": "account_number", "label": "Account number", "type": "text" },
+      { "id": "ifsc", "label": "IFSC", "type": "text", "pattern": "^[A-Z]{4}0[A-Z0-9]{6}$" }
+    ] },
+    { "id": "documents", "title": "Documents", "types": ["motor", "health"], "fields": [] },
+    { "id": "review", "title": "Review and submit", "types": ["motor", "health"], "fields": [] }
+  ],
+  "documents": [
+    { "id": "driving_licence", "label": "Driving licence (front and back)", "types": ["motor"], "show_if": { "incident_kind": ["accident", "glass"] } },
+    { "id": "rc_copy", "label": "Registration certificate (RC)", "types": ["motor"] },
+    { "id": "damage_photos", "label": "Photos of the damage", "types": ["motor"], "show_if": { "incident_kind": ["accident", "fire", "flood", "vandalism", "glass"] } },
+    { "id": "fir_copy", "label": "Copy of the FIR", "types": ["motor"], "show_if": { "police_reported": ["yes"] } },
+    { "id": "repair_estimate", "label": "Garage estimate", "types": ["motor"], "optional": true, "show_if": { "incident_kind": ["accident", "fire", "flood", "vandalism", "glass"] } },
+    { "id": "discharge_summary", "label": "Discharge summary", "types": ["health"], "show_if": { "claim_mode": ["reimbursement"] } },
+    { "id": "hospital_bills", "label": "Final hospital bill and receipts", "types": ["health"], "show_if": { "claim_mode": ["reimbursement"] } },
+    { "id": "reports", "label": "Prescriptions and investigation reports", "types": ["health"], "show_if": { "claim_mode": ["reimbursement"] } },
+    { "id": "id_proof", "label": "Patient's photo ID", "types": ["health"] },
+    { "id": "cancelled_cheque", "label": "Cancelled cheque", "types": ["motor", "health"], "optional": true }
+  ],
+  "review": {
+    "declaration": "I declare that the information given in this claim form is true and complete to the best of my knowledge, and I authorise Chhatri Insurance to verify it with the hospital, garage or police as needed.",
+    "reference_format": "CLM-<M|H>-<6 digits>, e.g. CLM-M-260418"
+  }
+}

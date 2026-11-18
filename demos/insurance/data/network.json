@@ -1,0 +1,112 @@
+{
+  "$comment": "Fictional network garages and hospitals around Pune for the Chhatri Insurance demo. Names are invented and do not refer to real businesses.",
+  "garages": [
+    {
+      "id": "g-baner-autocare",
+      "name": "Baner AutoCare Works",
+      "area": "Baner",
+      "city": "Pune",
+      "cashless": true,
+      "brands": "All makes, cars"
+    },
+    {
+      "id": "g-aundh-motorclinic",
+      "name": "Aundh Motor Clinic",
+      "area": "Aundh",
+      "city": "Pune",
+      "cashless": true,
+      "brands": "All makes, cars and two-wheelers"
+    },
+    {
+      "id": "g-wakad-wheelhouse",
+      "name": "Wakad Wheelhouse Garage",
+      "area": "Wakad",
+      "city": "Pune",
+      "cashless": true,
+      "brands": "All makes, cars"
+    },
+    {
+      "id": "g-hinjewadi-gearline",
+      "name": "Gearline Car Care, Hinjewadi",
+      "area": "Hinjewadi",
+      "city": "Pune",
+      "cashless": true,
+      "brands": "Tarang and all makes, cars"
+    },
+    {
+      "id": "g-kothrud-torquepoint",
+      "name": "Torque Point Two-Wheeler Works",
+      "area": "Kothrud",
+      "city": "Pune",
+      "cashless": true,
+      "brands": "Pavan and all makes, two-wheelers"
+    },
+    {
+      "id": "g-shivajinagar-bodyshop",
+      "name": "Shivajinagar Dent and Paint Studio",
+      "area": "Shivajinagar",
+      "city": "Pune",
+      "cashless": true,
+      "brands": "All makes, cars and two-wheelers"
+    },
+    {
+      "id": "g-vimannagar-crestline",
+      "name": "Crestline Motor Services",
+      "area": "Viman Nagar",
+      "city": "Pune",
+      "cashless": true,
+      "brands": "All makes, cars"
+    }
+  ],
+  "hospitals": [
+    {
+      "id": "h-baner-kadamb",
+      "name": "Kadamb Multispeciality Hospital",
+      "area": "Baner",
+      "city": "Pune",
+      "cashless": true
+    },
+    {
+      "id": "h-aundh-riverbend",
+      "name": "Riverbend Hospital",
+      "area": "Aundh",
+      "city": "Pune",
+      "cashless": true
+    },
+    {
+      "id": "h-wakad-amaltas",
+      "name": "Amaltas Care Hospital",
+      "area": "Wakad",
+      "city": "Pune",
+      "cashless": true
+    },
+    {
+      "id": "h-hinjewadi-pinewood",
+      "name": "Pinewood General Hospital",
+      "area": "Hinjewadi",
+      "city": "Pune",
+      "cashless": true
+    },
+    {
+      "id": "h-kothrud-parijat",
+      "name": "Parijat Children's and Family Hospital",
+      "area": "Kothrud",
+      "city": "Pune",
+      "cashless": true
+    },
+    {
+      "id": "h-shivajinagar-chinar",
+      "name": "Chinar Heart and General Hospital",
+      "area": "Shivajinagar",
+      "city": "Pune",
+      "cashless": true
+    },
+    {
+      "id": "h-vimannagar-skyline",
+      "name": "Skyline Multispeciality Hospital",
+      "area": "Viman Nagar",
+      "city": "Pune",
+      "cashless": true
+    }
+  ]
+}

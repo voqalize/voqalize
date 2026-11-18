@@ -1,0 +1,601 @@
+{
+  "id": "bike-2026",
+  "product": "bike",
+  "title": "Two-Wheeler Package Policy",
+  "plan": "Chhatri Bike Shield",
+  "policy_number": "CHI/TW/26/0031877",
+  "status": "active",
+  "start": "2026-02-01",
+  "end": "2027-01-31",
+  "premium_paid": 2437,
+  "summary": "Comprehensive cover for your Pavan Breeze 125 scooter, MH 12 ME 7781, with owner-driver accident cover and roadside assistance.",
+  "insured": [
+    {
+      "id": "rohan",
+      "name": "Rohan Kulkarni",
+      "role": "Policyholder and owner-rider"
+    }
+  ],
+  "schedule": [
+    {
+      "label": "Policy number",
+      "value": "CHI/TW/26/0031877"
+    },
+    {
+      "label": "Period of insurance",
+      "value": "1 Feb 2026 to 31 Jan 2027 (both days inclusive)"
+    },
+    {
+      "label": "Insured vehicle",
+      "value": "Pavan Breeze 125, scooter, petrol"
+    },
+    {
+      "label": "Registration number",
+      "value": "MH 12 ME 7781"
+    },
+    {
+      "label": "Year of registration",
+      "value": "2024"
+    },
+    {
+      "label": "Engine size",
+      "value": "Up to 150 cc"
+    },
+    {
+      "label": "Insured declared value (IDV)",
+      "value": "₹62,000"
+    },
+    {
+      "label": "No Claim Bonus",
+      "value": "20%"
+    },
+    {
+      "label": "Compulsory deductible",
+      "value": "₹500 per claim"
+    },
+    {
+      "label": "Third-party property damage limit",
+      "value": "₹1,00,000"
+    },
+    {
+      "label": "Owner-driver personal accident cover",
+      "value": "₹15,00,000"
+    },
+    {
+      "label": "Add-ons",
+      "value": "24x7 roadside assistance"
+    },
+    {
+      "label": "Premium paid (incl. 18% GST)",
+      "value": "₹2,437"
+    }
+  ],
+  "addons": [
+    {
+      "id": "pa_owner",
+      "label": "Owner-driver personal accident cover (₹15,00,000)",
+      "included": true
+    },
+    {
+      "id": "rsa",
+      "label": "24x7 roadside assistance",
+      "included": true
+    },
+    {
+      "id": "zero_dep",
+      "label": "Zero depreciation",
+      "included": false
+    },
+    {
+      "id": "engine_protect",
+      "label": "Engine protection",
+      "included": false
+    },
+    {
+      "id": "consumables",
+      "label": "Consumables cover",
+      "included": false
+    }
+  ],
+  "sections": [
+    {
+      "id": "s1",
+      "number": "1",
+      "title": "Schedule notes and definitions",
+      "clauses": [
+        {
+          "id": "1.1",
+          "title": "The insured vehicle",
+          "kind": "info",
+          "text": "This policy covers the two-wheeler described in the Schedule, a Pavan Breeze 125 scooter registered as MH 12 ME 7781, together with its manufacturer-fitted accessories. Helmets, riding gear and items carried on the vehicle are not part of the insured vehicle.",
+          "plain": "Your Pavan Breeze 125 scooter, MH 12 ME 7781, is insured; your helmet and things in the dicky are not.",
+          "tags": [
+            "scooter",
+            "two wheeler",
+            "bike",
+            "Pavan Breeze",
+            "MH 12 ME 7781",
+            "helmet",
+            "dicky",
+            "accessories",
+            "gaadi"
+          ]
+        },
+        {
+          "id": "1.2",
+          "title": "Insured declared value (IDV)",
+          "kind": "info",
+          "text": "The Insured Declared Value of ₹62,000 is the maximum amount payable for total loss or theft of the insured vehicle during this policy period. It is the manufacturer's listed selling price less depreciation for the age of the vehicle.",
+          "plain": "The most we pay if the scooter is stolen or written off is ₹62,000.",
+          "tags": [
+            "IDV",
+            "insured declared value",
+            "scooter value",
+            "total loss",
+            "theft payout",
+            "maximum",
+            "kitna milega",
+            "sum insured"
+          ]
+        },
+        {
+          "id": "1.3",
+          "title": "Period and area of cover",
+          "kind": "info",
+          "text": "This policy is in force from 1 February 2026 to 31 January 2027, both days inclusive, for loss or damage occurring within India.",
+          "plain": "You are covered anywhere in India from 1 February 2026 to 31 January 2027.",
+          "tags": [
+            "policy period",
+            "validity",
+            "expiry",
+            "renewal",
+            "India",
+            "kab tak",
+            "dates",
+            "territory"
+          ]
+        },
+        {
+          "id": "1.4",
+          "title": "Authorised rider",
+          "kind": "condition",
+          "text": "The vehicle may be ridden by the insured or any person riding with the insured's permission who holds a valid driving licence for a motorcycle with gear or without gear, as applicable to the insured vehicle.",
+          "plain": "Anyone you allow to ride is covered if they hold a valid two-wheeler licence.",
+          "tags": [
+            "who can ride",
+            "rider",
+            "family member",
+            "licence",
+            "permission",
+            "friend riding",
+            "wife riding",
+            "authorised"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "s2",
+      "number": "2",
+      "title": "What is covered",
+      "clauses": [
+        {
+          "id": "2.1",
+          "title": "Accidental damage",
+          "kind": "covered",
+          "text": "The Company will indemnify the insured against loss of or damage to the insured vehicle caused by accident by external means, including collision, skidding and falling, subject to the deductible and depreciation provisions of this policy.",
+          "plain": "If the scooter is damaged in an accident or a fall, the repairs are covered.",
+          "tags": [
+            "accident",
+            "fall",
+            "skid",
+            "girna",
+            "collision",
+            "dent",
+            "repair",
+            "own damage",
+            "scratch"
+          ]
+        },
+        {
+          "id": "2.2",
+          "title": "Fire, flood and natural calamities",
+          "kind": "covered",
+          "text": "The Company will indemnify the insured against loss of or damage to the insured vehicle caused by fire, explosion, self-ignition, lightning, flood, inundation, storm, cyclone, earthquake or landslide.",
+          "plain": "Damage from fire, flood, storms or earthquakes is covered.",
+          "tags": [
+            "fire",
+            "flood",
+            "baarish",
+            "rain",
+            "storm",
+            "earthquake",
+            "landslide",
+            "waterlogging",
+            "aag",
+            "natural calamity"
+          ]
+        },
+        {
+          "id": "2.3",
+          "title": "Theft",
+          "kind": "covered",
+          "text": "The Company will indemnify the insured against loss of the insured vehicle by theft, and damage to it by attempted theft. A claim for theft of the entire vehicle is payable at the IDV less the deductible once the police issue a report that the vehicle is untraced.",
+          "plain": "If your scooter is stolen and not found, we pay the IDV after the police confirm it is untraced.",
+          "tags": [
+            "theft",
+            "chori",
+            "stolen scooter",
+            "missing bike",
+            "FIR",
+            "attempted theft",
+            "lock broken",
+            "untraced"
+          ]
+        },
+        {
+          "id": "2.4",
+          "title": "Riot, strike and malicious damage",
+          "kind": "covered",
+          "text": "The Company will indemnify the insured against loss of or damage to the insured vehicle caused by riot, strike, malicious act or terrorist activity.",
+          "plain": "If someone damages your scooter on purpose, or in a riot or strike, it is covered.",
+          "tags": [
+            "vandalism",
+            "riot",
+            "strike",
+            "bandh",
+            "malicious",
+            "danga",
+            "seat torn",
+            "deliberate damage"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "s3",
+      "number": "3",
+      "title": "Liability and personal accident",
+      "clauses": [
+        {
+          "id": "3.1",
+          "title": "Liability to third parties",
+          "kind": "covered",
+          "text": "The Company will indemnify the insured against legal liability arising out of the use of the insured vehicle for death of or bodily injury to any person, without limit, and for damage to third-party property up to ₹1,00,000 for any one accident. Third-party cover is compulsory under the Motor Vehicles Act, 1988.",
+          "plain": "If your scooter injures someone or damages their property, your legal liability is covered (property up to ₹1,00,000).",
+          "tags": [
+            "third party",
+            "TP",
+            "injured someone",
+            "pedestrian",
+            "liability",
+            "other vehicle",
+            "property damage",
+            "court",
+            "MACT"
+          ]
+        },
+        {
+          "id": "3.2",
+          "title": "Owner-driver personal accident cover",
+          "kind": "covered",
+          "text": "The Company will pay ₹15,00,000 if the owner-driver named in the Schedule dies or suffers permanent total disablement as a result of an accident while riding, mounting or dismounting the insured vehicle, provided the owner-driver held a valid licence and was wearing a helmet where required by law. Lower amounts apply for partial disablement under the scale of compensation.",
+          "plain": "If you are killed or permanently disabled riding your scooter, ₹15,00,000 is paid.",
+          "tags": [
+            "personal accident",
+            "PA cover",
+            "owner driver",
+            "death",
+            "disability",
+            "helmet",
+            "15 lakh",
+            "injury",
+            "chot"
+          ]
+        },
+        {
+          "id": "3.3",
+          "title": "Pillion rider",
+          "kind": "excluded",
+          "text": "Personal accident cover for a pillion rider has not been opted under this policy. Legal liability for injury to a pillion rider as a third party remains covered under Clause 3.1.",
+          "plain": "Your pillion has no personal accident cover of their own, though your legal liability to them is covered.",
+          "tags": [
+            "pillion",
+            "passenger",
+            "back seat",
+            "peeche baitha",
+            "pillion accident",
+            "unnamed passenger",
+            "PA",
+            "not covered"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "s4",
+      "number": "4",
+      "title": "Add-on covers",
+      "clauses": [
+        {
+          "id": "4.1",
+          "title": "24x7 roadside assistance",
+          "kind": "covered",
+          "text": "The Company will arrange, through its assistance partner, towing of the insured vehicle up to 25 km to the nearest network garage, on-site minor repairs, a flat tyre repair, emergency fuel delivery of up to 2 litres (fuel cost payable by the insured) and help if the keys are locked or lost, anywhere in India.",
+          "plain": "If your scooter stops on the road, call us for towing, a puncture repair or fuel.",
+          "tags": [
+            "roadside assistance",
+            "RSA",
+            "towing",
+            "puncture",
+            "breakdown",
+            "petrol khatam",
+            "flat tyre",
+            "battery",
+            "help"
+          ]
+        },
+        {
+          "id": "4.2",
+          "title": "Zero depreciation: not opted",
+          "kind": "excluded",
+          "text": "The zero depreciation add-on has not been opted under this policy. Depreciation on replaced parts will be deducted as set out in Clause 5.2.",
+          "plain": "When parts are replaced, depreciation is deducted, because zero depreciation was not taken.",
+          "tags": [
+            "zero dep",
+            "depreciation",
+            "plastic parts",
+            "full claim",
+            "not opted",
+            "katauti",
+            "bumper to bumper",
+            "add-on"
+          ]
+        },
+        {
+          "id": "4.3",
+          "title": "Engine protection: not opted",
+          "kind": "excluded",
+          "text": "The engine protection add-on has not been opted under this policy. Damage to the engine from water ingression, or from attempting to start the engine after it has been submerged, is not covered.",
+          "plain": "Engine damage from water, such as starting the scooter after riding through a flooded road, is not covered.",
+          "tags": [
+            "engine",
+            "water in engine",
+            "flood",
+            "waterlogging",
+            "baarish",
+            "cranking",
+            "hydrostatic lock",
+            "not covered"
+          ]
+        },
+        {
+          "id": "4.4",
+          "title": "Consumables: not opted",
+          "kind": "excluded",
+          "text": "The consumables add-on has not been opted under this policy. Engine oil, nuts, bolts, grease, washers and similar consumables used in a repair are not payable.",
+          "plain": "Oil, nuts, bolts and other consumables used in a repair are not covered.",
+          "tags": [
+            "consumables",
+            "engine oil",
+            "nuts",
+            "bolts",
+            "grease",
+            "not covered",
+            "add-on",
+            "washers"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "s5",
+      "number": "5",
+      "title": "Deductible, depreciation and No Claim Bonus",
+      "clauses": [
+        {
+          "id": "5.1",
+          "title": "Compulsory deductible",
+          "kind": "deductible",
+          "text": "Each claim for loss of or damage to the insured vehicle is subject to a compulsory deductible of ₹500, borne by the insured.",
+          "plain": "You pay the first ₹500 of every own-damage claim.",
+          "tags": [
+            "deductible",
+            "excess",
+            "500",
+            "own pocket",
+            "apni jeb se",
+            "claim deduction",
+            "compulsory",
+            "what do I pay"
+          ]
+        },
+        {
+          "id": "5.2",
+          "title": "Depreciation on replaced parts",
+          "kind": "limit",
+          "text": "Depreciation will be deducted from the cost of parts replaced as follows: 50% on rubber, nylon and plastic parts, tyres, tubes and batteries; 30% on fibreglass components; nil on glass. Metal parts are depreciated at 10% for a vehicle aged one to two years. Labour charges are paid in full.",
+          "plain": "You bear part of the cost of replaced parts, such as half the cost of plastic panels.",
+          "tags": [
+            "depreciation",
+            "plastic parts",
+            "body panel",
+            "50 percent",
+            "metal parts",
+            "battery",
+            "labour",
+            "katauti"
+          ]
+        },
+        {
+          "id": "5.3",
+          "title": "No Claim Bonus",
+          "kind": "info",
+          "text": "A No Claim Bonus of 20% has been applied to the own-damage premium of this policy for one claim-free year. If no claim is made in this policy period the bonus will rise to 25% at renewal; a claim will reset it to 0%.",
+          "plain": "You have a 20% No Claim Bonus; a claim this year resets it at renewal.",
+          "tags": [
+            "NCB",
+            "no claim bonus",
+            "discount",
+            "renewal",
+            "20 percent",
+            "claim free",
+            "bonus",
+            "premium"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "s6",
+      "number": "6",
+      "title": "Exclusions",
+      "clauses": [
+        {
+          "id": "6.1",
+          "title": "Riding under the influence",
+          "kind": "excluded",
+          "text": "The Company shall not be liable for loss or damage, or personal accident compensation, if the rider was under the influence of alcohol or drugs at the time of the accident. Third-party liability is paid as required by law, with a right of recovery from the insured.",
+          "plain": "Nothing for your scooter is paid if the rider was drunk.",
+          "tags": [
+            "drunk",
+            "drink and drive",
+            "alcohol",
+            "sharaab",
+            "daaru",
+            "drugs",
+            "intoxicated",
+            "not covered"
+          ]
+        },
+        {
+          "id": "6.2",
+          "title": "Riding without a valid licence",
+          "kind": "excluded",
+          "text": "The Company shall not be liable for loss, damage or liability if the rider does not hold a valid and effective licence to ride the class of vehicle. Third-party liability is paid as required by law, with a right of recovery.",
+          "plain": "If the rider has no valid licence, the damage is not covered.",
+          "tags": [
+            "no licence",
+            "license",
+            "DL",
+            "underage",
+            "minor riding",
+            "bina licence",
+            "expired licence",
+            "not covered"
+          ]
+        },
+        {
+          "id": "6.3",
+          "title": "Breakdown, wear and tear",
+          "kind": "excluded",
+          "text": "The Company shall not be liable for mechanical or electrical breakdown, wear and tear, rust or depreciation, or for damage to tyres and tubes unless the vehicle is damaged in the same accident.",
+          "plain": "Breakdowns, wear and tear, and a damaged tyre on its own are not covered.",
+          "tags": [
+            "breakdown",
+            "wear and tear",
+            "tyre",
+            "puncture",
+            "servicing",
+            "self start",
+            "clutch",
+            "kharab",
+            "not covered"
+          ]
+        },
+        {
+          "id": "6.4",
+          "title": "Use for hire or delivery",
+          "kind": "excluded",
+          "text": "The Company shall not be liable while the vehicle is used for hire or reward, including as a bike taxi or for commercial delivery of goods or food, or for racing or speed testing.",
+          "plain": "Nothing is covered while the scooter is used as a bike taxi or for deliveries.",
+          "tags": [
+            "bike taxi",
+            "delivery",
+            "food delivery",
+            "commercial use",
+            "hire",
+            "racing",
+            "rental",
+            "kiraye pe"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "s7",
+      "number": "7",
+      "title": "Claims and general conditions",
+      "clauses": [
+        {
+          "id": "7.1",
+          "title": "Claim intimation within 48 hours",
+          "kind": "condition",
+          "text": "Notice of any accident, loss or damage must be given to the Company within 48 hours by calling the claims helpline or online. Theft or a criminal act must be reported to the police immediately, and an FIR copy submitted with the claim.",
+          "plain": "Tell us within 48 hours; for theft, also file an FIR straight away.",
+          "tags": [
+            "claim intimation",
+            "48 hours",
+            "how to claim",
+            "FIR",
+            "police",
+            "report",
+            "helpline",
+            "claim kaise kare"
+          ]
+        },
+        {
+          "id": "7.2",
+          "title": "Survey, repairs and payment",
+          "kind": "condition",
+          "text": "Repairs must not begin until the Company's surveyor has inspected the vehicle and approved the estimate. At a network garage the Company pays the approved amount directly to the garage; elsewhere the insured is reimbursed by bank transfer within 7 working days of the final bill.",
+          "plain": "Wait for our surveyor before repairs; network garages are paid directly.",
+          "tags": [
+            "surveyor",
+            "inspection",
+            "cashless",
+            "network garage",
+            "reimbursement",
+            "estimate",
+            "repair",
+            "payment"
+          ]
+        },
+        {
+          "id": "7.3",
+          "title": "Theft: keys and documents",
+          "kind": "condition",
+          "text": "For a theft claim the insured must surrender both original keys, the original registration certificate, the FIR and the police untraced report, and sign the transfer forms and a letter of subrogation.",
+          "plain": "For a stolen scooter, give us both original keys, the RC and the police reports.",
+          "tags": [
+            "theft documents",
+            "keys",
+            "chaabi",
+            "RC",
+            "FIR",
+            "untraced report",
+            "subrogation",
+            "chori"
+          ]
+        },
+        {
+          "id": "7.4",
+          "title": "Transfer and cancellation",
+          "kind": "condition",
+          "text": "If the vehicle is sold, the new owner may apply within 14 days to transfer this policy. The insured may cancel the policy if the vehicle is insured elsewhere or sold, and receive a short-period refund if no claim has been made.",
+          "plain": "If you sell the scooter, the buyer must apply within 14 days to take over the policy.",
+          "tags": [
+            "sell scooter",
+            "transfer",
+            "new owner",
+            "cancel",
+            "refund",
+            "14 days",
+            "bechna",
+            "ownership"
+          ]
+        }
+      ]
+    }
+  ]
+}

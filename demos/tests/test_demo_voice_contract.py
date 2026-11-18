@@ -220,6 +220,11 @@ DEMOS: dict[str, Expected] = {
     # a gallery card (the page is Uno Salud's own site). Asserted in
     # test_unosalud_e2e.py.
     "unosalud": Expected(voice="omnivoice/javier", language="es", provider="openai"),
+    # Ananya, Chhatri Insurance's guide (persona.json): opens in English unless
+    # the page's toggle said Hindi, and moves both legs for the toggle, for
+    # set_language or for Hindi heard — ananya in both. Asserted in
+    # test_insurance_e2e.py.
+    "insurance": Expected(voice="omnivoice/ananya", language="en", provider="openai"),
 }
 
 
