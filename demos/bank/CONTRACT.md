@@ -85,10 +85,10 @@ This file is the agreement between `frontend/` and `backend/`. Change it only in
 Signed-in screens (`/app/*`) on a signed-out session show the login screen first; the mock sign-in is a
 single tap (and `nav.open` to an app screen signs in on the way, as a demo convenience, saying so).
 
-## Brain → page: Stage moves (`scene.json`, generated into `backend/stage_gen.py` and `frontend/src/stage/scene.gen.ts`)
+## Brain → page: Stage moves (`frontend/src/stage/scene.json`, generated into `backend/stage_gen.py` and `frontend/src/stage/scene.gen.ts`)
 
 Regenerate after editing `scene.json`:
-`cd demos && uv run voqalize stage gen bank/scene.json --py bank/backend/stage_gen.py --ts bank/frontend/src/stage/scene.gen.ts`
+`cd demos && uv run voqalize stage gen bank/frontend/src/stage/scene.json --py bank/backend/stage_gen.py --ts bank/frontend/src/stage/scene.gen.ts`
 
 Every move rings its target before it changes anything, refuses with the options the page offers
 instead of guessing, and returns one short line. Every move also works by click alone (the page is a
