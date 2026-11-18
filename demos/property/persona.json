@@ -1,0 +1,15 @@
+{
+  "$comment": "The one place the character lives. The frontend (avatar, UI copy) and the backend (voice, prompt, greeting, tests) both read this file. To change the character, edit character/name/voices; to add a language, add it to languages and voices (and give the brain written lines for it in backend/lines.py).",
+  "character": "karthik",
+  "name": "Karthik",
+  "role": "Property guide",
+  "voices": {
+    "en": "omnivoice/karthik",
+    "hi": "omnivoice/karthik"
+  },
+  "languages": [
+    { "tag": "en", "label": "EN", "name": "English" },
+    { "tag": "hi", "label": "हिंदी", "name": "Hindi" }
+  ],
+  "default_language": "en"
+}

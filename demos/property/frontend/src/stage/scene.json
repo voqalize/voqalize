@@ -1,0 +1,165 @@
+{
+  "$schema": "../../../../../sdk/js/stage/stage.schema.json",
+  "stage": 1,
+  "id": "kosha_homes",
+  "languages": ["en", "hi"],
+  "moves": [
+    {
+      "id": "site.go",
+      "class": "navigate",
+      "args": [
+        {
+          "name": "path",
+          "doc": "A page of the site: /, /listings, /listing/<id>, /project/<project_id>, /compare, /shortlist, /visits."
+        }
+      ],
+      "claims": ["opening the", "taking you to"],
+      "objects": ["page", "listing", "project", "listings", "shortlist", "visits", "पेज"],
+      "doc": "Go to a page of the site, ringing the link or header that leads there first."
+    },
+    {
+      "id": "listings.filter",
+      "class": "reversible",
+      "args": [
+        { "name": "city", "optional": true, "enum": ["bengaluru", "pune", "hyderabad"] },
+        { "name": "deal", "optional": true, "enum": ["buy", "rent"] },
+        { "name": "bhk", "type": "array", "optional": true, "doc": "Bedroom counts as strings, [\"2\", \"3\"]: a move's array carries strings only." },
+        { "name": "budget_min", "type": "integer", "optional": true, "doc": "Rupees: a price to buy, a monthly rent to rent." },
+        { "name": "budget_max", "type": "integer", "optional": true, "doc": "Rupees: a price to buy, a monthly rent to rent." },
+        { "name": "possession", "optional": true, "enum": ["ready", "under_construction"] },
+        { "name": "localities", "type": "array", "optional": true },
+        { "name": "office", "optional": true, "doc": "An office's id from the city's places, for the commute filter." },
+        { "name": "max_km", "type": "number", "optional": true, "doc": "Most kilometres from the office." },
+        { "name": "school_km", "type": "number", "optional": true, "doc": "A school within this many kilometres." },
+        { "name": "metro_km", "type": "number", "optional": true, "doc": "A metro station within this many kilometres." },
+        { "name": "amenities", "type": "array", "optional": true }
+      ],
+      "claims": ["filtering the", "narrowing the", "ticking"],
+      "objects": ["filters", "filter", "listings", "homes", "results", "map", "फ़िल्टर", "घर"],
+      "doc": "Set the listings page's whole search: on /listings each sidebar control that changes is ringed and set in turn, then the results and the map follow. Navigates to /listings first when elsewhere."
+    },
+    {
+      "id": "listings.show",
+      "verb": "show",
+      "class": "look",
+      "args": [{ "name": "listing_id", "doc": "A listing id on screen, BLR-104." }],
+      "say": "{show: BLR-104} at the start of the sentence that talks about one home on the list: its card and its map pin are ringed.",
+      "doc": "Ring one listing's card and its map pin, scrolling it into view. Changes nothing."
+    },
+    {
+      "id": "compare.show",
+      "class": "navigate",
+      "args": [{ "name": "ids", "type": "array", "doc": "Two or three listing ids." }],
+      "claims": ["comparing them", "putting them side by side"],
+      "objects": ["comparison", "compare", "side by side", "तुलना"],
+      "doc": "Open the compare page with these homes side by side; each row's better value is marked and the rows are ringed in turn."
+    },
+    {
+      "id": "emi.show",
+      "class": "reversible",
+      "args": [
+        { "name": "listing_id" },
+        { "name": "down_pct", "type": "number", "optional": true },
+        { "name": "tenure_years", "type": "integer", "optional": true },
+        { "name": "lender", "optional": true, "doc": "A lender id from homes.json." }
+      ],
+      "claims": ["working out the emi", "opening the emi"],
+      "objects": ["emi", "loan", "calculator", "ईएमआई"],
+      "doc": "Open the EMI calculator for a listing (on its page, or as a panel on the listings page) and set down payment, tenure and lender, each ringed."
+    },
+    {
+      "id": "shortlist.set",
+      "class": "reversible",
+      "args": [{ "name": "listing_id" }, { "name": "on", "type": "boolean", "default": true }],
+      "claims": ["adding it to your shortlist", "shortlisting"],
+      "objects": ["shortlist", "शॉर्टलिस्ट"],
+      "doc": "Ring the listing's heart and add it to (or take it off) the shortlist."
+    },
+    {
+      "id": "visit.slots",
+      "class": "look",
+      "args": [
+        { "name": "listing_id" },
+        { "name": "day", "doc": "YYYY-MM-DD, IST." },
+        { "name": "part", "optional": true, "enum": ["morning", "afternoon", "evening", "any"] }
+      ],
+      "claims": ["opening the visit", "checking the slots"],
+      "objects": ["slots", "slot", "visit", "calendar", "स्लॉट"],
+      "doc": "On the listing page's site-visit panel: ring and open that day, and mark the free slots in that part of the day as suiting the buyer."
+    },
+    {
+      "id": "visit.book",
+      "class": "confirmed",
+      "args": [
+        { "name": "listing_id" },
+        { "name": "slot", "doc": "YYYY-MM-DDTHH:MM, IST, one of the free slots." },
+        { "name": "name", "doc": "The buyer's name as they said it." },
+        { "name": "visitors", "type": "integer", "default": 1 }
+      ],
+      "claims": ["booking the visit", "booking it"],
+      "objects": ["booking", "visit", "बुकिंग"],
+      "doc": "Select the slot, fill name and visitors, press Book visit; the visit card appears. Refused when the slot is not free."
+    }
+  ],
+  "slices": [
+    {
+      "id": "screen",
+      "doc": "the page in front of the visitor",
+      "fields": [
+        { "name": "path" },
+        { "name": "page" },
+        { "name": "listing_id", "optional": true },
+        { "name": "title", "optional": true }
+      ]
+    },
+    {
+      "id": "search",
+      "doc": "the listings page's search",
+      "fields": [
+        { "name": "summary" },
+        { "name": "count", "type": "integer" },
+        { "name": "city", "optional": true },
+        { "name": "deal", "optional": true },
+        { "name": "bhk", "type": "array", "items": { "type": "integer" }, "optional": true },
+        { "name": "budget_min", "type": "integer", "optional": true },
+        { "name": "budget_max", "type": "integer", "optional": true },
+        { "name": "possession", "optional": true },
+        { "name": "localities", "type": "array", "optional": true },
+        { "name": "office", "optional": true },
+        { "name": "max_km", "type": "number", "optional": true },
+        { "name": "school_km", "type": "number", "optional": true },
+        { "name": "metro_km", "type": "number", "optional": true },
+        { "name": "amenities", "type": "array", "optional": true },
+        { "name": "ids", "type": "array", "optional": true }
+      ]
+    },
+    {
+      "id": "shortlist",
+      "doc": "the homes the visitor shortlisted",
+      "fields": [{ "name": "count", "type": "integer" }, { "name": "ids", "type": "array" }]
+    },
+    {
+      "id": "visit",
+      "doc": "the site-visit panel and bookings",
+      "fields": [
+        { "name": "listing_id" },
+        { "name": "slot", "optional": true },
+        { "name": "reference", "optional": true }
+      ]
+    }
+  ],
+  "events": [
+    { "id": "screen.viewed", "slice": "screen", "op": "set", "react": "silent", "note": "{by} opened {path}" },
+    { "id": "search.changed", "slice": "search", "op": "set", "note": "{by} changed the search: {summary}; {count} homes match" },
+    { "id": "shortlist.changed", "slice": "shortlist", "op": "set", "note": "{by} changed the shortlist: {count} homes" },
+    { "id": "visit.slot_picked", "slice": "visit", "op": "merge", "note": "{by} picked the visit slot {slot} for {listing_id}" },
+    {
+      "id": "visit.booked",
+      "slice": "visit",
+      "op": "set",
+      "react": "speak",
+      "ask": "they booked the site visit themselves: confirm it in one line and say one thing to bring",
+      "note": "{by} booked a site visit for {listing_id} at {slot}, reference {reference}"
+    }
+  ]
+}
