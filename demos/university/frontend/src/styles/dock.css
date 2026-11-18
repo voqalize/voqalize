@@ -160,44 +160,71 @@
   background: var(--paper-2);
   box-shadow: inset 0 0 0 1px var(--marigold);
 }
+.dock-cta-short {
+  display: none;
+}
+/* Phone: one compact call bar across the bottom, a single row at any width. */
 @media (max-width: 640px) {
   .dock {
-    right: 12px;
-    left: 12px;
-    bottom: 12px;
-    padding: 8px;
+    right: 10px;
+    left: 10px;
+    bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+    padding: 6px 6px 6px 6px;
     gap: 10px;
+    border-radius: 16px;
   }
   .dock-face {
-    width: 52px;
-    height: 52px;
-    border-radius: 14px;
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+  }
+  .face-placeholder span {
+    width: 30px;
+    height: 30px;
+    font-size: 1rem;
   }
   .dock-body {
     flex: 1;
     flex-direction: row;
     align-items: center;
-    justify-content: space-between;
     gap: 8px;
   }
-  .dock-status {
-    max-width: 140px;
+  .dock-who {
+    flex: 1;
   }
-  .dock-cta {
-    padding: 0 12px;
-  }
-}
-@media (max-width: 400px) {
-  .dock-body {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 6px;
-  }
-  .dock-actions {
-    justify-content: space-between;
+  .dock-name {
+    font-size: 0.95rem;
   }
   .dock-status {
     max-width: none;
+    font-size: 0.75rem;
+  }
+  .is-error .dock-status {
+    white-space: nowrap;
+  }
+  .dock-actions {
+    flex: 0 0 auto;
+    gap: 6px;
+  }
+  .lang-toggle button {
+    min-width: 30px;
+    height: 28px;
+    padding: 0 7px;
+    font-size: 0.78rem;
+  }
+  .dock-cta {
+    min-height: 38px;
+    padding: 0 14px 0 12px;
+  }
+  .dock-cta-long {
+    display: none;
+  }
+  .dock-cta-short {
+    display: inline;
+  }
+  .dock-btn {
+    width: 38px;
+    height: 38px;
   }
 }
 
@@ -335,4 +362,11 @@
 }
 .debug-log li.is-result {
   color: #f6c77b;
+}
+/* On a phone the call bar spans the bottom: the console button sits above it. */
+@media (max-width: 640px) {
+  .debug-fab {
+    left: 10px;
+    bottom: calc(76px + env(safe-area-inset-bottom, 0px));
+  }
 }

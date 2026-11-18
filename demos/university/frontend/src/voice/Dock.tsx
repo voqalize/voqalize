@@ -64,9 +64,12 @@ export function Dock(props: {
               </button>
             </>
           ) : (
-            <button type="button" className="dock-cta" onClick={props.onCall} disabled={(activity as string) === "connecting"}>
+            <button type="button" className="dock-cta" aria-label={`Talk to ${PERSONA.name}`} onClick={props.onCall} disabled={(activity as string) === "connecting"}>
               {(activity as string) === "connecting" ? <Loader2 size={16} className="spin" /> : <Mic size={16} />}
-              <span>Talk to {PERSONA.name}</span>
+              <span className="dock-cta-long">Talk to {PERSONA.name}</span>
+              <span className="dock-cta-short" aria-hidden>
+                Talk
+              </span>
             </button>
           )}
         </div>
