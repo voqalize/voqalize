@@ -211,7 +211,7 @@ export function performers(): Performers<Spec> {
       const p = page as Page;
       if (currentPage() === p) {
         const link = $(`.site-nav [data-nav="${p}"]`);
-        if (link) await c.ring(link, PAGE_LABEL[p]);
+        if (link && link.getBoundingClientRect().width > 0) await c.ring(link, PAGE_LABEL[p]);
         window.scrollTo({ top: 0, behavior: "smooth" });
         return `already on the ${PAGE_LABEL[p]} page`;
       }

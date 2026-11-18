@@ -53,6 +53,16 @@ async function signIn(page, phone = "98450 31726") {
 const SHOTS = [
   { name: "home", path: "/" },
   { name: "home-full", path: "/", full: true, sizes: ["desktop"] },
+  {
+    name: "menu-open",
+    path: "/book",
+    sizes: ["phone"],
+    run: async (page) => {
+      await page.click(".menu-btn");
+      await settle(page, 300);
+    },
+    noHook: true,
+  },
   { name: "book", path: "/book" },
   { name: "my-appointments", path: "/my-appointments" },
   {
@@ -178,7 +188,7 @@ for (const shot of SHOTS) {
     await page.goto(`${base}${shot.path}`, { waitUntil: "networkidle" });
     await settle(page, 900);
     if (shot.run) {
-      await hook(page);
+      if (!shot.noHook) await hook(page);
       await shot.run(page);
     }
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);

@@ -102,32 +102,67 @@
     display: none;
   }
 }
+.menu-btn,
+.nav-phone {
+  display: none;
+}
 @media (max-width: 859px) {
   .header-row {
-    flex-wrap: wrap;
-    gap: 6px 12px;
-    padding-top: 10px;
+    gap: 10px;
   }
   .header-end {
     margin-left: auto;
-  }
-  .site-nav {
-    order: 3;
-    flex-basis: 100%;
-    overflow-x: auto;
-    scrollbar-width: none;
-    margin: 0 -16px;
-    padding: 0 12px 8px;
-  }
-  .site-nav::-webkit-scrollbar {
-    display: none;
-  }
-  .site-nav a {
-    padding: 6px 10px;
-    font-size: 14px;
+    gap: 8px;
   }
   .header-book {
-    height: 34px;
+    height: 36px;
+  }
+  .menu-btn {
+    display: inline-grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    border: 1px solid var(--line-2);
+    background: #fff;
+    color: var(--brand-ink);
+  }
+  .menu-open .menu-btn {
+    background: var(--brand-wash);
+    border-color: var(--brand-soft);
+  }
+  /* The nav becomes a sheet that drops from under the header. */
+  .site-nav {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    flex-direction: column;
+    gap: 2px;
+    padding: 8px 12px 14px;
+    background: var(--paper);
+    border-bottom: 1px solid var(--line);
+    box-shadow: 0 18px 30px -18px rgba(20, 40, 38, 0.35);
+  }
+  .site-nav.is-open {
+    display: flex;
+  }
+  .site-nav a {
+    padding: 12px 14px;
+    border-radius: 12px;
+    font-size: 16px;
+  }
+  .site-nav .nav-phone {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 6px;
+    border-top: 1px solid var(--line);
+    border-radius: 0;
+    padding-top: 14px;
+    color: var(--brand);
+    font-variant-numeric: tabular-nums;
   }
 }
 @media (max-width: 420px) {
