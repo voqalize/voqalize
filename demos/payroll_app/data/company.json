@@ -9490,7 +9490,29 @@
     }
    ],
    "declared_80c_other": 150000,
-   "verified_80c_other": 150000
+   "verified_80c_other": 150000,
+   "engine": {
+    "declared": {
+     "rent_monthly": 0,
+     "sec80c_other": 150000,
+     "sec80d_self": 22000,
+     "sec80d_parents": 50000,
+     "parents_senior": true,
+     "sec80ccd1b": 50000,
+     "home_loan_interest": 180000,
+     "lta_claim": 0
+    },
+    "verified": {
+     "rent_monthly": 0,
+     "sec80c_other": 150000,
+     "sec80d_self": 22000,
+     "sec80d_parents": 50000,
+     "parents_senior": true,
+     "sec80ccd1b": 50000,
+     "home_loan_interest": 180000,
+     "lta_claim": 0
+    }
+   }
   },
   {
    "employee_id": "BB-1007",
@@ -9552,7 +9574,29 @@
     }
    ],
    "declared_80c_other": 128400,
-   "verified_80c_other": 128400
+   "verified_80c_other": 128400,
+   "engine": {
+    "declared": {
+     "rent_monthly": 60000,
+     "sec80c_other": 128400,
+     "sec80d_self": 25000,
+     "sec80d_parents": 50000,
+     "parents_senior": true,
+     "sec80ccd1b": 50000,
+     "home_loan_interest": 0,
+     "lta_claim": 40000
+    },
+    "verified": {
+     "rent_monthly": 60000,
+     "sec80c_other": 128400,
+     "sec80d_self": 25000,
+     "sec80d_parents": 50000,
+     "parents_senior": true,
+     "sec80ccd1b": 50000,
+     "home_loan_interest": 0,
+     "lta_claim": 40000
+    }
+   }
   },
   {
    "employee_id": "BB-1027",
@@ -9591,7 +9635,29 @@
     }
    ],
    "declared_80c_other": 110000,
-   "verified_80c_other": 110000
+   "verified_80c_other": 110000,
+   "engine": {
+    "declared": {
+     "rent_monthly": 0,
+     "sec80c_other": 110000,
+     "sec80d_self": 25000,
+     "sec80d_parents": 0,
+     "parents_senior": false,
+     "sec80ccd1b": 50000,
+     "home_loan_interest": 200000,
+     "lta_claim": 0
+    },
+    "verified": {
+     "rent_monthly": 0,
+     "sec80c_other": 110000,
+     "sec80d_self": 25000,
+     "sec80d_parents": 0,
+     "parents_senior": false,
+     "sec80ccd1b": 50000,
+     "home_loan_interest": 200000,
+     "lta_claim": 0
+    }
+   }
   },
   {
    "employee_id": "BB-1029",
@@ -9637,7 +9703,29 @@
     }
    ],
    "declared_80c_other": 150000,
-   "verified_80c_other": 150000
+   "verified_80c_other": 150000,
+   "engine": {
+    "declared": {
+     "rent_monthly": 0,
+     "sec80c_other": 150000,
+     "sec80d_self": 25000,
+     "sec80d_parents": 0,
+     "parents_senior": false,
+     "sec80ccd1b": 50000,
+     "home_loan_interest": 200000,
+     "lta_claim": 48000
+    },
+    "verified": {
+     "rent_monthly": 0,
+     "sec80c_other": 150000,
+     "sec80d_self": 25000,
+     "sec80d_parents": 0,
+     "parents_senior": false,
+     "sec80ccd1b": 50000,
+     "home_loan_interest": 200000,
+     "lta_claim": 48000
+    }
+   }
   },
   {
    "employee_id": "BB-1030",
@@ -9699,7 +9787,29 @@
     }
    ],
    "declared_80c_other": 128400,
-   "verified_80c_other": 68400
+   "verified_80c_other": 68400,
+   "engine": {
+    "declared": {
+     "rent_monthly": 35000,
+     "sec80c_other": 128400,
+     "sec80d_self": 25000,
+     "sec80d_parents": 42000,
+     "parents_senior": true,
+     "sec80ccd1b": 50000,
+     "home_loan_interest": 0,
+     "lta_claim": 0
+    },
+    "verified": {
+     "rent_monthly": 35000,
+     "sec80c_other": 68400,
+     "sec80d_self": 25000,
+     "sec80d_parents": 42000,
+     "parents_senior": true,
+     "sec80ccd1b": 0,
+     "home_loan_interest": 0,
+     "lta_claim": 0
+    }
+   }
   },
   {
    "employee_id": "BB-1031",
@@ -9738,7 +9848,29 @@
     }
    ],
    "declared_80c_other": 120000,
-   "verified_80c_other": 120000
+   "verified_80c_other": 120000,
+   "engine": {
+    "declared": {
+     "rent_monthly": 0,
+     "sec80c_other": 120000,
+     "sec80d_self": 18000,
+     "sec80d_parents": 0,
+     "parents_senior": false,
+     "sec80ccd1b": 50000,
+     "home_loan_interest": 200000,
+     "lta_claim": 0
+    },
+    "verified": {
+     "rent_monthly": 0,
+     "sec80c_other": 120000,
+     "sec80d_self": 18000,
+     "sec80d_parents": 0,
+     "parents_senior": false,
+     "sec80ccd1b": 25000,
+     "home_loan_interest": 200000,
+     "lta_claim": 0
+    }
+   }
   }
  ],
  "form16": {

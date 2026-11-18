@@ -1,0 +1,351 @@
+{
+  "$schema": "../../../../../sdk/js/stage/stage.schema.json",
+  "stage": 1,
+  "id": "tankora_app",
+  "languages": ["en", "hi"],
+  "moves": [
+    {
+      "id": "app.go",
+      "verb": "go",
+      "class": "navigate",
+      "args": [
+        {
+          "name": "page",
+          "doc": "One of the app's main pages, by its name in the sidebar: Dashboard, Employees, Payroll, Payslips, Leave, Reimbursements, Tax, Settings, Help, Setup. Refused with the names when it is not one."
+        }
+      ],
+      "say": "{go: Leave} as you take them to one of the app's pages.",
+      "claims": ["taking you to", "opening the * page", "आपको * पर ले चलती"],
+      "objects": ["page", "screen", "पेज"],
+      "doc": "Open one of the sidebar's pages and ring its heading."
+    },
+    {
+      "id": "app.show",
+      "verb": "show",
+      "class": "look",
+      "args": [
+        {
+          "name": "thing",
+          "doc": "A part of the screen in front, by the label it shows: a payslip line (Loss of pay, TDS, Net pay), a control (Switch regime, Approve), a panel (Old regime slabs)."
+        }
+      ],
+      "say": "{show: TDS} at the start of the sentence about that part of the screen; it scrolls into view and is ringed.",
+      "doc": "Scroll to the data-stage-thing whose label matches and ring it. Refused with the labels on the screen."
+    },
+    {
+      "id": "app.open",
+      "class": "navigate",
+      "args": [
+        { "name": "path", "doc": "An app path: /, /employees/BB-1030, /leave, /tax/regime/BB-1007, /me/BB-1030/payslips, /welcome." }
+      ],
+      "claims": ["opening", "taking you to", "खोल रही"],
+      "objects": ["page", "record", "profile", "screen"],
+      "doc": "Open any screen of the app by its path; ring its heading."
+    },
+    {
+      "id": "payslip.compare",
+      "class": "navigate",
+      "args": [
+        { "name": "employee_id", "doc": "BB-1030" },
+        { "name": "month", "doc": "The payslip's month, 2026-01." },
+        { "name": "against", "optional": true, "doc": "The month to compare with, 2025-12; null shows the payslip alone." }
+      ],
+      "claims": ["opening * payslip", "pulling up * payslip", "comparing * payslip"],
+      "objects": ["payslip", "पेस्लिप"],
+      "doc": "Open an employee's payslip for a month, side by side with another month and the difference per line."
+    },
+    {
+      "id": "regime.compare",
+      "class": "navigate",
+      "args": [{ "name": "employee_id", "doc": "BB-1007" }],
+      "claims": ["opening * regime", "comparing * regime", "comparing both regimes"],
+      "objects": ["regime", "comparison", "रिजीम"],
+      "doc": "Open the regime comparison of one employee: both regimes' computations slab by slab, from the engine."
+    },
+    {
+      "id": "leave.decide",
+      "class": "confirmed",
+      "args": [
+        { "name": "request_id", "doc": "LV-2412" },
+        { "name": "decision", "enum": ["approve", "reject"] }
+      ],
+      "claims": ["approving * leave", "rejecting * leave"],
+      "objects": ["leave"],
+      "doc": "Approve or reject a pending leave request, after the admin's spoken yes. Days beyond the balance become loss of pay in the February draft, recomputed with the engine."
+    },
+    {
+      "id": "claim.fix",
+      "class": "confirmed",
+      "args": [
+        { "name": "claim_id", "doc": "RB-3108" },
+        { "name": "amount", "type": "integer", "doc": "The corrected amount, the bill's amount." }
+      ],
+      "claims": ["fixing * claim", "correcting * claim"],
+      "objects": ["claim", "reimbursement"],
+      "doc": "Correct a claim's amount to its bill and approve it into the February draft, after the admin's spoken yes."
+    },
+    {
+      "id": "claim.decide",
+      "class": "confirmed",
+      "args": [
+        { "name": "claim_id", "doc": "RB-3109" },
+        { "name": "decision", "enum": ["approve", "reject"] }
+      ],
+      "claims": ["approving * claim", "rejecting * claim"],
+      "objects": ["claim", "reimbursement"],
+      "doc": "Approve (into the February draft) or reject a pending claim, after the admin's spoken yes."
+    },
+    {
+      "id": "employee.fill",
+      "class": "reversible",
+      "args": [
+        {
+          "name": "field",
+          "doc": "A field of the form by its name: name, email, gender, department, title, grade, location, joined, annual_ctc, tax_regime, manager_id."
+        },
+        { "name": "value", "doc": "As the form takes it: a location by its city, a date as 2026-02-16, CTC in rupees, regime new or old." }
+      ],
+      "claims": ["filling in", "adding * details"],
+      "objects": ["form", "field", "employee"],
+      "doc": "Open the new-employee form if it is not open, ring one field and set it. Refused with the field's options."
+    },
+    {
+      "id": "employee.save",
+      "class": "confirmed",
+      "args": [],
+      "claims": ["saving * employee", "adding * to payroll"],
+      "objects": ["employee"],
+      "doc": "Press Save on the new-employee form after the admin's yes: the employee is added and their prorated February pay joins the draft run."
+    },
+    {
+      "id": "regime.switch",
+      "class": "confirmed",
+      "args": [
+        { "name": "employee_id", "doc": "BB-1007" },
+        { "name": "regime", "enum": ["new", "old"] }
+      ],
+      "claims": ["switching * regime", "moving * to the old regime", "moving * to the new regime"],
+      "objects": ["regime"],
+      "doc": "Change the regime used for an employee's TDS after the admin's yes; February TDS in the draft is recomputed for the months left."
+    },
+    {
+      "id": "ticket.draft",
+      "class": "reversible",
+      "args": [
+        { "name": "subject" },
+        { "name": "summary", "doc": "The written summary the payroll team reads: what was asked, what was found, what is needed." },
+        { "name": "employee_id", "optional": true }
+      ],
+      "claims": ["writing up * ticket", "drafting * ticket"],
+      "objects": ["ticket", "summary"],
+      "doc": "Open the hand-off panel with a ticket draft written out on screen. Nothing is sent."
+    },
+    {
+      "id": "ticket.submit",
+      "class": "confirmed",
+      "args": [],
+      "claims": ["sending * ticket", "raising * ticket"],
+      "objects": ["ticket"],
+      "doc": "Send the ticket draft on screen to Tankora's payroll team after the admin's yes. The page answers with the TK- number."
+    },
+    {
+      "id": "setup.step",
+      "class": "navigate",
+      "args": [{ "name": "step", "enum": ["company", "structure", "import", "leave", "test_run", "done"] }],
+      "claims": ["moving on to", "next step"],
+      "objects": ["step", "setup"],
+      "doc": "Open a step of the setup wizard at /welcome and ring it."
+    },
+    {
+      "id": "setup.fill",
+      "class": "reversible",
+      "args": [
+        {
+          "name": "field",
+          "doc": "A setup field by its name: company_name, legal_name, pan, tan, registered_office, pf_code, esi_code, pt_karnataka, pt_maharashtra, pay_cycle, basic_pct, hra_metro_pct, hra_non_metro_pct, lta_g5, lta_g6_up, pf_rule, esi_rule, el_per_year, cl_per_year, sl_per_year, el_carry_forward, attendance_cutoff, lop_rule."
+        },
+        { "name": "value" }
+      ],
+      "claims": ["filling in", "putting in"],
+      "objects": ["field", "form", "detail"],
+      "doc": "Open the step that holds the field (ringing the stepper), ring the field and set it. Refused with the field names when it is not a setup field."
+    },
+    {
+      "id": "setup.import",
+      "class": "reversible",
+      "args": [],
+      "claims": ["importing", "uploading the * file"],
+      "objects": ["import", "file", "employee"],
+      "doc": "Load employees_import.csv on the import step: the parsed table and the validation summary."
+    },
+    {
+      "id": "setup.test_run",
+      "class": "reversible",
+      "args": [],
+      "claims": ["running the test payroll", "running a test"],
+      "objects": ["test", "payroll", "run"],
+      "doc": "Run the February 2026 test payroll with the engine over the imported employees and show its totals."
+    },
+    {
+      "id": "setup.finish",
+      "class": "confirmed",
+      "args": [],
+      "claims": ["finishing * setup"],
+      "objects": ["setup"],
+      "doc": "Finish setup after the admin's yes and open the dashboard."
+    },
+    {
+      "id": "me.view",
+      "class": "navigate",
+      "args": [
+        { "name": "employee_id", "doc": "BB-1030" },
+        { "name": "tab", "enum": ["payslips", "tax", "declarations", "leave"], "default": "payslips" }
+      ],
+      "claims": ["opening * employee view", "switching to * view"],
+      "objects": ["view", "self-service"],
+      "doc": "Switch to the employee self-service view as that employee, on a tab."
+    }
+  ],
+  "slices": [
+    {
+      "id": "screen",
+      "doc": "the screen in front: its path and title, and the employee it is about",
+      "fields": [
+        { "name": "path" },
+        { "name": "title" },
+        { "name": "employee_id", "optional": true },
+        { "name": "tab", "optional": true }
+      ]
+    },
+    {
+      "id": "leave",
+      "doc": "the last leave request decided",
+      "fields": [
+        { "name": "request_id" },
+        { "name": "decision" },
+        { "name": "employee_id" },
+        { "name": "lop_days", "type": "number" }
+      ]
+    },
+    {
+      "id": "claim",
+      "doc": "the last claim changed",
+      "fields": [
+        { "name": "claim_id" },
+        { "name": "status" },
+        { "name": "amount", "type": "integer" }
+      ]
+    },
+    {
+      "id": "joiner",
+      "doc": "the last employee added",
+      "fields": [
+        { "name": "employee_id" },
+        { "name": "name" },
+        { "name": "gender" },
+        { "name": "department" },
+        { "name": "title" },
+        { "name": "grade" },
+        { "name": "location" },
+        { "name": "joined" },
+        { "name": "annual_ctc", "type": "integer" },
+        { "name": "tax_regime" },
+        { "name": "email", "private": true }
+      ]
+    },
+    {
+      "id": "regime",
+      "doc": "the last regime change",
+      "fields": [
+        { "name": "employee_id" },
+        { "name": "regime" }
+      ]
+    },
+    {
+      "id": "ticket",
+      "doc": "the last hand-off ticket sent",
+      "fields": [
+        { "name": "ticket_id" },
+        { "name": "subject" }
+      ]
+    },
+    {
+      "id": "run",
+      "doc": "the last payroll run approved",
+      "fields": [
+        { "name": "run_id" },
+        { "name": "status" }
+      ]
+    },
+    {
+      "id": "setup",
+      "doc": "the setup wizard: the step in front and which fields hold something, by name",
+      "fields": [
+        { "name": "step" },
+        { "name": "filled", "type": "array" },
+        { "name": "imported", "type": "integer", "optional": true },
+        { "name": "test_run", "type": "boolean", "optional": true },
+        { "name": "finished", "type": "boolean", "optional": true }
+      ]
+    }
+  ],
+  "events": [
+    {
+      "id": "screen.viewed",
+      "slice": "screen",
+      "op": "set",
+      "react": "silent",
+      "note": "{by} opened {title}",
+      "doc": "The route changed."
+    },
+    {
+      "id": "leave.decided",
+      "slice": "leave",
+      "op": "set",
+      "note": "{by} decided leave request {request_id}: {decision}",
+      "doc": "A leave request was approved or rejected."
+    },
+    {
+      "id": "claim.changed",
+      "slice": "claim",
+      "op": "set",
+      "note": "{by} set claim {claim_id} to {status}",
+      "doc": "A claim was fixed, approved or rejected."
+    },
+    {
+      "id": "employee.added",
+      "slice": "joiner",
+      "op": "set",
+      "note": "{by} added {name} as {employee_id}",
+      "doc": "A new employee was saved."
+    },
+    {
+      "id": "regime.switched",
+      "slice": "regime",
+      "op": "set",
+      "note": "{by} switched {employee_id} to the {regime} regime",
+      "doc": "An employee's TDS regime was changed."
+    },
+    {
+      "id": "ticket.created",
+      "slice": "ticket",
+      "op": "set",
+      "note": "{by} sent ticket {ticket_id}",
+      "doc": "A hand-off ticket was sent to Tankora's payroll team."
+    },
+    {
+      "id": "run.approved",
+      "slice": "run",
+      "op": "set",
+      "note": "{by} approved the payroll run {run_id}",
+      "doc": "The admin approved and locked a payroll run."
+    },
+    {
+      "id": "setup.changed",
+      "slice": "setup",
+      "op": "set",
+      "note": "{by} is on the {step} step of setup",
+      "doc": "The setup wizard moved, or a field on it was filled."
+    }
+  ]
+}

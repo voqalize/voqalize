@@ -896,6 +896,10 @@ def build() -> dict[str, Any]:
                     "items": items,
                     "declared_80c_other": declared.sec80c_other,
                     "verified_80c_other": verified.sec80c_other,
+                    # The engine's own inputs (payroll_engine.Declarations), so the
+                    # brain and engine.ts read the same numbers instead of
+                    # re-deriving them from the item labels.
+                    "engine": {"declared": asdict(declared), "verified": asdict(verified)},
                 }
             )
 
