@@ -1,0 +1,24 @@
+"""Anvaya Bank — the demo's own FastAPI brain route.
+
+Voqalize dials ``/bank?session_id=…`` once per session; the shared
+``make_openai_brain_router`` owns the socket lifecycle and token verification,
+so this file only names the demo and its per-session brain factory.
+"""
+
+from __future__ import annotations
+
+from openai import AsyncOpenAI
+from voqalize_demos.session import make_openai_brain_router
+
+from .brain import BankBrain
+
+# The URL segment Voqalize dials; must equal this folder's name.
+NAME = "bank"
+
+
+def build(client: AsyncOpenAI) -> BankBrain:
+    """Build a fresh brain for one session from the shared OpenAI client."""
+    return BankBrain(client=client)
+
+
+router = make_openai_brain_router(NAME, build)

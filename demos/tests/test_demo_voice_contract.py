@@ -220,6 +220,11 @@ DEMOS: dict[str, Expected] = {
     # a gallery card (the page is Uno Salud's own site). Asserted in
     # test_unosalud_e2e.py.
     "unosalud": Expected(voice="omnivoice/javier", language="es", provider="openai"),
+    # Arjun, Anvaya Bank's assistant (a fictional bank): the visitor picks English
+    # or Hindi on the page's toggle and it rides `init`; with none, English. Both
+    # legs move together on the toggle or set_language. The character and his
+    # voice live in demos/bank/persona.json. Asserted in test_bank_e2e.py.
+    "bank": Expected(voice="omnivoice/arjun", language="en", provider="openai"),
 }
 
 

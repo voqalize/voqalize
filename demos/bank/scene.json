@@ -1,0 +1,181 @@
+{
+  "$schema": "../../sdk/js/stage/stage.schema.json",
+  "stage": 1,
+  "id": "anvaya_bank",
+  "languages": ["en", "hi"],
+  "moves": [
+    {
+      "id": "ui.show",
+      "verb": "show",
+      "class": "look",
+      "args": [{ "name": "thing", "doc": "The spoken label of something on the screen in front, as data-stage-label names it: Reward points, Due date, Available balance." }],
+      "say": "{show: Reward points} right before the sentence that talks about that part of the screen; it scrolls into view and is ringed.",
+      "doc": "Ring one thing on the screen in front (data-stage-thing / data-stage-label). Refused, with the labels on screen, when it is not there."
+    },
+    {
+      "id": "nav.open",
+      "class": "navigate",
+      "args": [
+        {
+          "name": "screen",
+          "enum": ["home", "login", "dashboard", "account", "transactions", "insights", "cards_hub", "debit_card", "credit_card", "payments", "bills", "deposits", "statements", "offers", "open_account", "cards", "card_detail", "cards_compare", "cards_apply", "cards_emi", "loans", "loan", "loan_apply"],
+          "doc": "The screen to open."
+        },
+        { "name": "id", "optional": true, "doc": "For account: sb or ca. For card_detail and cards_apply: a card id. For loan and loan_apply: home, personal, gold or car." }
+      ],
+      "claims": ["opening your", "taking you to"],
+      "objects": ["screen", "page", "statement", "dashboard"],
+      "doc": "Open a screen of the bank's site or app. Signed-in screens on a signed-out page go through the mock sign-in first."
+    },
+    {
+      "id": "txn.find",
+      "class": "reversible",
+      "args": [
+        { "name": "account", "optional": true, "enum": ["all", "sb", "ca", "cc"], "doc": "Which account; all by default." },
+        { "name": "category", "optional": true, "doc": "A spend category id: food, groceries, shopping, travel, fuel, bills, entertainment, health, rent, emi, investments, transfers, cash, fees, income, refunds." },
+        { "name": "query", "optional": true, "doc": "Words in the merchant or description." },
+        { "name": "from_days_ago", "type": "integer", "optional": true, "doc": "Oldest day to include, as days before today." },
+        { "name": "to_days_ago", "type": "integer", "optional": true, "doc": "Newest day to include, as days before today (0 is today)." },
+        { "name": "min_amount", "type": "number", "optional": true },
+        { "name": "max_amount", "type": "number", "optional": true },
+        { "name": "direction", "optional": true, "enum": ["any", "debit", "credit"] },
+        { "name": "label", "optional": true, "doc": "What the filter shows, in words: Food in October." }
+      ],
+      "claims": ["filtering your transactions", "pulling up your transactions"],
+      "objects": ["transactions", "charges", "payments", "spends"],
+      "doc": "Open the transactions screen with these filters set, each ringed as it is applied."
+    },
+    {
+      "id": "txn.open",
+      "class": "look",
+      "args": [{ "name": "txn_id", "doc": "A transaction id, T0197." }],
+      "claims": ["opening that transaction"],
+      "objects": ["transaction", "charge"],
+      "doc": "Open one transaction's detail panel (on the transactions screen) and ring it."
+    },
+    {
+      "id": "insights.show",
+      "class": "look",
+      "args": [
+        { "name": "month", "doc": "YYYY-MM." },
+        { "name": "category", "optional": true, "doc": "A spend category id to ring." }
+      ],
+      "claims": ["opening your spending"],
+      "objects": ["spending", "insights", "breakdown"],
+      "doc": "Open the spending insights for one month and ring a category's row."
+    },
+    {
+      "id": "confirm.ask",
+      "class": "reversible",
+      "args": [
+        { "name": "action_id", "doc": "A fresh id the brain mints, A1, A2…" },
+        {
+          "name": "kind",
+          "enum": ["card_block", "card_unblock", "card_control", "card_limit", "bill_pay", "transfer", "fd_book", "emi_convert", "offer_accept"],
+          "doc": "What would change."
+        },
+        { "name": "card", "optional": true, "enum": ["debit", "credit"] },
+        { "name": "control", "optional": true, "enum": ["international", "online", "contactless", "atm", "atm_daily", "pos_daily", "online_daily"] },
+        { "name": "value", "optional": true, "doc": "on / off for a control; the new limit in rupees for a limit." },
+        { "name": "amount", "type": "number", "optional": true },
+        { "name": "target", "optional": true, "doc": "A biller id (bill_pay), a beneficiary id (transfer), a transaction id (emi_convert) or an offer id (offer_accept)." },
+        { "name": "from_account", "optional": true, "enum": ["sb", "ca"] },
+        { "name": "tenure_months", "type": "integer", "optional": true },
+        { "name": "payout", "optional": true, "enum": ["cumulative", "monthly", "quarterly"] }
+      ],
+      "doc": "Put a confirmation sheet on screen for a change, with its summary and Confirm / Cancel. Nothing changes until it is confirmed, by tap or by confirm.answer."
+    },
+    {
+      "id": "confirm.answer",
+      "class": "confirmed",
+      "args": [
+        { "name": "action_id" },
+        { "name": "yes", "type": "boolean", "doc": "true presses Confirm, false presses Cancel." }
+      ],
+      "doc": "Press Confirm or Cancel on the confirmation sheet, after the customer's spoken answer. Answers with the reference of what was done."
+    },
+    {
+      "id": "form.fill",
+      "class": "reversible",
+      "args": [
+        { "name": "form", "enum": ["open_account", "card_apply", "loan_apply"] },
+        { "name": "field", "doc": "A field of that form by its name (CONTRACT.md)." },
+        { "name": "value", "doc": "The value, as the form takes it: a choice id, a date YYYY-MM-DD, a number, or text." }
+      ],
+      "claims": ["filling in", "putting down"],
+      "objects": ["form", "field", "application"],
+      "doc": "Set one field of a form, ringing it first. Refused with the field's choices when the value is not one of them."
+    },
+    {
+      "id": "form.step",
+      "class": "navigate",
+      "args": [
+        { "name": "form", "enum": ["open_account", "card_apply", "loan_apply"] },
+        { "name": "step", "type": "integer" }
+      ],
+      "doc": "Open a step of a form (account opening has six; the others are one page, step 1)."
+    },
+    {
+      "id": "form.submit",
+      "class": "confirmed",
+      "args": [{ "name": "form", "enum": ["open_account", "card_apply", "loan_apply"] }],
+      "doc": "Press the form's Submit after the customer's spoken yes. Refused, naming the missing fields. Answers with the reference."
+    },
+    {
+      "id": "cards.compare",
+      "class": "look",
+      "args": [
+        { "name": "card_ids", "type": "array", "doc": "Two to five card ids, best first." },
+        { "name": "dining", "type": "integer", "optional": true, "doc": "Monthly spend in rupees, for the ranking." },
+        { "name": "online", "type": "integer", "optional": true },
+        { "name": "groceries", "type": "integer", "optional": true },
+        { "name": "travel", "type": "integer", "optional": true },
+        { "name": "fuel", "type": "integer", "optional": true },
+        { "name": "utilities", "type": "integer", "optional": true },
+        { "name": "other", "type": "integer", "optional": true }
+      ],
+      "claims": ["comparing the cards", "putting the cards side by side"],
+      "objects": ["cards", "comparison"],
+      "doc": "Open the side-by-side compare of these cards in this order, with the monthly spend profile set, each card's yearly value worked out from it."
+    },
+    {
+      "id": "emi.plan",
+      "class": "reversible",
+      "args": [
+        { "name": "txn_id", "optional": true, "doc": "A card transaction to convert; or an amount." },
+        { "name": "amount", "type": "number", "optional": true },
+        { "name": "tenure_months", "type": "integer", "doc": "3, 6, 9, 12, 18 or 24." }
+      ],
+      "claims": ["working out the emi"],
+      "objects": ["emi", "instalments", "plan"],
+      "doc": "Open the EMI planner for a card spend with every tenure's EMI worked out and this tenure selected and ringed."
+    },
+    {
+      "id": "loan.calc",
+      "class": "reversible",
+      "args": [
+        { "name": "loan_type", "enum": ["home", "personal", "gold", "car"] },
+        { "name": "amount", "type": "number" },
+        { "name": "tenure_months", "type": "integer" },
+        { "name": "rate", "type": "number", "optional": true, "doc": "Yearly rate; the product's typical rate when absent." }
+      ],
+      "claims": ["working out the emi", "putting that in the calculator"],
+      "objects": ["calculator", "emi"],
+      "doc": "Set the loan EMI calculator and show its working."
+    },
+    {
+      "id": "loan.eligibility",
+      "class": "reversible",
+      "args": [
+        { "name": "loan_type", "enum": ["home", "personal", "gold", "car"] },
+        { "name": "monthly_income", "type": "number", "optional": true },
+        { "name": "existing_emis", "type": "number", "optional": true },
+        { "name": "tenure_months", "type": "integer", "optional": true },
+        { "name": "gold_grams", "type": "number", "optional": true }
+      ],
+      "claims": ["checking your eligibility", "working out how much"],
+      "objects": ["eligibility"],
+      "doc": "Fill the eligibility check and show how much can be borrowed, with the working."
+    }
+  ]
+}
