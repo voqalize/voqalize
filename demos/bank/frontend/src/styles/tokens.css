@@ -1,0 +1,71 @@
+/* Anvaya Bank design tokens. Shared by the public site (site.css) and the app (app.css). */
+:root {
+  --teal-900: #0a3a34;
+  --teal-800: #0e4d45;
+  --teal-700: #145f55;
+  --teal-600: #1d7468;
+  --teal-100: #dcebe7;
+  --teal-50: #eef5f3;
+  --marigold: #e8a33d;
+  --marigold-600: #c9862a;
+  --marigold-100: #fbecd2;
+  --ink: #12211f;
+  --ink-2: #3a4a47;
+  --ink-3: #6b7a77;
+  --line: #e2ddd2;
+  --line-2: #d3ccbe;
+  --paper: #f7f4ee;
+  --sand: #ece6da;
+  --white: #ffffff;
+  --ok: #1f8a5b;
+  --ok-bg: #e3f3ea;
+  --bad: #c2412d;
+  --bad-bg: #fbe7e2;
+  --warn: #b7791f;
+  --warn-bg: #fdf3dc;
+  --credit: #1f8a5b;
+  --debit: #12211f;
+
+  --font-ui: "Manrope Variable", "Manrope", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: "Fraunces Variable", "Fraunces", Georgia, serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 18px;
+  --r-xl: 26px;
+  --shadow-1: 0 1px 2px rgba(18, 33, 31, 0.06), 0 1px 1px rgba(18, 33, 31, 0.04);
+  --shadow-2: 0 6px 24px rgba(18, 33, 31, 0.08), 0 2px 6px rgba(18, 33, 31, 0.05);
+  --shadow-3: 0 18px 50px rgba(10, 58, 52, 0.18);
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+html,
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: "tnum" 1;
+}
+a {
+  color: inherit;
+}
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+.num {
+  font-variant-numeric: tabular-nums;
+}

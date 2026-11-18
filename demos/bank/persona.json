@@ -1,0 +1,26 @@
+{
+  "character": "arjun",
+  "name": "Arjun",
+  "spoken_names": {
+    "en": "Arjun",
+    "hi": "अर्जुन"
+  },
+  "role": "Anvaya Bank's assistant",
+  "voices": {
+    "en": "omnivoice/arjun",
+    "hi": "omnivoice/arjun"
+  },
+  "languages": [
+    "en",
+    "hi"
+  ],
+  "default_language": "en",
+  "language_labels": {
+    "en": "EN",
+    "hi": "हिंदी"
+  },
+  "language_names": {
+    "en": "English",
+    "hi": "Hindi"
+  }
+}

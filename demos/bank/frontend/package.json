@@ -1,0 +1,42 @@
+{
+  "name": "@voqalize/demo-bank",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Anvaya Bank (fictional): a public site and a signed-in banking app where Arjun, the bank's voice assistant, answers from the customer's own data and drives the screen. A standalone Vite app served at /demos/bank.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build && node scripts/route-shells.mjs",
+    "typecheck": "tsc --noEmit",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "screenshots": "node scripts/screenshots.mjs"
+  },
+  "dependencies": {
+    "@fontsource-variable/fraunces": "^5.2.5",
+    "@fontsource-variable/manrope": "^5.2.5",
+    "@pipecat-ai/client-js": "^1.13.0",
+    "@pipecat-ai/client-react": "^1.8.0",
+    "@pipecat-ai/small-webrtc-transport": "~1.10.8",
+    "@voqalize/avatar": "^0.6.3",
+    "@voqalize/client-transport": "0.4.1",
+    "@voqalize/demo-kit": "file:../../shared",
+    "@voqalize/stage": "link:../../../sdk/js/stage",
+    "lucide-react": "^0.511.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "react-router-dom": "^7.6.2",
+    "zustand": "^5.0.5"
+  },
+  "devDependencies": {
+    "@types/node": "^25.6.0",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "@vitejs/plugin-react": "^4.5.2",
+    "happy-dom": "^15.11.7",
+    "playwright": "^1.56.1",
+    "typescript": "^5.8.3",
+    "vite": "^6.3.5",
+    "vitest": "^2.1.9"
+  }
+}
