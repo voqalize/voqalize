@@ -24,6 +24,7 @@ import {
 } from "../voice/circle";
 import { useFakeCall } from "../voice/VoiceDock";
 import { emit } from "../voice/events";
+import { persona } from "../persona";
 
 const LONG_PRESS_MS = 350;
 const SLOP = 8;
@@ -396,7 +397,7 @@ function CircleHint() {
       <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden>
         <path d="M12 4c5 0 8 2.6 8 6.6S16.6 19 11.6 19C6.8 19 4 16.4 4 12.8 4 9 7.6 6.6 12 6.6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
       </svg>
-      {touch ? "Tip: press, hold and circle things to ask Emily · + Add more adds" : "Tip: Shift to circle things for Emily · Shift+Alt to add"}
+      {touch ? `Tip: press, hold and circle things to ask ${persona.name} · + Add more adds` : `Tip: Shift to circle things for ${persona.name} · Shift+Alt to add`}
     </div>
   );
 }

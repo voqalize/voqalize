@@ -60,7 +60,8 @@ const STEP_OF: Record<string, number> = {
 /** A label as Emily would say it back: "It doesn't suit the room" → "doesn't suit the room". */
 const spoken = (label: string) => label.replace(/^(It's|It|I'll|I)\s+/, "").replace(/^./, (ch) => ch.toLowerCase());
 
-export function returnsPerformers(): Performers<Spec> {
+/** The returns form's own moves; the front-of-house ones are src/stage/frontdesk.ts. */
+export function returnsPerformers(): Pick<Performers<Spec>, `returns.${string}` & keyof Performers<Spec>> {
   return {
     "returns.open_step": async ({ step }, c) => {
       const n = Number(step);

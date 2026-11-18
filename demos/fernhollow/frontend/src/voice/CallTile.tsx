@@ -19,6 +19,7 @@ import { type ReactNode, useCallback, useEffect, useLayoutEffect, useRef, useSta
 import { create } from "zustand";
 import { useCart } from "../state/cart";
 import { useShortlist } from "../state/shortlist";
+import { persona } from "../persona";
 
 export type CallState = "connecting" | "listening" | "thinking" | "speaking" | "error";
 type Anchor = "tl" | "tr" | "ml" | "mr" | "bl" | "br";
@@ -292,7 +293,7 @@ export function CallTile({
       className={`call-tile is-${mode} is-${state}${drag ? " is-dragging" : ""}${parked ? " is-parked" : ""}${snap ? " is-snap" : ""}`}
       style={{ left: pos.left, top: pos.top, width: at.width, height: at.height }}
       role={mode === "docked" ? undefined : "region"}
-      aria-label={mode === "docked" ? undefined : "Call with Emily. Drag, or use the arrow keys, to move it."}
+      aria-label={mode === "docked" ? undefined : `Call with ${persona.name}. Drag, or use the arrow keys, to move it.`}
       tabIndex={mode === "docked" ? -1 : 0}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
@@ -304,12 +305,12 @@ export function CallTile({
         {children}
         {mode === "tile" ? (
           <>
-            <span className="call-tag">Emily</span>
+            <span className="call-tag">{persona.name}</span>
             <span className={`call-state is-${state}`}>{LABEL[state]}</span>
           </>
         ) : null}
         {mode === "mini" ? (
-          <button type="button" className="call-expand" aria-label="Show the call with Emily" onClick={() => setMini(false)}>
+          <button type="button" className="call-expand" aria-label={`Show the call with ${persona.name}`} onClick={() => setMini(false)}>
             <Maximize2 size={14} />
           </button>
         ) : null}
@@ -317,7 +318,7 @@ export function CallTile({
       {mode === "tile" ? (
         <div className="call-bar">
           <div className="call-who">
-            <p className="call-name">Emily</p>
+            <p className="call-name">{persona.name}</p>
             {!phone() ? (
               <p className="call-heard" aria-live="polite">
                 {heard ? `“${heard}”` : "Design adviser"}

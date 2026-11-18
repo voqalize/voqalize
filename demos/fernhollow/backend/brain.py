@@ -66,7 +66,7 @@ from voqalize.sdk import (
 )
 from voqalize.sdk.stage import Mirror, Stage
 from voqalize.sdk.stage.wire import StageEvent, StageHello, StageProgress, StageResult
-from voqalize.sdk.wire import Config, IdleConfig, Language, SttConfig, TtsConfig, Voice
+from voqalize.sdk.wire import Config, IdleConfig, SttConfig, TtsConfig
 
 from . import engine as eng
 from .app_events import (
@@ -101,14 +101,21 @@ from .checkout import (
     delivery_fee,
 )
 from .confirm import Acted, Confirmations, Pending, classify
+from .edits import KIOSK, budget_chip, gift_key, kiosk_key
+from .edits import stored as stored_edits
+from .persona import PERSONA
 from .policies import Topic, policy_page, policy_text
-from .prompt import GREETING, system_instruction
+from .prompt import GREETINGS, Job, job_for, system_instruction
 from .recipes import FINISHING, RECIPES
 from .resolve import SELECTED, Layout, Resolution
 from .resolve import resolve as resolve_reference
 from .returns import WINDOW_DAYS, Order, exchange_options, order_from, plan_return
 from .returns import find_order as find_any_order
+from .sizing import advise, next_question, prune, size_of, sized_products
+from .sizing import question as size_question
+from .sizing import valid as size_valid
 from .stage_gen import MOVES, SPEC
+from .tracking import TRACKED, Slot, Tracked, day_words, find_tracked, plain_status
 
 #: Every event the page sends: the store's own typed events and Stage's.
 _EVENTS = AppEvents(*FERNHOLLOW_EVENTS, StageResult, StageHello, StageProgress, StageEvent)
@@ -535,7 +542,7 @@ class ShowRequest(BaseModel):
     focus: Literal["options", "highlights", "price"] | None = None
     page: str | None = Field(
         default=None,
-        description="home, room/<room>, category/<slug>, journal, journal/<slug>, cart, policy/<topic>.",
+        description="home, room/<room>, category/<slug>, journal, journal/<slug>, cart, policy/<topic>, returns, size-guide, gifts, orders, kiosk.",
     )
     query: str | None = Field(default=None, description="Search words, for a results grid.")
 
@@ -626,6 +633,71 @@ class SubmitReturnRequest(BaseModel):
 
 class ExchangeRequest(BaseModel):
     product: str = Field(description="A line of the order: its product id, or its title.")
+
+
+SizeKind = Literal["bed", "vase", "rug", "curtains"]
+
+
+class SizeFinderRequest(BaseModel):
+    """What the shopper has said so far about what they are sizing."""
+
+    kind: SizeKind = Field(
+        description="bed (a bed, sheets, a quilt), vase (vases, faux stems), rug, curtains."
+    )
+    mattress: Literal["queen", "king", "none"] | None = Field(
+        default=None,
+        description="For a bed: the mattress they have; none when they have none yet or are unsure.",
+    )
+    sleepers: Literal["one", "two", "more"] | None = Field(
+        default=None,
+        description="For a bed with no mattress yet: just them, two, or two plus a child or pet.",
+    )
+    room: Literal["snug", "average", "roomy"] | None = Field(
+        default=None, description="For a bed with no mattress yet: how roomy the bedroom is."
+    )
+    place: Literal["shelf", "bedside", "desk", "dining_table", "console", "floor"] | None = Field(
+        default=None, description="For a vase: where it will go (desk covers a windowsill)."
+    )
+    layout: Literal["all_legs", "front_legs", "table_only"] | None = Field(
+        default=None, description="For a rug: how it sits with the sofa."
+    )
+    drop: Literal["sill", "below_sill", "floor"] | None = Field(
+        default=None, description="For curtains: how far they fall."
+    )
+
+
+class PickSizeRequest(BaseModel):
+    product: str = Field(description="The product: 'this', an ordinal on screen, its name, or id.")
+    size: str = Field(description="The size word: Queen, King, Small or Large.")
+
+
+class GiftRequest(BaseModel):
+    recipient: Literal["partner", "parent", "sibling", "friend", "host", "colleague"]
+    occasion: Literal["housewarming", "birthday", "thank_you", "wedding", "just_because"]
+    budget: float = Field(description="The most they want to spend, in dollars, as they said it.")
+
+
+class TrackRequest(BaseModel):
+    order_number: str | None = Field(
+        default=None,
+        description="The order's number, e.g. 'FH-31207'; empty to list the account's orders.",
+    )
+
+
+class DeliveryRequest(BaseModel):
+    order_number: str
+    slot: str = Field(description="A slot id track_order gave, e.g. 'd3-morning'.")
+
+
+class KioskRequest(BaseModel):
+    """The kiosk's answers so far."""
+
+    room: Literal["living", "bedroom", "dining", "home-office"] | None = None
+    feel: Literal["warm_wood", "soft_neutrals", "clean_lines", "natural_texture"] | None = None
+    budget: Literal["150", "400", "1000", "any"] | None = Field(
+        default=None,
+        description="Spend per piece: up to 150, 400 or 1000 dollars, or any for no limit.",
+    )
 
 
 # ─── The screen mirror ────────────────────────────────────────────────────────
@@ -754,24 +826,40 @@ class FernhollowBrain(GeminiBrain):
             mirror=Mirror(SPEC),
         )
         self._talk: str | None = None  # an ask the page left for the next quiet spell
+        # The job (CONTRACT.md, v5): picked by the landing page, switched when
+        # the shopper lands on another job's page.
+        self.job: Job = "shop"
+        self.language = PERSONA.default_language
+        # The size finder's answers, the gift edit's controls, the kiosk's
+        # answers and screen, and delivery days moved this session (order → slot).
+        self.size_answers: dict[str, str] = {}
+        self.gift: tuple[str, str, int] | None = None
+        self.kiosk: dict[str, str] = {}
+        self.kiosk_screen = "attract"
+        self.delivery: dict[str, str] = {}
         self._fallback = FallbackLine()
 
     # ─── Session ────────────────────────────────────────────────────────
 
     async def on_session_start(self, session: Session) -> None:
-        """Emily, in English, on both legs before the greeting. English is the
-        only language this demo speaks."""
+        """The persona's voice for the language the page asked for (English
+        is the only one offered today), on both legs before the greeting; and
+        the job, from the page the call started on (CONTRACT.md, v5)."""
+        init = session.init or {}
+        self.language = PERSONA.language(init.get("lang"))
+        self.job = job_for(str(init.get("landing") or "/")) or "shop"
         await session.configure(
             Config(
-                tts=TtsConfig(voice=Voice.OMNIVOICE_EMILY, language=Language.EN),
-                stt=SttConfig(language=Language.EN, patience=PATIENCE),
+                tts=TtsConfig(voice=PERSONA.voice(self.language), language=self.language),
+                stt=SttConfig(language=self.language, patience=PATIENCE),
                 idle=IdleConfig(timeout_ms=_IDLE_MS),
             )
         )
 
     async def greet(self, session: Session) -> str:
-        """Fixed — no model call — so Emily speaks the instant the call connects."""
-        return GREETING
+        """Fixed — no model call — so the agent speaks the instant the call
+        connects, with the greeting of the job the page started."""
+        return GREETINGS[self.job]
 
     async def on_user_message(
         self, session: Session, msg: UserMessage
@@ -864,7 +952,7 @@ class FernhollowBrain(GeminiBrain):
         ref = self.stage.send("returns.submit", {}, queue=False)
         return Acted(
             "Submitting it now.",
-            "[The return is being submitted; Emily tells them the page's answer when it comes. "
+            "[The return is being submitted; you tell them the page's answer when it comes. "
             "Do not call submit_return again.]",
             ref=ref,
             on_applied=lambda detail: self._submitted_line(
@@ -931,7 +1019,10 @@ class FernhollowBrain(GeminiBrain):
         if any. A cue that landed was spoken past and needs no line; one that
         did not is said plainly, with what the page offers instead."""
         if isinstance(event, StageEvent):
+            extra = self._fold_store_event(event)
             folded = self.stage.handle(event)
+            if extra is not None and event.by == "visitor":
+                return extra
             if folded is None:
                 return None
             if ref := str(event.data.get("reference") or ""):
@@ -1029,7 +1120,7 @@ class FernhollowBrain(GeminiBrain):
 
     def screen_now(self) -> str:
         s = self.screen
-        parts = [f"page: {s.page}"]
+        parts = [f"job: {self.job}", f"page: {s.page}"]
         if s.product is not None and (p := CATALOG.get(s.product)) is not None:
             variant = p.variant_for(None)
             if s.variant:
@@ -1233,6 +1324,10 @@ class FernhollowBrain(GeminiBrain):
         if len(s.listing) >= 2:
             pair = tuple(s.listing[:2])
             self._memo(("compare", pair, brief_key), lambda: eng.compare(pair, self.brief))
+        if s.room is None and self.brief.room and self.brief.budget:
+            # The brief has a room and a budget: "put it together" is next.
+            brief = self.brief
+            self._memo(("room", brief_key), lambda: eng.build_room(brief))
         if s.room is not None:
             room = s.room
             self._memo(
@@ -1299,6 +1394,13 @@ class FernhollowBrain(GeminiBrain):
             self.checkout_step,
             self.place_order,
             self.clear_selection,
+            self.size_finder,
+            self.pick_size,
+            self.gift_edit,
+            self.track_order,
+            self.change_delivery,
+            self.kiosk_answer,
+            self.kiosk_restart,
         ]
 
     @needs_result_now
@@ -1907,7 +2009,7 @@ class FernhollowBrain(GeminiBrain):
         if not _valid_page(page):
             return _not_done(
                 f"there is no page '{page}'",
-                "Use home, room/<room>, category/<slug>, journal, cart or policy/<topic>.",
+                "Use home, room/<room>, category/<slug>, journal, cart, policy/<topic>, returns, size-guide, gifts, orders or kiosk.",
             )
         self._move(page=page, product=None)
         self.session.dispatch(Navigate(page=page))
@@ -2004,7 +2106,7 @@ class FernhollowBrain(GeminiBrain):
 
     async def add_to_cart(self, request: AddToCartRequest) -> str:
         """Add the room on the board, or one product, to the cart — at once, no
-        confirmation: the cart shows Emily added it, and it is one tap to undo."""
+        confirmation: the cart shows you added it, and it is one tap to undo."""
         lines: list[ConfirmLine]
         if request.what == "room":
             room = self.screen.room
@@ -2562,6 +2664,333 @@ class FernhollowBrain(GeminiBrain):
         landed("Shall I submit the return?")
         return _prose("Ask for their yes before submitting. Nothing is submitted yet.")
 
+    # ─── Front of house: size guide, gift edit, orders, kiosk (CONTRACT v5) ──
+
+    def _send(self, move: str, args: dict[str, Any]) -> str:
+        """A store move the tool decided on: sent now, answered by the page."""
+        return self.stage.send(move, args, queue=False)
+
+    def _size_result(self) -> str:
+        a = self.size_answers
+        advice = advise(a)
+        if advice is None:
+            q = next_question(a)
+            if q is None:
+                return _prose(
+                    "The size finder has no answer for that yet.", next="ask what they are sizing"
+                )
+            options = ", ".join(o["label"] for o in q["options"])
+            return _prose(
+                "The size finder on screen is waiting for the next answer.",
+                ask_next=f"{q['label']} ({options})",
+                next="ask exactly that, one short question",
+            )
+        if advice.size is None:
+            sec = advice.section
+            return _prose(
+                f"The guide's advice for {sec}: {advice.why}",
+                note=f"Fernhollow's {sec} are sold by fabric, so there is no size to pick; the {sec} are listed under the advice.",
+                next="say the advice in one or two sentences",
+            )
+        items = sized_products(advice.section, advice.size)
+        self._move(listing=tuple(p.id for p, _ in items[:24]), listing_kind="size guide")
+        return _prose(
+            f"The guide says {advice.size}: {advice.why}",
+            products_in_that_size=[
+                f"{p.title} — {advice.size}, {money(v.price)} [id {p.id}]" for p, v in items[:10]
+            ],
+            next="say the size and the reason in one sentence, then offer to open one of them in that size (pick_size)",
+        )
+
+    @needs_result_now
+    async def size_finder(self, request: SizeFinderRequest) -> str:
+        """Set the size finder on screen with what the shopper said, and get
+        the guide's size and reason — or the one next question to ask."""
+        given = request.model_dump(exclude_none=True)
+        if given.get("kind") != self.size_answers.get("kind"):
+            self.size_answers = {}
+        order = ["kind", "mattress", "sleepers", "room", "place", "layout", "drop"]
+        sent: list[str] = []
+        for qid in order:
+            value = given.get(qid)
+            if value is None or self.size_answers.get(qid) == value:
+                continue
+            q = size_question(qid)
+            when = (q or {}).get("when", {})
+            merged = {**self.size_answers, qid: value}
+            if (
+                q is None
+                or not size_valid(qid, value)
+                or any(merged.get(k) != v for k, v in when.items())
+            ):
+                continue
+            self.size_answers = prune({**self.size_answers, qid: value})
+            self._send("size.answer", {"question": qid, "value": value})
+            sent.append(qid)
+        if not self.screen.page.startswith("size-guide"):
+            self._move(page="size-guide", product=None)
+        landed("Here's what the guide says.", "The size guide is on screen.")
+        return self._size_result()
+
+    async def pick_size(self, request: PickSizeRequest) -> str:
+        """Open a product in the size the shopper chose, with its options ringed."""
+        p = self.resolve(request.product)
+        if p is None:
+            return _not_done(
+                f"I cannot tell which product '{request.product}' is", "Ask which one."
+            )
+        sizes = size_of(p)
+        if not sizes:
+            return _not_done(
+                f"{p.title} is not sold by size; it comes in {p.option_name.lower()}: {', '.join(p.option_values)}",
+                "Say so, and give the guide's advice instead.",
+            )
+        want = request.size.strip().lower()
+        if want not in {x.lower() for x in sizes}:
+            return _not_done(
+                f"{p.title} comes in {' and '.join(sizes)}, not {request.size}",
+                "Offer the sizes it comes in.",
+            )
+        v = p.variant_for(request.size)
+        self._move(page=f"product/{p.id}", product=p.id, variant=v.id)
+        self.session.dispatch(OpenProduct(product_id=p.id, variant_id=v.id, focus="options"))
+        advice = advise(self.size_answers)
+        why = advice.why if advice is not None and advice.size == v.value else None
+        landed(f"Here it is in {v.value}.", "That size is selected.")
+        return _prose(
+            f"{p.title} is open in {v.value}, {money(v.price)}, with the size ringed.",
+            guide=why,
+            next="say it is in that size, in a few words; offer to add it to the cart",
+        )
+
+    @needs_result_now
+    async def gift_edit(self, request: GiftRequest) -> str:
+        """Set the gift edit for who it is for, the occasion and the budget,
+        and get its short list, each pick with its reason."""
+        chip = budget_chip(request.budget)
+        picks: list[dict[str, str]] = stored_edits()["gifts"].get(
+            gift_key(request.recipient, request.occasion, chip), []
+        )
+        self.gift = (request.recipient, request.occasion, chip)
+        self._send(
+            "gifts.set",
+            {"recipient": request.recipient, "occasion": request.occasion, "budget": chip},
+        )
+        ids = tuple(x["product_id"] for x in picks if x["product_id"] in CATALOG.products)
+        self._move(page="gifts", product=None, listing=ids, listing_kind="gift edit")
+        landed("Here's a short list.", "The gift edit is on screen.")
+        if not ids:
+            return _not_done(
+                "nothing in the store fits that budget for that gift", "Offer the next budget up."
+            )
+        nearest = (
+            f"the budget chip at or under {money(request.budget)} is {money(chip)}"
+            if abs(chip - request.budget) > 0.005
+            else None
+        )
+        return _prose(
+            f"The gift edit is on screen: {len(ids)} picks up to {money(chip)}, in screen order.",
+            budget=nearest,
+            picks=[
+                _line(CATALOG.products[x["product_id"]], x["reason"])
+                for x in picks
+                if x["product_id"] in CATALOG.products
+            ],
+            next="name two picks with their reasons; offer to add one to the cart",
+        )
+
+    def _slot_now(self, t: Tracked) -> Slot | None:
+        chosen = self.delivery.get(t.number)
+        return next((x for x in t.slots if x.id == chosen), None) or t.slot
+
+    @needs_result_now
+    async def track_order(self, request: TrackRequest) -> str:
+        """Where an order is, in plain words, with its timeline and the days
+        its delivery can move to. Without a number: the account's orders."""
+        if not request.order_number:
+            if not self.screen.page.startswith("orders"):
+                self.session.dispatch(Navigate(page="orders"))
+            self._move(page="orders", product=None)
+            landed("Here are your orders.")
+            return _prose(
+                "The orders page is open with the account's orders.",
+                orders=[
+                    f"{t.number}: {', '.join(t.lines)} — {plain_status(replace(t, slot=self._slot_now(t)))}"
+                    for t in TRACKED.values()
+                ],
+                next="ask which order they mean, naming what is in each",
+            )
+        t = find_tracked(request.order_number)
+        if t is None:
+            return _not_done(
+                f"{request.order_number} is not one of the orders on this account's orders page",
+                f"The tracked orders are {', '.join(TRACKED)}; ask which one.",
+            )
+        t = replace(t, slot=self._slot_now(t))
+        self._send("orders.open", {"order_number": t.number})
+        self._move(page=f"orders?order={t.number}")
+        landed("Here's where it is.", "Your order is on screen.")
+        timeline = [f"{day_words(-int(e['days_ago']))} {e['time']}: {e['text']}" for e in t.events]
+        if t.stage == "delivered":
+            order = self.lookup_order(t.number)
+            line = order.lines[0] if order and order.lines else None
+            left = (
+                f"it can go back for {line.days_left} more days"
+                if line and line.days_left is not None
+                else None
+            )
+            return _prose(
+                f"{t.number} ({', '.join(t.lines)}): {plain_status(t)}",
+                timeline=timeline,
+                returns=left,
+                next="if they want to send something back, call find_order with this number: it opens the returns form",
+            )
+        moves = [
+            f"{x.words()} [slot {x.id}]" for x in t.slots if x.id != (t.slot.id if t.slot else "")
+        ]
+        return _prose(
+            f"{t.number} ({', '.join(t.lines)}): {plain_status(t)}",
+            timeline=timeline,
+            can_move_to=moves if t.can_reschedule else None,
+            cannot_move=None if t.can_reschedule else t.why_not,
+            next="say where it is in one or two plain sentences"
+            + ("; offer to change the day only if they ask" if t.can_reschedule else ""),
+        )
+
+    async def change_delivery(self, request: DeliveryRequest) -> str:
+        """Move an order's delivery to one of the slots track_order offered."""
+        t = find_tracked(request.order_number)
+        if t is None:
+            return _not_done(
+                f"there is no tracked order {request.order_number!r}", "Ask which order."
+            )
+        if not t.can_reschedule:
+            return _not_done(f"{t.number} cannot move: {t.why_not}", "Say why, in plain words.")
+        said = request.slot.strip().lower()
+        slot = next((x for x in t.slots if x.id == said), None) or next(
+            (
+                x
+                for x in t.slots
+                if x.window in said and day_words(x.days_from_now).split()[0].lower() in said
+            ),
+            None,
+        )
+        if slot is None:
+            return _not_done(
+                f"'{request.slot}' is not a slot {t.number} offers",
+                "Offer these: " + "; ".join(f"{x.words()} [slot {x.id}]" for x in t.slots),
+            )
+        self.delivery[t.number] = slot.id
+        self._send("orders.reschedule", {"order_number": t.number, "slot": slot.id})
+        self._move(page=f"orders?order={t.number}")
+        landed(f"Done — it's moved to {slot.words()}.")
+        return _prose(
+            f"The delivery of {t.number} is moved to {slot.words()}.",
+            next="confirm the new day and time window in one sentence",
+        )
+
+    @needs_result_now
+    async def kiosk_answer(self, request: KioskRequest) -> str:
+        """Choose the kiosk's tiles for what the shopper said; with all three
+        answers, get the three picks and their reasons."""
+        if self.kiosk_screen == "attract":
+            self._send("kiosk.start", {})
+            self.kiosk_screen = "room"
+        for qid in ("room", "feel", "budget"):
+            value = getattr(request, qid)
+            if value is not None and self.kiosk.get(qid) != value:
+                self.kiosk[qid] = value
+                self._send("kiosk.answer", {"question": qid, "value": value})
+        self._move(page="kiosk", product=None)
+        landed("That's on the screen.", "The kiosk has it.")
+        return self._kiosk_result()
+
+    def _kiosk_result(self) -> str:
+        k = self.kiosk
+        missing = [q for q in ("room", "feel", "budget") if q not in k]
+        if missing:
+            q = next(x for x in KIOSK["questions"] if x["id"] == missing[0])
+            return _prose(
+                "The kiosk is on its next question.",
+                ask_next=f"{q['label']} ({', '.join(o['label'] for o in q['options'])})",
+                next="ask it in one short sentence",
+            )
+        picks: list[dict[str, str]] = stored_edits()["kiosk"].get(
+            kiosk_key(k["room"], k["feel"], k["budget"]), []
+        )
+        ids = tuple(x["product_id"] for x in picks if x["product_id"] in CATALOG.products)
+        self.kiosk_screen = "picks"
+        self._move(listing=ids, listing_kind="kiosk picks")
+        return _prose(
+            "The three picks are on the kiosk, with a QR code that takes them to the shopper's phone.",
+            picks=[_line(CATALOG.products[x["product_id"]], x["reason"]) for x in picks],
+            next="name each pick in a few words with its reason, then mention the QR code; short",
+        )
+
+    async def kiosk_restart(self) -> str:
+        """Clear the kiosk and go back to its welcome screen."""
+        self.kiosk = {}
+        self.kiosk_screen = "attract"
+        self._send("kiosk.restart", {})
+        landed("Starting over.")
+        return _prose("The kiosk is back on its welcome screen.")
+
+    def _fold_store_event(self, event: StageEvent) -> str | None:
+        """A store page's Stage event (CONTRACT v5), folded into the mirror;
+        the line the model reads when the shopper did it by hand."""
+        d = event.data
+        match event.name:
+            case "size.answered":
+                qid, value = str(d.get("question") or ""), str(d.get("value") or "")
+                if not size_valid(qid, value):
+                    return None
+                if qid == "kind" and self.size_answers.get("kind") != value:
+                    self.size_answers = {}
+                self.size_answers = prune({**self.size_answers, qid: value})
+                advice = advise(self.size_answers)
+                tail = (
+                    f" The guide now says {advice.size}: {advice.why}"
+                    if advice is not None and advice.size
+                    else ""
+                )
+                return f"[The shopper answered {qid}: {value} on the size finder.{tail}]"
+            case "gifts.changed":
+                rec, occ = str(d.get("recipient") or ""), str(d.get("occasion") or "")
+                budget = int(d.get("budget") or 0)
+                if not (rec and occ and budget):
+                    return None
+                self.gift = (rec, occ, budget)
+                picks = stored_edits()["gifts"].get(gift_key(rec, occ, budget), [])
+                ids = tuple(x["product_id"] for x in picks if x["product_id"] in CATALOG.products)
+                self.screen = replace(self.screen, listing=ids, listing_kind="gift edit")
+                names = "; ".join(f"{n}. {CATALOG.products[i].title}" for n, i in enumerate(ids, 1))
+                return f"[The shopper set the gift edit to {rec}, {occ}, up to {money(budget)}. On screen: {names}.]"
+            case "orders.opened":
+                return f"[The shopper opened order {d.get('order_number')}.]"
+            case "orders.delivery_changed":
+                number, slot = str(d.get("order_number") or ""), str(d.get("slot") or "")
+                t = TRACKED.get(number)
+                chosen = next((x for x in t.slots if x.id == slot), None) if t else None
+                if chosen is None:
+                    return None
+                self.delivery[number] = slot
+                return f"[The shopper moved the delivery of {number} to {chosen.words()}.]"
+            case "kiosk.screen":
+                self.kiosk_screen = str(d.get("screen") or self.kiosk_screen)
+                if self.kiosk_screen == "attract":
+                    self.kiosk = {}
+                return None
+            case "kiosk.answered":
+                qid, value = str(d.get("question") or ""), str(d.get("value") or "")
+                if qid not in ("room", "feel", "budget"):
+                    return None
+                self.kiosk[qid] = value
+                if len(self.kiosk) == 3:
+                    return f"[The shopper chose {value} for {qid} on the kiosk. {self._kiosk_result()}]"
+                return f"[The shopper chose {value} for {qid} on the kiosk.]"
+            case _:
+                return None
+
     # ─── Browser → brain ────────────────────────────────────────────────
 
     def apply_event(self, event: FernhollowEvent) -> str | None:
@@ -2575,6 +3004,10 @@ class FernhollowBrain(GeminiBrain):
                     product = None
                 self.screen = replace(self.screen, page=path, product=product, variant=None)
                 self.choices = ()
+                job = job_for(path)
+                if job is not None and job != self.job:
+                    self.job = job
+                    return f"[The shopper opened the {path} page. Your job is now: {job}.]"
                 return f"[The shopper opened the {path} page.]"
             case ProductViewed():
                 p = CATALOG.get(event.product_id)
@@ -2763,7 +3196,7 @@ _JOURNAL = _journal_slugs()
 
 
 def _valid_page(page: str) -> bool:
-    if page in ("home", "journal", "cart"):
+    if page in ("home", "journal", "cart", "returns", "size-guide", "gifts", "orders", "kiosk"):
         return True
     kind, _, rest = page.partition("/")
     return (

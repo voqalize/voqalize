@@ -1,0 +1,196 @@
+{
+  "$comment": "Fernhollow's size guide: authored, guide-level advice only. It never states a product's own measurements; the standard mattress sizes are the general US standard, labelled as such. Read by the brain (backend/sizing.py) and the /size-guide page. The finder's questions and the rule that picks a size live here too, so both halves pick the same size.",
+  "title": "Size guide",
+  "intro": "How to choose the right size before you order: beds and bedding, vases and faux stems, rugs and curtains. Only beds, bedding, vases and faux stems come in sizes at Fernhollow; rugs and curtains are chosen by fabric, so their sections are about placement.",
+  "sections": [
+    {
+      "id": "beds",
+      "title": "Beds and bedding",
+      "categories": ["beds-bed-frames", "quilts-comforters", "bed-sheets"],
+      "sizes": [
+        {
+          "size": "Queen",
+          "standard": "Standard US Queen mattress: 60 × 80 in (152 × 203 cm)",
+          "suits": "Most main bedrooms and guest rooms, and couples happy to sleep close."
+        },
+        {
+          "size": "King",
+          "standard": "Standard US King mattress: 76 × 80 in (193 × 203 cm)",
+          "suits": "Larger bedrooms, couples who want room to spread out, or a child or a pet who joins you at night."
+        }
+      ],
+      "rules": [
+        "A bed frame takes the mattress of the same name: a Queen frame for a Queen mattress, a King frame for a King.",
+        "Sheets, quilts and comforters follow the mattress, not the frame.",
+        "Leave a clear walkway of about 60 cm (2 ft) on each side you get out of bed.",
+        "A quilt or comforter one size up hangs lower over the sides of the bed; choose it only if you like that look."
+      ]
+    },
+    {
+      "id": "vases",
+      "title": "Vases and faux stems",
+      "categories": ["vases", "artificial-flora"],
+      "sizes": [
+        {
+          "size": "Small",
+          "suits": "A shelf, a bedside table, a desk or a windowsill: somewhere you see it up close."
+        },
+        {
+          "size": "Large",
+          "suits": "The floor, a console, a sideboard or the middle of a dining table: somewhere it is seen across the room."
+        }
+      ],
+      "rules": [
+        "Pair like with like: a Small stem stands in a Small vase, a Large stem in a Large vase.",
+        "On a dining table, keep it low enough to talk over.",
+        "Groups read best in odd numbers: three Small vases of one family on a shelf."
+      ]
+    },
+    {
+      "id": "rugs",
+      "title": "Rugs",
+      "categories": ["rugs"],
+      "note": "Fernhollow rugs come in one size each and are chosen by fabric. Use this to judge how a rug should sit with your sofa.",
+      "layouts": [
+        {
+          "id": "all_legs",
+          "label": "All legs on",
+          "text": "Every leg of the sofa and chairs sits on the rug: the most pulled-together look, for a larger living room."
+        },
+        {
+          "id": "front_legs",
+          "label": "Front legs on",
+          "text": "Only the front legs of the sofa and chairs rest on the rug: it ties the seating together and suits most living rooms."
+        },
+        {
+          "id": "table_only",
+          "label": "Under the coffee table",
+          "text": "The rug sits under the coffee table, clear of the sofa: for a small room, or to define a reading corner."
+        }
+      ],
+      "rules": [
+        "Choose a rug a little longer than your sofa, so it frames the seating rather than hiding under it.",
+        "Leave a border of bare floor, about 30 to 45 cm (12 to 18 in), between the rug and the walls."
+      ]
+    },
+    {
+      "id": "curtains",
+      "title": "Curtains",
+      "categories": ["curtains-drapes"],
+      "note": "Fernhollow curtains are chosen by fabric. Use this to decide how far they should fall and where the rod goes.",
+      "drops": [
+        {
+          "id": "sill",
+          "label": "To the sill",
+          "text": "Ends just above the windowsill: for kitchens, deep sills, or a window over a desk or a radiator."
+        },
+        {
+          "id": "below_sill",
+          "label": "Below the sill",
+          "text": "Falls a hand's width below the sill: a tidy look for bedrooms and small windows."
+        },
+        {
+          "id": "floor",
+          "label": "To the floor",
+          "text": "Just clears the floor: the tailored look for living rooms and bedrooms, and it makes a ceiling feel higher."
+        }
+      ],
+      "rules": [
+        "Hang the rod 10 to 15 cm (4 to 6 in) above the window frame, and let it run 15 to 25 cm (6 to 10 in) past each side so the curtains open clear of the glass.",
+        "For a full look, the curtains together should be about twice the width of the window."
+      ]
+    }
+  ],
+  "finder": {
+    "questions": [
+      {
+        "id": "kind",
+        "label": "What are you sizing?",
+        "options": [
+          { "value": "bed", "label": "A bed, sheets or a quilt" },
+          { "value": "vase", "label": "A vase or faux stems" },
+          { "value": "rug", "label": "A rug" },
+          { "value": "curtains", "label": "Curtains" }
+        ]
+      },
+      {
+        "id": "mattress",
+        "when": { "kind": "bed" },
+        "label": "Which mattress do you have?",
+        "options": [
+          { "value": "queen", "label": "Queen" },
+          { "value": "king", "label": "King" },
+          { "value": "none", "label": "Not yet / not sure" }
+        ]
+      },
+      {
+        "id": "sleepers",
+        "when": { "kind": "bed", "mattress": "none" },
+        "label": "Who sleeps in it?",
+        "options": [
+          { "value": "one", "label": "Just me" },
+          { "value": "two", "label": "Two of us" },
+          { "value": "more", "label": "Two, plus a child or a pet" }
+        ]
+      },
+      {
+        "id": "room",
+        "when": { "kind": "bed", "mattress": "none" },
+        "label": "How roomy is the bedroom?",
+        "options": [
+          { "value": "snug", "label": "Snug: the bed fills it" },
+          { "value": "average", "label": "Average" },
+          { "value": "roomy", "label": "Roomy: space to walk round" }
+        ]
+      },
+      {
+        "id": "place",
+        "when": { "kind": "vase" },
+        "label": "Where will it go?",
+        "options": [
+          { "value": "shelf", "label": "A shelf" },
+          { "value": "bedside", "label": "A bedside table" },
+          { "value": "desk", "label": "A desk or windowsill" },
+          { "value": "dining_table", "label": "A dining table" },
+          { "value": "console", "label": "A console or sideboard" },
+          { "value": "floor", "label": "The floor" }
+        ]
+      },
+      {
+        "id": "layout",
+        "when": { "kind": "rug" },
+        "label": "How should it sit with your sofa?",
+        "options": [
+          { "value": "all_legs", "label": "All legs on" },
+          { "value": "front_legs", "label": "Front legs on" },
+          { "value": "table_only", "label": "Under the coffee table" }
+        ]
+      },
+      {
+        "id": "drop",
+        "when": { "kind": "curtains" },
+        "label": "How far should they fall?",
+        "options": [
+          { "value": "sill", "label": "To the sill" },
+          { "value": "below_sill", "label": "Below the sill" },
+          { "value": "floor", "label": "To the floor" }
+        ]
+      }
+    ],
+    "rules": [
+      { "if": { "kind": "bed", "mattress": "queen" }, "size": "Queen", "why": "A Queen mattress takes a Queen frame and Queen bedding." },
+      { "if": { "kind": "bed", "mattress": "king" }, "size": "King", "why": "A King mattress takes a King frame and King bedding." },
+      { "if": { "kind": "bed", "mattress": "none", "room": "snug" }, "size": "Queen", "why": "In a snug room a Queen leaves you a walkway round the bed." },
+      { "if": { "kind": "bed", "mattress": "none", "sleepers": "more" }, "size": "King", "why": "With a child or a pet joining you, a King gives everyone room." },
+      { "if": { "kind": "bed", "mattress": "none", "room": "roomy", "sleepers": "two" }, "size": "King", "why": "Two of you in a roomy bedroom: a King gives you space and still leaves a walkway." },
+      { "if": { "kind": "bed", "mattress": "none", "room": "roomy", "sleepers": "one" }, "size": "Queen", "why": "Sleeping alone, a Queen is plenty, even in a roomy bedroom." },
+      { "if": { "kind": "bed", "mattress": "none", "room": "average" }, "size": "Queen", "why": "A Queen suits most bedrooms and leaves room to walk round it." },
+      { "if": { "kind": "vase", "place": "shelf" }, "size": "Small", "why": "On a shelf you see it up close, so Small sits right." },
+      { "if": { "kind": "vase", "place": "bedside" }, "size": "Small", "why": "A bedside table needs room for a lamp and a book, so Small." },
+      { "if": { "kind": "vase", "place": "desk" }, "size": "Small", "why": "On a desk or a windowsill, Small keeps it out of the way." },
+      { "if": { "kind": "vase", "place": "dining_table" }, "size": "Large", "why": "A centrepiece is seen across the table, so Large; keep the stems low enough to talk over." },
+      { "if": { "kind": "vase", "place": "console" }, "size": "Large", "why": "A console or sideboard is seen across the room, so Large." },
+      { "if": { "kind": "vase", "place": "floor" }, "size": "Large", "why": "On the floor it needs height to be seen, so Large." }
+    ]
+  }
+}

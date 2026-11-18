@@ -8,6 +8,7 @@
  * and only load in `pnpm dev`.
  */
 import { parse as parseYaml } from "yaml";
+import { persona } from "../persona";
 
 export interface Doc {
   slug: string;
@@ -40,7 +41,11 @@ if (import.meta.env.DEV) {
   devPages = import.meta.glob<string>("../../../content/pages/_*.md", { query: "?raw", import: "default", eager: true });
 }
 
-function parse(path: string, raw: string): Doc {
+/** Authored pages name the agent as `{{agent}}`; the name is persona.json's. */
+const withAgent = (text: string) => text.replace(/\{\{\s*agent\s*\}\}/g, persona.name);
+
+function parse(path: string, source: string): Doc {
+  const raw = withAgent(source);
   const file = path.split("/").pop()!.replace(/\.md$/, "");
   let meta: Record<string, unknown> = {};
   let body = raw;

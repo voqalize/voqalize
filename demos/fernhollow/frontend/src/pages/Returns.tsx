@@ -35,25 +35,26 @@ import { scene } from "../stage/scene.gen";
 import { navigatedBy } from "../voice/controller";
 import { voiceReady } from "../voice/VoiceDock";
 import { useTitle } from "./usePage";
+import { persona } from "../persona";
 
 const R = policies.returns as Record<string, string>;
 
 // ── /returns ───────────────────────────────────────────────────────────────
 
-function EmilyCta({ label = "Start a return with Emily" }: { label?: string }) {
+function EmilyCta({ label = `Start a return with ${persona.name}` }: { label?: string }) {
   const begin = useVoiceClient((s) => s.begin);
   const live = useVoiceClient((s) => s.live);
   const ready = voiceReady();
   return (
     <div className="emily-cta">
       <button type="button" className="btn emily-btn" disabled={!ready || !begin || live} onClick={() => begin?.()}>
-        <Mic size={18} /> {live ? "Emily is listening" : label}
+        <Mic size={18} /> {live ? `${persona.name} is listening` : label}
       </button>
       <p className="small">
         {ready
           ? live
-            ? "Tell her your order number. She fills the form with you; you press Submit."
-            : "Tell Emily your order number. She checks it against the policy and fills the form with you; you press Submit."
+            ? "Say your order number. The form fills in as you talk; you press Submit."
+            : `Tell ${persona.name} your order number. It is checked against the policy and the form fills in as you talk; you press Submit.`
           : "Voice is coming soon on this preview. The form below works by hand."}
       </p>
     </div>
@@ -588,12 +589,12 @@ export function ReturnsForm() {
             <button type="submit" className="btn btn-primary co-next" data-dock-avoid>
               Submit return
             </button>
-            <p className="small">Emily only submits after you say yes.</p>
+            <p className="small">{persona.name} only submits after you say yes.</p>
           </>)}
         </form>
 
         <aside className="returns-aside">
-          <EmilyCta label="Fill this in with Emily" />
+          <EmilyCta label={`Fill this in with ${persona.name}`} />
           <ol className="rprogress" aria-label="Steps">
             {STEPS.map((s) => (
               <li key={s.n} aria-current={form.step === s.n ? "step" : undefined} className={!missing(s.n) && summary(s.n) ? "is-done" : undefined}>

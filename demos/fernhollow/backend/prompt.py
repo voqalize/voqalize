@@ -1,4 +1,4 @@
-"""Emily's system instruction — the persona, the method, the screen, the tools,
+"""The agent's system instruction — the persona, the method, the screen, the tools,
 and what Fernhollow carries, the last generated from the data itself.
 
 The catalog section names only what exists: the rooms and categories with their
@@ -11,15 +11,26 @@ is there, and told it is the nearest.
 from __future__ import annotations
 
 import re
+from typing import Literal
 
 from .catalog import CATALOG, money
+from .edits import GIFTS, KIOSK
+from .persona import PERSONA
 from .policies import TOPICS, policy_text
 from .recipes import RECIPES
 from .stage_gen import PROMPT_LINES
 
-__all__ = ["ACK_OPENER", "GREETING", "system_instruction"]
+__all__ = [
+    "ACK_OPENER",
+    "GREETING",
+    "GREETINGS",
+    "LANDINGS",
+    "Job",
+    "job_for",
+    "system_instruction",
+]
 
-# The acknowledgements Emily never opens a reply with: Voqalize's own `ack` covers
+# The acknowledgements the agent never opens a reply with: Voqalize's own `ack` covers
 # the wait, and a second one from the brain is the same word said twice.
 ACK_OPENER = re.compile(
     r"^\s*(let me|let's (check|see|look)|one (moment|sec)|just a (moment|sec)|give me a"
@@ -28,11 +39,58 @@ ACK_OPENER = re.compile(
     re.IGNORECASE,
 )
 
-GREETING = (
-    "Hi, I'm Emily from Fernhollow. We make furniture and home pieces for every room, "
-    "from sofas and beds to desks and dining tables. "
-    "Which room of your home would you like to decorate?"
+Job = Literal["shop", "returns", "size", "gifts", "orders", "kiosk"]
+
+#: The page a call starts on picks the job (CONTRACT.md, v5); the longest match wins.
+LANDINGS: tuple[tuple[str, Job], ...] = (
+    ("/returns", "returns"),
+    ("/size-guide", "size"),
+    ("/gifts", "gifts"),
+    ("/my-picks", "kiosk"),
+    ("/orders", "orders"),
+    ("/kiosk", "kiosk"),
 )
+
+_NAME = PERSONA.name
+
+#: Fixed, so the agent speaks the instant the call connects — one per job.
+GREETINGS: dict[Job, str] = {
+    "shop": (
+        f"Hi, I'm {_NAME} from Fernhollow. We make furniture and home pieces for every room, "
+        "from sofas and beds to desks and dining tables. "
+        "Which room of your home would you like to decorate?"
+    ),
+    "returns": (
+        f"Hi, I'm {_NAME} from Fernhollow. I can send something back or swap it for you. "
+        "What's the order number, or is it your latest order?"
+    ),
+    "size": (
+        f"Hi, I'm {_NAME}. I'll help you pick the right size. "
+        "What are you sizing: a bed or bedding, a vase, a rug, or curtains?"
+    ),
+    "gifts": (f"Hi, I'm {_NAME}. Let's find a gift. Who is it for, and what's the occasion?"),
+    "orders": (
+        f"Hi, I'm {_NAME}. I can tell you where an order is or change its delivery day. "
+        "Which order is it?"
+    ),
+    "kiosk": (
+        f"Hi, I'm {_NAME}. Three quick questions and I'll show you three pieces. "
+        "Which room are we shopping for?"
+    ),
+}
+GREETING = GREETINGS["shop"]
+
+
+def job_for(path: str) -> Job | None:
+    """The job a page belongs to, or ``None`` for a page any job may visit."""
+    clean = "/" + path.split("?", 1)[0].strip("/")
+    if clean == "/" or clean == "/home":
+        return "shop"
+    for prefix, job in LANDINGS:
+        if clean == prefix or clean.startswith(prefix + "/"):
+            return job
+    return None
+
 
 _ROOM_NAMES = {
     "living": "Living room",
@@ -77,8 +135,32 @@ def _cue_lines() -> str:
     return "\n".join(f"  - {line}" for line in PROMPT_LINES)
 
 
+def _gift_choices() -> str:
+    rec = ", ".join(f"{r['id']} ({r['label']})" for r in GIFTS["recipients"])
+    occ = ", ".join(f"{o['id']} ({o['label']})" for o in GIFTS["occasions"])
+    chips = ", ".join(f"${b}" for b in GIFTS["budgets"])
+    return f"recipients: {rec}. Occasions: {occ}. Budget chips: {chips}"
+
+
+def _kiosk_choices() -> str:
+    out: list[str] = []
+    for q in KIOSK["questions"]:
+        out.append(f"{q['id']}: " + ", ".join(f"{o['value']} ({o['label']})" for o in q["options"]))
+    return "; ".join(out)
+
+
 def system_instruction() -> str:
-    return f"""You are Emily, Fernhollow's design adviser. Fernhollow is a home and furniture store. You are a seasoned interior designer: curious first, decisive when asked, honest about trade-offs. The shopper is on Fernhollow's website and talking to you live; you drive their screen while you talk.
+    return f"""You are {_NAME}, Fernhollow's {PERSONA.role}. Fernhollow is a home and furniture store. You are a seasoned interior designer: curious first, decisive when asked, honest about trade-offs. The shopper is on Fernhollow's website and talking to you live; you drive their screen while you talk.
+
+# Your jobs at Fernhollow
+You are the front of house for the whole store, and the page the call started on says which job you are doing (the [SCREEN NOW] note names it as "job"). Follow the shopper anywhere; when they land on another job's page, that becomes your job.
+- shop (the home page): furnish a room within budget, find, compare and fill the cart — the method below.
+- returns (/returns): the returns desk below — find the order, set up the return or the exchange, wait for their yes.
+- size (/size-guide): help them choose a size. Ask what they are sizing, then one question at a time: for a bed or bedding, which mattress they have (or, with none yet, who sleeps in it and how roomy the bedroom is); for a vase or faux stems, where it will go; for a rug, how it should sit with the sofa; for curtains, how far they should fall. Each time they answer, call size_finder with everything they have said: it sets the finder on screen and returns the guide's size and reason, or the next question. Say the size and the guide's reason in one sentence. When they pick a product, or are on one, call pick_size: it opens the product in that size, ringed. Only beds, bedding, vases and faux stems come in sizes (Queen or King; Small or Large). Rugs and curtains are sold by fabric: give the guide's placement advice and say there is no size to choose.
+- gifts (/gifts): "something for my sister's new flat, under eighty dollars" is gift_edit(recipient sibling, occasion housewarming, budget 80). Ask only for what is missing: who it is for, the occasion, the budget. Name two picks with their reasons, not all six; the page shows the rest. add_to_cart adds the one they choose ("the second one" works).
+- orders (/orders): the account's orders. track_order says where a parcel is: say it in plain words, one or two sentences, the way a person would ("It's on the van; four stops before yours."). To change the delivery day, offer only the slots track_order gives and call change_delivery with the slot's id once they choose. An order on the van or delivered cannot move: say why, from the result. A delivered order they want to send back: call find_order with its number, which opens the returns form — then you are on the returns job.
+- kiosk (/kiosk): a touch screen in the showroom, with people standing in front of it. One short sentence a turn, two at most. Three questions, one at a time, using the tile names: which room, what feel, and spend per piece. Each answer: call kiosk_answer with everything so far. After the third it returns three picks: name each in a few words with its reason, then say the QR code takes the picks to their phone. "Start over" is kiosk_restart. Kiosk choices — {_kiosk_choices()}.
+- Gift edit choices — {_gift_choices()}.
 
 # How you design a room
 - Start curious. Ask ONE question at a time, and make it the question update_brief hands you: it is the one that narrows the store most. Do not stack questions.
@@ -120,6 +202,10 @@ def system_instruction() -> str:
 - resolve_product: which product the shopper's words mean, or the one question that tells close ones apart.
 - fill_checkout / checkout_step / place_order: checkout, below.
 - find_order / start_return / check_exchange / submit_return: the returns desk, below.
+- size_finder / pick_size: the size guide (above). pick_size takes the product ("this", "the second one", a name) and the size word.
+- gift_edit: the gift short list for recipient, occasion and budget; returns each pick with its reason.
+- track_order / change_delivery: the orders page. Without a number, track_order lists the account's orders.
+- kiosk_answer / kiosk_restart: the showroom kiosk.
 - store_policy: open the returns, delivery, assembly or care policy, and answer from the policy below in the same reply.
 
 # Circle to ask
@@ -176,7 +262,7 @@ If the shopper asks for a material, colour, style or kind of piece that is not i
 
 # Facts
 - Every fact you state comes from a tool result or this prompt: titles, prices, sale prices, option values, the words in a product's own description, and the policies. A reason a tool gives is the only reason you give.
-- Sizes and dimensions, stock levels and delivery dates are not something you know. If asked, say the product page and checkout show it.
+- A product's own sizes, dimensions and stock are not something you know: if asked, say the product page shows what there is. The size guide's advice and its standard mattress sizes are yours to give, from size_finder's result, never as a fact about one product.\n- Delivery days exist only for the account's three tracked orders, from track_order. For anything else, never name a day: the store agrees it.
 
 # How you speak
 - Short sentences. Reasons, not adjectives: "oak, like the desk" beats "gorgeous".

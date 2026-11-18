@@ -9,6 +9,21 @@ import { bestSaving, defaultVariant, getProduct, matchContractFilters, products,
 import { dispatch, useEmily } from "./controller";
 import { useFakeCall } from "./VoiceDock";
 import { fakeCircle } from "../components/CircleLayer";
+import { type FrontDeskMove, runByHand } from "../stage/frontdesk";
+
+/** One sample per new move, in a believable order. */
+const STAGE_SAMPLES: [string, FrontDeskMove, Record<string, unknown>][] = [
+  ["size: bed", "size.answer", { question: "kind", value: "bed" }],
+  ["size: queen", "size.answer", { question: "mattress", value: "queen" }],
+  ["gifts: sister/new home/$80", "gifts.set", { recipient: "sibling", occasion: "housewarming", budget: 80 }],
+  ["orders: open 31207", "orders.open", { order_number: "FH-31207" }],
+  ["orders: move to d4-morning", "orders.reschedule", { order_number: "FH-31207", slot: "d4-morning" }],
+  ["kiosk: start", "kiosk.start", {}],
+  ["kiosk: living", "kiosk.answer", { question: "room", value: "living" }],
+  ["kiosk: warm wood", "kiosk.answer", { question: "feel", value: "warm_wood" }],
+  ["kiosk: $400", "kiosk.answer", { question: "budget", value: "400" }],
+  ["kiosk: restart", "kiosk.restart", {}],
+];
 import { eventLog, onEventLog } from "./events";
 import { priced, useCart } from "../state/cart";
 import { type CheckoutField, useCheckout } from "../state/checkout";
@@ -187,6 +202,16 @@ export function DebugConsole() {
           >
             circle
           </button>
+        </div>
+      </div>
+      <div className="debug-fake">
+        <p className="small">Front-of-house Stage moves (performer run by hand)</p>
+        <div className="debug-fake-row">
+          {STAGE_SAMPLES.map(([label, id, args]) => (
+            <button key={label} type="button" data-move={label} onClick={() => void runByHand(id, args).then(console.info, console.warn)}>
+              {label}
+            </button>
+          ))}
         </div>
       </div>
       <div className="debug-events">
