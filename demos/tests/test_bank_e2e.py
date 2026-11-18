@@ -115,6 +115,15 @@ def test_card_emi_and_ranking_numbers() -> None:
     ranked = m.rank_cards(profile)
     assert {v.card_id for v in ranked} == set(b.CARD_IDS)
     assert ranked == sorted(ranked, key=lambda v: (-v.net_yearly, v.card_id))
+    # Signed in, her income (₹1,42,500) is below Prism's ₹2,00,000: it ranks last, marked.
+    income = b.CUSTOMER["profile"]["monthly_income"]
+    assert [(v.card_id, v.net_yearly, v.below_income) for v in m.rank_cards(profile, income)] == [
+        ("voyage", 38776, False),
+        ("daily", 27520, False),
+        ("spark", 13479, False),
+        ("fuelone", 9114, False),
+        ("prism", 49048, True),
+    ]
     el = m.loan_eligibility(
         b.loan_product("personal") or {}, monthly_income=100000, existing_emis=10000
     )
@@ -349,16 +358,40 @@ async def test_card_advisor_ranks_from_spend_and_plans_an_emi() -> None:
             "online": 6000.0,
             "fuel": 2000.0,
         }
-        top = [v.card_id for v in m.rank_cards(profile)[:3]]
+        income = b.CUSTOMER["profile"]["monthly_income"]
+        top = [v.card_id for v in m.rank_cards(profile, income)[:3]]
         assert compare["card_ids"] == top and compare["dining"] == 8000
         ranking = _results(llm, "rank_cards")[-1]
-        assert ranking.splitlines()[1].startswith("1. ")
+        assert ranking.splitlines()[2].startswith("1. ")  # after spend and income lines
 
         await rig.driver.user_says("Convert my laptop purchase to EMI.")
         plan = _move(rig, "emi.plan")["args"]
         assert plan == {"txn_id": _laptop(), "tenure_months": 6}
         row = m.card_emi(64990, 6)
         assert f"EMI {b.inr(row.emi)}" in _results(llm, "plan_emi")[-1]
+
+
+async def test_her_real_spend_ranks_cards_she_qualifies_for_first() -> None:
+    llm = ScriptedOpenAI(
+        {
+            "Which card suits how I spend?": [
+                reply_and_call("Let me look at your spend.", "rank_cards", use_my_spend=True),
+                reply("Voyage gives you the most of the cards you qualify for."),
+            ],
+        }
+    )
+    async with demo("bank", llm) as rig:
+        await rig.driver.start_session(
+            init={"landing": "cards", "path": "/cards", "lang": "en", "signed_in": True}
+        )
+        await rig.driver.user_says("Which card suits how I spend?")
+        # Prism has the highest raw value but needs ₹2,00,000 a month; she earns ₹1,42,500.
+        assert _move(rig, "cards.compare")["args"]["card_ids"] == ["voyage", "daily", "spark"]
+        ranking = _results(llm, "rank_cards")[-1]
+        assert "1. Anvaya Voyage" in ranking
+        prism = next(x for x in ranking.splitlines() if "Prism" in x)
+        assert prism.startswith("5. ") and "Income below requirement" in prism
+        assert "₹2,00,000" in prism
 
 
 def _laptop() -> str:

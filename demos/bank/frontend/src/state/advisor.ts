@@ -8,6 +8,7 @@ import { create } from "zustand";
 import { customer, loanProduct, products } from "../data/bank";
 import { EMPTY_PROFILE, emi, rankCards, type SpendProfile } from "../lib/bankmath";
 import { type By, currentBy, emit } from "../voice/events";
+import { useSession } from "./session";
 
 export type LoanType = "home" | "personal" | "gold" | "car";
 export const LOAN_TYPES: LoanType[] = ["home", "personal", "gold", "car"];
@@ -87,10 +88,17 @@ export const useAdvisor = create<Advisor>((set, get) => ({
   setElig: (t, p, checked = true) => set((s) => ({ elig: { ...s.elig, [t]: { ...s.elig[t], ...p } }, checked: { ...s.checked, [t]: checked || s.checked[t] } })),
 }));
 
+/** The signed-in customer's monthly income, which the card ranking checks against each
+ *  card's minimum; unknown (undefined) for a signed-out visitor. */
+export const knownIncome = (): number | undefined => (useSession.getState().signedIn ? customer.profile.monthly_income : undefined);
+
+/** The cards ranked for the current profile and, signed in, her income. */
+export const rankForVisitor = (p: SpendProfile) => rankCards(p, knownIncome());
+
 /** The cards in compare order: the chosen ones, else the top three for the profile. */
 export function compareIds(): string[] {
   const s = useAdvisor.getState();
-  return s.compare && s.compare.length >= 2 ? s.compare : rankCards(s.profile).slice(0, 3).map((v) => v.card_id);
+  return s.compare && s.compare.length >= 2 ? s.compare : rankForVisitor(s.profile).slice(0, 3).map((v) => v.card_id);
 }
 
 /** Prefill eligibility with the signed-in customer's own income and EMIs. */
@@ -110,7 +118,7 @@ function profileChanged() {
   clearTimeout(profileTimer);
   profileTimer = setTimeout(() => {
     const p = useAdvisor.getState().profile;
-    emit("cards_profile_changed", { ...p, top: rankCards(p).map((v) => v.card_id) }, profileBy ?? by);
+    emit("cards_profile_changed", { ...p, top: rankForVisitor(p).map((v) => v.card_id) }, profileBy ?? by);
     profileBy = null;
   }, 600);
 }

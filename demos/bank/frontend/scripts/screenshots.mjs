@@ -53,7 +53,18 @@ const SHOTS = [
   { name: "app-guard", path: "/app/bills" },
   { name: "open-account", path: "/open-account" },
   { name: "cards", path: "/cards", full: true },
-  { name: "cards-signed-in", path: "/cards", signedIn: true },
+  {
+    // Her real spend: Prism ranks last, marked "Income below requirement".
+    name: "cards-signed-in",
+    path: "/cards",
+    signedIn: true,
+    full: true,
+    top: true,
+    run: async (page) => {
+      await page.click('[data-stage-thing="spend:real"]');
+      await settle(page);
+    },
+  },
   { name: "card-detail", path: "/cards/voyage", full: true },
   { name: "cards-compare", path: "/cards/compare", full: true },
   { name: "cards-apply", path: "/cards/apply?card=daily" },
@@ -98,6 +109,7 @@ const SHOTS = [
   {
     name: "flow-cards-compare",
     path: "/cards?debug=1",
+    signedIn: true,
     run: async (page) => {
       await move(page, "cards.compare", { card_ids: ["voyage", "daily", "prism"], dining: 9000, online: 14000, groceries: 8000, travel: 18000, fuel: 2000, utilities: 6000, other: 7000 }, 1400);
     },
@@ -217,7 +229,7 @@ for (const width of [1440, 390]) {
         await page.evaluate((top) => window.scrollTo(0, top), y);
         await page.waitForTimeout(60);
       }
-      if (!shot.run) await page.evaluate(() => window.scrollTo(0, 0));
+      if (!shot.run || shot.top) await page.evaluate(() => window.scrollTo(0, 0));
       await settle(page, 400);
     }
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);

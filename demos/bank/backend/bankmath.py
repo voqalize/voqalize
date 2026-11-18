@@ -5,7 +5,7 @@ page's, and the two agree to the rupee (CONTRACT.md, "Maths";
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any
 
 from .bank import CARD_CATEGORIES, CUSTOMER, PRODUCTS
@@ -70,6 +70,8 @@ class CardValue:
     fee: int
     fee_waived: bool
     net_yearly: int
+    # True when a known monthly income is below the card's ``min_income_monthly``.
+    below_income: bool = False
 
 
 def card_value(card: dict[str, Any], s: dict[str, float]) -> CardValue:
@@ -135,9 +137,18 @@ def card_value(card: dict[str, Any], s: dict[str, float]) -> CardValue:
     )
 
 
-def rank_cards(s: dict[str, float]) -> list[CardValue]:
-    values = [card_value(c, s) for c in PRODUCTS["credit_cards"]]
-    return sorted(values, key=lambda v: (-v.net_yearly, v.card_id))
+def rank_cards(s: dict[str, float], monthly_income: float | None = None) -> list[CardValue]:
+    """Every card by yearly net value, best first. With a known monthly income, the cards
+    it qualifies for come first and the rest follow, marked ``below_income``."""
+    values = [
+        replace(
+            card_value(c, s),
+            below_income=monthly_income is not None
+            and monthly_income < float(c["min_income_monthly"]),
+        )
+        for c in PRODUCTS["credit_cards"]
+    ]
+    return sorted(values, key=lambda v: (v.below_income, -v.net_yearly, v.card_id))
 
 
 def customer_profile() -> dict[str, float]:

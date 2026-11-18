@@ -52,6 +52,8 @@ export interface CardValue {
   fee: number;
   fee_waived: boolean;
   net_yearly: number;
+  /** A known monthly income is below the card's `min_income_monthly`. */
+  below_income: boolean;
 }
 
 /** CONTRACT.md "Card value": the yearly value of a card for a monthly spend profile. */
@@ -104,12 +106,17 @@ export function cardValue(card: CreditCardProduct, s: SpendProfile): CardValue {
     fee: card.annual_fee,
     fee_waived: waived,
     net_yearly: Math.round(yearly + fuelSaving + lounge - fee),
+    below_income: false,
   };
 }
 
-/** Every card ranked by its yearly value for `s`, best first. */
-export function rankCards(s: SpendProfile): CardValue[] {
-  return products.credit_cards.map((c) => cardValue(c, s)).sort((a, b) => b.net_yearly - a.net_yearly || a.card_id.localeCompare(b.card_id));
+/** Every card ranked by its yearly value for `s`, best first. With a known monthly
+ *  income, the cards it qualifies for come first and the rest follow, marked
+ *  `below_income` (the brain's `rank_cards`, same rule). */
+export function rankCards(s: SpendProfile, monthlyIncome?: number): CardValue[] {
+  return products.credit_cards
+    .map((c) => ({ ...cardValue(c, s), below_income: monthlyIncome != null && monthlyIncome < c.min_income_monthly }))
+    .sort((a, b) => Number(a.below_income) - Number(b.below_income) || b.net_yearly - a.net_yearly || a.card_id.localeCompare(b.card_id));
 }
 
 /** The signed-in customer's own monthly spend profile: debits of the last 90 days in

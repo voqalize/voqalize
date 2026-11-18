@@ -1259,7 +1259,10 @@ class BankBrain(OpenAIBrain):
             profile = {c: float(getattr(req, c) or 0) for c in b.CARD_CATEGORIES}
             if not any(profile.values()):
                 return _not_done("ask how much they spend a month, by category")
-        ranked = m.rank_cards(profile)
+        # Signed in, her salary is known: the page ranks the cards she qualifies for first
+        # and marks the rest "Income below requirement" (same rule, bankmath.rank_cards).
+        income = float(b.CUSTOMER["profile"]["monthly_income"]) if self.signed_in else None
+        ranked = m.rank_cards(profile, monthly_income=income)
         top = [v.card_id for v in ranked[:3]]
         self._send("cards.compare", {"card_ids": top, **{k: int(v) for k, v in profile.items()}})
         self.screen, self.mode = "cards_compare", "cards"
@@ -1267,6 +1270,11 @@ class BankBrain(OpenAIBrain):
         lines = [
             "Monthly spend: " + ", ".join(f"{k} {b.inr(v)}" for k, v in profile.items() if v) + "."
         ]
+        if income is not None:
+            lines.append(
+                f"Her income is {b.inr(income)} a month: cards she qualifies for are ranked first; "
+                "the page marks the others 'Income below requirement'."
+            )
         for i, v in enumerate(ranked, 1):
             card = b.card_product(v.card_id) or {}
             lines.append(
@@ -1276,10 +1284,9 @@ class BankBrain(OpenAIBrain):
                 + ("waived" if v.fee_waived else b.inr(v.fee))
                 + ")."
                 + (
-                    f" Needs an income of {b.inr(card.get('min_income_monthly', 0))} a month, "
-                    "above hers: say so if you mention it."
-                    if req.use_my_spend
-                    and card.get("min_income_monthly", 0) > b.CUSTOMER["profile"]["monthly_income"]
+                    f" Income below requirement: needs {b.inr(card.get('min_income_monthly', 0))}"
+                    " a month, above hers; do not recommend it, say so if you mention it."
+                    if v.below_income
                     else ""
                 )
             )

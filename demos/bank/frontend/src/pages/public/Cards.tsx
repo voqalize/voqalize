@@ -1,7 +1,7 @@
-import { ArrowRight, Check, Plane, RotateCcw, Trophy, Wallet } from "lucide-react";
+import { ArrowRight, Check, CircleAlert, Plane, RotateCcw, Trophy, Wallet } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { CardFace, Crumbs, OfferBanner } from "../../components/ui";
-import { type CreditCardProduct, creditCardProduct, inr, products } from "../../data/bank";
+import { type CreditCardProduct, creditCardProduct, customer, inr, products } from "../../data/bank";
 import { type CardValue, type SpendProfile, cardValue, customerProfile, rankCards } from "../../lib/bankmath";
 import { persona } from "../../persona";
 import { SAMPLE_PROFILE, SPEND_KEYS, compareIds, useAdvisor } from "../../state/advisor";
@@ -54,6 +54,24 @@ const lounge = (c: CreditCardProduct) => {
   const intl = i ? `${i} international` : "";
   return [dom, intl].filter(Boolean).join(", ") + (dom || intl ? " visits a year" : "None");
 };
+
+/** Signed in, her salary is known and every card is checked against its minimum. */
+function useKnownIncome(): number | undefined {
+  const signedIn = useSession((s) => s.signedIn);
+  return signedIn ? customer.profile.monthly_income : undefined;
+}
+
+/** The note on a card whose minimum income is above hers. */
+function IncomeNote({ card, income }: { card: CreditCardProduct; income: number }) {
+  return (
+    <p className="cr-income" data-stage-thing={`income:${card.id}`} data-stage-label={`${card.name.replace("Anvaya ", "")} income requirement`}>
+      <CircleAlert size={14} aria-hidden />
+      <span>
+        <strong>Income below requirement.</strong> Needs {inr(card.min_income_monthly)} a month; yours is {inr(income)}.
+      </span>
+    </p>
+  );
+}
 
 // ─── The value breakdown, shared by the catalogue and the detail page ─────────
 
@@ -144,7 +162,8 @@ function SpendPanel() {
 
 export function CardsPage() {
   const profile = useAdvisor((s) => s.profile);
-  const ranked = rankCards(profile);
+  const income = useKnownIncome();
+  const ranked = rankCards(profile, income);
   const navigate = useNavigate();
   return (
     <main className="page cards-page" data-stage-thing="screen:cards" data-stage-label="Credit cards">
@@ -155,7 +174,7 @@ export function CardsPage() {
             <h1 className="page-title">Credit cards, ranked for how you spend</h1>
             <p className="page-lede">
               Each card's yearly value is its rewards, fuel savings and lounge visits on your spending, minus the fee if you would not spend enough to have it waived.
-              Ask {persona.name} and the comparison opens with your numbers.
+              {income != null ? " Signed in, the cards your income qualifies for come first." : ""} Ask {persona.name} and the comparison opens with your numbers.
             </p>
           </div>
           <div className="head-actions">
@@ -180,7 +199,7 @@ export function CardsPage() {
             {ranked.map((v, i) => {
               const c = creditCardProduct(v.card_id)!;
               return (
-                <li key={c.id} className={`card-row${i === 0 ? " is-best" : ""}`} data-stage-thing={`card:${c.id}`} data-stage-label={c.name}>
+                <li key={c.id} className={`card-row${i === 0 && !v.below_income ? " is-best" : ""}${v.below_income ? " is-ineligible" : ""}`} data-stage-thing={`card:${c.id}`} data-stage-label={c.name}>
                   <div className="cr-face">
                     <span className="cr-rank num" aria-label={`Rank ${i + 1}`}>
                       {i + 1}
@@ -192,13 +211,14 @@ export function CardsPage() {
                       <h2>
                         <Link to={`/cards/${c.id}`}>{c.name}</Link>
                       </h2>
-                      {i === 0 ? (
+                      {i === 0 && !v.below_income ? (
                         <span className="chip chip-accent">
                           <Trophy size={12} aria-hidden /> Best for your spend
                         </span>
                       ) : null}
                     </div>
                     <p className="cr-for">Best for {c.best_for}</p>
+                    {v.below_income && income != null ? <IncomeNote card={c} income={income} /> : null}
                     <ul className="cr-high">
                       {c.highlights.slice(0, 3).map((h) => (
                         <li key={h}>
@@ -243,6 +263,7 @@ export function CardDetail() {
   const { id = "" } = useParams();
   const card = creditCardProduct(id);
   const profile = useAdvisor((s) => s.profile);
+  const income = useKnownIncome();
   if (!card) {
     return (
       <main className="page" data-stage-thing="screen:card_detail" data-stage-label="Card">
@@ -256,7 +277,9 @@ export function CardDetail() {
     );
   }
   const v = cardValue(card, profile);
-  const rank = rankCards(profile).findIndex((x) => x.card_id === card.id) + 1;
+  const ranked = rankCards(profile, income);
+  const rank = ranked.findIndex((x) => x.card_id === card.id) + 1;
+  const below = ranked[rank - 1]?.below_income ?? false;
   return (
     <main className="page card-detail" data-stage-thing="screen:card_detail" data-stage-label={card.name}>
       <div className="wrap">
@@ -284,7 +307,7 @@ export function CardDetail() {
                 to="/cards/compare"
                 className="btn btn-outline"
                 onClick={() => {
-                  const top = rankCards(profile).map((x) => x.card_id).filter((x) => x !== card.id).slice(0, 2);
+                  const top = ranked.map((x) => x.card_id).filter((x) => x !== card.id).slice(0, 2);
                   useAdvisor.getState().setCompare([card.id, ...top]);
                 }}
               >
@@ -300,6 +323,7 @@ export function CardDetail() {
               Ranked {rank} of {products.credit_cards.length} on your spend of {inr(Object.values(profile).reduce((a, b) => a + b, 0))} a month.{" "}
               <Link to="/cards">Change it</Link>
             </p>
+            {below && income != null ? <IncomeNote card={card} income={income} /> : null}
           </div>
         </section>
 
@@ -384,8 +408,10 @@ export function CardsCompare() {
   useAdvisor((s) => s.compare);
   const ids = compareIds();
   const cards = ids.map((id) => creditCardProduct(id)).filter((c): c is CreditCardProduct => !!c);
-  const values = cards.map((c) => cardValue(c, profile));
-  const best = values.reduce((b, v, i) => (v.net_yearly > values[b].net_yearly ? i : b), 0);
+  const income = useKnownIncome();
+  const values = cards.map((c) => ({ ...cardValue(c, profile), below_income: income != null && income < c.min_income_monthly }));
+  // The best is the highest value among the cards her income qualifies for (none: no best).
+  const best = values.reduce((b, v, i) => (!v.below_income && (b < 0 || v.net_yearly > values[b].net_yearly) ? i : b), -1);
   const total = Object.values(profile).reduce((a, b) => a + b, 0);
   const rows: { label: string; thing: string; cell: (c: CreditCardProduct, v: CardValue) => React.ReactNode }[] = [
     { label: "Joining fee", thing: "joining", cell: (c) => (c.joining_fee ? inr(c.joining_fee) : "Free") },
@@ -412,6 +438,16 @@ export function CardsCompare() {
       cell: (_c, v) => <strong className={`num big-num${v.net_yearly < 0 ? " is-neg" : ""}`}>{inr(v.net_yearly)}</strong>,
     },
     { label: "Best for", thing: "best-for", cell: (c) => c.best_for },
+    {
+      label: "Monthly income needed",
+      thing: "min-income",
+      cell: (c, v) => (
+        <>
+          <span className="num">{inr(c.min_income_monthly)}</span>
+          {v.below_income && income != null ? <span className="ct-income-short"> (yours {inr(income)})</span> : null}
+        </>
+      ),
+    },
   ];
   return (
     <main className="page compare" data-stage-thing="screen:cards_compare" data-stage-label="Compare cards">
@@ -442,6 +478,10 @@ export function CardsCompare() {
                     {i === best ? (
                       <span className="chip chip-accent ct-best">
                         <Trophy size={12} aria-hidden /> Best for you
+                      </span>
+                    ) : values[i].below_income ? (
+                      <span className="chip chip-warn ct-best" data-stage-thing={`income:${c.id}`} data-stage-label={`${c.name.replace("Anvaya ", "")} income requirement`}>
+                        <CircleAlert size={12} aria-hidden /> Income below requirement
                       </span>
                     ) : (
                       <span className="ct-best-space" />

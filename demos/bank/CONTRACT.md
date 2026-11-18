@@ -47,7 +47,9 @@ This file is the agreement between `frontend/` and `backend/`. Change it only in
   `accelerated_cashback_monthly`); fuel is capped by `fuel_cashback_monthly` when set. Plus the fuel
   surcharge saving min(1% of fuel, cap)·12, plus lounge value when travel ≥ ₹5,000 a month
   (min(domestic, 8)·₹1,000 + min(international, 2)·₹2,500; unlimited counts 8), minus the annual fee
-  unless 12 × monthly spend ≥ `fee_waiver_spend`. Ranked by this yearly net value.
+  unless 12 × monthly spend ≥ `fee_waiver_spend`. Ranked by this yearly net value. When the
+  customer is signed in her monthly income is known: cards whose `min_income_monthly` is above it
+  rank after the ones she qualifies for and are marked "Income below requirement" (page and brain alike).
 - **Customer's spend profile**: debits of the last 90 days from `sb` and `cc`, by the category's
   `card_category`, ÷ 3, rounded to ₹100.
 - **Loan eligibility**: max EMI = income·FOIR − existing EMIs; max loan = max EMI·((1+r)^n − 1)/(r(1+r)^n)

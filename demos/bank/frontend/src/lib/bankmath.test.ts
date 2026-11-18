@@ -4,7 +4,7 @@
  * changes, both tests must change together, or the agent and the screen disagree.
  */
 import { describe, expect, it } from "vitest";
-import { products } from "../data/bank";
+import { customer, products } from "../data/bank";
 import { cardEmi, customerProfile, emi, fdQuote, loanEligibility, rankCards } from "./bankmath";
 
 describe("bankmath agrees with the brain", () => {
@@ -18,6 +18,16 @@ describe("bankmath agrees with the brain", () => {
       ["daily", 27520],
       ["spark", 13479],
       ["fuelone", 9114],
+    ]);
+  });
+  it("signed in, ranks the cards her income qualifies for first", () => {
+    const r = rankCards(customerProfile(), customer.profile.monthly_income);
+    expect(r.map((v) => [v.card_id, v.net_yearly, v.below_income])).toEqual([
+      ["voyage", 38776, false],
+      ["daily", 27520, false],
+      ["spark", 13479, false],
+      ["fuelone", 9114, false],
+      ["prism", 49048, true],
     ]);
   });
   it("ranks the cards for a typed profile", () => {
