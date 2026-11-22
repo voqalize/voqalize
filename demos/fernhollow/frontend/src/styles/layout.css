@@ -4588,6 +4588,10 @@ body.is-circling * {
   font-size: 1.9rem;
   line-height: 1;
 }
+.saved-sum p,
+.saved-head .h1 {
+  margin: 0;
+}
 .saved-board {
   list-style: none;
   margin: 0;

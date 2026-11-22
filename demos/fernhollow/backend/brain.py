@@ -927,7 +927,9 @@ class FernhollowBrain(GeminiBrain):
         """Speech with this brain's tool names taken out. On a prod call the
         model said "update_brief helps set up the brief for your space": the
         SDK stops a call written as text, not a tool's name used as a word."""
-        names = {t.__name__ for t in self.tools}
+        # Only the snake_case names: "show", "compare", "undo", "shortlist" are
+        # also plain English ("Shall I show you…" lost its verb in round 1).
+        names = {t.__name__ for t in self.tools if "_" in t.__name__}
         pattern = re.compile(r"\s*\b(?:" + "|".join(map(re.escape, sorted(names))) + r")\b")
         async for s in speech:
             if isinstance(s, SpeechChunk) and pattern.search(s.text):

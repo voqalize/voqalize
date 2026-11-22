@@ -554,7 +554,7 @@ async def test_a_tool_name_is_never_spoken() -> None:
                     "update_brief",
                     update={"room": "home-office"},
                 ),
-                reply("Which colours?"),
+                reply("Shall I show you desks, or compare two chairs?"),
             ],
         }
     )
@@ -564,6 +564,9 @@ async def test_a_tool_name_is_never_spoken() -> None:
         said = " ".join(u.text for u in turn.units)
         assert "update_brief" not in said, said
         assert "I can help with your home office." in said
+        # A tool named with a plain word (show, compare) is still a word (round 1:
+        # "Shall I show you cushions" came out "Shall I you cushions").
+        assert "Shall I show you desks, or compare two chairs?" in said
 
 
 async def test_a_taste_filters_the_listing_then_offers_the_room() -> None:
