@@ -1,5 +1,5 @@
-// Generated from demos/fernhollow/frontend/src/stage/scene.json by `voqalize stage gen`. Do not edit — regenerate with:
-//   voqalize stage gen demos/fernhollow/frontend/src/stage/scene.json --py demos/fernhollow/backend/stage_gen.py --ts demos/fernhollow/frontend/src/stage/scene.gen.ts
+// Generated from fernhollow/frontend/src/stage/scene.json by `voqalize stage gen`. Do not edit — regenerate with:
+//   voqalize stage gen fernhollow/frontend/src/stage/scene.json --py fernhollow/backend/stage_gen.py --ts fernhollow/frontend/src/stage/scene.gen.ts
 import { defineScene } from "@voqalize/stage";
 
 /** The moves of fernhollow, from its Stage Spec. */
@@ -8,51 +8,7 @@ export const scene = defineScene({
   "id": "fernhollow",
   "moves": [
     {
-      "id": "returns.find",
-      "verb": "find",
-      "class": "reversible",
-      "args": [
-        {
-          "name": "order_number"
-        },
-        {
-          "name": "email",
-          "optional": true
-        }
-      ]
-    },
-    {
-      "id": "returns.next_step",
-      "verb": "next",
-      "class": "reversible"
-    },
-    {
-      "id": "returns.open_step",
-      "verb": "step",
-      "class": "look",
-      "args": [
-        {
-          "name": "step",
-          "type": "integer"
-        }
-      ]
-    },
-    {
-      "id": "returns.fill",
-      "verb": "fill",
-      "class": "reversible",
-      "args": [
-        {
-          "name": "field"
-        },
-        {
-          "name": "value"
-        }
-      ]
-    },
-    {
       "id": "returns.select_item",
-      "verb": "item",
       "class": "reversible",
       "args": [
         {
@@ -66,27 +22,89 @@ export const scene = defineScene({
       ]
     },
     {
+      "id": "returns.fill",
+      "class": "reversible",
+      "args": [
+        {
+          "name": "field"
+        },
+        {
+          "name": "value"
+        }
+      ]
+    },
+    {
+      "id": "returns.open_step",
+      "class": "look",
+      "args": [
+        {
+          "name": "step",
+          "type": "integer"
+        }
+      ]
+    },
+    {
+      "id": "returns.next_step",
+      "class": "reversible"
+    },
+    {
       "id": "returns.submit",
       "class": "confirmed"
     },
     {
-      "id": "size.answer",
+      "id": "orders.open",
+      "class": "look",
+      "args": [
+        {
+          "name": "order_number"
+        }
+      ]
+    },
+    {
+      "id": "orders.show_slots",
+      "class": "look",
+      "args": [
+        {
+          "name": "order_number"
+        }
+      ]
+    },
+    {
+      "id": "orders.reschedule",
       "class": "reversible",
       "args": [
         {
-          "name": "question",
-          "enum": [
-            "kind",
-            "mattress",
-            "sleepers",
-            "room",
-            "place",
-            "layout",
-            "drop"
-          ]
+          "name": "order_number"
         },
         {
-          "name": "value"
+          "name": "slot"
+        }
+      ]
+    },
+    {
+      "id": "orders.cancel",
+      "class": "confirmed",
+      "args": [
+        {
+          "name": "order_number"
+        }
+      ]
+    },
+    {
+      "id": "orders.request_earlier",
+      "class": "reversible",
+      "args": [
+        {
+          "name": "order_number"
+        }
+      ]
+    },
+    {
+      "id": "orders.start_return",
+      "class": "navigate",
+      "args": [
+        {
+          "name": "order_number"
         }
       ]
     },
@@ -125,27 +143,6 @@ export const scene = defineScene({
       ]
     },
     {
-      "id": "orders.open",
-      "class": "look",
-      "args": [
-        {
-          "name": "order_number"
-        }
-      ]
-    },
-    {
-      "id": "orders.reschedule",
-      "class": "reversible",
-      "args": [
-        {
-          "name": "order_number"
-        },
-        {
-          "name": "slot"
-        }
-      ]
-    },
-    {
       "id": "kiosk.start",
       "class": "reversible"
     },
@@ -176,6 +173,10 @@ export const scene = defineScene({
       "id": "returns_form",
       "fields": [
         {
+          "name": "order_number",
+          "optional": true
+        },
+        {
           "name": "step",
           "type": "integer",
           "optional": true
@@ -185,28 +186,15 @@ export const scene = defineScene({
           "optional": true
         },
         {
+          "name": "value",
+          "optional": true
+        },
+        {
           "name": "filled",
           "type": "array"
         },
         {
           "name": "reference",
-          "optional": true
-        }
-      ]
-    },
-    {
-      "id": "size_finder",
-      "fields": [
-        {
-          "name": "question",
-          "optional": true
-        },
-        {
-          "name": "value",
-          "optional": true
-        },
-        {
-          "name": "size",
           "optional": true
         }
       ]
@@ -238,6 +226,10 @@ export const scene = defineScene({
         },
         {
           "name": "slot",
+          "optional": true
+        },
+        {
+          "name": "status",
           "optional": true
         }
       ]
@@ -309,10 +301,6 @@ export const scene = defineScene({
       "slice": "returns_form"
     },
     {
-      "id": "size.answered",
-      "slice": "size_finder"
-    },
-    {
       "id": "gifts.changed",
       "slice": "gift_edit"
     },
@@ -323,6 +311,18 @@ export const scene = defineScene({
     {
       "id": "orders.delivery_changed",
       "slice": "orders"
+    },
+    {
+      "id": "orders.cancelled",
+      "slice": "orders"
+    },
+    {
+      "id": "orders.earlier_requested",
+      "slice": "orders"
+    },
+    {
+      "id": "orders.return_started",
+      "slice": "returns_form"
     },
     {
       "id": "kiosk.screen",
@@ -345,4 +345,4 @@ export const scene = defineScene({
   ]
 });
 
-export const SPEC_SHA256 = "64259e444f7dfb12086823142a08d0373ccab6e3ffaefb68c0e1fffee967cb06";
+export const SPEC_SHA256 = "2864fe8c248c896b581c51d359f8c41b136b2717f06b60fbb33c13391055b359";

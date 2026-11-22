@@ -1,98 +1,13 @@
 {
- "$comment": "Fictional demo orders for the Fernhollow returns desk. Real catalog products; dates are relative (days ago) so eligibility holds whenever the demo runs. Emails use the reserved example.com domain. Orders with a `tracking` block are the account's orders page (/orders): stage, a timeline of authored events (days ago), the delivery slot and the authored slots the day can move to — the only delivery days anywhere in the demo.",
+ "$comment": "Fictional orders of the one signed-in demo account (Sam Rivera), shown on the orders page (/orders). Real catalog products; dates are relative (days ago / days from now) so the statuses hold whenever the demo runs. Every order carries a `tracking` block: stage (packed, on_the_way, out_for_delivery, delivered), a timeline of authored events, the booked delivery slot and, while packed, the authored slots the day can move to — the only delivery days anywhere in the demo. `placed_order` is the template for an order placed in this browser: packed, with these authored slots.",
  "return_window_days": 30,
  "orders": [
   {
-   "number": "FH-20418",
-   "email": "sam.rivera@example.com",
-   "name": "Sam Rivera",
-   "placed_days_ago": 12,
-   "delivered_days_ago": 6,
-   "status": "delivered",
-   "lines": [
-    {
-     "product_id": "modern-home-office-desk-with-chestnut-brown-finish",
-     "variant_id": "27504",
-     "title": "Modern Home Office Desk with Chestnut Brown Finish",
-     "variant": "Walnut",
-     "qty": 1,
-     "unit_price": 499.99
-    },
-    {
-     "product_id": "desk-chair-with-aluminum-frame",
-     "variant_id": "31094",
-     "title": "Desk chair with aluminum frame",
-     "variant": "Ash",
-     "qty": 1,
-     "unit_price": 289.0
-    },
-    {
-     "product_id": "sculpted-matte-ceramic-table-lamp",
-     "variant_id": "30302",
-     "title": "Sculpted Matte Ceramic Table Lamp",
-     "variant": "Brushed Brass",
-     "qty": 1,
-     "unit_price": 179.0
-    }
-   ],
-   "note": "Home office order: the main demo return (well inside 30 days).",
-   "total": 967.99
-  },
-  {
-   "number": "FH-20377",
-   "email": "sam.rivera@example.com",
-   "name": "Sam Rivera",
-   "placed_days_ago": 26,
-   "delivered_days_ago": 19,
-   "status": "delivered",
-   "lines": [
-    {
-     "product_id": "oatmeal-wool-runner",
-     "variant_id": "27401",
-     "title": "Oatmeal Wool Runner",
-     "variant": "Linen",
-     "qty": 1,
-     "unit_price": 179.0
-    },
-    {
-     "product_id": "textured-wool-cushion-in-pebble-grey",
-     "variant_id": "30682",
-     "title": "Textured Wool Cushion in Pebble Grey",
-     "variant": "Linen",
-     "qty": 2,
-     "unit_price": 54.0
-    }
-   ],
-   "note": "Living room order: inside 30 days.",
-   "total": 287.0
-  },
-  {
-   "number": "FH-20155",
-   "email": "jo.chen@example.com",
-   "name": "Jo Chen",
-   "placed_days_ago": 48,
-   "delivered_days_ago": 41,
-   "status": "delivered",
-   "lines": [
-    {
-     "product_id": "aged-ash-side-chair",
-     "variant_id": "30160",
-     "title": "Aged Ash Side Chair",
-     "variant": "Oak",
-     "qty": 4,
-     "unit_price": 395.0
-    }
-   ],
-   "note": "Outside the 30-day window: Emily must say so honestly and offer the care guide / contact page.",
-   "total": 1580.0
-  },
-  {
    "number": "FH-20502",
-   "email": "jo.chen@example.com",
-   "name": "Jo Chen",
+   "name": "Sam Rivera",
    "placed_days_ago": 2,
    "delivered_days_ago": null,
-   "status": "on_its_way",
+   "status": "on_the_way",
    "lines": [
     {
      "product_id": "ivory-linen-king-sheet-set",
@@ -111,12 +26,46 @@
      "unit_price": 56.0
     }
    ],
-   "note": "Not delivered yet: a return can start once it arrives.",
-   "total": 254.0
+   "total": 254.0,
+   "tracking": {
+    "stage": "on_the_way",
+    "events": [
+     {
+      "stage": "ordered",
+      "days_ago": 2,
+      "time": "6:12 pm",
+      "text": "Order placed"
+     },
+     {
+      "stage": "packed",
+      "days_ago": 1,
+      "time": "11:05 am",
+      "text": "Packed at the Fernhollow warehouse"
+     },
+     {
+      "stage": "on_the_way",
+      "days_ago": 0,
+      "time": "6:40 am",
+      "text": "On its way to your local depot"
+     }
+    ],
+    "delivery": {
+     "slot": "d2-morning"
+    },
+    "slots": [
+     {
+      "id": "d2-morning",
+      "days_from_now": 2,
+      "window": "morning",
+      "hours": "8 am to 12 pm"
+     }
+    ],
+    "can_reschedule": false,
+    "why_not": "It has left the warehouse, so the day can no longer be changed; you can ask for an earlier delivery."
+   }
   },
   {
    "number": "FH-31207",
-   "email": "sam.rivera@example.com",
    "name": "Sam Rivera",
    "placed_days_ago": 2,
    "delivered_days_ago": null,
@@ -140,7 +89,6 @@
     }
    ],
    "total": 477.0,
-   "note": "Tracking demo: packed at the warehouse, delivery day can still change (authored slots).",
    "tracking": {
     "stage": "packed",
     "events": [
@@ -199,7 +147,6 @@
   },
   {
    "number": "FH-31188",
-   "email": "sam.rivera@example.com",
    "name": "Sam Rivera",
    "placed_days_ago": 5,
    "delivered_days_ago": null,
@@ -223,7 +170,6 @@
     }
    ],
    "total": 561.0,
-   "note": "Tracking demo: on the van today; the day can no longer change.",
    "tracking": {
     "stage": "out_for_delivery",
     "events": [
@@ -259,13 +205,12 @@
      }
     ],
     "can_reschedule": false,
-    "why_not": "The van has already left with it, so today's delivery can no longer be moved. If nobody will be home, contact the store and we arrange another day."
+    "why_not": "It is on the van for today's delivery, so the day can no longer be changed; you can ask for an earlier delivery."
    },
    "delivery_fee": 0
   },
   {
    "number": "FH-31042",
-   "email": "sam.rivera@example.com",
    "name": "Sam Rivera",
    "placed_days_ago": 9,
    "delivered_days_ago": 3,
@@ -289,7 +234,6 @@
     }
    ],
    "total": 201.0,
-   "note": "Tracking demo: delivered three days ago; hands off to the returns desk.",
    "tracking": {
     "stage": "delivered",
     "events": [
@@ -328,6 +272,224 @@
     "why_not": "It has already been delivered."
    },
    "delivery_fee": 49
+  },
+  {
+   "number": "FH-20418",
+   "name": "Sam Rivera",
+   "placed_days_ago": 12,
+   "delivered_days_ago": 6,
+   "status": "delivered",
+   "lines": [
+    {
+     "product_id": "modern-home-office-desk-with-chestnut-brown-finish",
+     "variant_id": "27504",
+     "title": "Modern Home Office Desk with Chestnut Brown Finish",
+     "variant": "Walnut",
+     "qty": 1,
+     "unit_price": 499.99
+    },
+    {
+     "product_id": "desk-chair-with-aluminum-frame",
+     "variant_id": "31094",
+     "title": "Desk chair with aluminum frame",
+     "variant": "Ash",
+     "qty": 1,
+     "unit_price": 289.0
+    },
+    {
+     "product_id": "sculpted-matte-ceramic-table-lamp",
+     "variant_id": "30302",
+     "title": "Sculpted Matte Ceramic Table Lamp",
+     "variant": "Brushed Brass",
+     "qty": 1,
+     "unit_price": 179.0
+    }
+   ],
+   "total": 967.99,
+   "tracking": {
+    "stage": "delivered",
+    "events": [
+     {
+      "stage": "ordered",
+      "days_ago": 12,
+      "time": "10:26 am",
+      "text": "Order placed"
+     },
+     {
+      "stage": "packed",
+      "days_ago": 10,
+      "time": "2:10 pm",
+      "text": "Packed at the Fernhollow warehouse"
+     },
+     {
+      "stage": "out_for_delivery",
+      "days_ago": 6,
+      "time": "8:01 am",
+      "text": "On the van with the day's deliveries"
+     },
+     {
+      "stage": "delivered",
+      "days_ago": 6,
+      "time": "1:18 pm",
+      "text": "Delivered and signed for at the front door"
+     }
+    ],
+    "delivery": {
+     "days_from_now": -6,
+     "window": "afternoon",
+     "hours": "12 pm to 5 pm"
+    },
+    "slots": [],
+    "can_reschedule": false,
+    "why_not": "It has already been delivered."
+   }
+  },
+  {
+   "number": "FH-20377",
+   "name": "Sam Rivera",
+   "placed_days_ago": 26,
+   "delivered_days_ago": 19,
+   "status": "delivered",
+   "lines": [
+    {
+     "product_id": "oatmeal-wool-runner",
+     "variant_id": "27401",
+     "title": "Oatmeal Wool Runner",
+     "variant": "Linen",
+     "qty": 1,
+     "unit_price": 179.0
+    },
+    {
+     "product_id": "textured-wool-cushion-in-pebble-grey",
+     "variant_id": "30682",
+     "title": "Textured Wool Cushion in Pebble Grey",
+     "variant": "Linen",
+     "qty": 2,
+     "unit_price": 54.0
+    }
+   ],
+   "total": 287.0,
+   "tracking": {
+    "stage": "delivered",
+    "events": [
+     {
+      "stage": "ordered",
+      "days_ago": 26,
+      "time": "10:26 am",
+      "text": "Order placed"
+     },
+     {
+      "stage": "packed",
+      "days_ago": 24,
+      "time": "2:10 pm",
+      "text": "Packed at the Fernhollow warehouse"
+     },
+     {
+      "stage": "out_for_delivery",
+      "days_ago": 19,
+      "time": "8:01 am",
+      "text": "On the van with the day's deliveries"
+     },
+     {
+      "stage": "delivered",
+      "days_ago": 19,
+      "time": "1:18 pm",
+      "text": "Delivered and signed for at the front door"
+     }
+    ],
+    "delivery": {
+     "days_from_now": -19,
+     "window": "afternoon",
+     "hours": "12 pm to 5 pm"
+    },
+    "slots": [],
+    "can_reschedule": false,
+    "why_not": "It has already been delivered."
+   }
+  },
+  {
+   "number": "FH-20155",
+   "name": "Sam Rivera",
+   "placed_days_ago": 48,
+   "delivered_days_ago": 41,
+   "status": "delivered",
+   "lines": [
+    {
+     "product_id": "aged-ash-side-chair",
+     "variant_id": "30160",
+     "title": "Aged Ash Side Chair",
+     "variant": "Oak",
+     "qty": 4,
+     "unit_price": 395.0
+    }
+   ],
+   "total": 1580.0,
+   "tracking": {
+    "stage": "delivered",
+    "events": [
+     {
+      "stage": "ordered",
+      "days_ago": 48,
+      "time": "10:26 am",
+      "text": "Order placed"
+     },
+     {
+      "stage": "packed",
+      "days_ago": 46,
+      "time": "2:10 pm",
+      "text": "Packed at the Fernhollow warehouse"
+     },
+     {
+      "stage": "out_for_delivery",
+      "days_ago": 41,
+      "time": "8:01 am",
+      "text": "On the van with the day's deliveries"
+     },
+     {
+      "stage": "delivered",
+      "days_ago": 41,
+      "time": "1:18 pm",
+      "text": "Delivered and signed for at the front door"
+     }
+    ],
+    "delivery": {
+     "days_from_now": -41,
+     "window": "afternoon",
+     "hours": "12 pm to 5 pm"
+    },
+    "slots": [],
+    "can_reschedule": false,
+    "why_not": "It has already been delivered."
+   }
   }
- ]
+ ],
+ "placed_order": {
+  "booked": "d4-morning",
+  "slots": [
+   {
+    "id": "d3-afternoon",
+    "days_from_now": 3,
+    "window": "afternoon",
+    "hours": "12 pm to 5 pm"
+   },
+   {
+    "id": "d4-morning",
+    "days_from_now": 4,
+    "window": "morning",
+    "hours": "8 am to 12 pm"
+   },
+   {
+    "id": "d4-evening",
+    "days_from_now": 4,
+    "window": "evening",
+    "hours": "5 pm to 9 pm"
+   },
+   {
+    "id": "d5-morning",
+    "days_from_now": 5,
+    "window": "morning",
+    "hours": "8 am to 12 pm"
+   }
+  ]
+ }
 }
