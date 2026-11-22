@@ -16,8 +16,8 @@ against it in parallel; change it only by editing this file in the same PR as th
   serves them as `/demos/fernhollow/img/<file>-<400|1000>.webp`.
 - **No invented product facts.** Nothing outside catalog fields, words in the product's own
   title/intro/highlights/options, authored store policies and authored editorial content. No product dimensions,
-  stock levels or delivery dates anywhere in UI or speech — v5 adds the authored size guide (guide-level
-  advice only) and the three sample orders' authored delivery slots, and nothing else.
+  stock levels or delivery dates anywhere in UI or speech — the account's sample orders' authored delivery
+  slots (v5, v6) are the only exception.
 
 ## Brain → UI actions (`session.dispatch`, RTVI `ui-command`)
 
@@ -42,6 +42,7 @@ renders without a second lookup. Product references are catalog `id`s.
 | `show_more_like` | `anchor_id, items[{product_id, differences[]}]` | look-alike strip with badges |
 | `show_savings` | `swaps[{slot, from_id, to_id, was, now}], saved, moved_to?` | savings badges on room board |
 | `update_shortlist` | `product_ids[]` | shortlist tray |
+| `show_saved` | `product_ids[], title, note` | the saved picks together on `/saved` (v6) |
 | `confirm_add` | `lines[{product_id, variant_id, qty}], label` | confirm prompt on the Add button — the page's own whole-room Add only; Emily adds at once and sends `cart_updated` |
 | `cart_updated` | `lines[], total, saved` | cart drawer opens |
 | `suggest_finish` | `product_id, reason` | suggestion card in cart |
@@ -62,6 +63,8 @@ usable shop without voice. Actions go through one store controller (`src/voice/c
 voice layer is a thin adapter. A dev-only action console (`?debug=1`) fires any action by hand.
 
 ## Returns desk (v1) — a form Emily helps fill, built on Stage
+
+> Superseded by v6 (the return form of one delivered order on the orders page); kept for the history.
 
 A second experience: `/returns/` (start page) → `/returns/start/` (the form). The shopper starts a
 return by voice or by hand; Emily finds the order, checks it against the policy, and fills the form with
@@ -178,6 +181,9 @@ line and ask which to compare. Never act on a selection the shopper did not spea
 
 ## v4 — Returns that actually work by voice (owner, 2026-11-03)
 
+> Superseded in part by v6: there is no order-number-and-email step and no `prepare_return` any more; the
+> return form belongs to one delivered order on the orders page and is filled one answer at a time.
+
 Found in a live session: (1) orders the shopper placed were invisible to the brain (`find_order` read only
 `demo_orders.json`); (2) step 1 (order number + email) was never filled, so steps 2–6 stayed locked and
 `returns.submit` was refused; (3) `returns.select_item` refused a valid `qty` ("between 1 and 1") — a
@@ -216,6 +222,10 @@ calls it; she never relies on many spoken cues to fill a form. Every turn that a
 
 ## v5 — the front of house: one brain, a job per landing page (owner, 2026-11-18)
 
+> v6 changes this section: the size guide is gone (home decor has no real size choices; it moves to a
+> future fashion demo), Orders and Returns are one page, and the gift edit starts with nothing chosen.
+> Where the two disagree, v6 wins.
+
 Fernhollow is now the front of house for every e-commerce agent in the catalogue: one brain, one
 character, and a **job** chosen by the page the call starts on. The brain still follows the shopper to
 any page and switches job when they land on another job's page.
@@ -223,10 +233,9 @@ any page and switches job when they land on another job's page.
 | landing | job | what the agent does |
 | --- | --- | --- |
 | `/` | `shop` | furnishes a room within budget, finds, compares, fills the cart (v0–v3) |
-| `/returns` | `returns` | opens the order, sets up the return or the swap, waits for the yes (v1, v4) |
-| `/size-guide` | `size` | asks about the bed, mattress, room or window; picks the size from the guide; rings it on the product page |
-| `/gifts` | `gifts` | turns "for my sister's new flat, under $80" into a short list with a reason each; adds to cart |
-| `/orders` | `orders` | says where the parcel is in plain words; moves the delivery day to an authored slot; hands a delivered order to returns |
+| `/orders/return` | `returns` | the return form of one delivered order, filled one answer at a time (v6) |
+| `/gifts` | `gifts` | who it is for and the occasion, then the budget (or none); a short list with a reason each; adds to cart |
+| `/orders` | `orders` | every order on the account; what an order allows depends on its status (v6) |
 | `/kiosk` | `kiosk` | the showroom totem: attract screen, three short questions, three picks with reasons, a QR code to the phone |
 
 **Persona in one place.** `persona.json` (character id for `@voqalize/avatar`, display name, role, voice
@@ -235,52 +244,38 @@ per language, the languages offered, the default) is read by the brain (`backend
 pages write `{{agent}}` for the name.
 
 **`init`** (the connect request's opaque blob): `{surface: "fernhollow-web", landing: "<path>", lang:
-"<code>"}`. `landing` is the router path the call started on (`/size-guide`, `/kiosk`…) and picks the
+"<code>"}`. `landing` is the router path the call started on (`/orders`, `/kiosk`…) and picks the
 job and the greeting; `lang` is one of `persona.languages` (English only today) and the brain sets both
 legs from `persona.voices[lang]` in `on_session_start`. A later `page_viewed` whose path starts with one
-of the six landings switches the job; any other page (a product, the cart) keeps it.
+of the landings switches the job; any other page (a product, the cart) keeps it.
 
-**No invented facts, still.** The size guide is authored guide-level advice (`content/size_guide.json`):
-which size suits which mattress, where a Small or Large vase sits, rug placement against a sofa,
-curtain drop and rod height — plus the general US standard mattress sizes, labelled as the standard.
-Nothing states a product's own measurements. Only beds, bedding, vases and faux stems sell a Size
-(Queen/King, Small/Large: 59 products); rugs and curtains are sold by fabric, so their sections advise and
-pick no size. Delivery days exist only in the three authored sample orders.
+**No invented facts, still.** Nothing states a product's own measurements. Delivery days exist only in
+the authored sample orders (and the `placed_order` template).
 
 ### Data
 
-- `content/size_guide.json` — sections (beds, vases, rugs, curtains), the finder's questions (each with
-  `when`, the answers it applies under) and the rules that pick a size with the guide's reason.
-  `backend/sizing.py` and `frontend/src/sizing/finder.ts` evaluate the same file the same way: the first
-  rule whose `if` all hold; the next question is the first whose `when` holds and is unanswered.
 - `content/gift_guide.json` — recipients, occasions (category weights), budget chips (30, 50, 80, 100,
   150, 250, 500 dollars) and one authored line per category. `content/kiosk.json` — the kiosk's three
   questions; a feel lists the catalog's own attribute words it means.
 - `backend/data/edits.json` — generated by `backend/edits.py` from those and the catalog: for every
   `recipient|occasion|budget` the gift short list (6), for every `room|feel|budget` the kiosk's three,
   each `{product_id, variant_id, reason}`. The page and the brain read this one file, so what is said is
-  what is shown. A spoken budget becomes the largest chip at or under it ("under $90" → 80).
-- `data/demo_orders.json` — three orders carry a `tracking` block: `FH-31207` packed (can move),
-  `FH-31188` on the van (cannot move; `why_not`), `FH-31042` delivered 3 days ago (returnable: the
-  returns desk finds it like any demo order). `tracking.events[{stage, days_ago, time, text}]`,
+  what is shown. A spoken budget becomes the largest chip at or under it ("under $90" → 80); `…|0` is
+  No limit (v6).
+- `data/demo_orders.json` — every order carries a `tracking` block (v6): `FH-31207` packed (can move,
+  can cancel), `FH-20502` on its way and `FH-31188` on the van (cannot move; `why_not`), `FH-31042`,
+  `FH-20418`, `FH-20377` delivered inside the window, `FH-20155` outside it. `tracking.events[{stage, days_ago, time, text}]`,
   `tracking.delivery.slot` (the booked slot id), `tracking.slots[{id, days_from_now, window, hours}]`
   (the only days it can move to), `can_reschedule`, `why_not`. Days are relative; the page shows
   `Thu 20 Nov`, the brain says "Thursday 20 November".
 
 ### Pages (all work by click alone)
 
-- `/size-guide` — the four sections (anchors `#beds`, `#vases`, `#rugs`, `#curtains`), the **size
-  finder** (chips per question, `data-stage-part="size:<question>:<value>"`), its answer card (size +
-  reason, or the placement advice), and the sized products of the section with the picked size: each
-  card opens `product/<id>?variant=<variant_id>`.
 - `/gifts` — the gift edit: recipient, occasion and budget chips
   (`data-stage-part="gift:<control>:<value>"`), the short list with each pick's reason and an Add to cart
   button. A query string `?for=sibling&occasion=housewarming&budget=80` sets the controls.
-- `/orders` — "Your orders": the three tracked orders as cards with a status pill; `/orders?order=FH-31207`
-  opens one: its lines, a timeline (Ordered → Packed → Out for delivery → Delivered, with the authored
-  times), the delivery slot, **Change delivery day** (a list of the authored slots; Save) when it can
-  move or `why_not` when it cannot, and for a delivered order **Return or exchange an item** →
-  `/returns/start?order=FH-31042`.
+- `/orders` — "Your orders": every order as a card with a status pill; `/orders?order=FH-31207` opens
+  one: its lines, a timeline, and the actions its status allows (v6).
 - `/kiosk` — a full-screen portrait showroom layout (designed at 1080×1920; on a landscape screen the
   portrait frame is centred and scaled): attract screen → room → feel → budget (big tiles,
   `data-stage-part="kiosk:<question>:<value>"`) → three picks with reasons and a QR code. The QR encodes
@@ -296,7 +291,6 @@ rings it, then changes it, and answers one short line. Tool-driven only (no `say
 
 | move | class | args | does |
 | --- | --- | --- | --- |
-| `size.answer` | reversible | `question` (kind, mattress, sleepers, room, place, layout, drop), `value` | rings the finder chip and chooses it; `kind` clears the answers under it |
 | `gifts.set` | reversible | `recipient?`, `occasion?`, `budget?` (a chip) | rings and sets each control in turn; the list follows |
 | `orders.open` | look | `order_number` | opens that order's timeline and rings it |
 | `orders.reschedule` | reversible | `order_number`, `slot` | opens the picker, rings the slot, chooses and saves it; refused (with the offered slots) when it cannot move |
@@ -304,26 +298,20 @@ rings it, then changes it, and answers one short line. Tool-driven only (no `say
 | `kiosk.answer` | reversible | `question` (room, feel, budget), `value` | rings the tile and chooses it; the third shows the picks and QR |
 | `kiosk.restart` | reversible | — | clears the answers, back to attract |
 
-Events (slices `size_finder`, `gift_edit`, `orders`, `kiosk`; all `note`, `by` visitor or agent):
-`size.answered{question, value, size?}`, `gifts.changed{recipient, occasion, budget}`,
+Events (slices `gift_edit`, `orders`, `kiosk`; all `note`, `by` visitor or agent; v6 adds more):
+`gifts.changed{recipient, occasion, budget}`,
 `orders.opened{order_number}`, `orders.delivery_changed{order_number, slot}`,
 `kiosk.screen{screen}`, `kiosk.answered{question, value}`. The brain folds the visitor's into its
 mirror (a delivery day the shopper changed by hand is the one it then says).
 
 ### Brain tools (new)
 
-- `size_finder(kind, mattress?, sleepers?, room?, place?, layout?, drop?)` — `@needs_result_now`. Sends
-  `size.answer` for each answer given (opening `/size-guide`), and returns the guide's size and reason
-  with the section's products in that size, or the one next question to ask.
-- `pick_size(product, size)` — opens the product page with that Size selected and the options ringed
-  (`open_product` with `variant_id`, `focus: "options"`), with the guide's reason. Refused, naming the
-  sizes it comes in, when the product has no such size or sells no sizes.
 - `gift_edit(recipient, occasion, budget)` — `@needs_result_now`. Sends `gifts.set` (opening `/gifts`)
   and returns the list from `edits.json` with each reason; `add_to_cart` adds a pick.
 - `track_order(order_number?)` — `@needs_result_now`. Without a number, the account's three orders in one
   line each; with one, sends `orders.open` and returns where it is in plain words, the booked slot, and
   the slots it can move to (or why not). A delivered order says it can go back and how many days are
-  left; `find_order` then opens the returns form (the hand-off).
+  left; `start_return` then opens its return form (v6).
 - `change_delivery(order_number, slot)` — sends `orders.reschedule` for an authored slot; refused when
   the order cannot move or the slot is not offered.
 - `kiosk_answer(room?, feel?, budget?)` — `@needs_result_now`. Sends `kiosk.start` (from attract) and
@@ -332,3 +320,73 @@ mirror (a delivery day the shopper changed by hand is the one it then says).
 
 **Kiosk job:** short turns (one sentence, at most two), one question at a time, the tile names as the
 options, never a product that is not one of the three on screen.
+
+## v6 — round 1 of the owner's live review (owner, 2026-11-19)
+
+Evidence: the owner's six dev calls on 19 Nov (shopping, returns, size guide, gifts, orders, kiosk). In the
+shopping call almost every turn that acted was `speechless=yes`: the model called a tool and said nothing,
+so the written floor spoke "Filtered.", "It's on the shortlist.", "Here you go." — the one-word replies.
+The list he gave up front (a sofa, a rug, cushions) was never kept, "show me what I've selected" became a
+compare of three different kinds of piece, and the cart got one piece at a time while she said it was done.
+The returns call filled nothing as he spoke (one `prepare_return` at the end), the return moves were
+registered only on the form page (refused as "not on screen"), and step 1 asked for an order number and an
+email the agent then skipped. `find_order` / `track_order` failed once per call on flat arguments.
+
+**She leads (X4).** The prompt makes her the salesperson on the floor: short but full sentences, the next
+step offered as a choice every turn, never a claim a result did not make. A turn that only acted gets one
+more model request with tools off (`FallbackLine.speak_if_silent(..., again=...)`), so she talks about what
+landed; the written line stays the floor under a second silence. Written lines are full sentences.
+
+**The shopper's list.** `update_brief(pieces=[…])` keeps every kind of piece asked for (shopper words
+mapped to categories: cushions → throw pillows), in order, for the whole call. It opens the first piece not
+yet chosen in their taste. Saving a pick (`shortlist`, now `@needs_result_now`) returns the next piece as a
+choice of two ("Shall we move on to the rug now, or see cushions that go with the sofa?"). The `[SCREEN
+NOW]` note carries the list with what is saved for each. No whole-room offer once they named pieces.
+
+**Saved picks, together.** `show_saved()` → `show_saved{product_ids, title, note}`: `/saved` shows the
+saved picks side by side with the colour or material they share and one Add all. The saved-pieces sheet
+offers "See them together"; Compare only appears for pieces of one kind, and the brain refuses a compare
+across kinds. `add_to_cart(what="saved")` adds every saved pick in one call; the result lists exactly what
+the cart holds.
+
+**One orders page (F8).** `/orders` lists every order of the signed-in account (no email anywhere; a
+placed order is now packed, booked into `demo_orders.json`'s `placed_order` template). Selecting one shows
+its status, items and timeline and the actions its status allows:
+
+| status (`tracking.stage`) | actions | brain tools / moves |
+| --- | --- | --- |
+| packed | change the delivery day; cancel (needs the shopper's yes) | `change_delivery(order, slot?)` → `orders.show_slots` / `orders.reschedule`; `cancel_order` → `orders.cancel` (confirmed) |
+| on the way (`on_the_way`, `out_for_delivery`) | ETA; request an earlier delivery (a request, not a promise) | `request_earlier` → `orders.request_earlier` |
+| delivered | start a return, inside 30 days | `start_return` → `orders.start_return` |
+
+`track_order(order_number?)` lists the account or selects one (`orders.open`). Policy: cancel while packed,
+not once on its way; return once delivered (`content/policies.json`, `returns.cancellation`,
+`delivery.changes`). `change_delivery` without a slot opens the picker on screen (the live bug: she read
+the days but never opened it). Old `/returns…` URLs redirect to `/orders…`.
+
+**The return form, two ways (F5).** `/orders/return?order=…`: 1 Items, 2 Reason (reason + condition),
+3 Resolution, 4 Collection, 5 Review. Nothing is chosen until it is said or tapped. `fill_return(answers)`
+puts down each answer the moment it is said (`returns.select_item`, `returns.fill`), holds an answer for a
+later step until the steps before it are complete, moves the form on (`returns.next_step`), and returns the
+one next question; an item ordered more than once asks how many first. Every change by hand reaches the
+brain with its value (`returns.field_filled{order_number, field, value, filled}`, `qty_<id>` for items);
+the brain folds it in and carries on. When complete, "Shall I submit the return?" and the yes submits
+(`returns.submit`, confirmed). All `orders.*` and `returns.*` moves are registered once in the app shell.
+
+**The page follows (F2, F3, F4, F7, F9).** A drawer or sheet open over the page moves the dock and the live
+tile to a top corner above it (away from a side drawer, top right over a bottom sheet). Every ring first
+brings its whole group into view — inner scroll areas such as the filter rail included
+(`frontend/src/stage/reveal.ts`, groups marked `data-reveal-group`). No "with {agent}" buttons or cards; the
+dock's role label follows the page (`persona.json` `roles` by job: Design adviser, Orders adviser, Returns
+adviser, Gift adviser, Showroom guide). The gift edit starts with nothing chosen; `gift_edit` sets who and
+the occasion, then asks "Do you have a budget in mind, or shall I not worry about it?" (`no_budget` is the
+0 chip, "No limit"; `edits.json` carries `…|0`). On the kiosk the call starting moves the screen to
+question 1 (the page on going live, and `kiosk.start` from the greeting).
+
+Stage spec (`frontend/src/stage/scene.json`): moves `returns.select_item`, `returns.fill`,
+`returns.open_step`, `returns.next_step`, `returns.submit`, `orders.open`, `orders.show_slots`,
+`orders.reschedule`, `orders.cancel`, `orders.request_earlier`, `orders.start_return`, `gifts.set`,
+`kiosk.start`, `kiosk.answer`, `kiosk.restart`; events `returns.field_filled`, `returns.step_reached`,
+`returns.return_submitted`, `orders.opened`, `orders.delivery_changed`, `orders.cancelled`,
+`orders.earlier_requested`, `orders.return_started`, `gifts.changed`, `kiosk.screen`, `kiosk.answered`.
+

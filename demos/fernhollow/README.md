@@ -5,24 +5,23 @@ voice agent. The same character, one brain, a job per landing page: the page a c
 what the agent is there to do, and it follows the shopper anywhere in the store. Everything it drives on
 screen also works by click alone; the store is a complete shop without voice.
 
-The agreement between the page and the brain is [CONTRACT.md](CONTRACT.md) (v0 to v5).
+The agreement between the page and the brain is [CONTRACT.md](CONTRACT.md) (v0 to v6; v6 is the
+owner's round-1 review, 19 Nov 2026).
 
 ## Landing pages and jobs
 
 | page | job | what the agent does |
 | --- | --- | --- |
-| `/` | shopping assistant | asks about the room one question at a time, builds a whole room within budget on a room board, swaps pieces, compares, finds look-alikes and pieces that go with one, stretches the budget with sale prices, fills the cart and the checkout (the order is placed only on a spoken yes) |
-| `/returns` | returns and exchanges | finds the order (a demo order, or one placed in this browser), checks it against the 30-day policy, fills the six-step returns form or sets up the swap to another option value, and submits only on the shopper's yes |
-| `/size-guide` | size and fit advisor | asks about the bed and mattress, the room, where a vase goes, how a rug sits with the sofa or how far curtains fall; picks the size from the authored guide, says why, and opens the product in that size with the size ringed |
-| `/gifts` | gift finder | turns "something for my sister's new flat, under $80" into the gift edit's short list (recipient, occasion, budget chip), a reason for each pick; adds the one they choose to the cart |
-| `/orders` | order tracking | three sample orders (packed, on the van, delivered): says where the parcel is in plain words, moves the delivery day to one of the order's authored slots, and hands a delivered order to the returns desk |
+| `/` | design adviser | leads like a salesperson: remembers every piece the shopper asked for ("a sofa, a rug and cushions") and walks them through it, offering the next step each time; shows each piece in their taste, saves the ones they like, shows the saved picks together (`/saved`), adds them all to the cart and fills the checkout (the order is placed only on a spoken yes). Also builds a whole room within budget, swaps, compares pieces of one kind, finds look-alikes and pieces that go with one |
+| `/orders` | orders adviser | every order on the signed-in account; what an order allows depends on its status: packed — change the delivery day or cancel (on a spoken yes); on the way — the ETA and a request for an earlier delivery (a request, not a promise); delivered — start a return |
+| `/orders/return?order=…` | returns adviser | the return form of one delivered order (items, reason, resolution, collection, review), filled with the shopper one answer at a time, two ways: what they say is ticked as they say it, what they tap she hears; submitted only on their yes. Old `/returns…` links redirect here |
+| `/gifts` | gift adviser | nothing chosen up front: "Who is it for, and what's the occasion?", then "Do you have a budget in mind, or shall I not worry about it?", then the gift edit's short list with a reason for each pick; adds the one they choose to the cart |
 | `/kiosk` | in-store kiosk | a full-screen portrait showroom totem (1080x1920, also fine on a laptop): attract screen, three short questions, three picks with reasons and a QR code that opens the picks on the phone (`/my-picks?ids=…`) |
 
 ## Facts the agent may state
 
 Catalog fields and the product's own words, the authored policies (`content/policies.json`), the authored
-size guide (`content/size_guide.json`: guide-level advice and the general US standard mattress sizes,
-never a product's measurements), the gift and kiosk rules (`content/gift_guide.json`, `content/kiosk.json`)
+gift and kiosk rules (`content/gift_guide.json`, `content/kiosk.json`)
 and the sample orders (`data/demo_orders.json`; the only delivery days in the demo). The gift edit and the
 kiosk picks are ranked once by `backend/edits.py` into `backend/data/edits.json`, which the page and the
 brain both read, so what is said is what is shown. After changing the catalog or those rules:
@@ -51,6 +50,8 @@ Edit [`persona.json`](persona.json), nothing else:
 
 - `character` is the `@voqalize/avatar` character the page mounts; `name` and `role` are what the agent
   calls itself and what the UI shows ("Talk to Emily"); the Markdown pages write `{{agent}}` for the name.
+- `roles` is the label the dock shows under the name on each page, by job (`shop`, `orders`, `returns`,
+  `gifts`, `kiosk`): "Design adviser" in the shop, "Returns adviser" on a return form.
 - `voices` maps each language to the voice that speaks it; `languages` is what the page offers (a toggle
   by the call button appears once there are two); `default_language` is used when the page sends none.
 
