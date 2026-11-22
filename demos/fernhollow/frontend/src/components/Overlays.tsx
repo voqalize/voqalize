@@ -1,4 +1,4 @@
-import { Check, GitCompare, Heart, X } from "lucide-react";
+import { Check, GitCompare, Heart, LayoutGrid, X } from "lucide-react";
 import { useEffect, useLayoutEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { marked } from "marked";
@@ -63,16 +63,28 @@ export function ShortlistTray() {
           <div className="tray-tools">
             <button
               type="button"
-              className="btn btn-ghost btn-sm"
-              disabled={list.length < 2}
+              className="btn btn-primary btn-sm"
+              disabled={!list.length}
               onClick={() => {
                 setOpen(false);
-                emily.show_compare(buildCompare(ids.slice(0, 4)), "visitor");
-                navigate("/compare");
+                navigate("/saved");
               }}
             >
-              <GitCompare size={15} /> Compare {Math.min(list.length, 4) || ""}
+              <LayoutGrid size={15} /> See them together
             </button>
+            {list.length >= 2 && new Set(list.map((p) => p.categorySlug)).size === 1 ? (
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={() => {
+                  setOpen(false);
+                  emily.show_compare(buildCompare(ids.slice(0, 4)), "visitor");
+                  navigate("/compare");
+                }}
+              >
+                <GitCompare size={15} /> Compare {Math.min(list.length, 4)}
+              </button>
+            ) : null}
             <button type="button" className="icon-btn" aria-label="Close saved pieces" onClick={() => setOpen(false)} data-autofocus>
               <X size={20} strokeWidth={1.6} />
             </button>

@@ -11,10 +11,9 @@ import { CartPage, CheckoutPage } from "./pages/Checkout";
 import { ArticlePage, ConfirmationPage, ContactPage, InfoPage, JournalIndex, NotFound } from "./pages/Editorial";
 import { Home } from "./pages/Home";
 import { CategoryPage, RoomPage, SalePage, SearchPage, ShopPage } from "./pages/Listing";
-import { BoardPage, ComparePage, PicksPage } from "./pages/EmilyViews";
+import { BoardPage, ComparePage, PicksPage, SavedPage } from "./pages/EmilyViews";
 import { ProductPage } from "./pages/ProductPage";
-import { ReturnsConfirmation, ReturnsForm, ReturnsHome } from "./pages/Returns";
-import { SizeGuide } from "./pages/SizeGuide";
+import { OrderReturn, ReturnConfirmation, ReturnsRedirect } from "./pages/Returns";
 import { Gifts } from "./pages/Gifts";
 import { Orders } from "./pages/Orders";
 import { Kiosk } from "./pages/Kiosk";
@@ -217,6 +216,7 @@ export function App() {
           <Route path="sale" element={<SalePage />} />
           <Route path="search" element={<SearchPage />} />
           <Route path="picks" element={<PicksPage />} />
+          <Route path="saved" element={<SavedPage />} />
           <Route path="board" element={<BoardPage />} />
           <Route path="compare" element={<ComparePage />} />
           <Route path="cart" element={<CartPage />} />
@@ -228,12 +228,13 @@ export function App() {
           <Route path="faq" element={<InfoPage slug="faq" />} />
           <Route path="policy/:topic" element={<InfoPage />} />
           <Route path="contact" element={<ContactPage />} />
-          <Route path="returns" element={<ReturnsHome />} />
-          <Route path="returns/start" element={<ReturnsForm />} />
-          <Route path="returns/confirmation" element={<ReturnsConfirmation />} />
-          <Route path="size-guide" element={<SizeGuide />} />
+          <Route path="returns" element={<ReturnsRedirect />} />
+          <Route path="returns/start" element={<ReturnsRedirect />} />
+          <Route path="returns/confirmation" element={<ReturnsRedirect />} />
           <Route path="gifts" element={<Gifts />} />
           <Route path="orders" element={<Orders />} />
+          <Route path="orders/return" element={<OrderReturn />} />
+          <Route path="orders/return/confirmation" element={<ReturnConfirmation />} />
           <Route path="my-picks" element={<MyPicks />} />
           <Route path="*" element={<NotFound />} />
         </Route>

@@ -1,16 +1,18 @@
 /**
- * /gifts — the gift edit. Who it is for, the occasion and a budget chip pick
- * a short list from backend/data/edits.json (the list the agent reads, so what
- * it says is what is shown), each with its reason and an Add to cart button.
- * Works by tap; the agent sets the same controls through `gifts.set`.
- * `?for=sibling&occasion=housewarming&budget=80` sets them from a link.
+ * /gifts — the gift edit. Who it is for, the occasion and a budget chip (or
+ * No limit) pick a short list from backend/data/edits.json (the list the agent
+ * reads, so what it says is what is shown), each with its reason and an Add to
+ * cart button. Nothing is chosen when the page opens (owner, round 1, F7): the
+ * list shows once all three are set. Works by tap; the agent sets the same
+ * controls through `gifts.set`. `?for=sibling&occasion=housewarming&budget=80`
+ * sets them from a link (`budget=0` is No limit).
  */
 import { Gift, ShoppingBag } from "lucide-react";
 import { useEffect } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Crumbs, EmilyTag, Photo, PriceLine } from "../components/bits";
 import { getProduct, getVariant, money } from "../data/catalog";
-import { GIFTS, giftKey, useEdits, useGifts } from "../frontdesk/edits";
+import { BUDGET_CHIPS, GIFTS, budgetLabel, giftKey, useEdits, useGifts } from "../frontdesk/edits";
 import { persona } from "../persona";
 import { useCart } from "../state/cart";
 import { pointHandlers } from "../voice/screen";
@@ -27,15 +29,17 @@ export function Gifts() {
     const patch: { recipient?: string; occasion?: string; budget?: number } = {};
     const r = params.get("for");
     const o = params.get("occasion");
-    const b = Number(params.get("budget"));
+    const raw = params.get("budget");
+    const b = raw == null ? NaN : Number(raw);
     if (r && GIFTS.recipients.some((x) => x.id === r)) patch.recipient = r;
     if (o && GIFTS.occasions.some((x) => x.id === o)) patch.occasion = o;
-    if (b && GIFTS.budgets.includes(b)) patch.budget = b;
+    if (BUDGET_CHIPS.includes(b)) patch.budget = b;
     if (Object.keys(patch).length) useGifts.getState().set(patch);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const picks = edits?.gifts[giftKey(g.recipient, g.occasion, g.budget)] ?? [];
+  const ready = g.recipient != null && g.occasion != null && g.budget != null;
+  const picks = ready ? (edits?.gifts[giftKey(g.recipient ?? "", g.occasion ?? "", g.budget ?? 0)] ?? []) : [];
   const who = GIFTS.recipients.find((x) => x.id === g.recipient)?.label ?? "";
   const why = GIFTS.occasions.find((x) => x.id === g.occasion)?.label ?? "";
   const byAgent = g.changed?.by === "emily";
@@ -50,8 +54,8 @@ export function Gifts() {
           </p>
           <h1 className="h1">Something they will keep</h1>
           <p className="lede">
-            Tell us who it is for, the occasion and what you want to spend; we pull a short list from the whole store, with the reason for each. Or tell{" "}
-            {persona.name}: “something for my sister’s new flat, under $80”.
+            Tell us who it is for, the occasion and what you want to spend, or that the budget does not matter; we pull a short list from the whole store, with the reason for each. Or
+            tell {persona.name}: “something for my sister’s new flat, under $80”.
           </p>
         </div>
       </header>
@@ -59,17 +63,29 @@ export function Gifts() {
       <section className="fd-controls" aria-label="Gift edit controls">
         <Control label="For" name="recipient" value={g.recipient} options={GIFTS.recipients.map((r) => ({ value: r.id, label: r.label }))} />
         <Control label="Occasion" name="occasion" value={g.occasion} options={GIFTS.occasions.map((o) => ({ value: o.id, label: o.label }))} />
-        <Control label="Up to" name="budget" value={String(g.budget)} options={GIFTS.budgets.map((b) => ({ value: String(b), label: money(b) }))} />
+        <Control label="Budget" name="budget" value={g.budget == null ? null : String(g.budget)} options={BUDGET_CHIPS.map((b) => ({ value: String(b), label: b === 0 ? "No limit" : money(b) }))} />
       </section>
 
-      <div className="fd-results-head" data-emily-start>
-        <p className="fd-results-line">
-          <strong>{picks.length} ideas</strong> · {who.toLowerCase()} · {why.toLowerCase()} · up to {money(g.budget)} {byAgent ? <EmilyTag /> : null}
-        </p>
-        <p className="small">Every price is today’s price. Sale prices show the was-price.</p>
-      </div>
+      {ready ? (
+        <div className="fd-results-head" data-emily-start>
+          <p className="fd-results-line">
+            <strong>{picks.length} ideas</strong> · {who.toLowerCase()} · {why.toLowerCase()} · {budgetLabel(g.budget ?? 0).toLowerCase()} {byAgent ? <EmilyTag /> : null}
+          </p>
+          <p className="small">Every price is today’s price. Sale prices show the was-price.</p>
+        </div>
+      ) : null}
 
-      {!edits ? (
+      {!ready ? (
+        <div className="fd-gift-waiting" data-emily-start>
+          <Gift size={26} strokeWidth={1.3} aria-hidden />
+          <p className="h3">{g.recipient == null || g.occasion == null ? "Who is it for, and what’s the occasion?" : "Do you have a budget in mind?"}</p>
+          <p className="small">
+            {g.recipient == null || g.occasion == null
+              ? "Choose both above, then a budget (or No limit), and the short list appears here."
+              : "Choose a budget above, or No limit, and the short list appears here."}
+          </p>
+        </div>
+      ) : !edits ? (
         <p className="small">Loading the edit…</p>
       ) : picks.length ? (
         <ol className="fd-gift-grid">
@@ -115,9 +131,9 @@ export function Gifts() {
   );
 }
 
-function Control({ label, name, value, options }: { label: string; name: "recipient" | "occasion" | "budget"; value: string; options: { value: string; label: string }[] }) {
+function Control({ label, name, value, options }: { label: string; name: "recipient" | "occasion" | "budget"; value: string | null; options: { value: string; label: string }[] }) {
   return (
-    <div className="fd-control" role="group" aria-label={label}>
+    <div className="fd-control" role="group" aria-label={label} data-reveal-group>
       <span className="fd-control-label">{label}</span>
       <div className="fd-chips">
         {options.map((o) => (

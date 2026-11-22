@@ -4,7 +4,8 @@ import { demo } from "../config";
 import { create } from "zustand";
 import { type CallState, CallTile } from "./CallTile";
 import { useDockMode } from "./useDockMode";
-import { persona } from "../persona";
+import { useLocation } from "react-router-dom";
+import { persona, roleFor } from "../persona";
 
 const VoiceCall = lazy(() => import("./VoiceCall"));
 
@@ -39,6 +40,7 @@ export const useFakeCall = create<{ on: boolean; state: CallState; heard: string
 function DockPlaceholder({ loading = false }: { loading?: boolean }) {
   const fake = useFakeCall();
   const mode = useDockMode(fake.on);
+  const role = roleFor(useLocation().pathname);
   return (
     <>
       <CallTile
@@ -57,7 +59,9 @@ function DockPlaceholder({ loading = false }: { loading?: boolean }) {
         <div className="dock-face dock-face-slot" aria-hidden />
         <div className="dock-text">
           <p className="dock-name">{persona.name}</p>
-          <p className="dock-status">{loading ? "Getting ready…" : "Voice coming soon"}</p>
+          <p className="dock-status" title={loading ? undefined : "Voice is not switched on for this preview"}>
+            {loading ? "Getting ready…" : role}
+          </p>
         </div>
         <button type="button" className="dock-cta" disabled title="Voice is not switched on for this preview">
           <Mic size={16} /> <span className="dock-cta-label">Talk to {persona.name}</span>

@@ -66,23 +66,34 @@ export const kioskKey = (room: string, feel: string, budget: string) => `${room}
 // ── The gift edit's controls ────────────────────────────────────────────────
 
 export type GiftControl = "recipient" | "occasion" | "budget";
+/**
+ * The gift edit's controls. Nothing is chosen until the shopper (or the
+ * agent, for them) chooses it (owner, round 1, F7). A budget of 0 is
+ * "No limit"; `null` is not chosen yet.
+ */
 export interface GiftState {
-  recipient: string;
-  occasion: string;
-  budget: number;
+  recipient: string | null;
+  occasion: string | null;
+  budget: number | null;
   changed: { by: By; stamp: number } | null;
   set(patch: Partial<Pick3>, by?: By): void;
+  reset(): void;
 }
-type Pick3 = { recipient: string; occasion: string; budget: number };
+type Pick3 = { recipient: string | null; occasion: string | null; budget: number | null };
+
+/** The budget chips the page offers: the authored ones, then No limit (0). */
+export const BUDGET_CHIPS: number[] = [...GIFTS.budgets, 0];
+export const budgetLabel = (b: number) => (b === 0 ? "No limit" : `Up to $${b}`);
 
 export const useGifts = create<GiftState>((set) => ({
-  recipient: "sibling",
-  occasion: "housewarming",
-  budget: 80,
+  recipient: null,
+  occasion: null,
+  budget: null,
   changed: null,
   set(patch, by = "visitor") {
     set({ ...patch, changed: { by, stamp: Date.now() } });
   },
+  reset: () => set({ recipient: null, occasion: null, budget: null, changed: null }),
 }));
 
 // ── The kiosk ───────────────────────────────────────────────────────────────

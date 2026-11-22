@@ -30,6 +30,13 @@ export function picksUrl(ids: string[]): string {
 export function Kiosk() {
   useTitle("Showroom");
   const screen = useKiosk((s) => s.screen);
+  const live = useVoiceClient((s) => s.live);
+
+  // The call starting is the start (owner, round 1, F9): the screen moves to
+  // question 1 as the agent asks "Which room?", however the call was started.
+  useEffect(() => {
+    if (live && useKiosk.getState().screen === "attract") useKiosk.getState().start();
+  }, [live]);
 
   // Untouched on the picks for a while: back to the attract screen.
   useEffect(() => {

@@ -22,7 +22,8 @@ import { setVoiceBegin, setVoiceClient, setVoiceLive } from "../stage/client";
 import { debugMode, setEventSender } from "./events";
 import { CallTile } from "./CallTile";
 import { LanguageToggle, callInit } from "./lang";
-import { persona } from "../persona";
+import { useLocation } from "react-router-dom";
+import { persona, roleFor } from "../persona";
 import { useDockMode } from "./useDockMode";
 
 type Activity = "idle" | "connecting" | "listening" | "thinking" | "speaking" | "error";
@@ -139,8 +140,9 @@ function Dock({ call }: { call: ReturnType<typeof useCall> }) {
     return () => setVoiceBegin(null);
   }, [call]);
   useEffect(() => setVoiceLive(on), [on]);
+  const role = roleFor(useLocation().pathname);
   const STATUS: Record<Activity, string> = {
-    idle: "Design adviser",
+    idle: role,
     connecting: "Connecting…",
     listening: muted ? "Microphone off" : "Listening",
     thinking: "Thinking",
