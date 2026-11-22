@@ -9,7 +9,7 @@ import { LANGUAGE_LABEL, persona } from "../persona";
 
 export const useLang = create<{ lang: string }>(() => ({ lang: persona.default_language }));
 
-/** The router path now, without the app's base: "/size-guide". */
+/** The router path now, without the app's base: "/orders". */
 export function currentLanding(): string {
   const base = import.meta.env.BASE_URL.replace(/\/$/, "");
   const path = window.location.pathname.startsWith(base) ? window.location.pathname.slice(base.length) : window.location.pathname;

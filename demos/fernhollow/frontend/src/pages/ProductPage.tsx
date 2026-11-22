@@ -35,7 +35,7 @@ function ProductView({ p }: { p: Product }) {
   useTitle(p.title);
   const commanded = useEmily((s) => s.variants[p.id]);
   const focus = useEmily((s) => s.focus);
-  // `?variant=<id>` (a size-guide or kiosk link) opens on that option.
+  // `?variant=<id>` (a kiosk or order link) opens on that option.
   const [params] = useSearchParams();
   const asked = params.get("variant");
   const [variantId, setVariantId] = useState(() => getVariant(p, asked ?? commanded?.id).id);

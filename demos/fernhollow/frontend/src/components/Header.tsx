@@ -265,7 +265,6 @@ function MobileMenu({ onClose }: { onClose: () => void }) {
             <Link to="/sale">Sale</Link>
             <Link to="/journal">Journal</Link>
             <Link to="/gifts">Gift edit</Link>
-            <Link to="/size-guide">Size guide</Link>
             <Link to="/orders">Your orders</Link>
             <Link to="/board">Plan a room</Link>
             <Link to="/about">About</Link>

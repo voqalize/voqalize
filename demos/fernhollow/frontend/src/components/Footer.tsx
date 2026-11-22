@@ -55,10 +55,7 @@ export function Footer() {
                 <Link to="/orders">Track an order</Link>
               </li>
               <li>
-                <Link to="/returns">Start a return</Link>
-              </li>
-              <li>
-                <Link to="/size-guide">Size guide</Link>
+                <Link to="/orders">Start a return</Link>
               </li>
               {INFO_PAGES.filter((p) => p.slug !== "about").map((p) => (
                 <li key={p.slug}>
