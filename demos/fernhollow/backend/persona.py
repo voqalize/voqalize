@@ -22,6 +22,8 @@ class Persona:
     voices: dict[str, str]
     languages: tuple[str, ...]
     default_language: str
+    roles: dict[str, str]
+    """The role label per job ("Returns adviser" on a return form)."""
 
     def language(self, asked: object) -> str:
         """The language for this call: the one the page asked for when it is
@@ -42,6 +44,7 @@ def _load() -> Persona:
         voices={str(k): str(v) for k, v in raw["voices"].items()},
         languages=tuple(str(x) for x in raw["languages"]),
         default_language=str(raw["default_language"]),
+        roles={str(k): str(v) for k, v in (raw.get("roles") or {}).items()},
     )
     missing = [lang for lang in p.languages if lang not in p.voices]
     if p.default_language not in p.languages or missing:

@@ -225,6 +225,38 @@
     "reason": "A basket gives the first clutter somewhere to go — linen and neutral."
    }
   ],
+  "partner|housewarming|0": [
+   {
+    "product_id": "hand-thrown-ceramic-vase",
+    "variant_id": "30912",
+    "reason": "A vase is useful from the first bunch of flowers — ceramic."
+   },
+   {
+    "product_id": "handcrafted-wool-cushion-cover-with-decorative-stitching",
+    "variant_id": "27385",
+    "reason": "A cushion is the quickest way to make a sofa feel like theirs — wool."
+   },
+   {
+    "product_id": "marble-candleholder-with-carved-channels",
+    "variant_id": "31444",
+    "reason": "A candle holder is a small gift for slow evenings — marble and stone."
+   },
+   {
+    "product_id": "digital-photo-frame-antique-bronze",
+    "variant_id": "27375",
+    "reason": "A frame asks for a photo, so it is a personal gift without trying — bronze."
+   },
+   {
+    "product_id": "avant-garde-floral-arrangement-in-signature-vase",
+    "variant_id": "30974",
+    "reason": "Faux stems never need watering, so they suit a busy home — ceramic."
+   },
+   {
+    "product_id": "natural-linen-storage-basket-2",
+    "variant_id": "30390",
+    "reason": "A basket gives the first clutter somewhere to go — linen and neutral."
+   }
+  ],
   "partner|birthday|30": [
    {
     "product_id": "hand-turned-honeyed-oak-candlestick-holder",
@@ -418,6 +450,38 @@
    }
   ],
   "partner|birthday|500": [
+   {
+    "product_id": "marble-candleholder-with-carved-channels",
+    "variant_id": "31444",
+    "reason": "A candle holder is a small gift for slow evenings — marble and stone."
+   },
+   {
+    "product_id": "digital-photo-frame-antique-bronze",
+    "variant_id": "27375",
+    "reason": "A frame asks for a photo, so it is a personal gift without trying — bronze."
+   },
+   {
+    "product_id": "natural-linen-bath-towel",
+    "variant_id": "31252",
+    "reason": "Good towels are a treat people rarely buy themselves — linen and neutral."
+   },
+   {
+    "product_id": "hand-thrown-ceramic-vase",
+    "variant_id": "30912",
+    "reason": "A vase is useful from the first bunch of flowers — ceramic."
+   },
+   {
+    "product_id": "handcrafted-wool-cushion-cover-with-decorative-stitching",
+    "variant_id": "27385",
+    "reason": "A cushion is the quickest way to make a sofa feel like theirs — wool."
+   },
+   {
+    "product_id": "artisan-ceramic-table-lamp",
+    "variant_id": "30290",
+    "reason": "A lamp changes how a room feels in the evening — ceramic and cotton."
+   }
+  ],
+  "partner|birthday|0": [
    {
     "product_id": "marble-candleholder-with-carved-channels",
     "variant_id": "31444",
@@ -673,6 +737,38 @@
     "reason": "A lamp changes how a room feels in the evening — ceramic and cotton."
    }
   ],
+  "partner|thank_you|0": [
+   {
+    "product_id": "marble-candleholder-with-carved-channels",
+    "variant_id": "31444",
+    "reason": "A candle holder is a small gift for slow evenings — marble and stone."
+   },
+   {
+    "product_id": "avant-garde-floral-arrangement-in-signature-vase",
+    "variant_id": "30974",
+    "reason": "Faux stems never need watering, so they suit a busy home — ceramic."
+   },
+   {
+    "product_id": "hand-thrown-ceramic-vase",
+    "variant_id": "30912",
+    "reason": "A vase is useful from the first bunch of flowers — ceramic."
+   },
+   {
+    "product_id": "digital-photo-frame-antique-bronze",
+    "variant_id": "27375",
+    "reason": "A frame asks for a photo, so it is a personal gift without trying — bronze."
+   },
+   {
+    "product_id": "natural-linen-bath-towel",
+    "variant_id": "31252",
+    "reason": "Good towels are a treat people rarely buy themselves — linen and neutral."
+   },
+   {
+    "product_id": "artisan-ceramic-table-lamp",
+    "variant_id": "30290",
+    "reason": "A lamp changes how a room feels in the evening — ceramic and cotton."
+   }
+  ],
   "partner|wedding|30": [
    {
     "product_id": "oatmeal-rectangular-frame",
@@ -866,6 +962,38 @@
    }
   ],
   "partner|wedding|500": [
+   {
+    "product_id": "digital-photo-frame-antique-bronze",
+    "variant_id": "27375",
+    "reason": "A frame asks for a photo, so it is a personal gift without trying — bronze."
+   },
+   {
+    "product_id": "elegant-dinnerware-set",
+    "variant_id": "27245",
+    "reason": "Plates they will use every day — ivory and chestnut."
+   },
+   {
+    "product_id": "handcrafted-acacia-wooden-salad-bowl",
+    "variant_id": "30748",
+    "reason": "Something to bring to the table the next time they have people round — acacia and wood."
+   },
+   {
+    "product_id": "natural-linen-bath-towel",
+    "variant_id": "31252",
+    "reason": "Good towels are a treat people rarely buy themselves — linen and neutral."
+   },
+   {
+    "product_id": "walnut-veneer-barware-set",
+    "variant_id": "31476",
+    "reason": "Glassware for the next toast — walnut and wood."
+   },
+   {
+    "product_id": "tramontina-stainless-steel-cookware-set",
+    "variant_id": "30786",
+    "reason": "A pan they will cook with for years — steel."
+   }
+  ],
+  "partner|wedding|0": [
    {
     "product_id": "digital-photo-frame-antique-bronze",
     "variant_id": "27375",
@@ -1121,6 +1249,38 @@
     "reason": "A vase is useful from the first bunch of flowers — ceramic."
    }
   ],
+  "partner|just_because|0": [
+   {
+    "product_id": "marble-candleholder-with-carved-channels",
+    "variant_id": "31444",
+    "reason": "A candle holder is a small gift for slow evenings — marble and stone."
+   },
+   {
+    "product_id": "handcrafted-wool-cushion-cover-with-decorative-stitching",
+    "variant_id": "27385",
+    "reason": "A cushion is the quickest way to make a sofa feel like theirs — wool."
+   },
+   {
+    "product_id": "natural-linen-bath-towel",
+    "variant_id": "31252",
+    "reason": "Good towels are a treat people rarely buy themselves — linen and neutral."
+   },
+   {
+    "product_id": "digital-photo-frame-antique-bronze",
+    "variant_id": "27375",
+    "reason": "A frame asks for a photo, so it is a personal gift without trying — bronze."
+   },
+   {
+    "product_id": "avant-garde-floral-arrangement-in-signature-vase",
+    "variant_id": "30974",
+    "reason": "Faux stems never need watering, so they suit a busy home — ceramic."
+   },
+   {
+    "product_id": "hand-thrown-ceramic-vase",
+    "variant_id": "30912",
+    "reason": "A vase is useful from the first bunch of flowers — ceramic."
+   }
+  ],
   "parent|housewarming|30": [
    {
     "product_id": "matte-stone-planter-with-moss-green-foliage",
@@ -1323,6 +1483,38 @@
     "product_id": "hand-thrown-ceramic-vase",
     "variant_id": "30912",
     "reason": "A vase is useful from the first bunch of flowers — ceramic."
+   },
+   {
+    "product_id": "digital-photo-frame-antique-bronze",
+    "variant_id": "27375",
+    "reason": "A frame asks for a photo, so it is a personal gift without trying — bronze."
+   },
+   {
+    "product_id": "handcrafted-wool-cushion-cover-with-decorative-stitching",
+    "variant_id": "27385",
+    "reason": "A cushion is the quickest way to make a sofa feel like theirs — wool."
+   },
+   {
+    "product_id": "natural-linen-storage-basket-2",
+    "variant_id": "30390",
+    "reason": "A basket gives the first clutter somewhere to go — linen and neutral."
+   },
+   {
+    "product_id": "handcrafted-acacia-wooden-salad-bowl",
+    "variant_id": "30748",
+    "reason": "Something to bring to the table the next time they have people round — acacia and wood."
+   }
+  ],
+  "parent|housewarming|0": [
+   {
+    "product_id": "avant-garde-floral-arrangement-in-signature-vase",
+    "variant_id": "30974",
+    "reason": "Faux stems never need watering, so they suit a busy home — ceramic."
+   },
+   {
+    "product_id": "stoneware-ripple-vase-textured-surface",
+    "variant_id": "27473",
+    "reason": "A vase is useful from the first bunch of flowers — stoneware."
    },
    {
     "product_id": "digital-photo-frame-antique-bronze",
@@ -1569,6 +1761,38 @@
     "reason": "A cushion is the quickest way to make a sofa feel like theirs — wool."
    }
   ],
+  "parent|birthday|0": [
+   {
+    "product_id": "digital-photo-frame-antique-bronze",
+    "variant_id": "27375",
+    "reason": "A frame asks for a photo, so it is a personal gift without trying — bronze."
+   },
+   {
+    "product_id": "stoneware-ripple-vase-textured-surface",
+    "variant_id": "27473",
+    "reason": "A vase is useful from the first bunch of flowers — stoneware."
+   },
+   {
+    "product_id": "marble-candleholder-with-carved-channels",
+    "variant_id": "31444",
+    "reason": "A candle holder is a small gift for slow evenings — marble and stone."
+   },
+   {
+    "product_id": "natural-linen-bath-towel",
+    "variant_id": "31252",
+    "reason": "Good towels are a treat people rarely buy themselves — linen and neutral."
+   },
+   {
+    "product_id": "avant-garde-floral-arrangement-in-signature-vase",
+    "variant_id": "30974",
+    "reason": "Faux stems never need watering, so they suit a busy home — ceramic."
+   },
+   {
+    "product_id": "handcrafted-wool-cushion-cover-with-decorative-stitching",
+    "variant_id": "27385",
+    "reason": "A cushion is the quickest way to make a sofa feel like theirs — wool."
+   }
+  ],
   "parent|thank_you|30": [
    {
     "product_id": "matte-stone-planter-with-moss-green-foliage",
@@ -1791,6 +2015,38 @@
     "product_id": "brushed-silver-and-glass-tabletop-clock",
     "variant_id": "31394",
     "reason": "A clock is a gift that is seen every day — glass, crystal and silver."
+   }
+  ],
+  "parent|thank_you|0": [
+   {
+    "product_id": "avant-garde-floral-arrangement-in-signature-vase",
+    "variant_id": "30974",
+    "reason": "Faux stems never need watering, so they suit a busy home — ceramic."
+   },
+   {
+    "product_id": "stoneware-ripple-vase-textured-surface",
+    "variant_id": "27473",
+    "reason": "A vase is useful from the first bunch of flowers — stoneware."
+   },
+   {
+    "product_id": "digital-photo-frame-antique-bronze",
+    "variant_id": "27375",
+    "reason": "A frame asks for a photo, so it is a personal gift without trying — bronze."
+   },
+   {
+    "product_id": "marble-candleholder-with-carved-channels",
+    "variant_id": "31444",
+    "reason": "A candle holder is a small gift for slow evenings — marble and stone."
+   },
+   {
+    "product_id": "handcrafted-acacia-wooden-salad-bowl",
+    "variant_id": "30748",
+    "reason": "Something to bring to the table the next time they have people round — acacia and wood."
+   },
+   {
+    "product_id": "marble-accent-clock-with-veined-pattern",
+    "variant_id": "27629",
+    "reason": "A clock is a gift that is seen every day — marble, brass and stone."
    }
   ],
   "parent|wedding|30": [
@@ -2017,6 +2273,38 @@
     "reason": "A pan they will cook with for years — steel."
    }
   ],
+  "parent|wedding|0": [
+   {
+    "product_id": "digital-photo-frame-antique-bronze",
+    "variant_id": "27375",
+    "reason": "A frame asks for a photo, so it is a personal gift without trying — bronze."
+   },
+   {
+    "product_id": "handcrafted-acacia-wooden-salad-bowl",
+    "variant_id": "30748",
+    "reason": "Something to bring to the table the next time they have people round — acacia and wood."
+   },
+   {
+    "product_id": "elegant-dinnerware-set",
+    "variant_id": "27245",
+    "reason": "Plates they will use every day — ivory and chestnut."
+   },
+   {
+    "product_id": "avant-garde-floral-arrangement-in-signature-vase",
+    "variant_id": "30974",
+    "reason": "Faux stems never need watering, so they suit a busy home — ceramic."
+   },
+   {
+    "product_id": "walnut-veneer-barware-set",
+    "variant_id": "31476",
+    "reason": "Glassware for the next toast — walnut and wood."
+   },
+   {
+    "product_id": "stoneware-ripple-vase-textured-surface",
+    "variant_id": "27473",
+    "reason": "A vase is useful from the first bunch of flowers — stoneware."
+   }
+  ],
   "parent|just_because|30": [
    {
     "product_id": "matte-stone-planter-with-moss-green-foliage",
@@ -2241,6 +2529,38 @@
     "reason": "Good towels are a treat people rarely buy themselves — linen and neutral."
    }
   ],
+  "parent|just_because|0": [
+   {
+    "product_id": "avant-garde-floral-arrangement-in-signature-vase",
+    "variant_id": "30974",
+    "reason": "Faux stems never need watering, so they suit a busy home — ceramic."
+   },
+   {
+    "product_id": "digital-photo-frame-antique-bronze",
+    "variant_id": "27375",
+    "reason": "A frame asks for a photo, so it is a personal gift without trying — bronze."
+   },
+   {
+    "product_id": "stoneware-ripple-vase-textured-surface",
+    "variant_id": "27473",
+    "reason": "A vase is useful from the first bunch of flowers — stoneware."
+   },
+   {
+    "product_id": "handcrafted-wool-cushion-cover-with-decorative-stitching",
+    "variant_id": "27385",
+    "reason": "A cushion is the quickest way to make a sofa feel like theirs — wool."
+   },
+   {
+    "product_id": "marble-candleholder-with-carved-channels",
+    "variant_id": "31444",
+    "reason": "A candle holder is a small gift for slow evenings — marble and stone."
+   },
+   {
+    "product_id": "natural-linen-bath-towel",
+    "variant_id": "31252",
+    "reason": "Good towels are a treat people rarely buy themselves — linen and neutral."
+   }
+  ],
   "sibling|housewarming|30": [
    {
     "product_id": "folded-linen-storage-baskets",
@@ -2434,6 +2754,38 @@
    }
   ],
   "sibling|housewarming|500": [
+   {
+    "product_id": "handcrafted-wool-cushion-cover-with-decorative-stitching",
+    "variant_id": "27385",
+    "reason": "A cushion is the quickest way to make a sofa feel like theirs — wool."
+   },
+   {
+    "product_id": "hand-thrown-ceramic-vase",
+    "variant_id": "30912",
+    "reason": "A vase is useful from the first bunch of flowers — ceramic."
+   },
+   {
+    "product_id": "marble-candleholder-with-carved-channels",
+    "variant_id": "31444",
+    "reason": "A candle holder is a small gift for slow evenings — marble and stone."
+   },
+   {
+    "product_id": "natural-linen-storage-basket-2",
+    "variant_id": "30390",
+    "reason": "A basket gives the first clutter somewhere to go — linen and neutral."
+   },
+   {
+    "product_id": "avant-garde-floral-arrangement-in-signature-vase",
+    "variant_id": "30974",
+    "reason": "Faux stems never need watering, so they suit a busy home — ceramic."
+   },
+   {
+    "product_id": "digital-photo-frame-antique-bronze",
+    "variant_id": "27375",
+    "reason": "A frame asks for a photo, so it is a personal gift without trying — bronze."
+   }
+  ],
+  "sibling|housewarming|0": [
    {
     "product_id": "handcrafted-wool-cushion-cover-with-decorative-stitching",
     "variant_id": "27385",
@@ -2689,6 +3041,38 @@
     "reason": "Good towels are a treat people rarely buy themselves — linen and neutral."
    }
   ],
+  "sibling|birthday|0": [
+   {
+    "product_id": "marble-candleholder-with-carved-channels",
+    "variant_id": "31444",
+    "reason": "A candle holder is a small gift for slow evenings — marble and stone."
+   },
+   {
+    "product_id": "handcrafted-wool-cushion-cover-with-decorative-stitching",
+    "variant_id": "27385",
+    "reason": "A cushion is the quickest way to make a sofa feel like theirs — wool."
+   },
+   {
+    "product_id": "digital-photo-frame-antique-bronze",
+    "variant_id": "27375",
+    "reason": "A frame asks for a photo, so it is a personal gift without trying — bronze."
+   },
+   {
+    "product_id": "walnut-veneer-barware-set",
+    "variant_id": "31476",
+    "reason": "Glassware for the next toast — walnut and wood."
+   },
+   {
+    "product_id": "hand-thrown-ceramic-vase",
+    "variant_id": "30912",
+    "reason": "A vase is useful from the first bunch of flowers — ceramic."
+   },
+   {
+    "product_id": "natural-linen-bath-towel",
+    "variant_id": "31252",
+    "reason": "Good towels are a treat people rarely buy themselves — linen and neutral."
+   }
+  ],
   "sibling|thank_you|30": [
    {
     "product_id": "hand-turned-honeyed-oak-candlestick-holder",
@@ -2882,6 +3266,38 @@
    }
   ],
   "sibling|thank_you|500": [
+   {
+    "product_id": "marble-candleholder-with-carved-channels",
+    "variant_id": "31444",
+    "reason": "A candle holder is a small gift for slow evenings — marble and stone."
+   },
+   {
+    "product_id": "avant-garde-floral-arrangement-in-signature-vase",
+    "variant_id": "30974",
+    "reason": "Faux stems never need watering, so they suit a busy home — ceramic."
+   },
+   {
+    "product_id": "hand-thrown-ceramic-vase",
+    "variant_id": "30912",
+    "reason": "A vase is useful from the first bunch of flowers — ceramic."
+   },
+   {
+    "product_id": "walnut-veneer-barware-set",
+    "variant_id": "31476",
+    "reason": "Glassware for the next toast — walnut and wood."
+   },
+   {
+    "product_id": "handcrafted-wool-cushion-cover-with-decorative-stitching",
+    "variant_id": "27385",
+    "reason": "A cushion is the quickest way to make a sofa feel like theirs — wool."
+   },
+   {
+    "product_id": "digital-photo-frame-antique-bronze",
+    "variant_id": "27375",
+    "reason": "A frame asks for a photo, so it is a personal gift without trying — bronze."
+   }
+  ],
+  "sibling|thank_you|0": [
    {
     "product_id": "marble-candleholder-with-carved-channels",
     "variant_id": "31444",
@@ -3137,6 +3553,38 @@
     "reason": "A cushion is the quickest way to make a sofa feel like theirs — wool."
    }
   ],
+  "sibling|wedding|0": [
+   {
+    "product_id": "walnut-veneer-barware-set",
+    "variant_id": "31476",
+    "reason": "Glassware for the next toast — walnut and wood."
+   },
+   {
+    "product_id": "digital-photo-frame-antique-bronze",
+    "variant_id": "27375",
+    "reason": "A frame asks for a photo, so it is a personal gift without trying — bronze."
+   },
+   {
+    "product_id": "elegant-dinnerware-set",
+    "variant_id": "27245",
+    "reason": "Plates they will use every day — ivory and chestnut."
+   },
+   {
+    "product_id": "handcrafted-acacia-wooden-salad-bowl",
+    "variant_id": "30748",
+    "reason": "Something to bring to the table the next time they have people round — acacia and wood."
+   },
+   {
+    "product_id": "tramontina-stainless-steel-cookware-set",
+    "variant_id": "30786",
+    "reason": "A pan they will cook with for years — steel."
+   },
+   {
+    "product_id": "handcrafted-wool-cushion-cover-with-decorative-stitching",
+    "variant_id": "27385",
+    "reason": "A cushion is the quickest way to make a sofa feel like theirs — wool."
+   }
+  ],
   "sibling|just_because|30": [
    {
     "product_id": "hand-turned-honeyed-oak-candlestick-holder",
@@ -3330,6 +3778,38 @@
    }
   ],
   "sibling|just_because|500": [
+   {
+    "product_id": "handcrafted-wool-cushion-cover-with-decorative-stitching",
+    "variant_id": "27385",
+    "reason": "A cushion is the quickest way to make a sofa feel like theirs — wool."
+   },
+   {
+    "product_id": "marble-candleholder-with-carved-channels",
+    "variant_id": "31444",
+    "reason": "A candle holder is a small gift for slow evenings — marble and stone."
+   },
+   {
+    "product_id": "avant-garde-floral-arrangement-in-signature-vase",
+    "variant_id": "30974",
+    "reason": "Faux stems never need watering, so they suit a busy home — ceramic."
+   },
+   {
+    "product_id": "walnut-veneer-barware-set",
+    "variant_id": "31476",
+    "reason": "Glassware for the next toast — walnut and wood."
+   },
+   {
+    "product_id": "hand-thrown-ceramic-vase",
+    "variant_id": "30912",
+    "reason": "A vase is useful from the first bunch of flowers — ceramic."
+   },
+   {
+    "product_id": "digital-photo-frame-antique-bronze",
+    "variant_id": "27375",
+    "reason": "A frame asks for a photo, so it is a personal gift without trying — bronze."
+   }
+  ],
+  "sibling|just_because|0": [
    {
     "product_id": "handcrafted-wool-cushion-cover-with-decorative-stitching",
     "variant_id": "27385",
@@ -3585,6 +4065,38 @@
     "reason": "Glassware for the next toast — walnut and wood."
    }
   ],
+  "friend|housewarming|0": [
+   {
+    "product_id": "avant-garde-floral-arrangement-in-signature-vase",
+    "variant_id": "30974",
+    "reason": "Faux stems never need watering, so they suit a busy home — ceramic."
+   },
+   {
+    "product_id": "hand-thrown-ceramic-vase",
+    "variant_id": "30912",
+    "reason": "A vase is useful from the first bunch of flowers — ceramic."
+   },
+   {
+    "product_id": "handcrafted-wool-cushion-cover-with-decorative-stitching",
+    "variant_id": "27385",
+    "reason": "A cushion is the quickest way to make a sofa feel like theirs — wool."
+   },
+   {
+    "product_id": "marble-candleholder-with-carved-channels",
+    "variant_id": "31444",
+    "reason": "A candle holder is a small gift for slow evenings — marble and stone."
+   },
+   {
+    "product_id": "natural-linen-storage-basket-2",
+    "variant_id": "30390",
+    "reason": "A basket gives the first clutter somewhere to go — linen and neutral."
+   },
+   {
+    "product_id": "walnut-veneer-barware-set",
+    "variant_id": "31476",
+    "reason": "Glassware for the next toast — walnut and wood."
+   }
+  ],
   "friend|birthday|30": [
    {
     "product_id": "hand-turned-honeyed-oak-candlestick-holder",
@@ -3809,6 +4321,38 @@
     "reason": "Good towels are a treat people rarely buy themselves — linen and neutral."
    }
   ],
+  "friend|birthday|0": [
+   {
+    "product_id": "marble-candleholder-with-carved-channels",
+    "variant_id": "31444",
+    "reason": "A candle holder is a small gift for slow evenings — marble and stone."
+   },
+   {
+    "product_id": "walnut-veneer-barware-set",
+    "variant_id": "31476",
+    "reason": "Glassware for the next toast — walnut and wood."
+   },
+   {
+    "product_id": "hand-thrown-ceramic-vase",
+    "variant_id": "30912",
+    "reason": "A vase is useful from the first bunch of flowers — ceramic."
+   },
+   {
+    "product_id": "handcrafted-wool-cushion-cover-with-decorative-stitching",
+    "variant_id": "27385",
+    "reason": "A cushion is the quickest way to make a sofa feel like theirs — wool."
+   },
+   {
+    "product_id": "digital-photo-frame-antique-bronze",
+    "variant_id": "27375",
+    "reason": "A frame asks for a photo, so it is a personal gift without trying — bronze."
+   },
+   {
+    "product_id": "natural-linen-bath-towel",
+    "variant_id": "31252",
+    "reason": "Good towels are a treat people rarely buy themselves — linen and neutral."
+   }
+  ],
   "friend|thank_you|30": [
    {
     "product_id": "hand-turned-honeyed-oak-candlestick-holder",
@@ -3997,6 +4541,38 @@
    }
   ],
   "friend|thank_you|500": [
+   {
+    "product_id": "marble-candleholder-with-carved-channels",
+    "variant_id": "31444",
+    "reason": "A candle holder is a small gift for slow evenings — marble and stone."
+   },
+   {
+    "product_id": "avant-garde-floral-arrangement-in-signature-vase",
+    "variant_id": "30974",
+    "reason": "Faux stems never need watering, so they suit a busy home — ceramic."
+   },
+   {
+    "product_id": "hand-thrown-ceramic-vase",
+    "variant_id": "30912",
+    "reason": "A vase is useful from the first bunch of flowers — ceramic."
+   },
+   {
+    "product_id": "walnut-veneer-barware-set",
+    "variant_id": "31476",
+    "reason": "Glassware for the next toast — walnut and wood."
+   },
+   {
+    "product_id": "handcrafted-wool-cushion-cover-with-decorative-stitching",
+    "variant_id": "27385",
+    "reason": "A cushion is the quickest way to make a sofa feel like theirs — wool."
+   },
+   {
+    "product_id": "handcrafted-acacia-wooden-salad-bowl",
+    "variant_id": "30748",
+    "reason": "Something to bring to the table the next time they have people round — acacia and wood."
+   }
+  ],
+  "friend|thank_you|0": [
    {
     "product_id": "marble-candleholder-with-carved-channels",
     "variant_id": "31444",
@@ -4252,6 +4828,38 @@
     "reason": "A candle holder is a small gift for slow evenings — marble and stone."
    }
   ],
+  "friend|wedding|0": [
+   {
+    "product_id": "walnut-veneer-barware-set",
+    "variant_id": "31476",
+    "reason": "Glassware for the next toast — walnut and wood."
+   },
+   {
+    "product_id": "elegant-dinnerware-set",
+    "variant_id": "27245",
+    "reason": "Plates they will use every day — ivory and chestnut."
+   },
+   {
+    "product_id": "handcrafted-acacia-wooden-salad-bowl",
+    "variant_id": "30748",
+    "reason": "Something to bring to the table the next time they have people round — acacia and wood."
+   },
+   {
+    "product_id": "digital-photo-frame-antique-bronze",
+    "variant_id": "27375",
+    "reason": "A frame asks for a photo, so it is a personal gift without trying — bronze."
+   },
+   {
+    "product_id": "tramontina-stainless-steel-cookware-set",
+    "variant_id": "30786",
+    "reason": "A pan they will cook with for years — steel."
+   },
+   {
+    "product_id": "marble-candleholder-with-carved-channels",
+    "variant_id": "31444",
+    "reason": "A candle holder is a small gift for slow evenings — marble and stone."
+   }
+  ],
   "friend|just_because|30": [
    {
     "product_id": "hand-turned-honeyed-oak-candlestick-holder",
@@ -4445,6 +5053,38 @@
    }
   ],
   "friend|just_because|500": [
+   {
+    "product_id": "marble-candleholder-with-carved-channels",
+    "variant_id": "31444",
+    "reason": "A candle holder is a small gift for slow evenings — marble and stone."
+   },
+   {
+    "product_id": "avant-garde-floral-arrangement-in-signature-vase",
+    "variant_id": "30974",
+    "reason": "Faux stems never need watering, so they suit a busy home — ceramic."
+   },
+   {
+    "product_id": "handcrafted-wool-cushion-cover-with-decorative-stitching",
+    "variant_id": "27385",
+    "reason": "A cushion is the quickest way to make a sofa feel like theirs — wool."
+   },
+   {
+    "product_id": "walnut-veneer-barware-set",
+    "variant_id": "31476",
+    "reason": "Glassware for the next toast — walnut and wood."
+   },
+   {
+    "product_id": "hand-thrown-ceramic-vase",
+    "variant_id": "30912",
+    "reason": "A vase is useful from the first bunch of flowers — ceramic."
+   },
+   {
+    "product_id": "natural-linen-bath-towel",
+    "variant_id": "31252",
+    "reason": "Good towels are a treat people rarely buy themselves — linen and neutral."
+   }
+  ],
+  "friend|just_because|0": [
    {
     "product_id": "marble-candleholder-with-carved-channels",
     "variant_id": "31444",
@@ -4700,6 +5340,38 @@
     "reason": "A basket gives the first clutter somewhere to go — linen and neutral."
    }
   ],
+  "host|housewarming|0": [
+   {
+    "product_id": "handcrafted-acacia-wooden-salad-bowl",
+    "variant_id": "30748",
+    "reason": "Something to bring to the table the next time they have people round — acacia and wood."
+   },
+   {
+    "product_id": "avant-garde-floral-arrangement-in-signature-vase",
+    "variant_id": "30974",
+    "reason": "Faux stems never need watering, so they suit a busy home — ceramic."
+   },
+   {
+    "product_id": "hand-thrown-ceramic-vase",
+    "variant_id": "30912",
+    "reason": "A vase is useful from the first bunch of flowers — ceramic."
+   },
+   {
+    "product_id": "handcrafted-wool-cushion-cover-with-decorative-stitching",
+    "variant_id": "27385",
+    "reason": "A cushion is the quickest way to make a sofa feel like theirs — wool."
+   },
+   {
+    "product_id": "marble-candleholder-with-carved-channels",
+    "variant_id": "31444",
+    "reason": "A candle holder is a small gift for slow evenings — marble and stone."
+   },
+   {
+    "product_id": "natural-linen-storage-basket-2",
+    "variant_id": "30390",
+    "reason": "A basket gives the first clutter somewhere to go — linen and neutral."
+   }
+  ],
   "host|birthday|30": [
    {
     "product_id": "hand-turned-honeyed-oak-candlestick-holder",
@@ -4893,6 +5565,38 @@
    }
   ],
   "host|birthday|500": [
+   {
+    "product_id": "marble-candleholder-with-carved-channels",
+    "variant_id": "31444",
+    "reason": "A candle holder is a small gift for slow evenings — marble and stone."
+   },
+   {
+    "product_id": "walnut-veneer-barware-set",
+    "variant_id": "31476",
+    "reason": "Glassware for the next toast — walnut and wood."
+   },
+   {
+    "product_id": "handcrafted-acacia-wooden-salad-bowl",
+    "variant_id": "30748",
+    "reason": "Something to bring to the table the next time they have people round — acacia and wood."
+   },
+   {
+    "product_id": "digital-photo-frame-antique-bronze",
+    "variant_id": "27375",
+    "reason": "A frame asks for a photo, so it is a personal gift without trying — bronze."
+   },
+   {
+    "product_id": "hand-thrown-ceramic-vase",
+    "variant_id": "30912",
+    "reason": "A vase is useful from the first bunch of flowers — ceramic."
+   },
+   {
+    "product_id": "handcrafted-wool-cushion-cover-with-decorative-stitching",
+    "variant_id": "27385",
+    "reason": "A cushion is the quickest way to make a sofa feel like theirs — wool."
+   }
+  ],
+  "host|birthday|0": [
    {
     "product_id": "marble-candleholder-with-carved-channels",
     "variant_id": "31444",
@@ -5148,6 +5852,38 @@
     "reason": "Plates they will use every day — ivory and chestnut."
    }
   ],
+  "host|thank_you|0": [
+   {
+    "product_id": "marble-candleholder-with-carved-channels",
+    "variant_id": "31444",
+    "reason": "A candle holder is a small gift for slow evenings — marble and stone."
+   },
+   {
+    "product_id": "handcrafted-acacia-wooden-salad-bowl",
+    "variant_id": "30748",
+    "reason": "Something to bring to the table the next time they have people round — acacia and wood."
+   },
+   {
+    "product_id": "avant-garde-floral-arrangement-in-signature-vase",
+    "variant_id": "30974",
+    "reason": "Faux stems never need watering, so they suit a busy home — ceramic."
+   },
+   {
+    "product_id": "walnut-veneer-barware-set",
+    "variant_id": "31476",
+    "reason": "Glassware for the next toast — walnut and wood."
+   },
+   {
+    "product_id": "hand-thrown-ceramic-vase",
+    "variant_id": "30912",
+    "reason": "A vase is useful from the first bunch of flowers — ceramic."
+   },
+   {
+    "product_id": "elegant-dinnerware-set",
+    "variant_id": "27245",
+    "reason": "Plates they will use every day — ivory and chestnut."
+   }
+  ],
   "host|wedding|30": [
    {
     "product_id": "clear-acrylic-drawer-organizer-tray",
@@ -5341,6 +6077,38 @@
    }
   ],
   "host|wedding|500": [
+   {
+    "product_id": "handcrafted-acacia-wooden-salad-bowl",
+    "variant_id": "30748",
+    "reason": "Something to bring to the table the next time they have people round — acacia and wood."
+   },
+   {
+    "product_id": "walnut-veneer-barware-set",
+    "variant_id": "31476",
+    "reason": "Glassware for the next toast — walnut and wood."
+   },
+   {
+    "product_id": "elegant-dinnerware-set",
+    "variant_id": "27245",
+    "reason": "Plates they will use every day — ivory and chestnut."
+   },
+   {
+    "product_id": "digital-photo-frame-antique-bronze",
+    "variant_id": "27375",
+    "reason": "A frame asks for a photo, so it is a personal gift without trying — bronze."
+   },
+   {
+    "product_id": "tramontina-stainless-steel-cookware-set",
+    "variant_id": "30786",
+    "reason": "A pan they will cook with for years — steel."
+   },
+   {
+    "product_id": "marble-candleholder-with-carved-channels",
+    "variant_id": "31444",
+    "reason": "A candle holder is a small gift for slow evenings — marble and stone."
+   }
+  ],
+  "host|wedding|0": [
    {
     "product_id": "handcrafted-acacia-wooden-salad-bowl",
     "variant_id": "30748",
@@ -5596,6 +6364,38 @@
     "reason": "A vase is useful from the first bunch of flowers — ceramic."
    }
   ],
+  "host|just_because|0": [
+   {
+    "product_id": "marble-candleholder-with-carved-channels",
+    "variant_id": "31444",
+    "reason": "A candle holder is a small gift for slow evenings — marble and stone."
+   },
+   {
+    "product_id": "handcrafted-acacia-wooden-salad-bowl",
+    "variant_id": "30748",
+    "reason": "Something to bring to the table the next time they have people round — acacia and wood."
+   },
+   {
+    "product_id": "avant-garde-floral-arrangement-in-signature-vase",
+    "variant_id": "30974",
+    "reason": "Faux stems never need watering, so they suit a busy home — ceramic."
+   },
+   {
+    "product_id": "walnut-veneer-barware-set",
+    "variant_id": "31476",
+    "reason": "Glassware for the next toast — walnut and wood."
+   },
+   {
+    "product_id": "handcrafted-wool-cushion-cover-with-decorative-stitching",
+    "variant_id": "27385",
+    "reason": "A cushion is the quickest way to make a sofa feel like theirs — wool."
+   },
+   {
+    "product_id": "hand-thrown-ceramic-vase",
+    "variant_id": "30912",
+    "reason": "A vase is useful from the first bunch of flowers — ceramic."
+   }
+  ],
   "colleague|housewarming|30": [
    {
     "product_id": "matte-stone-planter-with-moss-green-foliage",
@@ -5789,6 +6589,38 @@
    }
   ],
   "colleague|housewarming|500": [
+   {
+    "product_id": "avant-garde-floral-arrangement-in-signature-vase",
+    "variant_id": "30974",
+    "reason": "Faux stems never need watering, so they suit a busy home — ceramic."
+   },
+   {
+    "product_id": "hand-thrown-ceramic-vase",
+    "variant_id": "30912",
+    "reason": "A vase is useful from the first bunch of flowers — ceramic."
+   },
+   {
+    "product_id": "marble-candleholder-with-carved-channels",
+    "variant_id": "31444",
+    "reason": "A candle holder is a small gift for slow evenings — marble and stone."
+   },
+   {
+    "product_id": "handcrafted-wool-cushion-cover-with-decorative-stitching",
+    "variant_id": "27385",
+    "reason": "A cushion is the quickest way to make a sofa feel like theirs — wool."
+   },
+   {
+    "product_id": "natural-linen-storage-basket-2",
+    "variant_id": "30390",
+    "reason": "A basket gives the first clutter somewhere to go — linen and neutral."
+   },
+   {
+    "product_id": "digital-photo-frame-antique-bronze",
+    "variant_id": "27375",
+    "reason": "A frame asks for a photo, so it is a personal gift without trying — bronze."
+   }
+  ],
+  "colleague|housewarming|0": [
    {
     "product_id": "avant-garde-floral-arrangement-in-signature-vase",
     "variant_id": "30974",
@@ -6044,6 +6876,38 @@
     "reason": "Good towels are a treat people rarely buy themselves — linen and neutral."
    }
   ],
+  "colleague|birthday|0": [
+   {
+    "product_id": "marble-candleholder-with-carved-channels",
+    "variant_id": "31444",
+    "reason": "A candle holder is a small gift for slow evenings — marble and stone."
+   },
+   {
+    "product_id": "digital-photo-frame-antique-bronze",
+    "variant_id": "27375",
+    "reason": "A frame asks for a photo, so it is a personal gift without trying — bronze."
+   },
+   {
+    "product_id": "hand-thrown-ceramic-vase",
+    "variant_id": "30912",
+    "reason": "A vase is useful from the first bunch of flowers — ceramic."
+   },
+   {
+    "product_id": "avant-garde-floral-arrangement-in-signature-vase",
+    "variant_id": "30974",
+    "reason": "Faux stems never need watering, so they suit a busy home — ceramic."
+   },
+   {
+    "product_id": "handcrafted-wool-cushion-cover-with-decorative-stitching",
+    "variant_id": "27385",
+    "reason": "A cushion is the quickest way to make a sofa feel like theirs — wool."
+   },
+   {
+    "product_id": "natural-linen-bath-towel",
+    "variant_id": "31252",
+    "reason": "Good towels are a treat people rarely buy themselves — linen and neutral."
+   }
+  ],
   "colleague|thank_you|30": [
    {
     "product_id": "hand-turned-honeyed-oak-candlestick-holder",
@@ -6237,6 +7101,38 @@
    }
   ],
   "colleague|thank_you|500": [
+   {
+    "product_id": "avant-garde-floral-arrangement-in-signature-vase",
+    "variant_id": "30974",
+    "reason": "Faux stems never need watering, so they suit a busy home — ceramic."
+   },
+   {
+    "product_id": "marble-candleholder-with-carved-channels",
+    "variant_id": "31444",
+    "reason": "A candle holder is a small gift for slow evenings — marble and stone."
+   },
+   {
+    "product_id": "hand-thrown-ceramic-vase",
+    "variant_id": "30912",
+    "reason": "A vase is useful from the first bunch of flowers — ceramic."
+   },
+   {
+    "product_id": "digital-photo-frame-antique-bronze",
+    "variant_id": "27375",
+    "reason": "A frame asks for a photo, so it is a personal gift without trying — bronze."
+   },
+   {
+    "product_id": "handcrafted-acacia-wooden-salad-bowl",
+    "variant_id": "30748",
+    "reason": "Something to bring to the table the next time they have people round — acacia and wood."
+   },
+   {
+    "product_id": "grand-heirloom-centerpiece-in-crystal-vase",
+    "variant_id": "30924",
+    "reason": "Faux stems never need watering, so they suit a busy home — crystal and silk."
+   }
+  ],
+  "colleague|thank_you|0": [
    {
     "product_id": "avant-garde-floral-arrangement-in-signature-vase",
     "variant_id": "30974",
@@ -6492,6 +7388,38 @@
     "reason": "A pan they will cook with for years — steel."
    }
   ],
+  "colleague|wedding|0": [
+   {
+    "product_id": "digital-photo-frame-antique-bronze",
+    "variant_id": "27375",
+    "reason": "A frame asks for a photo, so it is a personal gift without trying — bronze."
+   },
+   {
+    "product_id": "elegant-dinnerware-set",
+    "variant_id": "27245",
+    "reason": "Plates they will use every day — ivory and chestnut."
+   },
+   {
+    "product_id": "handcrafted-acacia-wooden-salad-bowl",
+    "variant_id": "30748",
+    "reason": "Something to bring to the table the next time they have people round — acacia and wood."
+   },
+   {
+    "product_id": "avant-garde-floral-arrangement-in-signature-vase",
+    "variant_id": "30974",
+    "reason": "Faux stems never need watering, so they suit a busy home — ceramic."
+   },
+   {
+    "product_id": "walnut-veneer-barware-set",
+    "variant_id": "31476",
+    "reason": "Glassware for the next toast — walnut and wood."
+   },
+   {
+    "product_id": "tramontina-stainless-steel-cookware-set",
+    "variant_id": "30786",
+    "reason": "A pan they will cook with for years — steel."
+   }
+  ],
   "colleague|just_because|30": [
    {
     "product_id": "hand-turned-honeyed-oak-candlestick-holder",
@@ -6685,6 +7613,38 @@
    }
   ],
   "colleague|just_because|500": [
+   {
+    "product_id": "avant-garde-floral-arrangement-in-signature-vase",
+    "variant_id": "30974",
+    "reason": "Faux stems never need watering, so they suit a busy home — ceramic."
+   },
+   {
+    "product_id": "marble-candleholder-with-carved-channels",
+    "variant_id": "31444",
+    "reason": "A candle holder is a small gift for slow evenings — marble and stone."
+   },
+   {
+    "product_id": "hand-thrown-ceramic-vase",
+    "variant_id": "30912",
+    "reason": "A vase is useful from the first bunch of flowers — ceramic."
+   },
+   {
+    "product_id": "handcrafted-wool-cushion-cover-with-decorative-stitching",
+    "variant_id": "27385",
+    "reason": "A cushion is the quickest way to make a sofa feel like theirs — wool."
+   },
+   {
+    "product_id": "digital-photo-frame-antique-bronze",
+    "variant_id": "27375",
+    "reason": "A frame asks for a photo, so it is a personal gift without trying — bronze."
+   },
+   {
+    "product_id": "natural-linen-bath-towel",
+    "variant_id": "31252",
+    "reason": "Good towels are a treat people rarely buy themselves — linen and neutral."
+   }
+  ],
+  "colleague|just_because|0": [
    {
     "product_id": "avant-garde-floral-arrangement-in-signature-vase",
     "variant_id": "30974",

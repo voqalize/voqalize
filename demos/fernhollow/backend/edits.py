@@ -78,7 +78,8 @@ def _ids(kind: str) -> list[str]:
 
 
 def gift_edit(recipient: str, occasion: str, budget: float) -> list[Pick]:
-    """The gift short list for one answer set (unknown ids weigh nothing)."""
+    """The gift short list for one answer set (unknown ids weigh nothing).
+    A budget of 0 is "no limit": nothing is left out for its price."""
     rec = next((r for r in GIFTS["recipients"] if r["id"] == recipient), {"weights": {}})
     occ = next((o for o in GIFTS["occasions"] if o["id"] == occasion), {"weights": {}})
     weights: dict[str, int] = {}
@@ -86,13 +87,21 @@ def gift_edit(recipient: str, occasion: str, budget: float) -> list[Pick]:
         for cat, w in table.items():
             weights[cat] = weights.get(cat, 0) + int(w)
     scored: list[tuple[float, str]] = []
+    top = budget or max(
+        (
+            CATALOG.products[pid].variant_for(None).price
+            for cat in weights
+            for pid in CATALOG.by_category.get(cat, [])
+        ),
+        default=1.0,
+    )
     for cat, w in weights.items():
         for pid in CATALOG.by_category.get(cat, []):
             p = CATALOG.products[pid]
             v = p.variant_for(None)
-            if v.price > budget:
+            if budget and v.price > budget:
                 continue
-            score = w * 10 + (v.price / budget) * 3 + (1 if p.on_sale else 0)
+            score = w * 10 + (v.price / top) * 3 + (1 if p.on_sale else 0)
             scored.append((score, pid))
     scored.sort(key=lambda t: (-t[0], t[1]))
     chosen = _spread([pid for _, pid in scored], int(GIFTS["picks"]))
@@ -195,7 +204,7 @@ def build() -> dict[str, Any]:
         gift_key(r, o, b): [p.out() for p in gift_edit(r, o, b)]
         for r in _ids("recipients")
         for o in _ids("occasions")
-        for b in GIFTS["budgets"]
+        for b in [*GIFTS["budgets"], 0]
     }
     kiosk = {
         kiosk_key(room, feel, budget): [p.out() for p in kiosk_picks(room, feel, budget)]
