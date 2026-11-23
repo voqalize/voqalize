@@ -662,10 +662,13 @@ rule.
 
 ### Waiting through a pause (`stt.patience`)
 
-`patience` is a scale from 0 to 10, not a duration: `0` answers as soon as the
-recognizer can, `10` lets a user finish a sentence they are still assembling.
-Unset runs the deployment's calibration, which is patience 7; nothing writes a
-`7` onto the wire.
+`patience` is a scale from 0 to 10, not a duration. It sets how long the
+recognizer waits through a pause the turn model is not sure about: `0` the least,
+`10` long enough for a user to finish a sentence they are still assembling. A
+pause the model is confident ends the turn is answered at once at any patience.
+Unset runs the deployment's calibration, which is patience 3; nothing writes a
+`3` onto the wire. What a step is worth belongs to the speech tier and moves with
+it; today the wait runs from 1.5 seconds at 0 to 3.5 seconds at 10.
 
 A patience off the scale is refused at whichever door it arrives at, in the same
 words: `invalid_config` at `sessions.connect`, so the call never starts, and a

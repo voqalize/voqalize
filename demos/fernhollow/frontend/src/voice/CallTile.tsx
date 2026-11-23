@@ -19,6 +19,9 @@ import { type ReactNode, useCallback, useEffect, useLayoutEffect, useRef, useSta
 import { create } from "zustand";
 import { useCart } from "../state/cart";
 import { useShortlist } from "../state/shortlist";
+import { useLocation } from "react-router-dom";
+import { persona, roleFor } from "../persona";
+import { raisedCorner } from "./useDockMode";
 
 export type CallState = "connecting" | "listening" | "thinking" | "speaking" | "error";
 type Anchor = "tl" | "tr" | "ml" | "mr" | "bl" | "br";
@@ -82,8 +85,8 @@ function headerBottom(): number {
   return Math.max(0, h ? h.bottom : 0);
 }
 
-function boxAt(anchor: Anchor, size: { width: number; height: number }): Box {
-  const top0 = headerBottom() + MARGIN;
+function boxAt(anchor: Anchor, size: { width: number; height: number }, overHeader = false): Box {
+  const top0 = overHeader ? MARGIN : headerBottom() + MARGIN;
   const vw = window.innerWidth;
   const vh = window.innerHeight;
   const left = anchor.endsWith("l") ? MARGIN : vw - size.width - MARGIN;
@@ -145,14 +148,18 @@ export function CallTile({
   }, []);
   const mode: "docked" | "tile" | "mini" = !live ? "docked" : saved.mini ? "mini" : "tile";
 
-  // The cart drawer and the shortlist tray open on the right, over the tile:
-  // the tile steps to the left while one is open.
+  // A drawer or sheet open over the page (the cart, the saved sheet, a
+  // policy) would cover the tile: while one is open the tile sits in a top
+  // corner above it — away from a side drawer, top right above a bottom
+  // sheet — and goes back where it was when it closes (owner, round 1, F2).
   const cartOpen = useCart((s) => s.open);
   const trayOpen = useShortlist((s) => s.open);
-  const panelOpen = cartOpen || trayOpen;
+  const [raised, setRaised] = useState<Anchor | null>(null);
   useEffect(() => {
-    if (panelOpen) preferTileSide("l");
-  }, [panelOpen]);
+    const t = window.setTimeout(() => setRaised(raisedCorner()), 30);
+    return () => window.clearTimeout(t);
+  }, [cartOpen, trayOpen]);
+  const role = roleFor(useLocation().pathname);
 
   // Emily's side: the same height, the other side. Not saved — the shopper's
   // own drag is what the next visit remembers.
@@ -183,8 +190,10 @@ export function CallTile({
       return;
     }
     const size = tileSize(mode === "mini");
-    setBox(boxAt(clearAnchor(saved.anchor, size), size));
-  }, [mode, saved.anchor]);
+    const corner = raisedCorner();
+    if (corner !== raised) setRaised(corner);
+    setBox(corner ? boxAt(corner, size, true) : boxAt(clearAnchor(saved.anchor, size), size));
+  }, [mode, saved.anchor, raised]);
 
   useLayoutEffect(() => {
     place();
@@ -289,10 +298,10 @@ export function CallTile({
   return (
     <div
       ref={ref}
-      className={`call-tile is-${mode} is-${state}${drag ? " is-dragging" : ""}${parked ? " is-parked" : ""}${snap ? " is-snap" : ""}`}
+      className={`call-tile is-${mode} is-${state}${drag ? " is-dragging" : ""}${parked ? " is-parked" : ""}${snap ? " is-snap" : ""}${raised ? " is-raised" : ""}`}
       style={{ left: pos.left, top: pos.top, width: at.width, height: at.height }}
       role={mode === "docked" ? undefined : "region"}
-      aria-label={mode === "docked" ? undefined : "Call with Emily. Drag, or use the arrow keys, to move it."}
+      aria-label={mode === "docked" ? undefined : `Call with ${persona.name}. Drag, or use the arrow keys, to move it.`}
       tabIndex={mode === "docked" ? -1 : 0}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
@@ -304,12 +313,12 @@ export function CallTile({
         {children}
         {mode === "tile" ? (
           <>
-            <span className="call-tag">Emily</span>
+            <span className="call-tag">{persona.name}</span>
             <span className={`call-state is-${state}`}>{LABEL[state]}</span>
           </>
         ) : null}
         {mode === "mini" ? (
-          <button type="button" className="call-expand" aria-label="Show the call with Emily" onClick={() => setMini(false)}>
+          <button type="button" className="call-expand" aria-label={`Show the call with ${persona.name}`} onClick={() => setMini(false)}>
             <Maximize2 size={14} />
           </button>
         ) : null}
@@ -317,10 +326,10 @@ export function CallTile({
       {mode === "tile" ? (
         <div className="call-bar">
           <div className="call-who">
-            <p className="call-name">Emily</p>
+            <p className="call-name">{persona.name}</p>
             {!phone() ? (
               <p className="call-heard" aria-live="polite">
-                {heard ? `“${heard}”` : "Design adviser"}
+                {heard ? `“${heard}”` : role}
               </p>
             ) : null}
           </div>

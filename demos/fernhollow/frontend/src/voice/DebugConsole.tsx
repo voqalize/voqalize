@@ -9,6 +9,33 @@ import { bestSaving, defaultVariant, getProduct, matchContractFilters, products,
 import { dispatch, useEmily } from "./controller";
 import { useFakeCall } from "./VoiceDock";
 import { fakeCircle } from "../components/CircleLayer";
+import { type FrontDeskMove, runByHand } from "../stage/frontdesk";
+
+/** One sample per new move, in a believable order. */
+const STAGE_SAMPLES: [string, FrontDeskMove, Record<string, unknown>][] = [
+  ["gifts: sister/new home", "gifts.set", { recipient: "sibling", occasion: "housewarming" }],
+  ["gifts: $80", "gifts.set", { budget: 80 }],
+  ["gifts: no limit", "gifts.set", { budget: 0 }],
+  ["orders: open 31207", "orders.open", { order_number: "FH-31207" }],
+  ["orders: show days 31207", "orders.show_slots", { order_number: "FH-31207" }],
+  ["orders: move to d4-morning", "orders.reschedule", { order_number: "FH-31207", slot: "d4-morning" }],
+  ["orders: cancel 31207", "orders.cancel", { order_number: "FH-31207" }],
+  ["orders: open 31188", "orders.open", { order_number: "FH-31188" }],
+  ["orders: earlier 31188", "orders.request_earlier", { order_number: "FH-31188" }],
+  ["orders: open 20377", "orders.open", { order_number: "FH-20377" }],
+  ["orders: return 20377", "orders.start_return", { order_number: "FH-20377" }],
+  ["return: 2 cushions", "returns.select_item", { product_id: "textured-wool-cushion-in-pebble-grey", qty: 2 }],
+  ["return: next", "returns.next_step", {}],
+  ["return: wrong item", "returns.fill", { field: "reason", value: "wrong_item" }],
+  ["return: unused, packed", "returns.fill", { field: "condition", value: "unused_in_packaging" }],
+  ["return: refund", "returns.fill", { field: "resolution", value: "refund" }],
+  ["return: drop off", "returns.fill", { field: "collection", value: "drop_off" }],
+  ["kiosk: start", "kiosk.start", {}],
+  ["kiosk: living", "kiosk.answer", { question: "room", value: "living" }],
+  ["kiosk: warm wood", "kiosk.answer", { question: "feel", value: "warm_wood" }],
+  ["kiosk: $400", "kiosk.answer", { question: "budget", value: "400" }],
+  ["kiosk: restart", "kiosk.restart", {}],
+];
 import { eventLog, onEventLog } from "./events";
 import { priced, useCart } from "../state/cart";
 import { type CheckoutField, useCheckout } from "../state/checkout";
@@ -17,6 +44,12 @@ import { buildCompare, buildRoomSet, findSavings, goesWith, moreLike, pieceFor }
 import { COMMAND_NAMES, type CommandName, type Commands } from "./types";
 
 const ANCHOR = "weathered-oak-dining-table";
+
+/** A believable set of saved picks: a sofa, a rug and a cushion that share a colour. */
+function savedSet(): string[] {
+  const pick = (slug: string) => products.find((p) => p.categorySlug === slug && p.taste.colours.includes("sand"))?.id ?? products.find((p) => p.categorySlug === slug)?.id ?? "";
+  return ["sofas", "rugs", "throw-pillows"].map(pick).filter(Boolean);
+}
 
 function currentProductId(): string {
   const m = /\/product\/([^/?#]+)/.exec(window.location.pathname);
@@ -95,6 +128,7 @@ export function samplePayloads(): { [K in CommandName]: Commands[K] } {
     show_more_like: moreLike(anchor),
     show_savings: { ...findSavings(board.pieces), moved_to: null },
     update_shortlist: { product_ids: sofas.map((p) => p.id) },
+    show_saved: { product_ids: savedSet(), title: "Your picks for the living room", note: "" },
     confirm_add: { lines: [{ product_id: anchor.id, variant_id: variant.id, qty: 1 }], label: `Add the ${anchor.title} in ${variant.title} to your cart?` },
     cart_updated: (() => {
       const lines = [
@@ -187,6 +221,16 @@ export function DebugConsole() {
           >
             circle
           </button>
+        </div>
+      </div>
+      <div className="debug-fake">
+        <p className="small">Front-of-house Stage moves (performer run by hand)</p>
+        <div className="debug-fake-row">
+          {STAGE_SAMPLES.map(([label, id, args]) => (
+            <button key={label} type="button" data-move={label} onClick={() => void runByHand(id, args).then(console.info, console.warn)}>
+              {label}
+            </button>
+          ))}
         </div>
       </div>
       <div className="debug-events">

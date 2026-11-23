@@ -3131,6 +3131,35 @@ main {
   translate: 0 24px;
   pointer-events: none;
 }
+/* A drawer or sheet is open: the dock moves to a top corner, above the overlay
+   (owner, round 1, F2/X2) — away from a side drawer, top right over a bottom
+   sheet — instead of being covered by it. */
+.dock.is-raised {
+  top: calc(14px + env(safe-area-inset-top));
+  bottom: auto;
+  transform: none;
+  z-index: 70;
+  animation: pop 0.3s var(--ease);
+}
+.dock.is-raised-tl {
+  left: max(16px, env(safe-area-inset-left));
+  right: auto;
+}
+.dock.is-raised-tr {
+  left: auto;
+  right: max(16px, env(safe-area-inset-right));
+}
+.call-tile.is-raised {
+  z-index: 71;
+}
+/* On a phone a side drawer is the whole width: its content starts below the
+   raised dock, so the dock covers none of its items. */
+@media (max-width: 699px) {
+  .app:has(.dock.is-raised-tl) .drawer,
+  .app:has(.call-tile.is-raised) .drawer {
+    padding-top: 72px;
+  }
+}
 .checkout-main {
   max-width: 720px;
 }
@@ -4533,5 +4562,116 @@ body.is-circling * {
   .selection-chip .selection-add {
     padding: 0 9px;
     font-size: 12px;
+  }
+}
+
+/* ── Saved picks, together (/saved) ───────────────────────────────────── */
+
+.saved-head {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 24px;
+  align-items: end;
+  margin: 8px 0 28px;
+}
+.saved-head .lede {
+  margin-top: 6px;
+}
+.saved-sum {
+  display: grid;
+  justify-items: end;
+  gap: 8px;
+  min-width: 220px;
+}
+.saved-total {
+  font-family: var(--serif);
+  font-size: 1.9rem;
+  line-height: 1;
+}
+.saved-sum p,
+.saved-head .h1 {
+  margin: 0;
+}
+.saved-board {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 18px;
+  grid-template-columns: repeat(4, 1fr);
+}
+.saved-board.n-1 {
+  grid-template-columns: minmax(0, 520px);
+}
+.saved-board.n-2 {
+  grid-template-columns: 1.4fr 1fr;
+}
+.saved-board.n-3 {
+  grid-template-columns: 1.6fr 1fr 1fr;
+}
+.saved-piece {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.saved-photo {
+  display: block;
+  aspect-ratio: 4 / 3.4;
+  background: var(--linen);
+}
+.saved-piece.is-lead .saved-photo {
+  aspect-ratio: 4 / 3;
+}
+.saved-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.saved-body {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px 14px;
+  align-content: start;
+}
+.saved-kind {
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.saved-title {
+  font-weight: 600;
+  color: inherit;
+  text-decoration: none;
+}
+.saved-words {
+  text-transform: capitalize;
+}
+.saved-remove {
+  justify-self: start;
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
+  margin-top: 4px;
+}
+@media (max-width: 899px) {
+  .saved-head {
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+  .saved-sum {
+    justify-items: start;
+  }
+  .saved-board,
+  .saved-board.n-2,
+  .saved-board.n-3 {
+    grid-template-columns: 1fr 1fr;
+  }
+  .saved-piece.is-lead {
+    grid-column: 1 / -1;
   }
 }
