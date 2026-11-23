@@ -629,16 +629,21 @@ facts:
       - 'patience[^.]{0,40}\brange 0 to (?!10\b)\d+'
 
   stt.patience.default:
-    value: 7
-    source: speech/infra/deploy/env/stt-prod.env:20,24 — derived, see note
-    verified: 2026-10-19
+    value: 3
+    source: speech/infra/deploy/env/stt-dev.env VQL_STT_RS__PATIENCE, and stt-rs/src/config.rs's default
+    verified: 2026-11-23
     reproduce: >-
-      grep -n 'VAD_EAGER_FRAMES\|VAD_STOP_FRAMES_TO_TRIGGER_UPDATE'
-      ../speech/infra/deploy/env/stt-prod.env ../speech/infra/deploy/env/stt-dev.env &&
-      grep -n 'update_frames + 1 + patience'
-      ../speech/stt-rs/src/turn.rs
+      grep -n 'VQL_STT_RS__PATIENCE'
+      ../speech/infra/deploy/env/stt-dev.env ../speech/infra/deploy/env/stt-prod.env
+      ../speech/stt-rs/src/config.rs
     note: >-
-      What an unset `stt.patience` runs at, and a **derived** number, so the
+      Since 2026-11-22 (owner) the deployment sets the default directly,
+      `VQL_STT_RS__PATIENCE`: 3 on dev and in code, 7 on prod until prod is
+      moved, so `main`'s docs say 3 and `prod`'s say 7. Patience now sets only
+      the wait for a pause the turn model is unsure about,
+      `1500 + 200 · patience` ms (`UNSURE_WAIT_MIN_MS`, `UNSURE_WAIT_STEP_MS`
+      in `stt-rs/src/turn.rs`). History: until then it was what an unset
+      `stt.patience` runs at, and a **derived** number, so the
       derivation is the fact: `eager_frames_for_patience` is
       `eager_frames = update_frames + 1 + patience` (`stt-rs/src/turn.rs`),
       and both deployed environments set `VQL_STT__VAD_EAGER_FRAMES=18` with
@@ -655,8 +660,8 @@ facts:
       wire**: unset is what a default-patience session sends, which is what
       makes the field additive for a brain on an older SDK.
     forbid:
-      - 'calibration[^.]{0,40}\bwhich is (?!7\b)\d+'
-      - 'patience[^.]{0,30}\bdefaults? to (?!7\b)\d+'
+      - 'calibration[^.]{0,40}\bwhich is (?!3\b)\d+'
+      - 'patience[^.]{0,30}\bdefaults? to (?!3\b)\d+'
 
   pipecat.version:
     value: '1.7.0'
