@@ -200,11 +200,13 @@
       "class": "navigate",
       "args": [
         { "name": "employee_id", "doc": "BB-1030" },
-        { "name": "tab", "enum": ["payslips", "tax", "declarations", "leave"], "default": "payslips" }
+        { "name": "tab", "enum": ["payslips", "tax", "declarations", "leave"], "default": "payslips" },
+        { "name": "month", "optional": true, "doc": "On payslips: the payslip's month, 2025-11; the latest when left out." },
+        { "name": "against", "optional": true, "doc": "On payslips: the month to compare with, 2025-10." }
       ],
       "claims": ["opening * employee view", "switching to * view"],
       "objects": ["view", "self-service"],
-      "doc": "Switch to the employee self-service view as that employee, on a tab."
+      "doc": "Switch to the employee self-service view as that employee, on a tab; on payslips, a month's payslip, beside another month's when asked. The view stays until the admin leaves it."
     }
   ],
   "slices": [

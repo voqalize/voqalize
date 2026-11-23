@@ -227,3 +227,41 @@ describe("the claim drawer", () => {
     expect(S.useTk.getState().openClaim).toBeNull();
   });
 });
+
+describe("a decided claim closes its panel (round 2, R2)", () => {
+  it("approve, reject and fix each close the open claim's panel", () => {
+    const pending = S.claimsToReview().filter((c) => c.status === "pending");
+    const needsFix = S.claimsToReview().find((c) => c.status === "needs_fix")!;
+    S.openClaimDrawer(pending[0]!.id);
+    expect(S.decideClaim(pending[0]!.id, "approve").ok).toBe(true);
+    expect(S.useTk.getState().openClaim).toBeNull();
+    S.openClaimDrawer(pending[1]!.id);
+    expect(S.decideClaim(pending[1]!.id, "reject").ok).toBe(true);
+    expect(S.useTk.getState().openClaim).toBeNull();
+    S.openClaimDrawer(needsFix.id);
+    expect(S.fixClaim(needsFix.id).ok).toBe(true);
+    expect(S.useTk.getState().openClaim).toBeNull();
+  });
+
+  it("a refused decision leaves the panel open", () => {
+    const needsFix = S.claimsToReview().find((c) => c.status === "needs_fix")!;
+    S.openClaimDrawer(needsFix.id);
+    expect(S.decideClaim(needsFix.id, "approve").ok).toBe(false);
+    expect(S.useTk.getState().openClaim).toBe(needsFix.id);
+  });
+});
+
+describe("the setup wizard never puts defaults over her values (round 2, R1)", () => {
+  it("opening a step fills nothing; her value goes in as said; Use common defaults fills only the empty fields", async () => {
+    const { fieldsOf } = await import("../lib/setup");
+    S.setSetupStep("structure");
+    const fields = S.useTk.getState().setup.fields;
+    for (const f of fieldsOf("structure")) expect(fields[f.name]).toBe("");
+    expect(S.setSetupField("basic_pct", "50").ok).toBe(true);
+    S.fillPresets("structure", fieldsOf("structure"));
+    const after = S.useTk.getState().setup.fields;
+    expect(after.basic_pct).toBe("50");
+    expect(after.hra_metro_pct).toBe("50");
+    expect(after.lta_g5).toBe("3000");
+  });
+});

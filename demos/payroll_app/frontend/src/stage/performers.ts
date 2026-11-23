@@ -474,13 +474,33 @@ export function performers(): Performers<Spec> {
       return detail;
     },
 
-    "me.view": async ({ employee_id, tab }, c) => {
+    "me.view": async ({ employee_id, tab, month, against }, c) => {
       const e = employeeOr(c, employee_id);
       const tabs = ["payslips", "tax", "declarations", "leave"];
       const t = tab ?? "payslips";
       if (!tabs.includes(t)) c.refuse("tab", "the employee view has four tabs", tabs);
-      const banner = await open(`/me/${e.id}/${t}`, ".viewas-banner", c, "the employee view");
+      // A month's payslip, in the employee's own view (owner, round 2, R3: the
+      // view stays the employee's until the admin leaves it).
+      let path = `/me/${e.id}/${t}`;
+      let m: string | null = null;
+      let a: string | null = null;
+      if (t === "payslips" && (month || against)) {
+        const have = (S.useTk.getState().payslips[e.id] ?? []).map((s) => s.month);
+        const offered = SLIP_MONTHS.filter((x) => have.includes(x));
+        m = month ? String(month).slice(0, 7) : (offered.at(-1) ?? null);
+        if (!m || !offered.includes(m)) c.refuse("month", `${e.name} has payslips for ${offered.map(monthLabel).join(", ")}`, offered);
+        a = against ? String(against).slice(0, 7) : null;
+        if (a && (!offered.includes(a) || a === m)) c.refuse("against", "compare with another month on file", offered.filter((x) => x !== m));
+        path = `/me/${e.id}/payslips/${m}${a ? `?against=${a}` : ""}`;
+      }
+      const banner = await open(path, ".viewas-banner", c, "the employee view");
+      if (a && !currentPath().includes(`against=${a}`)) go(path, true);
       await ringEl(c, banner, `Viewing as ${e.name}`);
+      if (m) {
+        const target = await waitFor(() => (a ? $(".difference") : $(".slip-net")), WAIT_MS);
+        if (target) await ringEl(c, target, a ? "Difference" : "Net pay");
+        return `viewing as ${e.name}: ${monthLabel(m)} payslip${a ? ` against ${monthLabel(a)}` : ""}`;
+      }
       return `viewing as ${e.name}, ${t}`;
     },
   };

@@ -227,6 +227,14 @@ export const scene = defineScene({
             "leave"
           ],
           "default": "payslips"
+        },
+        {
+          "name": "month",
+          "optional": true
+        },
+        {
+          "name": "against",
+          "optional": true
         }
       ]
     }
@@ -429,4 +437,4 @@ export const scene = defineScene({
   ]
 });
 
-export const SPEC_SHA256 = "5e13cc0f8e26526ef406396efae54a57c47dd760a2f29c4576a2c9cb030686d5";
+export const SPEC_SHA256 = "40050a71fe0d02677896f87e1683f8e8d9cbce7127d637f0723c46262e36d7b8";

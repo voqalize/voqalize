@@ -21,6 +21,7 @@ import asyncio
 import contextlib
 import importlib.util
 import json
+import re
 import sys
 from collections.abc import AsyncIterator, Iterator
 from pathlib import Path
@@ -176,11 +177,18 @@ def _onboarding_llm() -> ScriptedOpenAI:
                 ),
             ],
             "Use what most companies use.": [
-                reply_and_call("Putting those in.", "setup_defaults", step="structure"),
+                reply_and_call(
+                    "Putting those in.", "setup_fill", step="structure", rest="defaults"
+                ),
                 reply("They're in, and you can change any of them. Import employees next?"),
             ],
             "Make basic 45 percent.": [
-                reply_and_call("Changing basic.", "setup_fill", field="basic_pct", value="45"),
+                reply_and_call(
+                    "Changing basic.",
+                    "setup_fill",
+                    step="structure",
+                    values=[{"field": "basic_pct", "value": "45"}],
+                ),
                 reply("Basic is now 45% of CTC."),
             ],
             "Go on, import them.": [
@@ -198,7 +206,7 @@ def _onboarding_llm() -> ScriptedOpenAI:
                 reply("What would you like, or shall I use the common policy?"),
             ],
             "The common one is fine.": [
-                reply_and_call("Putting it in.", "setup_defaults", step="leave"),
+                reply_and_call("Putting it in.", "setup_fill", step="leave", rest="defaults"),
                 reply("That's in. Shall I run a test payroll?"),
             ],
             "Run the test payroll.": [
@@ -853,3 +861,361 @@ async def test_no_redial_is_asked_of_a_voqalize_that_does_not_offer_it() -> None
         check_greeting(rig, greeting)
         assert _redials(rig.driver) == []
         check_voice_pair(rig, voice=PERSONA["voices"]["en"], language="en")
+
+
+# ─── Round 2 (23 Nov) ─────────────────────────────────────────────────────────
+
+
+def _r1_llm() -> ScriptedOpenAI:
+    """The owner's own words from his 23 Nov call, as the model hears them."""
+    return ScriptedOpenAI(
+        {
+            "Yes please, the pay structure.": [
+                reply_and_call("Here's the pay structure.", "setup_step", step="structure"),
+                reply("Your own values, or what most companies use?"),
+            ],
+            "Basic keep it 50% and HRA at 50%": [
+                reply_and_call(
+                    "Putting those in.",
+                    "setup_fill",
+                    step="structure",
+                    values=[
+                        {"field": "basic_pct", "value": "50"},
+                        {"field": "hra_metro_pct", "value": "50"},
+                        {"field": "hra_non_metro_pct", "value": "40"},
+                    ],
+                    rest="defaults",
+                ),
+                reply("Basic is 50%, HRA 50% and 40%, the rest the common values."),
+            ],
+            "Now the leave policy.": [
+                reply_and_call("Here's the leave policy.", "setup_step", step="leave"),
+                reply("What would you like?"),
+            ],
+            "Earned leave 18 and sick leave 8": [
+                reply_and_call(
+                    "Putting those in.",
+                    "setup_fill",
+                    step="leave",
+                    values=[
+                        {"field": "el_per_year", "value": "18"},
+                        {"field": "sl_per_year", "value": "8"},
+                        {"field": "el_carry_forward", "value": "10"},
+                    ],
+                ),
+                reply("18 earned, 8 sick, 10 carried forward. Casual leave?"),
+            ],
+            "Casual leave, use the common default.": [
+                reply_and_call("Putting it in.", "setup_fill", step="leave", rest="defaults"),
+                reply("Casual leave is in, with the cut-off and loss-of-pay rules."),
+            ],
+            "Just fill it.": [
+                reply_and_call("", "setup_fill", step="structure"),
+                reply("What would you like in it?"),
+            ],
+        }
+    )
+
+
+async def test_onboarding_fills_her_values_directly_and_defaults_only_the_rest() -> None:
+    """Round 2, R1: "Basic 50%, HRA 50% and 40% elsewhere, the rest as common"
+    put the common defaults in first and then changed three of them. Now each
+    field goes in once: her values as she said them, then the defaults only
+    for the fields she did not give, and only when she said so."""
+    llm = _r1_llm()
+    async with demo("payroll_app", llm) as rig:
+        await rig.driver.start_session(init={"landing": "/welcome", "lang": "en"})
+        check_turn(rig, await rig.driver.user_says("Yes please, the pay structure."))
+        seen = len(_moves(rig))
+        check_turn(
+            rig,
+            await rig.driver.user_says(
+                "Basic keep it 50% and HRA at 50% and for everywhere else it can be 40%. "
+                "The rest you can fill as per the common."
+            ),
+        )
+        fills = [m["args"] for m in _moves(rig)[seen:] if m["move"] == "setup.fill"]
+        names = [f["field"] for f in fills]
+        assert len(names) == len(set(names)), f"a field was filled twice: {names}"
+        assert fills[:3] == [
+            {"field": "basic_pct", "value": "50"},
+            {"field": "hra_metro_pct", "value": "50"},
+            {"field": "hra_non_metro_pct", "value": "40"},
+        ]
+        assert set(names) == {
+            "basic_pct",
+            "hra_metro_pct",
+            "hra_non_metro_pct",
+            "lta_g5",
+            "lta_g6_up",
+            "pf_rule",
+            "esi_rule",
+        }
+        assert "setup.step" not in [m["move"] for m in _moves(rig)[seen:]]
+        told = tool_results(llm.captured_inputs[-1])["setup_fill"]
+        assert "Her values" in told and "basic 50% of CTC" in told
+        assert "basic 40%" not in told
+
+        # Leave: her three values only; nothing else until she says so.
+        check_turn(rig, await rig.driver.user_says("Now the leave policy."))
+        seen = len(_moves(rig))
+        check_turn(
+            rig,
+            await rig.driver.user_says(
+                "Earned leave 18 and sick leave 8, carry forward at most 10 days."
+            ),
+        )
+        assert _fills(rig, seen) == {
+            "el_per_year": "18",
+            "sl_per_year": "8",
+            "el_carry_forward": "10",
+        }
+        assert "Still empty: cl_per_year" in tool_results(llm.captured_inputs[-1])["setup_fill"]
+
+        # The defaults for the rest never overwrite what she gave, or what she typed.
+        await rig.driver.send_ui_event(
+            "stage_event",
+            {
+                "name": "setup.changed",
+                "by": "visitor",
+                "data": {"step": "leave", "filled": ["lop_rule"], "test_run": False},
+            },
+        )
+        await asyncio.sleep(0.1)
+        seen = len(_moves(rig))
+        check_turn(rig, await rig.driver.user_says("Casual leave, use the common default."))
+        policy = {t["id"]: t for t in COMPANY["leave"]["policy"]["types"]}
+        assert _fills(rig, seen) == {
+            "cl_per_year": str(policy["CL"]["per_year"]),
+            "attendance_cutoff": COMPANY["leave"]["policy"]["attendance_cutoff"],
+        }
+
+
+async def test_a_fill_with_nothing_said_fills_nothing() -> None:
+    llm = _r1_llm()
+    async with demo("payroll_app", llm) as rig:
+        await rig.driver.start_session(init={"landing": "/welcome", "lang": "en"})
+        check_turn(rig, await rig.driver.user_says("Just fill it."))
+        assert _fills(rig) == {}
+        assert "NOT DONE" in tool_results(llm.captured_inputs[-1])["setup_fill"]
+
+
+def _view_llm() -> ScriptedOpenAI:
+    return ScriptedOpenAI(
+        {
+            "View this as Aditi Bhandari.": [
+                reply_and_call("", "view_as_employee", employee="Aditi Bhandari"),
+                reply("This is Paynora as Aditi sees it."),
+            ],
+            "Show me November 2025 payslip.": [
+                reply_and_call(
+                    "Here's November.", "explain_net_pay", employee="Aditi", month="2025-11"
+                ),
+                reply("{show: Net pay} Her November net pay is on screen."),
+            ],
+            "Show me Ravi's payslip.": [
+                reply_and_call("", "explain_net_pay", employee="Ravi Kumar"),
+                reply("Aditi can only see her own payslips. Shall I switch back to admin?"),
+            ],
+            "Approve Asha's leave.": [
+                reply_and_call("", "decide_leave", request="Asha Chavan", decision="approve"),
+                reply("An employee can't approve leave. Shall I switch back to admin?"),
+            ],
+            "Compare my regimes.": [
+                reply_and_call("", "compare_regimes", employee="Aditi Bhandari"),
+                reply("Both regimes are on your tax tab."),
+            ],
+            "Switch to admin.": [
+                reply_and_call("", "view_as_admin"),
+                reply("Back in the admin view."),
+            ],
+            "Show me Aditi's November payslip now.": [
+                reply_and_call("", "explain_net_pay", employee="Aditi", month="2025-11"),
+                reply("Here it is."),
+            ],
+        }
+    )
+
+
+async def test_the_employee_view_stays_until_she_asks_to_leave_it() -> None:
+    """Round 2, R3: in Aditi's view, "payslip number 125" (November 2025, as
+    the recognizer heard it) opened the ADMIN payslip and left her view. Now
+    the view is sticky: her payslip opens in her view, admin work and other
+    employees are refused, and only "switch to admin" leaves it."""
+    llm = _view_llm()
+    async with demo("payroll_app", llm) as rig:
+        await rig.driver.start_session(init={"landing": "/", "lang": "en"})
+        check_turn(rig, await rig.driver.user_says("View this as Aditi Bhandari."))
+        assert _moves(rig)[-1]["move"] == "me.view"
+        brain = _brain(rig)
+        assert brain.view_as == "BB-1001"
+
+        check_turn(rig, await rig.driver.user_says("Show me November 2025 payslip."))
+        last = _moves(rig)[-1]
+        assert last["move"] == "me.view"
+        assert {"employee_id": "BB-1001", "tab": "payslips", "month": "2025-11"}.items() <= last[
+            "args"
+        ].items()
+        assert "payslip.compare" not in [m["move"] for m in _moves(rig)]
+        assert brain.view_as == "BB-1001"
+        # Every turn in the view tells the model whose side it is answering from.
+        assert any("Employee view" in str(i) for i in llm.captured_inputs[-1])
+
+        for ask, tool in (
+            ("Show me Ravi's payslip.", "explain_net_pay"),
+            ("Approve Asha's leave.", "decide_leave"),
+        ):
+            seen = len(_moves(rig))
+            check_turn(rig, await rig.driver.user_says(ask))
+            assert tool_results(llm.captured_inputs[-1])[tool].startswith("NOT DONE")
+            assert _moves(rig)[seen:] == []
+            assert brain.view_as == "BB-1001"
+        assert brain.confirms.pending is None
+
+        check_turn(rig, await rig.driver.user_says("Compare my regimes."))
+        assert _moves(rig)[-1]["move"] == "me.view" and _moves(rig)[-1]["args"]["tab"] == "tax"
+
+        check_turn(rig, await rig.driver.user_says("Switch to admin."))
+        assert brain.view_as is None
+        assert _moves(rig)[-1] == {
+            **_moves(rig)[-1],
+            "move": "app.open",
+            "args": {"path": "/employees/BB-1001"},
+        }
+        check_turn(rig, await rig.driver.user_says("Show me Aditi's November payslip now."))
+        assert _moves(rig)[-1]["move"] == "payslip.compare"
+
+
+async def test_leaving_the_employee_view_by_hand_ends_it() -> None:
+    async with demo("payroll_app", _view_llm()) as rig:
+        await rig.driver.start_session(init={"landing": "/", "lang": "en"})
+        check_turn(rig, await rig.driver.user_says("View this as Aditi Bhandari."))
+        brain = _brain(rig)
+        assert brain.view_as == "BB-1001"
+        await rig.driver.send_ui_event(
+            "stage_event",
+            {
+                "name": "screen.viewed",
+                "by": "visitor",
+                "data": {"path": "/employees/BB-1001", "title": "Aditi Bhandari"},
+            },
+        )
+        await asyncio.sleep(0.1)
+        assert brain.view_as is None
+
+
+_DEVANAGARI_LINE = re.compile(r"[ऀ-ॿ]")
+
+
+def _hindi(text: str) -> bool:
+    """A Hindi sentence: Devanagari, with product words in English allowed."""
+    return bool(_DEVANAGARI_LINE.search(text)) and not re.search(
+        r"\b(Approved|Rejected|Fixed|Switched|Saved|Sent|Shall I|is closed|won't be)\b", text
+    )
+
+
+def _hindi_llm() -> ScriptedOpenAI:
+    return ScriptedOpenAI(
+        {
+            "Asha ki leave reject karo.": [
+                reply_and_call("", "decide_leave", request="Asha Chavan", decision="reject"),
+                reply("Asha ने छुट्टी माँगी है। क्या मैं इसे reject कर दूँ?"),
+            ],
+            "Asha ki leave approve karo.": [
+                reply_and_call("", "decide_leave", request="Asha Chavan", decision="approve"),
+                reply("क्या मैं इसे approve कर दूँ?"),
+            ],
+            "Imran ka claim fix karo.": [
+                reply_and_call("", "fix_claim", claim="Imran"),
+                reply("क्या मैं इसे ठीक कर दूँ?"),
+            ],
+            "Simran ka claim reject karo.": [
+                reply_and_call("", "decide_claim", claim="Simran", decision="reject"),
+                reply("क्या मैं इसे reject कर दूँ?"),
+            ],
+            "Kavitha ko old regime par daalo.": [
+                reply_and_call("", "switch_regime", employee="Kavitha Menon", regime="old"),
+                reply("क्या मैं switch कर दूँ?"),
+            ],
+            "Aditi ke roop mein dikhao.": [
+                reply_and_call("", "view_as_employee", employee="Aditi Bhandari"),
+            ],
+        }
+    )
+
+
+async def test_a_hindi_call_hears_every_ask_and_outcome_in_hindi() -> None:
+    """Round 2, R8: in a Hindi call, "Rejected. Asha Chavan's leave request
+    LV-2412 is closed…" and "Asha Chavan asked for 2 days…" came out as whole
+    English sentences. Every line the brain writes itself is now in the call's
+    language; approve, reject, payslip and the like stay as they are."""
+    llm = _hindi_llm()
+    async with demo("payroll_app", llm) as rig:
+        await rig.driver.start_session(init={"landing": "/", "lang": "hi"})
+
+        check_turn(rig, await rig.driver.user_says("Asha ki leave approve karo."))
+        asked = tool_results(llm.captured_inputs[-1])["decide_leave"]
+        assert "क्या मैं इसे approve कर दूँ?" in asked and "loss of pay बनेगा" in asked
+        assert "Shall I" not in asked and "asked for" not in asked
+        await rig.driver.user_says("नहीं।")
+
+        check_turn(rig, await rig.driver.user_says("Asha ki leave reject karo."))
+        yes = await _yes(rig, "हाँ।", "leave.decide")
+        check_turn(rig, yes, units=1)
+        assert _hindi(yes.text), yes.text
+        assert yes.text.startswith("Reject हो गई।") and "LV-2412" in yes.text
+
+        check_turn(rig, await rig.driver.user_says("Imran ka claim fix karo."))
+        asked = tool_results(llm.captured_inputs[-1])["fix_claim"]
+        assert "₹4,580" in asked and "approve कर दूँ?" in asked
+        yes = await _yes(rig, "हाँ।", "claim.fix")
+        assert _hindi(yes.text) and yes.text.startswith("Fix हो गया।"), yes.text
+
+        check_turn(rig, await rig.driver.user_says("Simran ka claim reject karo."))
+        asked = tool_results(llm.captured_inputs[-1])["decide_claim"]
+        assert "क्या मैं इसे reject कर दूँ?" in asked
+        yes = await _yes(rig, "हाँ।", "claim.decide")
+        assert _hindi(yes.text) and "pay नहीं होगा" in yes.text, yes.text
+
+        # Asked again after it is done: the duplicate line is Hindi too.
+        brain = _brain(rig)
+        assert brain.confirms.already(("claim", "RB-3110", "reject")) is not None
+        assert _hindi(brain.confirms.already(("claim", "RB-3110", "reject")) or "")
+
+        check_turn(rig, await rig.driver.user_says("Kavitha ko old regime par daalo."))
+        asked = tool_results(llm.captured_inputs[-1])["switch_regime"]
+        assert "क्या मैं switch कर दूँ?" in asked
+        yes = await _yes(rig, "हाँ।", "regime.switch")
+        assert _hindi(yes.text) and yes.text.startswith("Switch हो गया।"), yes.text
+
+        # A turn that moved the screen and said nothing: the floor line is Hindi.
+        said = await rig.driver.user_says("Aditi ke roop mein dikhao.")
+        assert _hindi(said.text) and "Aditi Bhandari" in said.text, said.text
+
+
+async def test_a_hindi_call_hears_a_refused_or_unanswered_change_in_hindi() -> None:
+    llm = _hindi_llm()
+    async with demo("payroll_app", llm) as rig:
+        await rig.driver.start_session(init={"landing": "/", "lang": "hi"})
+        check_turn(rig, await rig.driver.user_says("Asha ki leave reject karo."))
+
+        async def page() -> None:
+            for _ in range(200):
+                sent = [m for m in _moves(rig) if m["move"] == "leave.decide"]
+                if sent:
+                    await rig.driver.send_ui_event(
+                        "stage_result",
+                        {
+                            "call_ref": sent[-1]["call_ref"],
+                            "move": "leave.decide",
+                            "outcome": "refused",
+                            "detail": "the February run is locked",
+                        },
+                    )
+                    return
+                await asyncio.sleep(0.01)
+
+        task = asyncio.create_task(page())
+        turn = await rig.driver.user_says("हाँ।")
+        await task
+        assert _hindi(turn.text) and "नहीं हो पाया" in turn.text, turn.text

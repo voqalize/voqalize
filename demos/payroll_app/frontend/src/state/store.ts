@@ -215,6 +215,15 @@ function changeClaim(id: string, patch: Partial<Claim>): Claim {
   return c;
 }
 
+/**
+ * A claim just decided (approved, fixed or rejected), by a click or by the
+ * guide: its detail panel closes so the list is back in front (owner, round 2,
+ * R2). The toast says what happened.
+ */
+function closeDecided(id: string) {
+  if (get().openClaim === id) set({ openClaim: null });
+}
+
 export function fixClaim(id: string, amount?: number): Result {
   const s = get();
   const c = s.claims.find((x) => x.id === id);
@@ -225,6 +234,7 @@ export function fixClaim(id: string, amount?: number): Result {
   if (c.payroll_month === "2026-02" && locked(s)) return no(lockedWhy());
   const was = c.amount;
   changeClaim(id, { amount: c.bill_amount, status: "approved", note: `Corrected from ${rupees(was)} to the bill, ${rupees(c.bill_amount)}.` });
+  closeDecided(id);
   const detail = `${id} fixed to ${rupees(c.bill_amount)} and approved into ${nameOf(c.employee_id)}'s February pay`;
   notify(detail);
   return ok(detail);
@@ -241,6 +251,7 @@ export function decideClaim(id: string, decision: "approve" | "reject"): Result 
   }
   if (decision === "approve" && c.payroll_month === "2026-02" && locked(s)) return no(lockedWhy());
   changeClaim(id, { status: decision === "approve" ? "approved" : "rejected" });
+  closeDecided(id);
   const detail =
     decision === "approve"
       ? `${id} approved: ${rupees(c.amount)} joins ${nameOf(c.employee_id)}'s February pay`

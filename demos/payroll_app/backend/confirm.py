@@ -15,6 +15,9 @@ through the same four steps (adapted from Fernhollow's ``confirm.py``):
    session is not sent again; it says so instead.
 4. **Outcome, once.** The page answers the Stage move; one outcome line follows:
    applied, refused with the page's reason, or unknown, never "done" first.
+
+Every line here is said in the call's language at the moment it is said
+(``lang``, round 2, R8): a Hindi call hears Hindi.
 """
 
 from __future__ import annotations
@@ -108,7 +111,8 @@ class _Flight:
 class Confirmations:
     """The one pending confirmation, what has been done, and what is in flight."""
 
-    def __init__(self) -> None:
+    def __init__(self, lang: Callable[[], str] = lambda: "en") -> None:
+        self._lang = lang
         self.pending: Pending | None = None
         self.done: dict[tuple[Any, ...], str] = {}
         self._flights: dict[str, _Flight] = {}
@@ -121,11 +125,14 @@ class Confirmations:
 
     def already(self, key: tuple[Any, ...]) -> str | None:
         """The words for a duplicate: done, or on its way."""
+        hi = self._lang() == "hi"
         if key in self.done:
             said = self.done[key]
+            if hi:
+                return f"यह पहले ही हो चुका है: {said}"
             return f"That's already done: {said[:1].lower()}{said[1:]}"
         if any(f.key == key for f in self._flights.values()):
-            return "That's already on its way through."
+            return "यह पहले से हो रहा है।" if hi else "That's already on its way through."
         return None
 
     def already_kind(self, kind: str) -> str | None:
@@ -186,19 +193,30 @@ class Confirmations:
         when it is said, so an answer the page completes a moment later (a
         reference in a following state event) is in it."""
         flight = self._flights.pop(ref)
+
+        def hi() -> bool:  # read when the line is said, not when the page answered
+            return self._lang() == "hi"
+
         if outcome in ("applied", "partial"):
-            self.done[flight.key] = "it went through."
+            self.done[flight.key] = "हो गया।" if hi() else "it went through."
 
             def applied() -> str:
-                line = flight.on_applied(detail) if flight.on_applied else (detail or "Done.")
+                done = "हो गया।" if hi() else "Done."
+                line = flight.on_applied(detail) if flight.on_applied else (detail or done)
                 self.done[flight.key] = line
                 return line
 
             return applied
         if outcome == "unknown":
             return lambda: (
-                "I can't confirm that went through — the page didn't answer. "
+                "यह हुआ या नहीं, पेज ने नहीं बताया। कृपया स्क्रीन पर देख लीजिए।"
+                if hi()
+                else "I can't confirm that went through — the page didn't answer. "
                 "Please check it on screen."
             )
         why = "; ".join(x for x in (detail, reason) if x) or outcome
-        return lambda: f"That didn't go through — the page says: {why}."
+        return lambda: (
+            f"यह नहीं हो पाया, पेज कह रहा है: {why}।"
+            if hi()
+            else f"That didn't go through — the page says: {why}."
+        )
