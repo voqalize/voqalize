@@ -18,6 +18,10 @@ The job follows the page: when the visitor moves from the finder to `/apply`, th
 the counsellor. `CONTRACT.md` is the UI ↔ brain contract: the Stage moves, the state events and the
 data.
 
+A dropped brain socket does not end the call: where Voqalize offers redial, the brain turns it on
+and a redial within two minutes picks the call up where it was, in the same language and job, with
+no second greeting (`backend/rejoin.py`; `CONTRACT.md`, Redial).
+
 ## Layout
 
 - `persona.json`: the character (avatar, name, voice per language, languages, default language).
@@ -26,7 +30,8 @@ data.
   the agent states only what they say.
 - `backend/`: `brain.py` (`UniversityBrain`, an `OpenAIBrain` at `reasoning="medium"`),
   `finder.py` (matching, comparison, eligibility and scholarship rules), `prompt.py`,
-  `data.py`, `stage_gen.py` (generated), `routes.py`.
+  `data.py`, `rejoin.py` (live calls by session id, for a redial), `stage_gen.py` (generated),
+  `routes.py`.
 - `frontend/`: the Vite + React site, Stage performers in `src/stage/`, the voice dock in
   `src/voice/`.
 

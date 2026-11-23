@@ -46,6 +46,7 @@ from voqalize.sdk import (
     Action,
     AppEvent,
     AppEvents,
+    Finalize,
     RTVIMessage,
     Session,
     Speech,
@@ -57,7 +58,7 @@ from voqalize.sdk import (
 from voqalize.sdk.openai import OpenAIBrain
 from voqalize.sdk.stage import Dropped, Mirror, Move, RawCue, Stage, match_label
 from voqalize.sdk.stage.wire import StageEvent, StageHello, StageProgress, StageResult
-from voqalize.sdk.wire import Config, IdleConfig, SttConfig, TtsConfig
+from voqalize.sdk.wire import Config, IdleConfig, RedialConfig, SttConfig, TtsConfig
 
 from .data import CampusId, Level, Mode, SchoolId, Stream, application, catalogue, persona
 from .finder import (
@@ -73,6 +74,7 @@ from .finder import (
     resolve_program,
 )
 from .prompt import JOB_NOTE, Job, Lang, greeting, job_for, system_instruction
+from .rejoin import Rejoin
 from .stage_gen import MOVES, SPEC, ReadRequest
 
 MODEL = "gpt-6.1-terra"
@@ -344,6 +346,11 @@ def resolve_cue(move: Move, args: list[str]) -> list[str] | None:
 
 # ─── The brain ──────────────────────────────────────────────────────────────
 
+#: What a brain holds for one socket only: the session object and the speech
+#: units waiting for the runtime to say what was heard. Everything else a call
+#: built is carried to the brain a redial starts (rejoin.py).
+_PER_SOCKET = frozenset({"_session", "_awaiting"})
+
 
 class UniversityBrain(OpenAIBrain):
     """One per session: the job, the language, and the Stage director."""
@@ -371,6 +378,9 @@ class UniversityBrain(OpenAIBrain):
         self._talk: str | None = None
         #: The confirmation of a language switch, said at the start of the next turn.
         self._confirm: str | None = None
+        #: The greeting a redialled brain returns, which the caller never hears:
+        #: kept out of the model's history if it comes back finalized.
+        self._unheard_greeting: str | None = None
 
     # ─── Session ────────────────────────────────────────────────────────
 
@@ -382,21 +392,69 @@ class UniversityBrain(OpenAIBrain):
         )
 
     async def on_session_start(self, session: Session) -> None:
-        init: dict[str, Any] = dict(session.init or {})
-        lang = str(init.get("lang") or "")
-        if lang in persona().languages and lang in ("en", "hi"):
-            self.lang = "hi" if lang == "hi" else "en"
-        self.path = route_of(str(init.get("landing") or "/"))
-        self.job = job_for(self.path)
+        """Both legs in the page's language, and the job from the landing page.
+
+        A call outlives a dropped socket (CONTRACT.md, redial; SDK 0.15.0):
+        redial is on wherever Voqalize offers it, and a brain started by a
+        redial on a session this process still holds adopts that call as it
+        was — the language, page and job it had moved to, the model's history,
+        the Stage director and its screen mirror, a pending switch line —
+        instead of starting over. The greeting a redialled brain returns is
+        not spoken, and the call-start note is not added twice."""
+        prior = REJOIN.take(session.id)
+        rejoined = prior is not None and prior is not self
+        if rejoined:
+            assert prior is not None
+            self._adopt(prior)
+            logger.info("university: rejoined call {} after its socket dropped", session.id)
+        else:
+            init: dict[str, Any] = dict(session.init or {})
+            lang = str(init.get("lang") or "")
+            if lang in persona().languages and lang in ("en", "hi"):
+                self.lang = "hi" if lang == "hi" else "en"
+            self.path = route_of(str(init.get("landing") or "/"))
+            self.job = job_for(self.path)
+        REJOIN.hold(session.id, self)
+        self._unheard_greeting = greeting(self.job, self.lang) if rejoined else None
         config = self._config(self.lang)
         await session.configure(
-            Config(stt=config.stt, tts=config.tts, idle=IdleConfig(timeout_ms=_IDLE_MS))
+            Config(
+                stt=config.stt,
+                tts=config.tts,
+                idle=IdleConfig(timeout_ms=_IDLE_MS),
+                redial=RedialConfig(enabled=True) if session.can_redial else None,
+            )
         )
-        self.append_note(f"[The call starts on {self.path}. {JOB_NOTE[self.job]}]")
-        logger.info("university: start on {} as {} in {}", self.path, self.job, self.lang)
+        if not rejoined:
+            self.append_note(f"[The call starts on {self.path}. {JOB_NOTE[self.job]}]")
+            logger.info("university: start on {} as {} in {}", self.path, self.job, self.lang)
+
+    async def on_session_end(self, session: Session) -> None:
+        """The socket closed: a hang-up, or a drop Voqalize may redial. Kept a
+        short while for the redial; runs at least once, and a second run (or
+        one on a brain a redial already replaced) changes nothing."""
+        REJOIN.dropped(session.id, self)
+
+    def _adopt(self, prior: UniversityBrain) -> None:
+        """Take over ``prior``'s call: every piece of state but its socket's.
+        ``prior`` then shares this brain's state, so whatever still points at
+        it — the Stage director's dispatch and drop hook, a pending
+        ``configure_soon`` — acts on this call and this socket."""
+        self.__dict__.update({k: v for k, v in prior.__dict__.items() if k not in _PER_SOCKET})
+        prior.__dict__ = self.__dict__
 
     async def greet(self, session: Session) -> str:
         return greeting(self.job, self.lang)
+
+    async def on_finalize(self, session: Session, fin: Finalize) -> None:
+        """A redialled brain's greeting is not spoken (SDK 0.15.0): should a
+        finalize for it come back anyway, the model does not read it as said —
+        the call greeted once, on its first socket."""
+        if self._unheard_greeting is not None and not self._awaiting:
+            self._unheard_greeting = None
+            return
+        self._unheard_greeting = None
+        await super().on_finalize(session, fin)
 
     async def switch_language(self, lang: Lang, why: str) -> None:
         """Both legs, awaited, and the page's toggle moved."""
@@ -653,7 +711,12 @@ class UniversityBrain(OpenAIBrain):
         return f"The call is now in {persona().language_names[lang]}."
 
 
+#: Live calls by session id, for a redial to rejoin (rejoin.py).
+REJOIN: Rejoin[UniversityBrain] = Rejoin()
+
+
 __all__ = [
+    "REJOIN",
     "LanguageChanged",
     "LanguageRequested",
     "UniversityBrain",

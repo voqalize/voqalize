@@ -101,6 +101,19 @@ The page sends `by: "agent"` for changes made inside a move (Stage's `AGENT_WIND
 - UI → brain `language_requested{language: "en"|"hi"}` — the visitor pressed the toggle mid-call.
 - Brain → UI `language_changed{language: "en"|"hi"}` — the call's language moved; the toggle follows.
 
+## Redial: a call outlives a dropped brain socket (owner, 2026-11-23)
+
+On a voice runtime that offers redial (`session.can_redial`, SDK 0.15.0 `Config.redial`),
+`on_session_start` turns it on with both legs. Each live brain is kept in this process by session id
+(`backend/rejoin.py`) while its socket is up and for two minutes after it drops. A redial that reaches
+the same process adopts the call as it was: the page, the job, the language (both legs configured in
+it again, whatever `init.lang` says), the model's history, the Stage director with its screen mirror
+(finder and application) and pending cues, a language-switch line not yet said and a reaction left
+for the next quiet spell. The call-start note is not added again, and the greeting a redialled brain
+returns (not spoken by Voqalize) is kept out of the model's history. A redial that reaches a fresh
+process, or comes after the two minutes, starts as a new conversation on the same page. Nothing here
+changes the page: its state never left the browser. `Config.late` stays at Voqalize's default.
+
 ## Frontend rule
 
 Everything works by click alone. Every performer calls the same zustand store actions the page's
