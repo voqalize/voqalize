@@ -150,9 +150,9 @@ DEMOS: dict[str, Expected] = {
     # both legs for the toggle or for English heard — javier in both. Asserted
     # in test_figurella_e2e.py.
     "figurella": Expected(voice="omnivoice/javier", language="es", provider="openai"),
-    # Mira, Fernhollow's design adviser: English only, in Emily's voice — the
-    # voice the `emily` avatar the page mounts was made for. Asserted in
-    # test_fernhollow_e2e.py.
+    # Fernhollow's front of house (fernhollow/persona.json: Emily, the `emily`
+    # avatar and her voice): English only, on every landing page. Asserted in
+    # test_fernhollow_e2e.py, which reads the persona file.
     "fernhollow": Expected(voice="omnivoice/emily", language="en"),
     "forge": Expected(voice="omnivoice/gauri", language="en"),
     "interview_bot": Expected(voice="omnivoice/gauri", language="en"),

@@ -405,12 +405,19 @@ def _calls(brain: fb.FernhollowBrain) -> list[tuple[str, Any]]:
         ("show", fb.ShowRequest(product="desk", option="Walnut")),
         ("show", fb.ShowRequest(query="oak shelf")),
         ("show", fb.ShowRequest(page="journal")),
-        ("shortlist", fb.ShortlistRequest(add=["this"])),
+        ("shortlist", fb.ShortlistRequest(add=["desk"])),
+        ("show_saved", None),
         ("add_to_cart", fb.AddToCartRequest(what="room")),
+        ("add_to_cart", fb.AddToCartRequest(what="saved")),
         ("suggest_finish", None),
         ("store_policy", fb.PolicyRequest(topic="delivery")),
-        ("find_order", fb.OrderRequest(order_number="fh 20418")),
-        ("start_return", fb.OrderRequest(order_number="FH-20418")),
+        ("start_return", {"order_number": "fh 20418"}),
+        (
+            "fill_return",
+            fb.ReturnAnswers(
+                items=[fb.ReturnItem(product="desk chair", qty=1)], reason="doesnt_suit_room"
+            ),
+        ),
         ("check_exchange", fb.ExchangeRequest(product="desk chair")),
         ("resolve_product", fb.ResolveRequest(spoken="the moduler oak sofa with deep seat")),
         ("resolve_product", fb.ResolveRequest(spoken="cream linen sofa")),
@@ -427,20 +434,17 @@ def _calls(brain: fb.FernhollowBrain) -> list[tuple[str, Any]]:
         ),
         ("checkout_step", fb.CheckoutStepRequest(step="review")),
         ("place_order", fb.PlaceOrderRequest()),
-        ("submit_return", fb.SubmitReturnRequest()),
         ("clear_selection", None),
-        (
-            "prepare_return",
-            fb.PrepareReturn(
-                order_number="FH-20418",
-                items=[fb.ReturnItem(product_id="desk-chair-with-aluminum-frame", qty=1)],
-                reason="doesnt_suit_room",
-                condition="unused_in_packaging",
-                resolution="refund",
-                collection="pickup",
-                pickup_window="weekday_morning",
-            ),
-        ),
+        # The front of house (CONTRACT v5, v6).
+        ("gift_edit", fb.GiftRequest(recipient="sibling", occasion="housewarming", budget=80)),
+        ("track_order", {}),
+        ("track_order", {"order_number": "FH-31207"}),
+        ("change_delivery", {"order_number": "FH-31207"}),
+        ("change_delivery", {"order_number": "FH-31207", "slot": "d4-morning"}),
+        ("cancel_order", {"order_number": "FH-31207"}),
+        ("request_earlier", {"order_number": "FH-31188"}),
+        ("kiosk_answer", fb.KioskRequest(room="living", feel="warm_wood", budget="400")),
+        ("kiosk_restart", None),
     ]
 
 
@@ -456,14 +460,12 @@ def test_every_tool_answers_inside_ten_milliseconds() -> None:
                 brain.checkout_filled.add("email")
             fn = getattr(brain, name)
             start = time.perf_counter()
-            result = await (fn() if arg is None else fn(arg))
+            result = await (
+                fn() if arg is None else fn(**arg) if isinstance(arg, dict) else fn(arg)
+            )
             ms = (time.perf_counter() - start) * 1000
             took[name] = max(took.get(name, 0.0), ms)
-            # submit_return needs the page's returns.submit move; until the
-            # scene declares it, the tool says so honestly.
-            needs = {"submit_return": "returns.submit", "prepare_return": "returns.next_step"}
-            honest = name in needs and brain.stage.moves.get(needs[name]) is None
-            assert isinstance(result, str) and (honest or not result.startswith("NOT DONE")), (
+            assert isinstance(result, str) and not result.startswith("NOT DONE"), (
                 name,
                 result,
             )
@@ -576,78 +578,9 @@ def test_emily_runs_on_gemini_36_flash_at_low_thinking() -> None:
     assert THINKING.thinking_level == types.ThinkingLevel.LOW
 
 
-# ─── v4: returns that work by voice ───────────────────────────────────────────
+# ─── Orders the page knows ────────────────────────────────────────────────────
 
 CHAIR = "desk-chair-with-aluminum-frame"
-
-
-def test_the_return_plan_is_one_fixed_sequence() -> None:
-    from voqalize_demos._loaded.fernhollow import returns as rt
-
-    order = rt.find_order("FH-20418")
-    assert order is not None
-    plan = rt.plan_return(
-        order,
-        [(CHAIR, 1)],
-        reason="doesnt_suit_room",
-        condition="unused_in_packaging",
-        resolution="refund",
-        collection="pickup",
-        pickup_window="weekday_morning",
-    )
-    assert plan == [
-        (
-            "returns.find",
-            {"order_number": "FH-20418", "email": "sam.rivera@example.com"},
-            "1 find your order",
-        ),
-        ("returns.select_item", {"product_id": CHAIR, "qty": 1}, "2 items"),
-        ("returns.next_step", {}, "2 items"),
-        ("returns.fill", {"field": "reason", "value": "doesnt_suit_room"}, "3 reason"),
-        ("returns.fill", {"field": "condition", "value": "unused_in_packaging"}, "3 reason"),
-        ("returns.next_step", {}, "3 reason"),
-        ("returns.fill", {"field": "resolution", "value": "refund"}, "4 resolution"),
-        ("returns.next_step", {}, "4 resolution"),
-        ("returns.fill", {"field": "collection", "value": "pickup"}, "5 collection"),
-        ("returns.fill", {"field": "pickup_window", "value": "weekday_morning"}, "5 collection"),
-        ("returns.next_step", {}, "5 collection"),
-    ]
-    assert isinstance(plan[1][1]["qty"], int)  # the number, never the string "1"
-
-
-@pytest.mark.parametrize(
-    ("kwargs", "why"),
-    [
-        ({"items": [(CHAIR, 2)]}, "between 1 and 1"),
-        ({"items": [("oak-desk", 1)]}, "not on order"),
-        ({"pickup_window": None}, "a pickup needs a window"),
-        ({"resolution": "exchange"}, "exchange needs one of the item's other option values"),
-        ({"reason": "broken"}, "reason must be one of"),
-    ],
-)
-def test_the_return_plan_refuses_what_the_page_would(kwargs: dict[str, Any], why: str) -> None:
-    from voqalize_demos._loaded.fernhollow import returns as rt
-
-    order = rt.find_order("FH-20418")
-    assert order is not None
-    answers: dict[str, Any] = {
-        "items": [(CHAIR, 1)],
-        "reason": "doesnt_suit_room",
-        "condition": "unused_in_packaging",
-        "resolution": "refund",
-        "collection": "pickup",
-        "pickup_window": "weekday_morning",
-    }
-    answers.update(kwargs)
-    items = answers.pop("items")
-    result = rt.plan_return(order, items, **answers)
-    assert isinstance(result, str) and why in result, result
-    late = rt.find_order("FH-20155")
-    assert late is not None
-    refused = rt.plan_return(
-        late, [(late.lines[0].product_id, 1)], **{**answers, "pickup_window": "saturday"}
-    )
-    assert refused == "Aged Ash Side Chair cannot be returned (outside window)"
 
 
 def test_find_order_reads_placed_then_known_then_demo() -> None:
@@ -682,104 +615,6 @@ def test_find_order_reads_placed_then_known_then_demo() -> None:
     found = rt.find_order("FH-20418", placed=[mine], known=[page])
     assert found is not None and found.source == "demo"
     assert mine.lines[0].status == "eligible" and mine.lines[0].days_left == 30
-
-
-def _v4_brain() -> tuple[fb.FernhollowBrain, _Screen]:
-    from voqalize_demos._loaded.fernhollow.stage_gen import MOVES
-
-    from voqalize.sdk.stage import Move, MoveClass, MoveSet, Stage
-
-    brain, screen = _brain()
-    extra = [
-        Move(id=i, verb=None, cls=MoveClass.REVERSIBLE, args=a)
-        for i, a in (("returns.find", ("order_number", "email")), ("returns.next_step", ()))
-        if MOVES.get(i) is None
-    ]
-    brain.stage = Stage(dispatch=screen.dispatch, moves=MoveSet([*MOVES, *extra]))
-    return brain, screen
-
-
-def _moves(screen: _Screen) -> list[tuple[str, dict[str, Any]]]:
-    return [(a.move, dict(a.args)) for a in screen.sent if type(a).__name__ == "StageMove"]
-
-
-async def test_prepare_return_sends_the_sequence_and_tells_a_refusal_exactly() -> None:
-    from voqalize.sdk.stage.wire import Refusal, StageResult
-
-    brain, screen = _v4_brain()
-    request = fb.PrepareReturn(
-        order_number="FH-20418",
-        items=[fb.ReturnItem(product_id=CHAIR, qty=1)],
-        reason="doesnt_suit_room",
-        condition="unused_in_packaging",
-        resolution="refund",
-        collection="drop_off",
-    )
-    result = await brain.prepare_return(request)
-    assert "being filled" in result and "sam" not in result.lower()
-    sent = _moves(screen)
-    assert [m for m, _ in sent] == [
-        "returns.find",
-        "returns.select_item",
-        "returns.next_step",
-        "returns.fill",
-        "returns.fill",
-        "returns.next_step",
-        "returns.fill",
-        "returns.next_step",
-        "returns.fill",
-        "returns.next_step",
-    ]
-    assert sent[0][1] == {"order_number": "FH-20418", "email": "sam.rivera@example.com"}
-    refs = [a.call_ref for a in screen.sent if type(a).__name__ == "StageMove"]
-    assert (
-        brain._staged(StageResult(call_ref=refs[0], move="returns.find", outcome="applied")) is None
-    )  # pyright: ignore[reportPrivateUsage]
-    note = brain._staged(  # pyright: ignore[reportPrivateUsage]
-        StageResult(
-            call_ref=refs[2],
-            move="returns.next_step",
-            outcome="refused",
-            detail="step 2 needs an item",
-            refused=[Refusal(arg="items", why="choose at least one item")],
-        )
-    )
-    assert note is not None
-    assert (
-        "stopped at step 2 items" in note
-        and "step 2 needs an item" in note
-        and "choose at least one item" in note
-    )
-    # The run is over: later answers from it say nothing more.
-    assert (
-        brain._staged(StageResult(call_ref=refs[3], move="returns.fill", outcome="applied")) is None
-    )  # pyright: ignore[reportPrivateUsage]
-
-
-async def test_prepare_return_reaching_review_is_said() -> None:
-    from voqalize.sdk.stage.wire import StageResult
-
-    brain, screen = _v4_brain()
-    (
-        await brain.prepare_return(
-            fb.PrepareReturn(
-                order_number="FH-20418",
-                items=[fb.ReturnItem(product_id=CHAIR)],
-                reason="changed_mind",
-                condition="unused_unpacked",
-                resolution="store_credit",
-                collection="drop_off",
-            )
-        )
-    )
-    notes = [
-        brain._staged(StageResult(call_ref=a.call_ref, move=a.move, outcome="applied"))  # pyright: ignore[reportPrivateUsage]
-        for a in screen.sent
-        if type(a).__name__ == "StageMove"
-    ]
-    assert [n for n in notes if n] == [
-        "[The returns form reached the review step. Nothing is submitted until the shopper says yes.]"
-    ]
 
 
 # ─── Confirmations: one mechanism for every confirmed act ─────────────────────
@@ -830,13 +665,13 @@ def test_a_new_confirmed_act_needs_no_new_yes_code() -> None:
     [
         (
             "applied",
-            "return submitted, reference RT-9-1",
-            "Done — your return is in, reference RT-9-1. We'll be in touch about the drop-off.",
+            "order FH-31207 cancelled",
+            "Done — order FH-31207 is cancelled, and nothing will be delivered.",
         ),
         (
             "refused",
-            "step 1: Enter the email",
-            "That didn't go through — the page says: step 1: Enter the email.",
+            "the order is already on the way",
+            "That didn't go through — the page says: the order is already on the way.",
         ),
         ("failed", None, "That didn't go through — the page says: failed."),
         (
@@ -851,28 +686,169 @@ async def test_a_page_answered_act_says_its_outcome_once(
 ) -> None:
     from voqalize.sdk.stage.wire import StageResult
 
-    brain, screen = _v4_brain()
-    await brain.prepare_return(
-        fb.PrepareReturn(
-            order_number="FH-20418",
-            items=[fb.ReturnItem(product_id=CHAIR)],
-            reason="changed_mind",
-            condition="unused_unpacked",
-            resolution="refund",
-            collection="drop_off",
-        )
-    )
+    brain, screen = _brain()
+    await brain.cancel_order("FH-31207")
     brain._say_next = None  # pyright: ignore[reportPrivateUsage]
     brain.turns += 1
     pending = brain.confirms.due(brain.turns)
-    assert pending is not None and pending.kind == "submit_return"
+    assert pending is not None and pending.kind == "cancel_order"
     acted = brain.confirms.act(pending)
-    assert acted.line == "Submitting it now." and acted.ref is not None
+    assert acted.line == "Cancelling it now." and acted.ref is not None
     brain._staged(
-        StageResult(call_ref=acted.ref, move="returns.submit", outcome=outcome, detail=detail)
+        StageResult(call_ref=acted.ref, move="orders.cancel", outcome=outcome, detail=detail)
     )  # pyright: ignore[reportPrivateUsage]
     say = brain._say_next  # pyright: ignore[reportPrivateUsage]
     assert say is not None and say() == line
     assert [a.move for a in screen.sent if type(a).__name__ == "StageMove"].count(
-        "returns.submit"
+        "orders.cancel"
     ) == 1
+
+
+def test_a_complete_return_waits_for_the_shoppers_own_press() -> None:
+    """F10: the form, complete, asks the shopper to press Submit return; nothing
+    is pending, no move submits, and "submit it" is a request Emily refuses."""
+    brain, screen = _brain()
+
+    async def run() -> None:
+        await brain.start_return("FH-20418")
+        r = await brain.fill_return(
+            fb.ReturnAnswers(
+                items=[fb.ReturnItem(product=CHAIR, qty=1)],
+                reason="changed_mind",
+                condition="unused_unpacked",
+                resolution="refund",
+                collection="drop_off",
+            )
+        )
+        assert "press Submit return" in r and "Shall I submit" not in r
+
+    asyncio.run(run())
+    assert brain.confirms.pending is None
+    assert brain._press_owed()  # pyright: ignore[reportPrivateUsage]
+    moves = [a.move for a in screen.sent if type(a).__name__ == "StageMove"]
+    assert "returns.submit" not in moves
+    for said in ("Yes.", "Submit it.", "Can you submit it?", "Please send it", "Go ahead."):
+        assert brain._asks_to_send(said), said  # pyright: ignore[reportPrivateUsage]
+    for said in ("No, wait.", "What happens after I submit?", "Change the reason"):
+        assert not brain._asks_to_send(said), said  # pyright: ignore[reportPrivateUsage]
+
+
+# ─── The front of house's data (CONTRACT.md, v5) ──────────────────────────────
+
+
+def test_edits_json_is_built_from_the_authored_rules() -> None:
+    """The page and the brain read backend/data/edits.json: it must be what
+    backend/edits.py builds from the authored rules and today's catalog."""
+    from voqalize_demos._loaded.fernhollow import edits
+
+    assert edits.EDITS_PATH.read_text() == edits.render(), (
+        "stale: cd demos && uv run python -c 'from voqalize_demos.discovery import discover; "
+        "discover(); from voqalize_demos._loaded.fernhollow import edits; edits.main([])'"
+    )
+
+
+def test_every_pick_is_inside_its_budget_and_varied() -> None:
+    from voqalize_demos._loaded.fernhollow import edits
+
+    built = edits.build()
+    for key, picks in built["gifts"].items():
+        budget = float(key.split("|")[2])
+        assert 1 <= len(picks) <= edits.GIFTS["picks"], key
+        for x in picks:
+            p = CATALOG.products[x["product_id"]]
+            assert p.variant_for(None).id == x["variant_id"]
+            assert budget == 0 or p.variant_for(None).price <= budget  # 0 is no limit
+    for key, picks in built["kiosk"].items():
+        room, _, budget = key.split("|")
+        assert len(picks) == 3, key
+        for x in picks:
+            p = CATALOG.products[x["product_id"]]
+            assert p.room == room
+            assert budget == "any" or p.price <= float(budget)
+
+
+# ─── Round 1 (owner, 19 Nov 2026) ─────────────────────────────────────────────
+
+
+def test_shoppers_words_for_a_kind_of_piece_find_its_category() -> None:
+    cat = fb._category  # pyright: ignore[reportPrivateUsage]
+    assert cat("cushions") == "throw-pillows"
+    assert cat("rug") == "rugs" and cat("rugs") == "rugs"
+    assert cat("couch") == "sofas" and cat("sofa") == "sofas"
+
+
+def test_a_spoken_day_finds_the_slot() -> None:
+    from voqalize_demos._loaded.fernhollow.tracking import TRACKED, day_words
+
+    slots = TRACKED["FH-31207"].slots
+    by_id = {s.id: s for s in slots}
+    say = fb._slot_said  # pyright: ignore[reportPrivateUsage]
+    assert say(slots, "d3-evening") is by_id["d3-evening"]
+    weekday = day_words(3).split()[0]
+    assert say(slots, f"{weekday} evening") is by_id["d3-evening"]
+    assert say(slots, weekday) is None, "two windows that day: which one is asked"
+    assert say(slots, "next year") is None
+
+
+def test_the_cancel_question_takes_cancel_it_as_a_yes() -> None:
+    yes = fb._CANCEL_YES  # pyright: ignore[reportPrivateUsage]
+    assert yes.match("Yes, cancel it.") and yes.match("Please cancel the order")
+    assert not yes.match("Don't cancel it") and not yes.match("cancel it, no wait")
+
+
+def test_the_return_form_asks_one_thing_at_a_time_and_moves_on() -> None:
+    brain, screen = _brain()
+
+    def moves() -> list[str]:
+        return [a.move for a in screen.sent if type(a).__name__ == "StageMove"]
+
+    async def run() -> None:
+        started = await brain.start_return("FH-20377")
+        assert "nothing is chosen" in started
+        assert moves() == ["orders.start_return"]
+        r = await brain.fill_return(fb.ReturnAnswers(items=[fb.ReturnItem(product="cushions")]))
+        assert "How many of the 2" in r
+        r = await brain.fill_return(
+            fb.ReturnAnswers(items=[fb.ReturnItem(product="cushion", qty=1)])
+        )
+        assert "Why is it going back" in r
+        r = await brain.fill_return(
+            fb.ReturnAnswers(reason="changed_mind", condition="unused_unpacked")
+        )
+        assert "refund, an exchange" in r
+        r = await brain.fill_return(fb.ReturnAnswers(collection="pickup"))
+        assert "Would you like a refund" in r and "goes on once" in r
+        r = await brain.fill_return(fb.ReturnAnswers(resolution="store_credit"))
+        assert "weekday morning" in r
+        r = await brain.fill_return(fb.ReturnAnswers(pickup_window="saturday"))
+        assert "press Submit return" in r
+        assert brain.confirms.pending is None, "only the shopper's press sends a return (F10)"
+        assert moves().count("returns.next_step") == 3, moves()
+        fills = [
+            a.args["field"]
+            for a in screen.sent
+            if type(a).__name__ == "StageMove" and a.move == "returns.fill"
+        ]
+        assert fills == ["reason", "condition", "resolution", "collection", "pickup_window"], (
+            "the pickup said before the resolution waits for it: the page refuses it earlier"
+        )
+
+    asyncio.run(run())
+
+
+def test_orders_refuse_what_their_status_does_not_allow() -> None:
+    brain, _ = _brain()
+
+    async def run() -> None:
+        assert (await brain.cancel_order("FH-31188")).startswith("NOT DONE")
+        assert (await brain.cancel_order("FH-31042")).startswith("NOT DONE")
+        assert (await brain.request_earlier("FH-31207")).startswith("NOT DONE")
+        assert (await brain.change_delivery("FH-31188")).startswith("NOT DONE")
+        assert (await brain.start_return("FH-31207")).startswith("NOT DONE")
+        assert (await brain.start_return("FH-20502")).startswith("NOT DONE")
+        late = await brain.start_return("FH-20155")
+        assert late.startswith("NOT DONE") and "41 days" in late
+        asked = await brain.cancel_order("FH-31207")
+        assert "Shall I cancel order FH-31207" in asked
+
+    asyncio.run(run())

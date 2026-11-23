@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Fernhollow \u2014 a home & furniture store where Mira, a design adviser, talks and drives the screen. A standalone Vite app served at /demos/fernhollow.",
+  "description": "Fernhollow — a home & furniture store whose voice adviser (persona.json) talks and drives the screen: shopping, returns, sizes, gifts, orders and a showroom kiosk. A standalone Vite app served at /demos/fernhollow.",
   "scripts": {
     "dev": "node scripts/images.mjs && vite",
     "images": "node scripts/images.mjs",
@@ -23,25 +23,26 @@
     "@voqalize/avatar": "^0.6.3",
     "@voqalize/client-transport": "0.4.1",
     "@voqalize/demo-kit": "file:../../shared",
+    "@voqalize/stage": "link:../../../sdk/js/stage",
     "lucide-react": "^0.511.0",
     "marked": "^15.0.12",
+    "qrcode-generator": "1.4.4",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-router-dom": "^7.6.2",
     "yaml": "^2.8.0",
-    "zustand": "^5.0.5",
-    "@voqalize/stage": "link:../../../sdk/js/stage"
+    "zustand": "^5.0.5"
   },
   "devDependencies": {
     "@types/node": "^25.6.0",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "@vitejs/plugin-react": "^4.5.2",
+    "happy-dom": "^15.11.7",
     "playwright": "^1.56.1",
     "sharp": "^0.34.2",
     "typescript": "^5.8.3",
     "vite": "^6.3.5",
-    "vitest": "^2.1.9",
-    "happy-dom": "^15.11.7"
+    "vitest": "^2.1.9"
   }
 }
