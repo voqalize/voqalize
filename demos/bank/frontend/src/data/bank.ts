@@ -255,7 +255,8 @@ export const categoryName = (id: string) => products.spend_categories.find((c) =
 
 /** The transaction filter both the page and the brain apply (CONTRACT.md, txn.find). */
 export interface TxnFilter {
-  account?: "all" | TxnAccount | null;
+  /** One account, `bank` for savings and current together (no credit card), or all. */
+  account?: "all" | "bank" | TxnAccount | null;
   category?: string | null;
   query?: string | null;
   from_days_ago?: number | null;
@@ -269,7 +270,7 @@ export interface TxnFilter {
 export function filterTxns(all: Txn[], f: TxnFilter): Txn[] {
   const q = (f.query ?? "").trim().toLowerCase();
   return all
-    .filter((t) => !f.account || f.account === "all" || t.account === f.account)
+    .filter((t) => !f.account || f.account === "all" || (f.account === "bank" ? t.account !== "cc" : t.account === f.account))
     .filter((t) => !f.category || t.category === f.category)
     .filter((t) => !q || `${t.merchant} ${t.description}`.toLowerCase().includes(q))
     .filter((t) => f.from_days_ago == null || t.days_ago <= f.from_days_ago)

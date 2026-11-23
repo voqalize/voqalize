@@ -56,6 +56,20 @@ export const scene = defineScene({
       ]
     },
     {
+      "id": "accounts.show",
+      "class": "look",
+      "args": [
+        {
+          "name": "account",
+          "enum": [
+            "sb",
+            "ca"
+          ],
+          "optional": true
+        }
+      ]
+    },
+    {
       "id": "txn.find",
       "class": "reversible",
       "args": [
@@ -63,6 +77,7 @@ export const scene = defineScene({
           "name": "account",
           "enum": [
             "all",
+            "bank",
             "sb",
             "ca",
             "cc"
@@ -408,4 +423,4 @@ export const scene = defineScene({
   ]
 });
 
-export const SPEC_SHA256 = "ec3d403daa4a22323d7297a1d1b541858d4f537fd7eb5d57c36ec4a7ad2735d2";
+export const SPEC_SHA256 = "71db4acf9f7c00cc94d25a8549653f3fe8183e637ce89ce4604edd5723098baa";

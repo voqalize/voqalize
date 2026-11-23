@@ -10,7 +10,7 @@ import type { MoveContext } from "@voqalize/stage";
 import { ActionRefusal, type ConfirmArgs, describeAction, resolveBeneficiary } from "../app/actions";
 import { answerConfirm, openConfirm, useConfirm } from "../app/ConfirmSheet";
 import { spendByCategory, txnMonths } from "../app/spending";
-import { type TxnFilter, daysAgo, filterTxns, fmtDate, inr, monthName, products } from "../data/bank";
+import { type TxnFilter, accountById, customer, daysAgo, filterTxns, fmtDate, inr, monthName, products } from "../data/bank";
 import { allTxns, filterIsEmpty, findTxn, useBank } from "../state/bank";
 import { useSession } from "../state/session";
 import { asAgent } from "../voice/events";
@@ -74,6 +74,31 @@ function confirmPlace(a: ConfirmArgs): { screen: Screen; ring: string } {
 }
 
 export function useAppPerformers(stage: AppStage): void {
+  // Her bank accounts: both on the dashboard (the group scrolled fully into view
+  // and ringed, then each balance), or one account's own screen. The line carries
+  // the balances as the page shows them, so the agent reads them out.
+  useMove(stage, "accounts.show", async ({ account }, c) => {
+    const id = account ? String(account) : null;
+    if (id && !accountById(id)) c.refuse("account", "the bank accounts are sb (savings) and ca (current)", ["sb", "ca"]);
+    const balances = useBank.getState().balances;
+    const one = (a: (typeof customer.accounts)[number]) => `${a.name} •••• ${a.last4}: ${inr(balances[a.id])} available`;
+    if (id) {
+      await openScreen("account", c, id);
+      await ringThing("available-balance", c, "Available balance");
+      return one(accountById(id)!);
+    }
+    await openScreen("dashboard", c);
+    const group = (await appear(() => thing("accounts"), 1500)) ?? c.refuse("account", "the accounts are not on the dashboard");
+    await c.scrollTo(group);
+    await c.ring(group, { label: "Your accounts", beatMs: 500 });
+    const line = customer.accounts.map(one).join("; ");
+    c.done(line);
+    c.after(async () => {
+      for (const a of customer.accounts) await ringThing(`account:${a.id}`, c, undefined, SHORT);
+    });
+    return line;
+  });
+
   useMove(stage, "txn.find", async (args, c) => {
     const cats = products.spend_categories.map((x) => x.id);
     if (args.category && !cats.includes(args.category)) c.refuse("category", `there is no category "${args.category}"`, cats);

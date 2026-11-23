@@ -97,9 +97,14 @@ instead of guessing, and returns one short line. Every move also works by click 
 complete bank without voice). `?debug=1` adds a console that fires any move by hand.
 
 - `ui.show {thing}` — the one cue (`{show: Reward points}`): ring a `data-stage-thing` on screen.
-- `nav.open {screen, id?}` — open a screen.
+- `nav.open {screen, id?}` — open a screen. The brain's `open_screen` reads back what that screen
+  shows from her data, so the agent answers from it even when the page says it is already open.
+- `accounts.show {account?}` — her bank accounts: both on the dashboard (the accounts group scrolled fully
+  into view and ringed, then each balance), or `sb` / `ca` on its own screen with the balance ringed.
+  Returns each balance as the page shows it; the agent reads them out in the same turn.
 - `txn.find {account?, category?, query?, from_days_ago?, to_days_ago?, min_amount?, max_amount?, direction?, label?}`
-  — the transactions screen with those filters set (the page applies `filterTxns`, the same filter as
+  — the transactions screen with those filters set (`account`: `all`, `sb`, `ca`, `cc`, or `bank` for
+  savings and current together, no credit card) (the page applies `filterTxns`, the same filter as
   `bank.filter_txns`); returns "N transactions, total ₹X".
 - `txn.open {txn_id}` — the transaction's detail panel.
 - `insights.show {month, category?}` — insights for the month, the category's row ringed.

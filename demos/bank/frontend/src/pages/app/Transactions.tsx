@@ -96,6 +96,7 @@ export function Transactions() {
             <span>Account</span>
             <select value={filter.account ?? "all"} onChange={(e) => set({ account: e.target.value as TxnFilter["account"] })}>
               <option value="all">All accounts</option>
+              <option value="bank">Savings + current</option>
               <option value="sb">Savings •••• {accountById("sb")!.last4}</option>
               <option value="ca">Current •••• {accountById("ca")!.last4}</option>
               <option value="cc">Credit card •••• {cardById("credit")!.last4}</option>

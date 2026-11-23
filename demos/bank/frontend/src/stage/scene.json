@@ -72,6 +72,32 @@
       "doc": "Open a screen of the bank's site or app. Signed-in screens on a signed-out page go through the mock sign-in first."
     },
     {
+      "id": "accounts.show",
+      "class": "look",
+      "args": [
+        {
+          "name": "account",
+          "optional": true,
+          "enum": [
+            "sb",
+            "ca"
+          ],
+          "doc": "One account's own screen; both accounts on the dashboard by default."
+        }
+      ],
+      "claims": [
+        "opening your accounts",
+        "showing your accounts",
+        "pulling up your accounts"
+      ],
+      "objects": [
+        "accounts",
+        "balances",
+        "balance"
+      ],
+      "doc": "Her bank accounts and balances: both on the dashboard, the accounts ringed and scrolled fully into view, or one account's screen with its balance ringed. Returns each balance as the page shows it."
+    },
+    {
       "id": "txn.find",
       "class": "reversible",
       "args": [
@@ -80,11 +106,12 @@
           "optional": true,
           "enum": [
             "all",
+            "bank",
             "sb",
             "ca",
             "cc"
           ],
-          "doc": "Which account; all by default."
+          "doc": "Which account: sb savings, ca current, cc credit card, bank for savings and current together (no credit card); all by default."
         },
         {
           "name": "category",

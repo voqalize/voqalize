@@ -135,6 +135,10 @@ def offer(offer_id: str) -> dict[str, Any] | None:
 
 ACCOUNT_NAMES = {"sb": "savings", "ca": "current account", "cc": "credit card"}
 
+#: The ``account`` values the transaction filter takes: one account, both bank
+#: accounts together (``bank``: savings and current, no credit card), or all.
+ACCOUNT_SCOPES = {"sb": ("sb",), "ca": ("ca",), "cc": ("cc",), "bank": ("sb", "ca")}
+
 
 @dataclass(frozen=True)
 class TxnFilter:
@@ -155,7 +159,9 @@ def filter_txns(f: TxnFilter, txns: list[dict[str, Any]] | None = None) -> list[
     out = [
         t
         for t in (txns if txns is not None else CUSTOMER["transactions"])
-        if (not f.account or f.account == "all" or t["account"] == f.account)
+        if (
+            not f.account or f.account == "all" or t["account"] in ACCOUNT_SCOPES.get(f.account, ())
+        )
         and (not f.category or t["category"] == f.category)
         and (not q or q in f"{t['merchant']} {t['description']}".lower())
         and (f.from_days_ago is None or t["days_ago"] <= f.from_days_ago)

@@ -13,10 +13,18 @@ runs them in order, rings each target before it changes it, and answers each wit
 a ``stage_result``.
 
 **What is marked ``@needs_result_now``**: the reads whose facts the model must
-speak (transactions, a transaction, spending, a card, a ranking, an EMI table, a
-loan EMI, eligibility) and the two checks whose verdict it must say before it
-asks anything (``request_change``, the form fills). Opening a screen, the
-confirmation answer, a submit and the language switch are not.
+speak (her accounts and balances, transactions, a transaction, spending, a card,
+a ranking, an EMI table, a loan EMI, eligibility), opening a screen, which reads
+back what that screen shows from her data (B1: "I'll open your accounts" and a
+page answering "dashboard is already open" left the call silent), and the two
+checks whose verdict it must say before it asks anything (``request_change``,
+the form fills). The confirmation answer, a submit and the language switch are
+not: the page's answer, or the switch, is said by the brain's own line.
+
+**Never a promise and then silence.** A read the customer asked to hear
+(``owe``) is said by the brain from her data when the model's turn says nothing
+after the tool ran; a move the page refuses is told to her with a written line
+even after the turn has ended; the language switch is said in the new language.
 
 **Anything that changes state is confirmed.** ``request_change`` puts a
 confirmation sheet on screen; nothing changes until the customer says yes (the
@@ -36,8 +44,11 @@ again.
 
 from __future__ import annotations
 
+import contextlib
 import re
 from collections.abc import AsyncGenerator, Callable
+from contextvars import ContextVar
+from dataclasses import dataclass
 from typing import Any, Literal
 
 from loguru import logger
@@ -52,6 +63,7 @@ from voqalize.sdk import (
     RTVIMessage,
     Session,
     Speech,
+    SpeechStart,
     UserIdle,
     UserMessage,
 )
@@ -175,9 +187,17 @@ class ScreenRequest(BaseModel):
     )
 
 
+class AccountsRequest(BaseModel):
+    account: Literal["sb", "ca"] | None = Field(
+        default=None, description="One account (sb savings, ca current); both by default."
+    )
+
+
 class TxnQuery(BaseModel):
-    account: Literal["all", "sb", "ca", "cc"] | None = Field(
-        default=None, description="sb savings, ca current, cc credit card; all by default."
+    account: Literal["all", "bank", "sb", "ca", "cc"] | None = Field(
+        default=None,
+        description="sb savings, ca current, cc credit card, bank = savings and current together "
+        "(no credit card); all by default.",
     )
     category: str | None = Field(default=None, description=f"One of: {', '.join(b.CATEGORY_IDS)}.")
     query: str | None = Field(default=None, description="Words in the merchant's name.")
@@ -368,6 +388,15 @@ def spend_txns(month: str) -> list[dict[str, Any]]:
     ]
 
 
+#: How the transactions screen's label names an account filter.
+_SCOPE_NAMES = {
+    "bank": "Savings and current",
+    "sb": "Savings",
+    "ca": "Current account",
+    "cc": "Credit card",
+}
+
+
 def _txn_line(t: dict[str, Any]) -> str:
     sign = "+" if t["direction"] == "credit" else ""
     return (
@@ -378,6 +407,43 @@ def _txn_line(t: dict[str, Any]) -> str:
 
 def _not_done(why: str) -> str:
     return f"Not done: {why}"
+
+
+@dataclass
+class _Owed:
+    """One turn's record: how many units of speech went out, and the written
+    answer a read put on screen owes if nothing is said after it ran."""
+
+    starts: int = 0
+    line: str | None = None
+    at: int = 0
+
+
+async def _counted(
+    turn: AsyncGenerator[Speech, None], record: _Owed
+) -> AsyncGenerator[Speech, None]:
+    """The model's turn, each unit of its speech counted (not the brain's own lines)."""
+    try:
+        async for s in turn:
+            if isinstance(s, SpeechStart):
+                record.starts += 1
+            yield s
+    finally:
+        await turn.aclose()
+
+
+#: Per turn, like ``landed``'s record: each turn runs in its own task.
+_OWED: ContextVar[_Owed | None] = ContextVar("bank_owed", default=None)
+
+
+def owe(line: str) -> None:
+    """Beside a read the customer asked to hear (her balances, a screen's
+    contents): the written answer, said by the brain if the model's turn says
+    nothing after the tool ran (the turn's preamble alone does not count). It
+    is the floor under "I'll open your accounts" followed by silence."""
+    if (record := _OWED.get()) is not None:
+        record.line = line
+        record.at = record.starts
 
 
 #: What a brain holds for one socket only: the session object and the speech
@@ -562,10 +628,24 @@ class BankBrain(OpenAIBrain):
 
     async def _reply(self, session: Session) -> AsyncGenerator[Speech, None]:
         """The model's turn, its ``{show: …}`` cues sent to the page, and a written
-        line when it acted on screen and said nothing."""
-        turn = self.stage.cued(super().respond(session))
-        async for s in self._fallback.speak_if_silent(self, turn):
-            yield s
+        line when it acted on screen and said nothing.
+
+        A read that owes an answer (``owe``: her balances, what a screen holds)
+        is said by the brain when nothing was spoken after it ran: "I'll open
+        your accounts" and then silence is the bug this closes (B1)."""
+        record = _Owed()
+        token = _OWED.set(record)
+        try:
+            turn = _counted(self.stage.cued(super().respond(session)), record)
+            async for s in self._fallback.speak_if_silent(self, turn):
+                yield s
+            if record.line is not None and record.starts == record.at:
+                logger.warning("bank: a read went unanswered; the brain says {!r}", record.line)
+                async for s in self.say_line(record.line, remember=True):
+                    yield s
+        finally:
+            with contextlib.suppress(ValueError):
+                _OWED.reset(token)
         for unkept in self.stage.end_turn():
             logger.info("bank: unkept promise {} in {!r}", unkept.move.id, unkept.sentence)
 
@@ -753,6 +833,14 @@ class BankBrain(OpenAIBrain):
         what = move.id if move else result.move
         if result.outcome == "unknown":
             return f"[The page has not answered {what} yet; do not say it happened.]"
+        if what == "confirm.ask" and self.awaiting is not None:
+            # No sheet is on screen, so a yes now has nothing to press.
+            self.awaiting = None
+        if what != "ui.show":
+            # A move the customer asked for did not happen: she hears so, even
+            # when the model's turn has already ended (never silence, B1). A cue
+            # that missed only failed to point; the words still stand.
+            self._say_soon(line(self.lang, "not_shown"))
         return f"[On screen, {what} did not happen: {detail}. Never say it did; use the options or ask.]"
 
     async def _toggle(self, session: Session, language: str) -> None:
@@ -813,6 +901,7 @@ class BankBrain(OpenAIBrain):
     def tools(self) -> list[Callable[..., Any]]:
         return [
             self.open_screen,
+            self.my_accounts,
             self.find_transactions,
             self.explain_transaction,
             self.spending,
@@ -835,15 +924,217 @@ class BankBrain(OpenAIBrain):
             return None
         return "she is not signed in. Offer to open her banking (open_screen dashboard), which signs her in."
 
+    @needs_result_now
     async def open_screen(self, req: ScreenRequest) -> str:
-        """Open a screen of the bank's site or app (an app screen signs a demo visitor in)."""
+        """Open a screen of the bank's site or app (an app screen signs a demo visitor in).
+        Returns what is on it, from her data: answer from that. Her balances: my_accounts."""
         self._send("nav.open", {"screen": req.screen, "id": req.id})
         if req.screen in _APP_SCREENS:
             self.signed_in = True
         self.screen = req.screen
         self.mode = mode_of(req.screen)
-        landed(line(self.lang, "open"))
-        return f"Opening {req.screen}. You are now {_MODE_NOTE[self.mode]}."
+        facts = self._screen_facts(req.screen, req.id)
+        owe(self._screen_line(req.screen, req.id))
+        return (
+            f"{req.screen.replace('_', ' ')} is on screen (if it was open already, it stays). "
+            f"You are now {_MODE_NOTE[self.mode]}.\n"
+            + (f"What it shows:\n{facts}\n" if facts else "")
+            + "Answer what she asked from this in one or two sentences; if she only asked to see "
+            "it, say what is there that matters and offer the next step."
+        )
+
+    @needs_result_now
+    async def my_accounts(self, req: AccountsRequest) -> str:
+        """Her bank accounts and balances ("my accounts", "my balance", "how much money do I
+        have"): both accounts on the dashboard, ringed; or one account's screen."""
+        if (why := self._need_sign_in()) is not None:
+            return _not_done(why)
+        self._send("accounts.show", {"account": req.account})
+        if req.account is None:
+            self.screen = "dashboard"
+        else:
+            self.screen = "account"
+        self.mode = "banking"
+        ids = [req.account] if req.account else [a["id"] for a in b.CUSTOMER["accounts"]]
+        owe(self._balances_line(ids))
+        lines = [self._account_line(i) for i in ids]
+        if req.account is None:
+            total = sum(self.balances[i] for i in ids)
+            lines.append(f"Together {b.inr(total)} across her two bank accounts.")
+            cc = next(c for c in b.CUSTOMER["cards"] if c["id"] == "credit")
+            lines.append(
+                f"Not a bank account: the credit card ending {cc['last4']} has {b.inr(cc['outstanding'])} "
+                "outstanding (card_details if she asks)."
+            )
+        lines.append("Read her each account's balance now, in one or two sentences.")
+        return "\n".join(lines)
+
+    # ─── What a screen holds (spoken from her data, never invented) ─────
+
+    def _account_line(self, acc_id: str) -> str:
+        a = next(x for x in b.CUSTOMER["accounts"] if x["id"] == acc_id)
+        rate = f", interest {a['rate']}% a year" if a.get("rate") else ""
+        return (
+            f"{b.ACCOUNT_NAMES[acc_id].capitalize()}: {a['name']} ending {a['last4']}, available "
+            f"balance {b.inr(self.balances[acc_id])}{rate}."
+        )
+
+    def _balances_line(self, ids: list[str]) -> str:
+        """Her balances as a sentence in the call's language: the line the brain
+        says itself when the model does not."""
+        parts = [
+            line(
+                self.lang,
+                f"balance_{i}",
+                last4=next(a["last4"] for a in b.CUSTOMER["accounts"] if a["id"] == i),
+                amount=b.inr(self.balances[i]),
+            )
+            for i in ids
+        ]
+        return line(self.lang, "balances", accounts=line(self.lang, "and").join(parts))
+
+    def _screen_line(self, screen: str, acc_id: str | None) -> str:
+        if screen == "dashboard" and self.signed_in:
+            return self._balances_line([a["id"] for a in b.CUSTOMER["accounts"]])
+        if screen == "account":
+            return self._balances_line([acc_id if acc_id in self.balances else "sb"])
+        return line(self.lang, "screen_open")
+
+    def _card_facts(self, card_id: str) -> list[str]:
+        data = next(c for c in b.CUSTOMER["cards"] if c["id"] == card_id)
+        state = self.cards[card_id]
+        ctl = state["controls"]
+        lines = [
+            f"{data['name']} ending {data['last4']}, expires {data['expiry']}. "
+            + ("BLOCKED. " if ctl["blocked"] else "Active. ")
+            + "Controls: "
+            + ", ".join(f"{k} {'on' if v else 'off'}" for k, v in ctl.items() if k != "blocked")
+            + ".",
+            "Daily limits: "
+            + "; ".join(
+                f"{k} {b.inr(v)} (max {b.inr(data['limits_max'][k])})"
+                for k, v in state["limits"].items()
+            )
+            + ".",
+        ]
+        if card_id == "credit":
+            st = data["statement"]
+            due = b.fmt_date(b.days_ago(-int(st["due_days_from_now"])))
+            pe = data["points_expiring"]
+            lines.append(
+                f"Credit limit {b.inr(data['credit_limit'])}, outstanding {b.inr(data['outstanding'])}, "
+                f"available {b.inr(data['available'])}. Statement due {b.inr(st['total_due'])}, minimum "
+                f"{b.inr(st['min_due'])}, by {due}. Unbilled {b.inr(data['unbilled'])}. "
+                f"Reward points {data['reward_points']:,} ({pe['points']:,} expire in {pe['days_from_now']} days)."
+            )
+        return lines
+
+    def _screen_facts(self, screen: str, item: str | None) -> str:
+        """A short summary of what ``screen`` shows, from the same data the page reads."""
+        c = b.CUSTOMER
+        out: list[str] = []
+        match screen:
+            case "dashboard":
+                out += [self._account_line(a["id"]) for a in c["accounts"]]
+                cc = next(x for x in c["cards"] if x["id"] == "credit")
+                st = cc["statement"]
+                out.append(
+                    f"Credit card ending {cc['last4']}: outstanding {b.inr(cc['outstanding'])}, "
+                    f"bill {b.inr(st['total_due'])} due in {st['due_days_from_now']} days."
+                )
+                out.append(
+                    "Upcoming dues: "
+                    + "; ".join(
+                        f"{(b.biller(r['biller_id']) or {}).get('name', r['biller_id'])} "
+                        f"{b.inr(r['due'])} in {r['due_days_from_now']} days"
+                        for r in c["registered_billers"]
+                    )
+                    + "."
+                )
+            case "account":
+                acc = item if item in self.balances else "sb"
+                out.append(self._account_line(acc))
+                recent = b.filter_txns(b.TxnFilter(account=acc))[:5]
+                out += ["Latest:"] + [_txn_line(t) for t in recent]
+            case "transactions":
+                recent = b.filter_txns(b.TxnFilter())[:5]
+                out.append(
+                    f"All {len(c['transactions'])} transactions, newest first "
+                    "(savings, current and credit card; find_transactions filters them). Latest:"
+                )
+                out += [_txn_line(t) for t in recent]
+            case "insights":
+                key = b.month_key(b.today())
+                txns = spend_txns(key)
+                out.append(
+                    f"{b.month_name(key)} so far: spent {b.inr(sum(t['amount'] for t in txns))} "
+                    f"in {len(txns)} payments (spending has the breakdown)."
+                )
+            case "cards_hub":
+                out += self._card_facts("debit")[:1] + self._card_facts("credit")[::2]
+            case "debit_card" | "credit_card":
+                out += self._card_facts(screen.removesuffix("_card"))
+            case "payments":
+                out.append(self._account_line("sb"))
+                out.append(
+                    "Beneficiaries: "
+                    + "; ".join(
+                        f"{x['name']} ({x['nickname']}, {x['bank']}, limit {b.inr(x['limit'])})"
+                        for x in c["beneficiaries"]
+                    )
+                    + "."
+                )
+            case "bills":
+                out.append(
+                    "Billers: "
+                    + "; ".join(
+                        f"{(b.biller(r['biller_id']) or {}).get('name', r['biller_id'])} due "
+                        f"{b.inr(r['due'])} in {r['due_days_from_now']} days"
+                        + (" (autopay)" if r.get("autopay") else "")
+                        for r in c["registered_billers"]
+                    )
+                    + "."
+                )
+            case "deposits":
+                out += [
+                    f"FD {b.inr(d['amount'])} at {d['rate']}% for {d['tenure_months']} months, "
+                    f"{d['payout']}, matures in {d['matures_days_from_now']} days"
+                    + (f" at {b.inr(d['maturity_amount'])}" if d["payout"] == "cumulative" else "")
+                    + "."
+                    for d in c["deposits"]
+                ]
+            case "statements":
+                out.append(
+                    f"Monthly account statements and {len(c['statements'])} card statements; "
+                    "the latest card bill is on the credit card screen."
+                )
+            case "offers":
+                out += [f"{o['title']}: {o['line']}" for o in c["offers"]]
+            case "cards":
+                out.append(
+                    "Cards: "
+                    + "; ".join(
+                        f"{x['name']} (annual fee {b.inr(x['annual_fee'])})"
+                        for x in b.PRODUCTS["credit_cards"]
+                    )
+                    + ". rank_cards compares them for a spend."
+                )
+            case "card_detail":
+                card = b.card_product(item or "spark")
+                if card:
+                    out.append(f"{card['name']}: {'; '.join(card['highlights'])}.")
+            case "loans" | "loan":
+                loans = b.PRODUCTS["loans"]
+                if screen == "loan":
+                    loans = [x for x in loans if x["id"] == (item or "home")]
+                out += [
+                    f"{x['name']}: {x['rate_min']}% to {x['rate_max']}%, {b.inr(x['amount_min'])} to "
+                    f"{b.inr(x['amount_max'])}."
+                    for x in loans
+                ]
+            case _:
+                pass
+        return "\n".join(out)
 
     @needs_result_now
     async def find_transactions(self, q: TxnQuery) -> str:
@@ -868,6 +1159,7 @@ class BankBrain(OpenAIBrain):
             " ".join(
                 x
                 for x in (
+                    _SCOPE_NAMES.get(q.account or "", ""),
                     b.CATEGORY_NAMES.get(q.category or "", ""),
                     f'"{q.query}"' if q.query else "",
                     label,
@@ -1049,36 +1341,10 @@ class BankBrain(OpenAIBrain):
         limit, dues and reward points. Opens the card's screen."""
         if (why := self._need_sign_in()) is not None:
             return _not_done(why)
-        data = next(c for c in b.CUSTOMER["cards"] if c["id"] == req.card)
-        state = self.cards[req.card]
         self._send("nav.open", {"screen": f"{req.card}_card"})
         self.screen, self.mode = f"{req.card}_card", "banking"
         landed(line(self.lang, "card"))
-        ctl = state["controls"]
-        lines = [
-            f"{data['name']} ending {data['last4']}, expires {data['expiry']}. "
-            + ("BLOCKED. " if ctl["blocked"] else "Active. ")
-            + "Controls: "
-            + ", ".join(f"{k} {'on' if v else 'off'}" for k, v in ctl.items() if k != "blocked")
-            + ".",
-            "Daily limits: "
-            + "; ".join(
-                f"{k} {b.inr(v)} (max {b.inr(data['limits_max'][k])})"
-                for k, v in state["limits"].items()
-            )
-            + ".",
-        ]
-        if req.card == "credit":
-            st = data["statement"]
-            due = b.fmt_date(b.days_ago(-int(st["due_days_from_now"])))
-            pe = data["points_expiring"]
-            lines.append(
-                f"Credit limit {b.inr(data['credit_limit'])}, outstanding {b.inr(data['outstanding'])}, "
-                f"available {b.inr(data['available'])}. Statement due {b.inr(st['total_due'])}, minimum "
-                f"{b.inr(st['min_due'])}, by {due}. Unbilled {b.inr(data['unbilled'])}. "
-                f"Reward points {data['reward_points']:,} ({pe['points']:,} expire in {pe['days_from_now']} days)."
-            )
-        return "\n".join(lines)
+        return "\n".join(self._card_facts(req.card))
 
     @needs_result_now
     async def request_change(self, req: ChangeRequest) -> str:
@@ -1484,8 +1750,12 @@ class BankBrain(OpenAIBrain):
             return f"Already speaking {req.language}."
         configure_soon(self.session, self._speaking(req.language))
         self.append_note(self._language_note())
+        # The model's line before the call was in the old language; the switch
+        # is said in the new one, so the turn never ends on a promise alone.
+        self._say_soon(line(self.lang, "switched"))
         return (
-            f"Switched. From your next sentence, speak {b.PERSONA['language_names'][req.language]}."
+            f"Switched; she was told so in {b.PERSONA['language_names'][req.language]}, do not repeat it. "
+            f"From your next sentence, speak {b.PERSONA['language_names'][req.language]}."
         )
 
 

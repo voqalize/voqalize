@@ -81,7 +81,7 @@ export function Dashboard() {
 
       <div className="ax-dash__grid">
         <div className="ax-col">
-          <div className="ax-accts ax-o1">
+          <div className="ax-accts ax-o1" data-stage-thing="accounts" data-stage-label="Your accounts">
             {customer.accounts.map((a) => (
               <Link
                 key={a.id}

@@ -72,6 +72,9 @@ async def _result(rig: DemoRig, move: dict[str, Any], outcome: str, detail: str)
     await asyncio.sleep(0.1)
 
 
+_BANKING = {"landing": "banking", "path": "/app", "lang": "en", "signed_in": True}
+
+
 def _results(llm: ScriptedOpenAI, name: str) -> list[str]:
     return tool_results_of(llm.captured_inputs[-1], name)
 
@@ -221,6 +224,123 @@ async def test_banking_answers_from_her_data_and_confirms_a_block() -> None:
         assert brain.cards["debit"]["controls"]["blocked"] is True
         idle = await rig.driver.user_idle()
         assert "ANVCB482113" in idle.text and "Done" in idle.text
+
+
+# ─── B1: "show me my accounts" is answered with her balances, never silence ──
+
+_SB, _CA = (b.inr(a["balance"]) for a in b.CUSTOMER["accounts"])
+
+
+async def test_show_me_my_accounts_rings_them_and_reads_each_balance() -> None:
+    """The owner's words on a signed-in dashboard: the accounts are ringed on
+    screen and both balances come back to be read in the same turn."""
+    llm = ScriptedOpenAI(
+        {
+            "Can you show me my accounts?": [
+                reply_and_call("Of course, here are your accounts.", "my_accounts"),
+                reply(f"Your savings has {_SB}, and your current account has {_CA}."),
+            ],
+        }
+    )
+    async with demo("bank", llm) as rig:
+        await rig.driver.start_session(init=_BANKING)
+        with tools_within_budget():
+            t = await rig.driver.user_says("Can you show me my accounts?")
+        check_turn(rig, t)
+        assert _move(rig, "accounts.show")["args"] == {}
+        said = _results(llm, "my_accounts")[-1]
+        assert f"available balance {_SB}" in said and f"available balance {_CA}" in said
+        assert "Read her each account's balance" in said
+        # Answered in the same turn: the second request carried the balances.
+        assert _SB in t.text and _CA in t.text
+        assert "ending 4821 has" not in t.text, "the brain's floor spoke over a model that answered"
+        await _result(rig, _move(rig, "accounts.show"), "applied", "both balances ringed")
+        assert "nav.open" not in [p["move"] for p in _moves(rig)]
+
+
+async def test_an_already_open_dashboard_still_gets_the_balances_said() -> None:
+    """B1 as it happened: the model promised, opened the dashboard that was
+    already open and said nothing more. The tool now reads back what the screen
+    holds, and when the model still says nothing after it, the brain says her
+    balances itself: never a promise and then silence."""
+    llm = ScriptedOpenAI(
+        {
+            "Can you show me my accounts?": [
+                reply_and_call(
+                    "Of course, I'll open your accounts.", "open_screen", screen="dashboard"
+                ),
+                reply(""),
+            ],
+        }
+    )
+    async with demo("bank", llm) as rig:
+        await rig.driver.start_session(init=_BANKING)
+        t = await rig.driver.user_says("Can you show me my accounts?")
+        check_turn(rig, t)
+        opened = _move(rig, "nav.open")
+        assert opened["args"] == {"screen": "dashboard"}
+        said = _results(llm, "open_screen")[-1]
+        assert _SB in said and _CA in said and "What it shows" in said
+        assert len(llm.requests) == 2, "open_screen's result is read in the same turn"
+        assert f"savings account ending 4821 has {_SB}" in t.text
+        assert f"current account ending 6630 has {_CA}" in t.text
+        # The page answers as it did on the call; nothing more is owed or said wrong.
+        await _result(rig, opened, "applied", "dashboard is already open")
+        brain = rig.brain
+        assert isinstance(brain, BankBrain) and brain._say_next is None
+
+
+async def test_a_move_the_page_refuses_is_still_answered_aloud() -> None:
+    llm = ScriptedOpenAI(
+        {
+            "Open my statements.": [
+                reply_and_call("Opening them.", "open_screen", screen="statements"),
+                reply("Your statements are on screen."),
+            ],
+        }
+    )
+    async with demo("bank", llm) as rig:
+        await rig.driver.start_session(init=_BANKING)
+        await rig.driver.user_says("Open my statements.")
+        await _result(
+            rig, _move(rig, "nav.open"), "refused", "screen: the statements screen did not open"
+        )
+        idle = await rig.driver.user_idle()
+        assert "didn't come up on your screen" in idle.text
+
+
+async def test_only_my_bank_accounts_shows_savings_and_current_together() -> None:
+    llm = ScriptedOpenAI(
+        {
+            "Remove the credit card and only show me my bank accounts.": [
+                reply_and_call("Sure.", "find_transactions", account="bank", period="last_30_days"),
+                reply("Here are your savings and current account transactions."),
+            ],
+        }
+    )
+    async with demo("bank", llm) as rig:
+        await rig.driver.start_session(init=_BANKING)
+        await rig.driver.user_says("Remove the credit card and only show me my bank accounts.")
+        args = _move(rig, "txn.find")["args"]
+        assert args["account"] == "bank" and args["label"].startswith("Savings and current")
+        both = b.filter_txns(b.TxnFilter(account="bank", from_days_ago=29, to_days_ago=0))
+        assert {t["account"] for t in both} == {"sb", "ca"}
+        said = _results(llm, "find_transactions")[-1]
+        assert said.startswith(f"{len(both)} transactions")
+        assert "credit card," not in said and "Not done" not in said
+
+
+async def test_a_language_switch_is_said_in_the_new_language() -> None:
+    llm = ScriptedOpenAI(
+        {"Can we talk in Hindi?": reply_and_call("Sure.", "set_language", language="hi")}
+    )
+    async with demo("bank", llm) as rig:
+        await rig.driver.start_session(init=_BANKING)
+        await rig.driver.user_says("Can we talk in Hindi?")
+        await asyncio.sleep(0.2)
+        check_voice_pair(rig, voice=PERSONA["voices"]["hi"], language="hi")
+        idle = await rig.driver.user_idle()
+        assert "हिंदी" in idle.text
 
 
 async def test_a_change_the_page_refuses_is_never_said_done() -> None:
@@ -593,9 +713,6 @@ async def _drop(driver: VoqalizeDriver) -> None:
             break
         await asyncio.sleep(0.02)
     await asyncio.sleep(0.1)
-
-
-_BANKING = {"landing": "banking", "path": "/app", "lang": "en", "signed_in": True}
 
 
 async def test_a_dropped_socket_rejoins_the_call_where_it_was() -> None:
