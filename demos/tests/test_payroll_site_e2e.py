@@ -706,3 +706,75 @@ async def test_no_redial_is_asked_of_a_voqalize_that_does_not_offer_it() -> None
         check_greeting(rig, greeting)
         assert _redials(rig.driver) == []
         check_voice_pair(rig, voice=PERSONA.voices["en"], language="en")
+
+
+# ─── Round 2 (23 Nov) ─────────────────────────────────────────────────────────
+
+
+def test_the_site_s_character_is_aditya_from_persona_json_only() -> None:
+    """Round 2, R4: the character is Aditya, set in persona.json alone; the
+    brain's files never name him, and his Hindi lines are in the masculine
+    first person persona.json declares."""
+    raw = json.loads((SITE / "persona.json").read_text())
+    assert (raw["id"], raw["display_name"], raw["avatar_character"]) == (
+        "aditya",
+        "Aditya",
+        "aditya",
+    )
+    assert raw["voices"] == {"en": "omnivoice/aditya", "hi": "omnivoice/aditya"}
+    assert PERSONA.name == "Aditya" and PERSONA.hindi_forms == "masculine"
+    backend = "\n".join(p.read_text() for p in (SITE / "backend").glob("*.py"))
+    assert "Aditya" not in backend and "omnivoice/aditya" not in backend
+    assert (SITE / "frontend" / "src" / "characters" / f"{raw['avatar_character']}.webp").is_file()
+    for lines in GREETING.values():
+        assert "सकता हूँ" in lines["hi"] or "दूँगा" in lines["hi"]
+
+
+async def test_a_hindi_booking_says_the_day_and_time_in_hindi() -> None:
+    """Round 2, R8: the Hindi booking line said "Wednesday 25 November at
+    9:30 am" inside a Hindi sentence. The ask and the outcome now say the day
+    and the time in Hindi."""
+    slot = _a_free_slot()
+    llm = ScriptedOpenAI(
+        {
+            "वही स्लॉट बुक कर दो": [
+                call(
+                    "hold_slot",
+                    slot_id=slot.id,
+                    name="Ravi",
+                    company="Kestrel Health Labs",
+                    email="ravi@kestrel.example",
+                    email_confirmed=True,
+                ),
+                reply("क्या मैं पक्का कर दूँ?"),
+            ],
+        }
+    )
+    async with demo("payroll_site", llm) as rig:
+        await rig.driver.start_session(init={"page": "/book-demo", "lang": "hi"})
+        check_turn(rig, await rig.driver.user_says("वही स्लॉट बुक कर दो, मैं Ravi हूँ"))
+        await _answer_all(rig)
+        (held,) = tool_results_of(llm.captured_inputs[-1], "hold_slot")
+        when = f"{cal.spoken_day_hi(slot.day)}, {cal.spoken_time_hi(slot.time)}"
+        assert when in held and "बजे" in held
+        turn = await rig.driver.user_says("हाँ कर दो")
+        assert turn.text == BOOKING["booking"]["hi"]
+        (confirm,) = _moves(rig, "booking.confirm")
+        await rig.driver.send_ui_event(
+            "stage_result",
+            {"call_ref": confirm["call_ref"], "move": "booking.confirm", "outcome": "applied"},
+        )
+        await asyncio.sleep(0.1)
+        said = await rig.driver.user_idle()
+        assert when in said.text and cal.reference(slot) in said.text
+        for english in (slot.day.strftime("%A"), slot.day.strftime("%B"), " am", " pm", " at "):
+            assert english not in said.text, said.text
+
+
+def test_hindi_days_and_times() -> None:
+    from datetime import date
+
+    assert cal.spoken_day_hi(date(2026, 11, 25)) == "बुधवार 25 नवंबर"
+    assert cal.spoken_time_hi("09:30") == "सुबह 9:30 बजे"
+    assert cal.spoken_time_hi("14:00") == "दोपहर 2 बजे"
+    assert cal.spoken_time_hi("16:30") == "शाम 4:30 बजे"

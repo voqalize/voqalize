@@ -97,7 +97,12 @@ label per job (sales, pricing, demo booking), picked by the page the visitor is 
 
 - **Another character**: change `avatar_character`, `display_name` and `voices` to a character
   and a voice from the catalogue (`GET /api/v1/catalog.get`) whose voice speaks every listed
-  language.
+  language, set `hindi_forms` (the character is Aditya, so `masculine`, which the Hindi lines in
+  `backend/lines.py` use), and add the character's still photo as
+  `frontend/src/characters/<avatar_character>.webp`: the idle dock shows it, and the live avatar
+  (`@voqalize/avatar`, Fernhollow's `^0.6.3` with its default motion) mounts only once a call is up.
+- **The visitor's language** is remembered in the browser (`frontend/src/savedLang.ts`), so a
+  reload keeps the toggle, and the next call, on the language last used.
 - **Another language**: add it to `languages` and `voices`, then add its row to every table in
   `backend/lines.py` (the brain refuses to start without them). The brain moves both speech legs
   (recognizer and voice) together, at the start and when the visitor switches mid-call.

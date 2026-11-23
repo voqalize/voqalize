@@ -27,6 +27,8 @@ class Persona:
     languages: tuple[str, ...]
     language_names: dict[str, str]
     default_language: str
+    hindi_forms: str = "masculine"
+    """The gender of the first-person forms the character uses in Hindi."""
 
     def tag(self, value: str | None) -> str:
         """A language this persona speaks, from a tag ("hi") or a name ("Hindi");
@@ -50,6 +52,7 @@ def load(path: Path = PERSONA_FILE) -> Persona:
         languages=tuple(x["code"] for x in langs),
         language_names={x["code"]: x["label"] for x in langs},
         default_language=raw["default_language"],
+        hindi_forms=str(raw.get("hindi_forms", "masculine")),
     )
 
 

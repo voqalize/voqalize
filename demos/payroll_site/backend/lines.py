@@ -6,6 +6,9 @@ screen and said nothing (:mod:`voqalize_demos.silent_turn`); the booking lines
 are said by the brain when the visitor's yes books the demo. None of them names
 the character except through ``{name}``, filled from ``persona.json``. A language
 added to the persona needs a row in every table here; ``brain.py`` asserts it.
+The Hindi lines use masculine first-person forms ("सकता हूँ", "कर रहा हूँ"), as
+``persona.json`` ``hindi_forms`` says; a character with feminine forms needs
+them rewritten here.
 """
 
 from __future__ import annotations
@@ -91,7 +94,7 @@ LANDED: Lines = {
 BOOKING: Mapping[str, Mapping[str, str]] = {
     "ask": {
         "en": "Shall I confirm {when} with {rep}?",
-        "hi": "क्या मैं {when} पर {rep} के साथ पक्का कर दूँ?",
+        "hi": "क्या मैं {when} {rep} के साथ डेमो पक्का कर दूँ?",
     },
     "booking": {"en": "Confirming it now.", "hi": "अभी पक्का कर रहा हूँ।"},
     "booked": {
@@ -100,7 +103,7 @@ BOOKING: Mapping[str, Mapping[str, str]] = {
             "video link is on its way to your email."
         ),
         "hi": (
-            "आपका डेमो {when} पर {rep} के साथ बुक हो गया है, रेफ़रेंस {reference}। वीडियो लिंक "
+            "आपका डेमो {when} {rep} के साथ बुक हो गया है, रेफ़रेंस {reference}। वीडियो लिंक "
             "के साथ इनवाइट आपके ईमेल पर आ रहा है।"
         ),
     },

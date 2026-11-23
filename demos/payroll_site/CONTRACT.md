@@ -11,7 +11,10 @@ file is the agreement between `frontend/` and `backend/`. Change it in the same 
 - `data/tax_example.json`: the worked old-vs-new example on `/tax`. Never recomputed on the site.
 - `content/site.json`: page copy, the lead card's vocabulary (pains → modules, current tools,
   states), the sales calendar (reps, weekly IST hours, holidays, the taken rule) and booking topics.
-- `persona.json`: the character (name, avatar, voice per language, languages, default).
+- `persona.json`: the character (name, avatar, voice per language, languages, default, the gender
+  of its Hindi first-person forms). Aditya since round 2 (R4); his still photo is
+  `frontend/src/characters/aditya.webp`, shown in the idle dock (R5). In a Hindi call the booking
+  lines say the day and time in Hindi ("बुधवार 25 नवंबर, सुबह 9:30 बजे", R8).
 
 **Twins.** Pricing is `backend/pricing.py` and `frontend/src/lib/pricing.ts`, pinned by
 `content/pricing_cases.json`. The calendar is `backend/calendar_rules.py` and

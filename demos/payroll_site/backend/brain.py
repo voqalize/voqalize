@@ -562,6 +562,10 @@ class PaynoraSiteBrain(OpenAIBrain):
         )
 
     def _when(self, slot: cal.Slot) -> str:
+        """The slot as said in the call's language (round 2, R8: a Hindi call
+        heard "Wednesday 25 November at 9:30 am" inside its booking line)."""
+        if self.lang == "hi":
+            return f"{cal.spoken_day_hi(slot.day)}, {cal.spoken_time_hi(slot.time)}"
         return f"{cal.spoken_day(slot.day)} at {cal.spoken_time(slot.time)}"
 
     def _booked_line(self, held: Held) -> str:

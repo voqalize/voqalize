@@ -107,6 +107,36 @@ def spoken_time(time: str) -> str:
     return f"{h12}:{m:02d} {suffix}" if m else f"{h12} {suffix}"
 
 
+_DAYS_HI = ("सोमवार", "मंगलवार", "बुधवार", "गुरुवार", "शुक्रवार", "शनिवार", "रविवार")
+_MONTHS_HI = (
+    "जनवरी",
+    "फ़रवरी",
+    "मार्च",
+    "अप्रैल",
+    "मई",
+    "जून",
+    "जुलाई",
+    "अगस्त",
+    "सितंबर",
+    "अक्टूबर",
+    "नवंबर",
+    "दिसंबर",
+)
+
+
+def spoken_day_hi(d: date) -> str:
+    """The day as said in Hindi: "बुधवार 25 नवंबर"."""
+    return f"{_DAYS_HI[d.weekday()]} {d.day} {_MONTHS_HI[d.month - 1]}"
+
+
+def spoken_time_hi(time: str) -> str:
+    """The time as said in Hindi: "सुबह 9:30 बजे", "दोपहर 2 बजे"."""
+    h, m = (int(x) for x in time.split(":"))
+    part = "सुबह" if h < 12 else "दोपहर" if h < 16 else "शाम"
+    h12 = h % 12 or 12
+    return f"{part} {h12}:{m:02d} बजे" if m else f"{part} {h12} बजे"
+
+
 def part_of(time: str) -> str:
     m = minutes(time)
     return "morning" if m < 12 * 60 else "afternoon" if m < 16 * 60 else "evening"

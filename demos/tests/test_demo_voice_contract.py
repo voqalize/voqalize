@@ -32,10 +32,8 @@ Run: ``cd demos && uv run pytest tests/test_demo_voice_contract.py``
 
 from __future__ import annotations
 
-import json
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Any, Literal
 
 import pytest
@@ -94,13 +92,6 @@ class Expected:
 # The full demo set. Keep this table in step with ``demos/manifest.json`` — the
 # test below fails if a demo is discovered and not listed here, so adding a demo
 # without declaring its voice is a red suite, not a silent gap.
-
-
-def _persona(name: str) -> dict[str, Any]:
-    """A demo's persona.json, where its character, voices and languages live."""
-    return json.loads((Path(__file__).resolve().parents[1] / name / "persona.json").read_text())
-
-
 DEMOS: dict[str, Expected] = {
     # Javier, Agroplanet's parts adviser on www.agroplanet.cl: the store is
     # Chilean, so he opens in Spanish unless the toggle said English, and moves
@@ -229,19 +220,13 @@ DEMOS: dict[str, Expected] = {
     # a gallery card (the page is Uno Salud's own site). Asserted in
     # test_unosalud_e2e.py.
     "unosalud": Expected(voice="omnivoice/javier", language="es", provider="openai"),
-    # Paynora's two demos read their character from demos/<name>/persona.json:
-    # the default language, in that language's voice (both speak en and hi; the
-    # Hindi toggle is asserted in test_payroll_site_e2e.py / test_payroll_app_e2e.py).
-    "payroll_site": Expected(
-        voice=_persona("payroll_site")["voices"][_persona("payroll_site")["default_language"]],
-        language=_persona("payroll_site")["default_language"],
-        provider="openai",
-    ),
-    "payroll_app": Expected(
-        voice=_persona("payroll_app")["voices"][_persona("payroll_app")["default_language"]],
-        language=_persona("payroll_app")["default_language"],
-        provider="openai",
-    ),
+    # Paynora's two demos read their character from demos/<name>/persona.json;
+    # these rows name the voice outright, so a persona edit that changes it is
+    # seen here (round 2, R4: the site's character became Aditya). Both open in
+    # English, the default, and speak en and hi; the Hindi toggle is asserted in
+    # test_payroll_site_e2e.py / test_payroll_app_e2e.py.
+    "payroll_site": Expected(voice="omnivoice/aditya", language="en", provider="openai"),
+    "payroll_app": Expected(voice="omnivoice/priya", language="en", provider="openai"),
 }
 
 
