@@ -18,25 +18,40 @@ Run: ``cd demos && uv run pytest tests/test_payroll_app_e2e.py``
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import importlib.util
 import json
 import sys
+from collections.abc import AsyncIterator, Iterator
 from pathlib import Path
 from typing import Any
 
-from voqalize_demos.discovery import discover
+import pytest
+from voqalize_demos.discovery import build_for, discover
 from voqalize_demos.testing import ScriptedOpenAI, reply, reply_and_call, tool_results
 
+from voqalize.conformance import (
+    BrainServer,
+    DirectConnection,
+    VoqalizeDriver,
+    generate_keypair,
+    mint_voqalize_token,
+)
+from voqalize.sdk import Brain
 from voqalize.sdk.stage import load_spec
 from voqalize.sdk.stage.check import check_spec
 from voqalize.sdk.stage.gen import render_python, render_typescript
+from voqalize.sdk.wire import Capability, ConfigureFrame
 
 from ._harness import DemoRig, check_greeting, check_turn, check_voice_pair, demo
 
 discover()
 
 from voqalize_demos._loaded.payroll_app import books as books_mod  # noqa: E402
-from voqalize_demos._loaded.payroll_app.brain import PaynoraBrain  # noqa: E402
+from voqalize_demos._loaded.payroll_app import brain as brain_mod  # noqa: E402
+from voqalize_demos._loaded.payroll_app.brain import REJOIN, PaynoraBrain  # noqa: E402
+from voqalize_demos._loaded.payroll_app.prompt import JOB_NOTE  # noqa: E402
+from voqalize_demos._loaded.payroll_app.rejoin import KEEP_AFTER_DROP_S, Rejoin  # noqa: E402
 
 DEMOS = Path(__file__).resolve().parents[1]
 APP = DEMOS / "payroll_app"
@@ -45,6 +60,16 @@ NAME = PERSONA["display_name"]
 COMPANY = json.loads((APP / "data" / "company.json").read_text())
 FEB = next(r for r in COMPANY["payroll_runs"] if r["id"] == "PR-2026-02")
 inr = books_mod.inr
+
+
+@pytest.fixture(autouse=True)
+def _no_call_carried_between_tests() -> Iterator[None]:
+    """Every test here opens the same session id, and a dropped call is held for
+    a redial to rejoin (CONTRACT.md, redial): clear the store around each test,
+    so no test rejoins the one before it. Real session ids never repeat."""
+    REJOIN.clear()
+    yield
+    REJOIN.clear()
 
 
 def _moves(rig: DemoRig) -> list[dict[str, Any]]:
@@ -95,6 +120,7 @@ async def test_each_landing_greets_for_its_job_with_the_persona_voice() -> None:
         ("/help", "payslip"),
         ("/tax", "screen"),
     ):
+        REJOIN.clear()  # one session id for each landing: none rejoins the last
         async with demo("payroll_app", ScriptedOpenAI()) as rig:
             greeting = await rig.driver.start_session(init={"landing": landing, "lang": "en"})
             check_greeting(rig, greeting)
@@ -646,3 +672,184 @@ def test_the_persona_is_the_only_place_the_character_lives() -> None:
     backend = "\n".join(p.read_text() for p in (APP / "backend").glob("*.py"))
     assert NAME not in backend
     assert PERSONA["voices"]["en"] not in backend
+
+
+# ─── A call outlives a dropped brain socket (SDK 0.15.0, Config.redial) ──────
+
+
+def _redials(driver: VoqalizeDriver) -> list[bool | None]:
+    return [
+        r.config.redial.enabled
+        for r in driver.requests
+        if isinstance(r, ConfigureFrame) and r.config.redial is not None
+    ]
+
+
+@contextlib.asynccontextmanager
+async def _redial_rig(
+    llm: ScriptedOpenAI, sid: str = "payroll_app-redial-e2e"
+) -> AsyncIterator[tuple[DemoRig, DemoRig]]:
+    """One brain server and two sockets for one session id, as Voqalize opens
+    them: the first for the call, the second for the redial after it drops."""
+    build = build_for("payroll_app")
+    built: list[Brain] = []
+
+    def _build() -> Brain:
+        brain = build(llm)  # type: ignore[arg-type]
+        built.append(brain)
+        return brain
+
+    keypair = generate_keypair()
+    server = BrainServer(_build, host="127.0.0.1", port=0, public_keys=keypair.public_pem)
+    port = await server.start()
+
+    def rig() -> DemoRig:
+        token = mint_voqalize_token(
+            private_key_pem=keypair.private_pem,
+            session_id=sid,
+            agent_id="payroll_app",
+            tenant_id="demo",
+        )
+        driver = VoqalizeDriver(
+            DirectConnection(f"ws://127.0.0.1:{port}", sid, token=token),
+            session_id=sid,
+            default_timeout=10.0,
+        )
+        return DemoRig(name="payroll_app", server=server, driver=driver, _built=built)
+
+    first, second = rig(), rig()
+    try:
+        yield first, second
+    finally:
+        await first.driver.aclose()
+        await second.driver.aclose()
+        await server.aclose()
+
+
+def _dropped(store: Rejoin[PaynoraBrain], sid: str) -> bool:
+    entry = store._held.get(sid)
+    return entry is not None and entry[2] is not None
+
+
+async def _drop(rig: DemoRig, store: Rejoin[PaynoraBrain] = REJOIN) -> None:
+    """The socket drops: no End, no close code a hang-up would send. Waits for
+    the brain's ``on_session_end`` to mark the call dropped."""
+    await rig.driver.aclose()
+    for _ in range(100):
+        if _dropped(store, rig.driver.session_id):
+            return
+        await asyncio.sleep(0.02)
+    raise AssertionError("the dropped call was not held for a redial")
+
+
+async def test_a_dropped_socket_rejoins_the_call_with_its_books_and_pending_yes() -> None:
+    """Support on ``/``: Asha's leave approved (the books change), then Imran's
+    claim fix asked and not yet answered; the brain's socket drops without a
+    hang-up. Voqalize dials again for the same session with the same init; the
+    new brain adopts the call — this session's copy of the books with Asha's
+    loss of pay in it, the fix waiting for a yes, the model's history — says no
+    second greeting, and the yes on the new socket fixes the claim."""
+    llm = _support_llm()
+    async with _redial_rig(llm) as (first, second):
+        await first.driver.open()
+        greeting = await first.driver.start_session(init={"landing": "/", "lang": "en"})
+        check_greeting(first, greeting)
+        assert _redials(first.driver) == [True], "redial is on with the voice, before the greeting"
+        check_turn(first, await first.driver.user_says("Approve Asha's leave."))
+        await _yes(first, "Yes.", "leave.decide", "Asha Chavan's leave approved")
+        check_turn(first, await first.driver.user_says("Fix Imran's claim."))
+        before = _brain(first)
+        books, path = before.books, before.path
+        asha = books.slip("BB-1046", "2026-02")
+        assert asha is not None and asha["lop_days"] == 1
+        pending = before.confirms.pending
+        assert pending is not None and pending.kind == "fix_claim", "the fix waits for a yes"
+
+        await _drop(first)
+
+        # Voqalize redials: the same session id, the same init.
+        await second.driver.open()
+        again = await second.driver.start_session(
+            init={"landing": "/", "lang": "en"}, greeting_timeout=0.5
+        )
+        assert again is None, "no second greeting on a rejoined call"
+        after = _brain(second)
+        assert after is not before and after.rejoined
+        assert after.books is books, "the session's own copy of the books came across"
+        assert after.mode == "support" and after.lang == "en"
+        assert after.path == path and path != "/", "the page it moved to, not init's landing"
+        assert _redials(second.driver) == [True]
+        check_voice_pair(second, voice=PERSONA["voices"]["en"], language="en")
+
+        yes = await _yes(second, "Yes, fix it.", "claim.fix")
+        check_turn(second, yes, units=1)
+        fix = _moves(second)[-1]
+        assert fix["move"] == "claim.fix" and fix["args"] == {"claim_id": "RB-3108", "amount": 4580}
+        assert yes.text.startswith("Fixed. RB-3108 is now ₹4,580")
+        assert after.books.feb_reimbursements("BB-1032") == 4580
+        asha = after.books.slip("BB-1046", "2026-02")
+        assert asha is not None and asha["lop_days"] == 1, "the change before the drop stands"
+
+        check_turn(second, await second.driver.user_says("Show me RB-3109."))
+        sent = json.dumps(llm.captured_inputs[-1], ensure_ascii=False)
+        assert "Approve Asha's leave." in sent, "the model's history came across"
+        assert sent.count(JOB_NOTE["support"]) == 1, "the job is not told twice"
+
+
+async def test_a_redial_after_the_hold_expires_starts_fresh() -> None:
+    """Held calls go two minutes after their socket drops: a redial later than
+    that starts a new conversation from a fresh copy of the books, and greets."""
+    now = [0.0]
+    store: Rejoin[PaynoraBrain] = Rejoin(clock=lambda: now[0])
+    saved = brain_mod.REJOIN
+    brain_mod.REJOIN = store
+    try:
+        async with _redial_rig(_support_llm(), sid="payroll_app-expiry-e2e") as (first, second):
+            await first.driver.open()
+            await first.driver.start_session(init={"landing": "/", "lang": "en"})
+            check_turn(first, await first.driver.user_says("Approve Asha's leave."))
+            await _yes(first, "Yes.", "leave.decide", "Asha Chavan's leave approved")
+            before = _brain(first)
+            await _drop(first, store)
+            assert len(store) == 1, "held for a redial"
+            now[0] += KEEP_AFTER_DROP_S + 1
+            assert len(store) == 0, "let go after two minutes"
+
+            await second.driver.open()
+            greeting = await second.driver.start_session(init={"landing": "/", "lang": "en"})
+            check_greeting(second, greeting)
+            after = _brain(second)
+            assert after is not before and not after.rejoined
+            asha = after.books.slip("BB-1046", "2026-02")
+            assert asha is not None and asha["lop_days"] == 0, "fresh books"
+    finally:
+        brain_mod.REJOIN = saved
+
+
+def test_the_rejoin_store_keeps_a_live_call_and_lets_a_dropped_one_go() -> None:
+    now = [0.0]
+    store: Rejoin[object] = Rejoin(clock=lambda: now[0])
+    a, b = object(), object()
+    store.hold("s1", a)
+    store.dropped("s1", b)  # not the brain held: nothing changes
+    now[0] = KEEP_AFTER_DROP_S + 1
+    assert store.take("s1") is a, "a live call is kept however long it runs"
+    store.hold("s1", a)
+    store.dropped("s1", a)
+    store.dropped("s1", a)  # on_session_end runs at least once: idempotent
+    now[0] += KEEP_AFTER_DROP_S - 1
+    assert len(store) == 1
+    now[0] += 2
+    assert store.take("s1") is None and len(store) == 0
+    assert store.take("never-held") is None
+
+
+async def test_no_redial_is_asked_of_a_voqalize_that_does_not_offer_it() -> None:
+    """``configure`` raises for redial without the capability: the guide asks
+    only where it is offered, and the call starts the same either way."""
+    async with demo("payroll_app", ScriptedOpenAI()) as rig:
+        rig.driver.capabilities.discard(Capability.REDIAL)
+        greeting = await rig.driver.start_session(init={"landing": "/", "lang": "en"})
+        check_greeting(rig, greeting)
+        assert _redials(rig.driver) == []
+        check_voice_pair(rig, voice=PERSONA["voices"]["en"], language="en")

@@ -13,12 +13,25 @@ Run: ``cd demos && uv run pytest tests/test_payroll_site_e2e.py``
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
+from collections.abc import AsyncIterator, Iterator
 from pathlib import Path
 from typing import Any
 
-from voqalize_demos.discovery import discover
+import pytest
+from voqalize_demos.discovery import build_for, discover
 from voqalize_demos.testing import ScriptedOpenAI, call, reply, reply_and_call, tool_results_of
+
+from voqalize.conformance import (
+    BrainServer,
+    DirectConnection,
+    VoqalizeDriver,
+    generate_keypair,
+    mint_voqalize_token,
+)
+from voqalize.sdk import Brain
+from voqalize.sdk.wire import Capability, ConfigureFrame
 
 from ._harness import DemoRig, check_greeting, check_turn, check_voice_pair, demo
 
@@ -26,13 +39,24 @@ discover()
 
 from voqalize_demos._loaded.payroll_site import calendar_rules as cal  # noqa: E402
 from voqalize_demos._loaded.payroll_site import pricing  # noqa: E402
-from voqalize_demos._loaded.payroll_site.brain import PaynoraSiteBrain  # noqa: E402
+from voqalize_demos._loaded.payroll_site.brain import REJOIN, PaynoraSiteBrain  # noqa: E402
 from voqalize_demos._loaded.payroll_site.data import inr  # noqa: E402
-from voqalize_demos._loaded.payroll_site.lines import GREETING  # noqa: E402
+from voqalize_demos._loaded.payroll_site.lines import BOOKING, GREETING  # noqa: E402
 from voqalize_demos._loaded.payroll_site.persona import PERSONA  # noqa: E402
+from voqalize_demos._loaded.payroll_site.rejoin import KEEP_AFTER_DROP_S, Rejoin  # noqa: E402
 
 DEMOS = Path(__file__).resolve().parents[1]
 SITE = DEMOS / "payroll_site"
+
+
+@pytest.fixture(autouse=True)
+def _no_call_carried_between_tests() -> Iterator[None]:
+    """Every test here opens the same session id, and a dropped call is held for
+    a redial to rejoin (CONTRACT.md, redial): clear the store around each test,
+    so no test rejoins the one before it. Real session ids never repeat."""
+    REJOIN.clear()
+    yield
+    REJOIN.clear()
 
 
 def _moves(rig: DemoRig, move: str | None = None) -> list[dict[str, Any]]:
@@ -506,3 +530,179 @@ async def test_open_page_sends_the_navigate_move() -> None:
         await rig.driver.start_session(init={"page": "/"})
         check_turn(rig, await rig.driver.user_says("Show me the pricing."))
         assert _moves(rig, "site.go")[0]["args"] == {"path": "/pricing"}
+
+
+# ─── A call outlives a dropped brain socket (SDK 0.15.0, Config.redial) ──────
+
+
+def _redials(driver: VoqalizeDriver) -> list[bool | None]:
+    return [
+        r.config.redial.enabled
+        for r in driver.requests
+        if isinstance(r, ConfigureFrame) and r.config.redial is not None
+    ]
+
+
+@contextlib.asynccontextmanager
+async def _redial_rig(llm: ScriptedOpenAI) -> AsyncIterator[tuple[DemoRig, DemoRig]]:
+    """One brain server and two sockets for one session id, as Voqalize opens
+    them: the first for the call, the second for the redial after it drops."""
+    build = build_for("payroll_site")
+    built: list[Brain] = []
+    sid = "payroll_site-redial-e2e"
+
+    def _build() -> Brain:
+        brain = build(llm)  # type: ignore[arg-type]
+        built.append(brain)
+        return brain
+
+    keypair = generate_keypair()
+    server = BrainServer(_build, host="127.0.0.1", port=0, public_keys=keypair.public_pem)
+    port = await server.start()
+
+    def rig() -> DemoRig:
+        token = mint_voqalize_token(
+            private_key_pem=keypair.private_pem,
+            session_id=sid,
+            agent_id="payroll_site",
+            tenant_id="demo",
+        )
+        driver = VoqalizeDriver(
+            DirectConnection(f"ws://127.0.0.1:{port}", sid, token=token),
+            session_id=sid,
+            default_timeout=10.0,
+        )
+        return DemoRig(name="payroll_site", server=server, driver=driver, _built=built)
+
+    first, second = rig(), rig()
+    try:
+        yield first, second
+    finally:
+        await first.driver.aclose()
+        await second.driver.aclose()
+        await server.aclose()
+
+
+async def test_a_dropped_socket_rejoins_the_booking_where_it_was() -> None:
+    """The visitor starts on the home page, walks to /book-demo, switches the
+    call to Hindi on the toggle, and has a slot held with the form filled; the
+    brain's socket drops before the yes. Voqalize dials again for the same
+    session with the same init (the home page, English); the new brain adopts
+    the call — the booker job, Hindi on both legs, the held slot, the model's
+    history — says no second greeting, and the yes on the new socket books it."""
+    slot = _a_free_slot()
+    day = slot.day.isoformat()
+    pick = "That one please. I'm Ravi from Kestrel, ravi@kestrel.example, yes that's right."
+    llm = ScriptedOpenAI(
+        {
+            f"Can we do {day}?": [call("demo_slots", day=day), reply("There's a slot then.")],
+            pick: [
+                call(
+                    "hold_slot",
+                    slot_id=slot.id,
+                    name="Ravi",
+                    company="Kestrel Health Labs",
+                    email="ravi@kestrel.example",
+                    email_confirmed=True,
+                    headcount=410,
+                ),
+                reply("Shall I confirm it?"),
+            ],
+            "Thanks!": reply("You're welcome."),
+        }
+    )
+    async with _redial_rig(llm) as (first, second):
+        await first.driver.open()
+        greeting = await first.driver.start_session(init={"page": "/", "lang": "en"})
+        check_greeting(first, greeting)
+        assert _redials(first.driver) == [True], "redial is on with the voice, before the greeting"
+        await first.driver.send_ui_event(
+            "stage_event",
+            {
+                "name": "screen.viewed",
+                "by": "visitor",
+                "data": {"path": "/demos/payroll_site/book-demo", "title": "Book a demo"},
+            },
+        )
+        await first.driver.send_ui_event("language_requested", {"language": "hi"})
+        await asyncio.sleep(0.1)
+        await first.driver.user_idle()
+        check_turn(first, await first.driver.user_says(f"Can we do {day}?"))
+        await _answer_all(first)
+        check_turn(first, await first.driver.user_says(pick))
+        await _answer_all(first)
+        before = _brain(first)
+        assert before.job == "booker" and before.lang == "hi"
+        held = before.held
+        assert held is not None and held.slot.id == slot.id
+
+        # The socket drops: no End, no close code a hang-up would send.
+        await first.driver.aclose()
+        for _ in range(100):
+            entry = REJOIN._held.get(first.driver.session_id)
+            if entry is not None and entry[2] is not None:
+                break
+            await asyncio.sleep(0.02)
+        else:
+            raise AssertionError("the dropped call was not held for a redial")
+
+        # Voqalize redials: the same session id, the same init.
+        await second.driver.open()
+        again = await second.driver.start_session(
+            init={"page": "/", "lang": "en"}, greeting_timeout=0.5
+        )
+        assert again is None, "no second greeting on a rejoined call"
+        after = _brain(second)
+        assert after is not before and after.rejoined
+        assert after.job == "booker" and after.path == "/book-demo", "not init's home page"
+        assert after.held is held and after.booking == before.booking
+        assert _redials(second.driver) == [True]
+        check_voice_pair(second, voice=PERSONA.voices["hi"], language="hi")
+
+        turn = await second.driver.user_says("Yes, go ahead.")
+        check_turn(second, turn)
+        assert BOOKING["booking"]["hi"] in turn.text
+        (confirm,) = _moves(second, "booking.confirm")
+        await second.driver.send_ui_event(
+            "stage_result",
+            {"call_ref": confirm["call_ref"], "move": "booking.confirm", "outcome": "applied"},
+        )
+        await asyncio.sleep(0.1)
+        said = await second.driver.user_idle()
+        assert cal.reference(slot) in said.text
+        assert slot.id in after.booked
+
+        check_turn(second, await second.driver.user_says("Thanks!"))
+        sent = json.dumps(llm.captured_inputs[-1], ensure_ascii=False)
+        assert f"Can we do {day}?" in sent, "the model's history came across"
+
+
+def test_the_rejoin_store_keeps_a_live_call_and_lets_a_dropped_one_go() -> None:
+    """A redial reaching a process that never held the call (a deploy) finds
+    nothing; held calls are let go two minutes after their socket drops."""
+    now = [0.0]
+    store: Rejoin[object] = Rejoin(clock=lambda: now[0])
+    a, b = object(), object()
+    store.hold("s1", a)
+    store.dropped("s1", b)  # not the brain held: nothing changes
+    now[0] = KEEP_AFTER_DROP_S + 1
+    assert store.take("s1") is a, "a live call is kept however long it runs"
+    store.hold("s1", a)
+    store.dropped("s1", a)
+    store.dropped("s1", a)  # on_session_end runs at least once: idempotent
+    now[0] += KEEP_AFTER_DROP_S - 1
+    assert len(store) == 1
+    now[0] += 2
+    assert store.take("s1") is None and len(store) == 0
+    assert store.take("never-held") is None
+
+
+async def test_no_redial_is_asked_of_a_voqalize_that_does_not_offer_it() -> None:
+    """``configure`` raises for redial without the capability: the rep asks
+    only where it is offered, and the call starts the same either way."""
+    async with demo("payroll_site", ScriptedOpenAI()) as rig:
+        rig.driver.capabilities.discard(Capability.REDIAL)
+        greeting = await rig.driver.start_session(init={"page": "/", "lang": "en"})
+        check_greeting(rig, greeting)
+        assert _redials(rig.driver) == []
+        check_voice_pair(rig, voice=PERSONA.voices["en"], language="en")

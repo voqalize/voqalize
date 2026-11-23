@@ -124,3 +124,19 @@ job: `/welcome` → onboarding; `/` and `/help` → support; anything else → c
   choice; small things it answers, opens (`payroll_register` for any month's run) or says plainly it
   can't, without a request.
 - `employee.added`'s email is private in the slice, so it never reaches the brain.
+
+## Redial: a call outlives a dropped brain socket (SDK 0.15.0, owner 2026-11-23)
+
+- On a Voqalize that offers redial (`session.can_redial`), `on_session_start` turns it on
+  (`Config.redial`) in the same configure as the voice and languages. Elsewhere nothing is asked and
+  the call runs as before.
+- Each live brain is held in this process by session id (`backend/rejoin.py`) while its socket is
+  up and for two minutes after it drops. A redial on the same session that reaches this process
+  adopts the call as it was: **this session's copy of the books** with every change the call made
+  (leave, claims, regime switches, new joiners, setup steps), the page and job it had moved to (not
+  `init.landing`), the language on both legs, the change waiting for a yes, the moves in flight and
+  their effects, the model's history and the Stage director with its screen mirror.
+- A rejoined call is not greeted again (`greet` returns nothing) and the job note is not added to
+  the model's history twice; a yes said after the redial acts on the pending change. A redial that
+  reaches a fresh process (a deploy) finds nothing and starts again from a fresh copy of
+  `company.json` on `init.landing`. A hang-up is let go with the same two-minute expiry.

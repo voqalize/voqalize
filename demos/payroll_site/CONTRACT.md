@@ -58,3 +58,17 @@ Site command (not a move): `language_changed {language}` moves the EN / हि�
 - The agent states only facts from the three data files; the email goes on the lead card or the
   booking form only when the visitor typed it, or said it and confirmed it when read back.
 - Never a real company, product or person. "Current tool" options are generic.
+
+## Redial: a call outlives a dropped brain socket (SDK 0.15.0, owner 2026-11-23)
+
+- On a Voqalize that offers redial (`session.can_redial`), `on_session_start` turns it on
+  (`Config.redial`) in the same configure as the voice and languages. Elsewhere nothing is asked and
+  the call runs as before.
+- Each live brain is held in this process by session id (`backend/rejoin.py`) while its socket is
+  up and for two minutes after it drops. A redial on the same session that reaches this process
+  adopts the call as it was: the page and job it had moved to (not `init.page`), the language on
+  both legs, the lead card, the plan and calculator, the held slot waiting for a yes, bookings in
+  flight, the model's history and the Stage director with its screen mirror.
+- A rejoined call is not greeted again (`greet` returns nothing), and the visitor's next words carry
+  on where they were. A redial that reaches a fresh process (a deploy) finds nothing and starts a
+  new conversation on `init.page`. A hang-up is let go with the same two-minute expiry.

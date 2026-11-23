@@ -65,6 +65,15 @@ Without `VITE_AGENT_ID` and `VITE_PUBLISHABLE_KEY` (see `.env.example`) the app 
 Add `?debug=1` for the dev console, which fires any Stage move through the same performers the agent
 uses.
 
+## A dropped socket does not end the call
+
+Where Voqalize offers redial, the brain turns it on. If its socket drops without a hang-up (a
+restart, a network blip), Voqalize dials it again for the same session and the new brain picks up
+the call from `backend/rejoin.py`: the session's own copy of the books with every change made so
+far, the job, language, a change waiting for a yes and the model history, with no second greeting.
+Calls are held in process memory for two minutes after the drop, so a redial that reaches a freshly
+deployed process starts again from `company.json`. See `CONTRACT.md`, Redial.
+
 ## Change the character or add a language
 
 The character lives in one file, `persona.json`: display name, avatar character, the voice for each

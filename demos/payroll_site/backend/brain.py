@@ -49,7 +49,7 @@ from voqalize.sdk import (
 from voqalize.sdk.openai import OpenAIBrain
 from voqalize.sdk.stage import Mirror, Move, Stage, match_label
 from voqalize.sdk.stage.wire import StageEvent, StageHello, StageProgress, StageResult
-from voqalize.sdk.wire import Config, IdleConfig, SttConfig, TtsConfig
+from voqalize.sdk.wire import Config, IdleConfig, RedialConfig, SttConfig, TtsConfig
 
 from . import calendar_rules as cal
 from .data import LEAD, MODULES, PAGES, PAINS, PLANS, STATES, TOPICS
@@ -57,6 +57,7 @@ from .lines import BOOKING, GREETING, LANDED, NO_WORDS, TOGGLE_CONFIRM, YES_WORD
 from .persona import PERSONA, Persona
 from .pricing import choose_plan, quote, spoken
 from .prompt import system_instruction
+from .rejoin import Rejoin
 from .stage_gen import MOVES as STAGE_MOVES
 from .stage_gen import SPEC, ReadRequest
 
@@ -216,6 +217,12 @@ def page_title(path: str) -> str:
     return f"the {PAGES.get(path, path).lower()} page" if path != "/" else "the home page"
 
 
+#: What a brain holds for one socket only: the session object and the speech
+#: units waiting for the runtime to say what was heard. Everything else a call
+#: built is carried to the brain a redial starts (rejoin.py).
+_PER_SOCKET = frozenset({"_session", "_awaiting"})
+
+
 class PaynoraSiteBrain(OpenAIBrain):
     """One per session: the job, the lead card, the calculator and the booking."""
 
@@ -264,6 +271,8 @@ class PaynoraSiteBrain(OpenAIBrain):
             mirror=Mirror(SPEC),
         )
         self._fallback = FallbackLine()
+        #: This brain took over a call whose socket dropped (rejoin.py).
+        self.rejoined = False
 
     @property
     def today(self) -> date:
@@ -272,20 +281,58 @@ class PaynoraSiteBrain(OpenAIBrain):
     # ─── Session ────────────────────────────────────────────────────────
 
     async def on_session_start(self, session: Session) -> None:
-        init = session.init or {}
-        self.lang = self.persona.tag(str(init.get("lang") or init.get("language") or ""))
-        self._at(canonical(str(init.get("page") or "/")))
+        """The job from the page the call started on and both legs in the
+        toggle's language, before the greeting.
+
+        A call outlives a dropped socket (CONTRACT.md, redial; SDK 0.15.0):
+        redial is on wherever Voqalize offers it, and a brain started by a
+        redial on a session this process still holds adopts that call as it
+        was — the page, job and language it had moved to included — instead of
+        starting over. Its greeting is not spoken."""
+        prior = REJOIN.take(session.id)
+        if prior is not None and prior is not self:
+            self._adopt(prior)
+            self.rejoined = True
+        else:
+            init = session.init or {}
+            self.lang = self.persona.tag(str(init.get("lang") or init.get("language") or ""))
+            self._at(canonical(str(init.get("page") or "/")))
+        REJOIN.hold(session.id, self)
         await session.configure(
             Config(
                 stt=SttConfig(language=self.lang, patience=PATIENCE),
                 tts=TtsConfig(voice=self.persona.voices[self.lang], language=self.lang),
                 idle=IdleConfig(timeout_ms=_IDLE_MS),
+                redial=RedialConfig(enabled=True) if session.can_redial else None,
             )
         )
-        logger.info("payroll_site: session on {} as {} in {}", self.path, self.job, self.lang)
+        logger.info(
+            "payroll_site: session {} on {} as {} in {}",
+            "rejoined" if self.rejoined else "started",
+            self.path,
+            self.job,
+            self.lang,
+        )
 
-    async def greet(self, session: Session) -> str:
-        """Written, not generated: the job's opener in the call's language."""
+    async def on_session_end(self, session: Session) -> None:
+        """The socket closed: a hang-up, or a drop Voqalize may redial. Kept a
+        short while for the redial; runs at least once, and a second run (or
+        one on a brain a redial already replaced) changes nothing."""
+        REJOIN.dropped(session.id, self)
+
+    def _adopt(self, prior: PaynoraSiteBrain) -> None:
+        """Take over ``prior``'s call: every piece of state but its socket's.
+        ``prior`` then shares this brain's state, so whatever still points at
+        it — the Stage director's dispatch, a line queued for the next quiet
+        spell — acts on this call and this socket."""
+        self.__dict__.update({k: v for k, v in prior.__dict__.items() if k not in _PER_SOCKET})
+        prior.__dict__ = self.__dict__
+
+    async def greet(self, session: Session) -> str | None:
+        """Written, not generated: the job's opener in the call's language.
+        None on a rejoined call: the visitor was greeted when it began."""
+        if self.rejoined:
+            return None
         return GREETING[self.job][self.lang].format(name=self.persona.name)
 
     def _at(self, path: str) -> bool:
@@ -842,4 +889,15 @@ class PaynoraSiteBrain(OpenAIBrain):
         return mirror.read(request.slice) if mirror is not None else "nothing reported"
 
 
-__all__ = ["LanguageChanged", "LanguageRequested", "PaynoraSiteBrain", "canonical", "job_of"]
+#: Live calls by session id, for a redial to rejoin (rejoin.py).
+REJOIN: Rejoin[PaynoraSiteBrain] = Rejoin()
+
+
+__all__ = [
+    "REJOIN",
+    "LanguageChanged",
+    "LanguageRequested",
+    "PaynoraSiteBrain",
+    "canonical",
+    "job_of",
+]

@@ -79,6 +79,14 @@ uv run voqalize stage gen payroll_site/frontend/src/stage/scene.json \
   --py payroll_site/backend/stage_gen.py --ts payroll_site/frontend/src/stage/scene.gen.ts   # after editing scene.json, from demos/
 ```
 
+## A dropped socket does not end the call
+
+Where Voqalize offers redial, the brain turns it on. If its socket drops without a hang-up (a
+restart, a network blip), Voqalize dials it again for the same session and the new brain picks up
+the call from `backend/rejoin.py`: same job, language, lead card, held slot and model history, no
+second greeting. Calls are held in process memory for two minutes after the drop, so a redial that
+reaches a freshly deployed process starts over. See `CONTRACT.md`, Redial.
+
 ## Change the character or add a language
 
 The character lives in one file, `persona.json`: the avatar character, the display name, the role,

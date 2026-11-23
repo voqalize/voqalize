@@ -55,7 +55,15 @@ from voqalize.sdk import (
 from voqalize.sdk.openai import OpenAIBrain
 from voqalize.sdk.stage import AutoCue, Mirror, Stage
 from voqalize.sdk.stage.wire import StageEvent, StageHello, StageProgress, StageResult
-from voqalize.sdk.wire import Config, IdleConfig, Language, SttConfig, TtsConfig, Voice
+from voqalize.sdk.wire import (
+    Config,
+    IdleConfig,
+    Language,
+    RedialConfig,
+    SttConfig,
+    TtsConfig,
+    Voice,
+)
 
 from . import payroll_engine as eng
 from .app_events import LanguageChanged, LanguageRequested
@@ -75,6 +83,7 @@ from .books import (
 from .confirm import Acted, Confirmations, Pending, classify
 from .persona import PERSONA
 from .prompt import JOB_NOTE, TOGGLE_CONFIRM, Lang, Mode, greeting, mode_for, system_instruction
+from .rejoin import Rejoin
 from .stage_gen import MOVES, SPEC, ReadRequest
 
 MODEL = "gpt-6-sol"
@@ -429,6 +438,13 @@ class ConfirmRequest(BaseModel):
 # ─── The brain ─────────────────────────────────────────────────────────────────
 
 
+#: What a brain holds for one socket only: the session object and the speech
+#: units waiting for the runtime to say what was heard. Everything else a call
+#: built — the books copy included — is carried to the brain a redial starts
+#: (rejoin.py).
+_PER_SOCKET = frozenset({"_session", "_awaiting"})
+
+
 class PaynoraBrain(OpenAIBrain):
     """One per session: the company's books, the job, the language, the screen."""
 
@@ -466,6 +482,8 @@ class PaynoraBrain(OpenAIBrain):
             backstop=self._backstop,
         )
         self._fallback = FallbackLine()
+        #: This brain took over a call whose socket dropped (rejoin.py).
+        self.rejoined = False
         #: A yes waiting on its move's result, by call_ref: the outcome line.
         self._outcome_waiters: dict[str, asyncio.Future[Callable[[], str]]] = {}
         #: The support-or-feature offer she has been asked about, and when.
@@ -480,11 +498,27 @@ class PaynoraBrain(OpenAIBrain):
     # ─── Session ────────────────────────────────────────────────────────
 
     async def on_session_start(self, session: Session) -> None:
-        init = session.init or {}
-        self.path = "/" + str(init.get("landing") or "/").strip("/")
-        self.mode = mode_for(self.path)
-        lang = str(init.get("lang") or PERSONA.default_language)
-        self.lang = lang if lang in PERSONA.languages else PERSONA.default_language  # type: ignore[assignment]
+        """The job from the landing page and both legs in the toggle's
+        language, before the greeting.
+
+        A call outlives a dropped socket (CONTRACT.md, redial; SDK 0.15.0):
+        redial is on wherever Voqalize offers it, and a brain started by a
+        redial on a session this process still holds adopts that call as it
+        was — its copy of the books with every change the call made, the job,
+        page and language it had moved to, a change waiting for a yes —
+        instead of starting over from ``company.json``. Its greeting is not
+        spoken, and the model is not told the job again."""
+        prior = REJOIN.take(session.id)
+        if prior is not None and prior is not self:
+            self._adopt(prior)
+            self.rejoined = True
+        else:
+            init = session.init or {}
+            self.path = "/" + str(init.get("landing") or "/").strip("/")
+            self.mode = mode_for(self.path)
+            lang = str(init.get("lang") or PERSONA.default_language)
+            self.lang = lang if lang in PERSONA.languages else PERSONA.default_language  # type: ignore[assignment]
+        REJOIN.hold(session.id, self)
         await session.configure(
             Config(
                 stt=SttConfig(language=_language(self.lang), patience=PATIENCE),
@@ -492,13 +526,40 @@ class PaynoraBrain(OpenAIBrain):
                     voice=_voice(PERSONA.voice(self.lang)), language=_language(self.lang)
                 ),
                 idle=IdleConfig(timeout_ms=_IDLE_MS),
+                redial=RedialConfig(enabled=True) if session.can_redial else None,
             )
         )
-        self.append_note(JOB_NOTE[self.mode] + f" [They are on {self.path}.]")
-        self.append_note(self._language_note())
-        logger.info("payroll_app: session on {} as {} in {}", self.path, self.mode, self.lang)
+        if not self.rejoined:
+            self.append_note(JOB_NOTE[self.mode] + f" [They are on {self.path}.]")
+            self.append_note(self._language_note())
+        logger.info(
+            "payroll_app: session {} on {} as {} in {}",
+            "rejoined" if self.rejoined else "started",
+            self.path,
+            self.mode,
+            self.lang,
+        )
 
-    async def greet(self, session: Session) -> str:
+    async def on_session_end(self, session: Session) -> None:
+        """The socket closed: a hang-up, or a drop Voqalize may redial. Kept a
+        short while for the redial; runs at least once, and a second run (or
+        one on a brain a redial already replaced) changes nothing."""
+        REJOIN.dropped(session.id, self)
+
+    def _adopt(self, prior: PaynoraBrain) -> None:
+        """Take over ``prior``'s call: every piece of state but its socket's.
+        ``prior`` then shares this brain's state, so whatever still points at
+        it — the Stage director's dispatch, a confirmation's act, an effect
+        waiting for the page's answer, a line queued for the next quiet spell —
+        acts on this call, these books and this socket."""
+        self.__dict__.update({k: v for k, v in prior.__dict__.items() if k not in _PER_SOCKET})
+        prior.__dict__ = self.__dict__
+
+    async def greet(self, session: Session) -> str | None:
+        """The job's opener in the call's language. None on a rejoined call:
+        the admin was greeted when it began."""
+        if self.rejoined:
+            return None
         return greeting(self.mode, self.lang)
 
     def _language_note(self) -> str:
@@ -1737,4 +1798,8 @@ def _setup_values(step: str) -> list[tuple[str, str]]:
     ]
 
 
-__all__ = ["GUIDE", "MODEL", "PaynoraBrain"]
+#: Live calls by session id, for a redial to rejoin (rejoin.py).
+REJOIN: Rejoin[PaynoraBrain] = Rejoin()
+
+
+__all__ = ["GUIDE", "MODEL", "REJOIN", "PaynoraBrain"]
