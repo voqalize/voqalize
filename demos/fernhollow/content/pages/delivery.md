@@ -17,6 +17,10 @@ The charge is per order, not per item, so adding a cushion to a lamp does not ad
 
 Delivery timing depends on the pieces in your order and where you live. We do not promise specific delivery dates at checkout. Once your order is on its way, we will be in touch to let you know what to expect, and for larger furniture we will agree a delivery day with you.
 
+## Changing a delivery
+
+While an order is packed at our warehouse, you can move its delivery to another of the days your [orders page](/orders) offers, or cancel it. Once it is on its way, the day can no longer be changed, but you can ask for an earlier delivery: we pass it to the driver as a request, not a promise.
+
 ## Before delivery day
 
 - Measure doorways, stairs, corridors and lifts on the route to the room, especially for sofas, beds, desks and tables.

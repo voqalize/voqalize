@@ -20,7 +20,9 @@ Run: ``cd demos && uv run pytest tests/test_fernhollow_e2e.py``
 from __future__ import annotations
 
 import asyncio
+import json
 import re
+from collections.abc import Iterator
 from typing import Any
 
 import pytest
@@ -28,7 +30,9 @@ from google.genai import types
 from voqalize_demos.discovery import discover
 from voqalize_demos.testing import Reply, ScriptedGemini, call, reply, reply_and_call
 
+from voqalize.conformance import VoqalizeDriver
 from voqalize.sdk.gemini import _needs_result_now
+from voqalize.sdk.wire import ConfigureFrame
 
 from ._harness import DemoRig, check_greeting, check_turn, check_voice_pair, demo
 
@@ -37,11 +41,26 @@ discover()
 from voqalize_demos._loaded.fernhollow import engine as eng  # noqa: E402
 from voqalize_demos._loaded.fernhollow.brain import FernhollowBrain  # noqa: E402
 from voqalize_demos._loaded.fernhollow.catalog import CATALOG, money  # noqa: E402
+from voqalize_demos._loaded.fernhollow.persona import PERSONA  # noqa: E402
 from voqalize_demos._loaded.fernhollow.policies import policy_numbers  # noqa: E402
-from voqalize_demos._loaded.fernhollow.prompt import GREETING  # noqa: E402
+from voqalize_demos._loaded.fernhollow.prompt import GREETING, GREETINGS  # noqa: E402
 
-VOICE = "omnivoice/emily"
-LANGUAGE = "en"
+# The character lives in persona.json; the test reads it like the brain does.
+LANGUAGE = PERSONA.default_language
+VOICE = PERSONA.voice(LANGUAGE)
+
+
+@pytest.fixture(autouse=True)
+def _no_call_carried_between_tests() -> Iterator[None]:
+    """Every test here opens the same session id, and a dropped call is held for
+    a redial to rejoin (CONTRACT.md, v7): clear the store around each test, so
+    no test rejoins the one before it. Real session ids never repeat."""
+    from voqalize_demos._loaded.fernhollow.brain import REJOIN
+
+    REJOIN.clear()
+    yield
+    REJOIN.clear()
+
 
 # ── The storyline's brief, and what the engines make of it ───────────────────
 
@@ -299,7 +318,7 @@ async def test_the_storyline_drives_the_screen() -> None:
         last = " ".join(
             p.text or "" for c in llm.captured_contents[-2] for p in c.parts or [] if p.text
         )
-        assert f"cart: 5 items, {money(STRETCH.room.total)}" in last
+        assert f"cart (5 items, {money(STRETCH.room.total)}):" in last
 
 
 async def test_the_model_reads_what_landed() -> None:
@@ -552,7 +571,7 @@ async def test_a_tool_name_is_never_spoken() -> None:
                     "update_brief",
                     update={"room": "home-office"},
                 ),
-                reply("Which colours?"),
+                reply("Shall I show you desks, or compare two chairs?"),
             ],
         }
     )
@@ -562,6 +581,9 @@ async def test_a_tool_name_is_never_spoken() -> None:
         said = " ".join(u.text for u in turn.units)
         assert "update_brief" not in said, said
         assert "I can help with your home office." in said
+        # A tool named with a plain word (show, compare) is still a word (round 1:
+        # "Shall I show you cushions" came out "Shall I you cushions").
+        assert "Shall I show you desks, or compare two chairs?" in said
 
 
 async def test_a_taste_filters_the_listing_then_offers_the_room() -> None:
@@ -745,17 +767,24 @@ async def test_filters_say_their_assumption() -> None:
 
 
 async def test_a_silent_call_is_still_said() -> None:
-    """The prompt has Emily speak with every call; when the model calls alone the
-    brain says the landed line, with no second request."""
+    """The prompt has Emily speak with every call; when the model calls alone it
+    is asked once more with tools off (round 1), and when that is silent too the
+    brain says the landed line."""
     llm = ScriptedGemini(
-        {"Show me the returns policy.": call("store_policy", request={"topic": "returns"})}
+        {
+            "Show me the returns policy.": [
+                call("store_policy", request={"topic": "returns"}),
+                reply(""),
+            ]
+        }
     )
     async with demo("fernhollow", llm) as rig:
         await rig.driver.start_session()
         turn = await rig.driver.user_says("Show me the returns policy.")
         check_turn(rig, turn, units=1)
+        assert turn.units[0].text in ("The policy is on screen.", "Here's the policy.")
         assert rig.command("open_policy")["topic"] == "returns"
-        assert len(llm.captured_contents) == 1
+        assert len(llm.captured_contents) == 2
 
 
 def test_marks_are_reads() -> None:
@@ -776,15 +805,32 @@ def test_marks_are_reads() -> None:
         "stretch_budget",
         "show",
         "suggest_finish",
-        "find_order",
         "check_exchange",
         "resolve_product",
         "fill_checkout",
         # What to say on opening a step depends on it: the shopper types their
         # own email and phone, said as the page opens, not a turn later.
         "checkout_step",
+        # The front of house (CONTRACT v5): the gift edit's next question or
+        # picks, where a parcel is and the kiosk's picks are said from the result.
+        "gift_edit",
+        "track_order",
+        "kiosk_answer",
+        # v6 (owner, round 1): she leads. Saving a pick returns the next piece
+        # on the shopper's list to offer; the saved view says how the picks go
+        # together; the day picker's days, the return form's items and its next
+        # question are said from the result, in the same turn.
+        "shortlist",
+        "show_saved",
+        "change_delivery",
+        "start_return",
+        "fill_return",
+        # Whether an order can be cancelled or brought forward is the status's
+        # to say (often no): the answer, or the cancel question, is said now.
+        "cancel_order",
+        "request_earlier",
     }
-    assert len(brain.tools) == 28
+    assert len(brain.tools) == 34
 
 
 def test_prompt_names_only_what_exists() -> None:
@@ -811,75 +857,7 @@ def test_prompt_names_only_what_exists() -> None:
     assert "don't sell" not in prompt.lower() and "do not sell" not in prompt.lower()
 
 
-# ─── The returns desk ─────────────────────────────────────────────────────────
-
-
-def _returns() -> ScriptedGemini:
-    return ScriptedGemini(
-        {
-            "I'd like to return something from FH-20418.": [
-                reply_and_call(
-                    "Order FH-20418, coming up.",
-                    "find_order",
-                    request={"order_number": "FH-20418"},
-                ),
-                reply_and_call(
-                    "All three pieces can go back — you're well inside the thirty days.",
-                    "start_return",
-                    request={"order_number": "FH-20418"},
-                ),
-            ],
-            "Could I swap the chair for another finish?": [
-                reply_and_call(
-                    "The chair's other finish is below.",
-                    "check_exchange",
-                    request={"product": "desk chair"},
-                ),
-                reply("It also comes in walnut."),
-            ],
-            "And order FH-20155?": [
-                reply_and_call(
-                    "Order FH-20155, checking the dates.",
-                    "find_order",
-                    request={"order_number": "FH-20155"},
-                ),
-                reply(
-                    "That one arrived forty-one days ago, so it's past our thirty-day window. "
-                    "The care guide may help, and the team can talk it through."
-                ),
-            ],
-        }
-    )
-
-
-async def test_the_returns_desk_answers_honestly() -> None:
-    """FH-20418 is inside the window: every line eligible, and the form opens with
-    the order in. FH-20155 is past it: the result says so with the days, gives
-    the policy and no form opens."""
-    llm = _returns()
-    async with demo("fernhollow", llm) as rig:
-        await rig.driver.start_session()
-        check_turn(
-            rig, await rig.driver.user_says("I'd like to return something from FH-20418."), units=2
-        )
-        found = _results(llm.captured_contents[-1])["find_order"]
-        assert "3 of 3 lines can be returned" in found
-        assert "24 days left in the 30-day window" in found
-        assert "sam" not in found.lower() and "@" not in found, "personal data in a tool result"
-        assert rig.command("navigate")["page"] == "returns/start?order=FH-20418"
-
-        check_turn(
-            rig, await rig.driver.user_says("Could I swap the chair for another finish?"), units=2
-        )
-        assert "Walnut" in _results(llm.captured_contents[-1])["check_exchange"]
-
-        pages = len([c for c in rig.driver.ui_commands if c.get("command") == "navigate"])
-        check_turn(rig, await rig.driver.user_says("And order FH-20155?"), units=2)
-        late = _results(llm.captured_contents[-1])["find_order"]
-        assert "0 of 1 lines can be returned" in late
-        assert "delivered 41 days ago" in late and "30 days from delivery" in late
-        assert "never promise an exception" in late
-        assert len([c for c in rig.driver.ui_commands if c.get("command") == "navigate"]) == pages
+# ─── One acknowledgement, upstream ────────────────────────────────────────────
 
 
 def test_emily_never_opens_on_an_acknowledgement() -> None:
@@ -892,7 +870,14 @@ def test_emily_never_opens_on_an_acknowledgement() -> None:
     from voqalize_demos._loaded.fernhollow.prompt import ACK_OPENER
 
     lines = [GREETING]
-    for script in (_story(), _returns(), _form(), _v4_llm(), _circle_llm()):
+    for script in (
+        _story(),
+        _circle_llm(),
+        _brief_llm(),
+        _orders_llm(),
+        _return_llm(),
+        _gifts_llm(),
+    ):
         for cursor in script._cursors.values():  # pyright: ignore[reportPrivateUsage]
             lines += [step.spoken for step in cursor.steps if step.spoken]
     source = inspect.getsource(fb)
@@ -907,165 +892,6 @@ def test_emily_never_opens_on_an_acknowledgement() -> None:
 
 
 DESK_LINE = "modern-home-office-desk-with-chestnut-brown-finish"
-
-
-def _form() -> ScriptedGemini:
-    return ScriptedGemini(
-        {
-            "I need to return the desk from FH-20418.": [
-                reply_and_call(
-                    "Order FH-20418, coming up.",
-                    "find_order",
-                    request={"order_number": "FH-20418"},
-                ),
-                reply_and_call(
-                    "The desk can go back — you're well inside the thirty days. What's the reason?",
-                    "start_return",
-                    request={"order_number": "FH-20418"},
-                ),
-            ],
-            "It just doesn't suit the room, and it's still boxed.": reply(
-                f"{{item: {DESK_LINE} | 1}} The desk goes on the return. "
-                "{fill: reason | doesnt_suit_room} I'm putting down that it doesn't suit the room. "
-                "{fill: condition | unused_in_packaging} And it's unused, in its packaging. "
-                "{fill: email | sam@example.com} Refund or store credit?"
-            ),
-            "A refund, and pick it up on a weekday morning.": reply(
-                "{fill: resolution | refund} A refund it is. "
-                "{fill: collection | pickup} We'll collect it. "
-                "{fill: pickup_window | weekday_morning} On a weekday morning. "
-                "Check the review and press Submit return when you're happy."
-            ),
-            "submitted the return": reply(
-                "Thanks — the refund goes to your original payment once the desk is back and checked."
-            ),
-        }
-    )
-
-
-def _cues(rig: DemoRig) -> list[dict[str, Any]]:
-    return [
-        dict(c.get("payload") or {})
-        for c in rig.driver.ui_commands
-        if c.get("command") == "stage_cue"
-    ]
-
-
-async def test_the_returns_form_fills_by_cue_and_the_shopper_submits() -> None:
-    """FH-20418: the order is found eligible and the form opens with it; Emily's
-    cues select the item and fill reason, condition, resolution and collection
-    as she says them, the email too (a demo, CONTRACT v2). The shopper presses
-    Submit return themselves; that act reaches Emily, and in the next quiet spell
-    she thanks them in one line."""
-    llm = _form()
-    async with demo("fernhollow", llm) as rig:
-        await rig.driver.start_session()
-        check_turn(
-            rig, await rig.driver.user_says("I need to return the desk from FH-20418."), units=2
-        )
-        assert rig.command("navigate")["page"] == "returns/start?order=FH-20418"
-
-        turn = await rig.driver.user_says("It just doesn't suit the room, and it's still boxed.")
-        check_turn(rig, turn, units=1)
-        spoken = turn.units[0].text
-        assert "{" not in spoken
-        turn = await rig.driver.user_says("A refund, and pick it up on a weekday morning.")
-        check_turn(rig, turn, units=1)
-
-        cues = [(c["move"], c["args"]) for c in _cues(rig)]
-        assert cues == [
-            ("returns.select_item", [DESK_LINE, "1"]),
-            ("returns.fill", ["reason", "doesnt_suit_room"]),
-            ("returns.fill", ["condition", "unused_in_packaging"]),
-            ("returns.fill", ["email", "sam@example.com"]),
-            ("returns.fill", ["resolution", "refund"]),
-            ("returns.fill", ["collection", "pickup"]),
-            ("returns.fill", ["pickup_window", "weekday_morning"]),
-        ], cues
-        assert all(c["at"] for c in _cues(rig)), "a cue with no words to fire at"
-
-        # The page answers every cue; a refused one would be told to the model.
-        for c in _cues(rig):
-            await rig.driver.send_ui_event(
-                "stage_result",
-                {
-                    "call_ref": c["call_ref"],
-                    "move": c["move"],
-                    "outcome": "applied",
-                    "detail": "set",
-                },
-            )
-        # The shopper types their email and presses Submit return themselves.
-        await rig.driver.send_ui_event(
-            "stage_event",
-            {
-                "name": "returns.field_filled",
-                "by": "visitor",
-                "data": {"field": "email", "filled": ["order_number", "email"]},
-            },
-        )
-        await rig.driver.send_ui_event(
-            "stage_event",
-            {
-                "name": "returns.return_submitted",
-                "by": "visitor",
-                "data": {"reference": "RT-20418-1", "filled": ["order_number", "email"]},
-            },
-        )
-        await asyncio.sleep(0.1)
-        brain = rig.brain
-        assert isinstance(brain, FernhollowBrain)
-        assert brain._talk is not None  # pyright: ignore[reportPrivateUsage]
-        idle = [
-            r.config.idle for r in rig.driver.requests if getattr(r, "config", None) is not None
-        ]
-        assert any(i is not None and i.timeout_ms == 1500 for i in idle), (
-            "the quiet spell was not shortened"
-        )
-
-        thanks = await rig.driver.user_idle()
-        check_turn(rig, thanks, units=1)
-        assert thanks.units[0].text.startswith("Thanks — the refund")
-        last = " ".join(
-            p.text or "" for c in llm.captured_contents[-1] for p in c.parts or [] if p.text
-        )
-        assert "submitted the return" in last and "thank them" in last
-
-
-async def test_a_refused_cue_is_told_to_the_model() -> None:
-    """A value the form does not take comes back refused with its options, and
-    the model hears that — so it never says the field was set."""
-    llm = ScriptedGemini(
-        {
-            "It's broken.": reply("{fill: reason | broken} I'm putting down that it's broken."),
-            "So?": reply("The reason is set to arrived damaged."),
-        }
-    )
-    async with demo("fernhollow", llm) as rig:
-        await rig.driver.start_session()
-        await rig.driver.user_says("It's broken.")
-        (cue,) = _cues(rig)
-        await rig.driver.send_ui_event(
-            "stage_result",
-            {
-                "call_ref": cue["call_ref"],
-                "move": cue["move"],
-                "outcome": "refused",
-                "refused": [
-                    {
-                        "arg": "value",
-                        "why": "not a reason",
-                        "options": ["arrived_damaged", "changed_mind"],
-                    }
-                ],
-            },
-        )
-        await asyncio.sleep(0.1)
-        await rig.driver.user_says("So?")
-        notes = " ".join(
-            p.text or "" for c in llm.captured_contents[-1] for p in c.parts or [] if p.text
-        )
-        assert "did not land" in notes and "arrived_damaged" in notes
 
 
 async def test_emilys_own_changes_are_followed_but_not_told() -> None:
@@ -1329,41 +1155,6 @@ async def test_checkout_fully_by_voice_with_the_yes() -> None:
         assert brain.cart == {} and brain.confirms.pending is None
 
 
-async def test_the_return_is_submitted_only_on_a_spoken_yes() -> None:
-    """The confirmed returns.submit goes to the page only after Emily asked
-    and the shopper said yes on a later turn."""
-    llm = ScriptedGemini(
-        {
-            "Return the desk from FH-20418.": [
-                reply_and_call(
-                    "Order FH-20418.", "find_order", request={"order_number": "FH-20418"}
-                ),
-                reply("All three can go back."),
-            ],
-            "Submit it.": Reply(
-                text="Shall I submit the return?",
-                calls=(
-                    ("submit_return", {"request": {}}),
-                    ("submit_return", {"request": {"confirmed_by_voice": True}}),
-                ),
-            ),
-            "Yes.": reply_and_call(
-                "Submitting it.", "submit_return", request={"confirmed_by_voice": True}
-            ),
-        }
-    )
-    async with demo("fernhollow", llm) as rig:
-        await rig.driver.start_session()
-        await rig.driver.user_says("Return the desk from FH-20418.")
-        await rig.driver.user_says("Submit it.")
-        moves = lambda: [  # noqa: E731
-            c["payload"]["move"] for c in rig.driver.ui_commands if c.get("command") == "stage_move"
-        ]
-        assert moves() == [], "submitted before the shopper said yes"
-        await rig.driver.user_says("Yes.")
-        assert moves() == ["returns.submit"]
-
-
 # ─── v3: circle to ask ────────────────────────────────────────────────────────
 
 SOFAS = CATALOG.by_category["sofas"]
@@ -1451,62 +1242,26 @@ async def test_a_cleared_selection_is_not_these() -> None:
         assert "show_compare" not in rig.actions()
 
 
-# ─── v4: returns that work by voice ───────────────────────────────────────────
+# ─── Returns by voice: the yes, and the page's answer ───────────────────────────────────────────
 
 CHAIR_ID = "desk-chair-with-aluminum-frame"
 CHAIR_VARIANT = CATALOG.products[CHAIR_ID].variants[0].id
 
 
-def _v4_llm() -> ScriptedGemini:
-    return ScriptedGemini(
-        {
-            "I'm sam dot rivera at example dot com, Sam Rivera, 12 Elm Street, Portland 97201, United States.": [
-                reply_and_call(
-                    "All of that is going in now.",
-                    "fill_checkout",
-                    fields={
-                        "email": "sam dot rivera at example dot com",
-                        "first_name": "Sam",
-                        "last_name": "Rivera",
-                        "address1": "12 Elm Street",
-                        "city": "Portland",
-                        "postcode": "97201",
-                        "country": "United States",
-                    },
-                ),
-                reply_and_call(
-                    "That's s a m dot r i v e r a at example dot com, postcode 9 7 2 0 1. "
-                    "Shall I place the order?",
-                    "place_order",
-                    request={},
-                ),
-            ],
-            "Yes, please.": reply("It's placed — your order number is FH-30001."),
-            "I want to return the chair from the order I just placed.": [
-                reply_and_call(
-                    "Your newest order, coming up.",
-                    "find_order",
-                    request={"order_number": "the order I just placed"},
-                ),
-                reply("The chair can go back. What's the reason?"),
-            ],
-            "It doesn't suit the room. Still boxed. A refund, and I'll drop it off.": reply_and_call(
-                "Filling in your return now. Shall I submit it?",
-                "prepare_return",
-                request={
-                    "order_number": "the order I just placed",
-                    "items": [{"product_id": CHAIR_ID, "qty": 1}],
-                    "reason": "doesnt_suit_room",
-                    "condition": "unused_in_packaging",
-                    "resolution": "refund",
-                    "collection": "drop_off",
-                },
-            ),
-            "Yes.": reply("Submitting it now."),
-            "submitted the return": reply(
-                "Thanks — once the chair is back and checked, the refund goes to your card."
-            ),
-        }
+def _return_calls(**answers: Any) -> tuple[tuple[str, dict[str, Any]], ...]:
+    """Start the return of the chair on FH-20418 and give every answer at once
+    (a shopper who says it all in one breath): the form fills to the review."""
+    full = {
+        "items": [{"product": CHAIR_ID, "qty": 1}],
+        "reason": "changed_mind",
+        "condition": "unused_unpacked",
+        "resolution": "refund",
+        "collection": "drop_off",
+        **answers,
+    }
+    return (
+        ("start_return", {"order_number": "FH-20418"}),
+        ("fill_return", {"answers": full}),
     )
 
 
@@ -1520,177 +1275,6 @@ async def _answer(rig: DemoRig, moves: list[dict[str, Any]], outcome: str = "app
             "stage_result", {"call_ref": m["call_ref"], "move": m["move"], "outcome": outcome}
         )
     await asyncio.sleep(0.1)
-
-
-async def test_a_placed_order_is_returned_by_voice_end_to_end() -> None:
-    """Order by voice, then "return the chair from the order I just placed":
-    found among the session's own orders, the form filled by one deterministic
-    sequence (find with the order's own email first), submitted on a spoken
-    yes, thanked when the page says it landed. No turn is silent."""
-    from loguru import logger
-
-    silent: list[str] = []
-    sink = logger.add(
-        lambda m: silent.append(m.record["message"]),
-        level="WARNING",
-        filter=lambda r: "said nothing" in r["message"],
-    )
-    llm = _v4_llm()
-    try:
-        async with demo("fernhollow", llm) as rig:
-            await rig.driver.start_session()
-            await rig.driver.send_ui_event(
-                "cart_changed",
-                {
-                    "lines": [{"product_id": CHAIR_ID, "variant_id": CHAIR_VARIANT, "qty": 1}],
-                    "total": 289.0,
-                    "by": "visitor",
-                },
-            )
-            # The shopper types their own email; Emily fills only what they say.
-            await _type_email(rig)
-            check_turn(
-                rig,
-                await rig.driver.user_says(
-                    "I'm sam dot rivera at example dot com, Sam Rivera, 12 Elm Street, Portland 97201, United States."
-                ),
-                units=2,
-            )
-            assert rig.actions().count("confirm_place_order") == 1
-            check_turn(rig, await rig.driver.user_says("Yes, please."), units=1)
-            assert rig.command("order_placed")["order_number"] == "FH-30001"
-            # The page saves the order with the email the shopper typed, and says so.
-            await rig.driver.send_ui_event(
-                "orders_known",
-                {
-                    "orders": [
-                        {
-                            "number": "FH-30001",
-                            "email": "sam.rivera@example.com",
-                            "name": "Sam Rivera",
-                            "lines": [
-                                {"product_id": CHAIR_ID, "variant_id": CHAIR_VARIANT, "qty": 1}
-                            ],
-                            "total": 289.0 + 49.0,
-                        }
-                    ],
-                    "by": "visitor",
-                },
-            )
-            await asyncio.sleep(0.1)
-
-            check_turn(
-                rig,
-                await rig.driver.user_says(
-                    "I want to return the chair from the order I just placed."
-                ),
-                units=2,
-            )
-            found = _results(llm.captured_contents[-1])["find_order"]
-            assert "Order FH-30001: 1 of 1 lines can be returned" in found
-            assert "sam.rivera" not in found
-
-            check_turn(
-                rig,
-                await rig.driver.user_says(
-                    "It doesn't suit the room. Still boxed. A refund, and I'll drop it off."
-                ),
-                units=1,
-            )
-            moves = _stage_moves(rig)
-            assert [m["move"] for m in moves] == [
-                "returns.find",
-                "returns.select_item",
-                "returns.next_step",
-                "returns.fill",
-                "returns.fill",
-                "returns.next_step",
-                "returns.fill",
-                "returns.next_step",
-                "returns.fill",
-                "returns.next_step",
-            ]
-            assert moves[0]["args"] == {
-                "order_number": "FH-30001",
-                "email": "sam.rivera@example.com",
-            }
-            assert moves[1]["args"] == {"product_id": CHAIR_ID, "qty": 1}
-            await _answer(rig, moves)
-
-            check_turn(rig, await rig.driver.user_says("Yes."), units=1)
-            submit = _stage_moves(rig)[-1]
-            assert submit["move"] == "returns.submit"
-            await _answer(rig, [submit])
-            await rig.driver.send_ui_event(
-                "stage_event",
-                {
-                    "name": "returns.return_submitted",
-                    "by": "visitor",
-                    "data": {"reference": "RT-30001-1", "filled": ["order_number", "email"]},
-                },
-            )
-            await asyncio.sleep(0.1)
-            thanks = await rig.driver.user_idle()
-            check_turn(rig, thanks, units=1)
-            assert thanks.units[0].text == (
-                "Done — your return is in, reference RT-30001-1. We'll be in touch about the drop-off."
-            )
-            brain = rig.brain
-            assert isinstance(brain, FernhollowBrain)
-            notes = " ".join(
-                p.text or ""
-                for c in brain._history  # pyright: ignore[reportPrivateUsage]
-                for p in c.parts or []
-                if p.text
-            )
-            assert "reached the review step" in notes
-    finally:
-        logger.remove(sink)
-    assert silent == [], f"a turn acted and said nothing: {silent}"
-
-
-async def test_a_refusal_mid_sequence_is_told_honestly() -> None:
-    llm = ScriptedGemini(
-        {
-            "Return the chair from FH-20418, it doesn't suit, still boxed, refund, drop off.": reply_and_call(
-                "Filling in your return now.",
-                "prepare_return",
-                request={
-                    "order_number": "FH-20418",
-                    "items": [{"product_id": CHAIR_ID, "qty": 1}],
-                    "reason": "doesnt_suit_room",
-                    "condition": "unused_in_packaging",
-                    "resolution": "refund",
-                    "collection": "drop_off",
-                },
-            ),
-            "So is it done?": reply("Not yet — step 2 needs an item chosen."),
-        }
-    )
-    async with demo("fernhollow", llm) as rig:
-        await rig.driver.start_session()
-        await rig.driver.user_says(
-            "Return the chair from FH-20418, it doesn't suit, still boxed, refund, drop off."
-        )
-        moves = _stage_moves(rig)
-        await _answer(rig, moves[:2])
-        await rig.driver.send_ui_event(
-            "stage_result",
-            {
-                "call_ref": moves[2]["call_ref"],
-                "move": "returns.next_step",
-                "outcome": "refused",
-                "detail": "step 2 needs an item",
-                "refused": [{"arg": "items", "why": "choose at least one item"}],
-            },
-        )
-        await asyncio.sleep(0.1)
-        await rig.driver.user_says("So is it done?")
-        notes = " ".join(
-            p.text or "" for c in llm.captured_contents[-1] for p in c.parts or [] if p.text
-        )
-        assert "stopped at step 2 items" in notes and "choose at least one item" in notes
-        assert "returns.submit" not in [m["move"] for m in _stage_moves(rig)]
 
 
 async def test_this_never_means_i_cannot_see() -> None:
@@ -1713,174 +1297,139 @@ async def test_this_never_means_i_cannot_see() -> None:
         assert rig.command("open_product")["product_id"] == SOFAS[1]
 
 
-async def test_yes_to_submit_speaks_once_and_never_runs_a_silent_turn() -> None:
-    """The live failure, replayed: "Yes" to "Shall I submit the return?" →
-    returns.submit applied with the reference → return_submitted → the page
-    opens the confirmation. Emily says "Submitting it now." herself, with no
-    model request, then exactly one outcome line with the reference — never
-    the page's "thank them" a second time — and no turn is speechless."""
-    from loguru import logger
-
-    turns: list[str] = []
-    sink = logger.add(
-        lambda m: turns.append(m.record["message"]),
-        level="INFO",
-        filter=lambda r: r["message"].startswith("turn:") or "said nothing" in r["message"],
-    )
-    llm = ScriptedGemini(
+def _full_return_llm(then: dict[str, Any] | None = None) -> ScriptedGemini:
+    return ScriptedGemini(
         {
-            "Return the chair from FH-20418: doesn't suit, boxed, refund, pickup Saturday.": reply_and_call(
-                "Filling in your return now. Shall I submit it?",
-                "prepare_return",
-                request={
-                    "order_number": "FH-20418",
-                    "items": [{"product_id": CHAIR_ID, "qty": 1}],
-                    "reason": "doesnt_suit_room",
-                    "condition": "unused_in_packaging",
-                    "resolution": "refund",
-                    "collection": "pickup",
-                    "pickup_window": "saturday",
-                },
-            ),
-            # Were the model asked after the yes, this is the silent duplicate
-            # submit from the live call. It must never be asked.
-            "Yes.": call("submit_return", request={"confirmed_by_voice": True}),
+            "Return the chair from FH-20418: doesn't suit, boxed, refund, pickup Saturday.": [
+                Reply(
+                    text="Putting that on your return now.",
+                    calls=_return_calls(
+                        reason="doesnt_suit_room",
+                        condition="unused_in_packaging",
+                        collection="pickup",
+                        pickup_window="saturday",
+                    ),
+                ),
+                reply("That's everything filled in. Please press Submit return when you're happy."),
+            ],
+            **(then or {}),
         }
     )
-    try:
-        async with demo("fernhollow", llm) as rig:
-            await rig.driver.start_session()
-            await rig.driver.user_says(
-                "Return the chair from FH-20418: doesn't suit, boxed, refund, pickup Saturday."
-            )
-            await _answer(rig, _stage_moves(rig))
-            asked = len(llm.captured_contents)
 
-            yes = await rig.driver.user_says("Yes.")
-            check_turn(rig, yes, units=1)
-            assert [u.text for u in yes.units] == ["Submitting it now."]
-            assert len(llm.captured_contents) == asked, "the model ran after a handled yes"
-            submit = _stage_moves(rig)[-1]
-            assert submit["move"] == "returns.submit"
 
-            await rig.driver.send_ui_event(
-                "stage_result",
-                {
-                    "call_ref": submit["call_ref"],
-                    "move": "returns.submit",
-                    "outcome": "applied",
-                    "detail": "return submitted, reference RT-923348-1",
+@pytest.mark.parametrize(
+    "said",
+    ["Yes.", "Submit it.", "Can you please submit it?", "Go ahead and submit it.", "Send it."],
+)
+async def test_emily_cannot_submit_a_return(said: str) -> None:
+    """F10 (owner, round 2): Emily fills every step, but only the shopper's own
+    press of Submit return sends it. She has no tool and no Stage move that
+    submits; asked to, she says so in her own line, with no model turn, and
+    nothing reaches the page."""
+    from voqalize_demos._loaded.fernhollow.stage_gen import MOVES
+
+    llm = _full_return_llm()
+    async with demo("fernhollow", llm) as rig:
+        await rig.driver.start_session()
+        brain = rig.brain
+        assert isinstance(brain, FernhollowBrain)
+        assert "submit_return" not in {t.__name__ for t in brain.tools}
+        assert "returns.submit" not in {m.id for m in MOVES}
+        assert brain.stage.moves.get("returns.submit") is None
+
+        await rig.driver.user_says(
+            "Return the chair from FH-20418: doesn't suit, boxed, refund, pickup Saturday."
+        )
+        await _answer(rig, _stage_moves(rig))
+        filled = _last_result(llm, "fill_return")
+        assert "press Submit return" in filled and "Shall I submit" not in filled
+        assert brain.confirms.pending is None, "nothing waits for a yes: the shopper presses it"
+        sent = len(_stage_moves(rig))
+        asked = len(llm.captured_contents)
+
+        turn = await rig.driver.user_says(said)
+        check_turn(rig, turn, units=1)
+        assert [u.text for u in turn.units] == [
+            "I can't send it for you — please press Submit return on screen when you're ready."
+        ]
+        assert len(llm.captured_contents) == asked, "the model ran on a request to submit"
+        assert len(_stage_moves(rig)) == sent, "a move reached the page"
+        assert not [c for c in rig.driver.ui_commands if "submit" in json.dumps(c).lower()]
+
+
+async def test_a_hand_press_submits_and_emily_hears_it() -> None:
+    """F10: the shopper presses Submit return themselves; the page reports it
+    with the reference and Emily says the outcome once, in her own line."""
+    llm = _full_return_llm()
+    async with demo("fernhollow", llm) as rig:
+        await rig.driver.start_session()
+        brain = rig.brain
+        assert isinstance(brain, FernhollowBrain)
+        await rig.driver.user_says(
+            "Return the chair from FH-20418: doesn't suit, boxed, refund, pickup Saturday."
+        )
+        await _answer(rig, _stage_moves(rig))
+        asked = len(llm.captured_contents)
+
+        await rig.driver.send_ui_event(
+            "stage_event",
+            {
+                "name": "returns.return_submitted",
+                "by": "visitor",
+                "data": {
+                    "order_number": "FH-20418",
+                    "reference": "RT-20418-1",
+                    "filled": ["items", "reason"],
                 },
-            )
-            await rig.driver.send_ui_event(
-                "stage_event",
-                {
-                    "name": "returns.return_submitted",
-                    "by": "agent",
-                    "data": {"reference": "RT-923348-1", "filled": ["order_number", "email"]},
-                },
-            )
-            await rig.driver.send_ui_event(
-                "page_viewed", {"path": "returns/confirmation", "by": "emily"}
-            )
-            await asyncio.sleep(0.1)
-            outcome = await rig.driver.user_idle()
-            check_turn(rig, outcome, units=1)
-            assert [u.text for u in outcome.units] == [
-                "Done — your return is in, reference RT-923348-1. We'll be in touch about the pickup."
-            ]
-            again = await rig.driver.user_idle()
-            assert again.units == [], "the outcome was said twice"
-            assert len(llm.captured_contents) == asked, "a model turn ran for the outcome"
-    finally:
-        logger.remove(sink)
-    assert not [t for t in turns if "speechless=yes" in t or "said nothing" in t], turns
+            },
+        )
+        await rig.driver.send_ui_event(
+            "page_viewed", {"path": "orders/return/confirmation", "by": "visitor"}
+        )
+        await asyncio.sleep(0.1)
+        said = await rig.driver.user_idle()
+        check_turn(rig, said, units=1)
+        assert [u.text for u in said.units] == [
+            "Done — your return is in, reference RT-20418-1. We'll be in touch about the pickup."
+        ]
+        assert len(llm.captured_contents) == asked, "a model turn ran for the outcome"
+        again = await rig.driver.user_idle()
+        assert again.units == [], "the outcome was said twice"
+        assert "pressed Submit return themselves" in _notes(rig)
+        assert brain.order is None, "the sent return's form is closed"
+
+
+async def test_an_agent_press_is_never_told_as_a_return() -> None:
+    """A return_submitted the page marks as the agent's is not a return Emily
+    may announce: the page refuses those, and the brain ignores one."""
+    llm = _full_return_llm()
+    async with demo("fernhollow", llm) as rig:
+        await rig.driver.start_session()
+        await rig.driver.user_says(
+            "Return the chair from FH-20418: doesn't suit, boxed, refund, pickup Saturday."
+        )
+        await _answer(rig, _stage_moves(rig))
+        await rig.driver.send_ui_event(
+            "stage_event",
+            {
+                "name": "returns.return_submitted",
+                "by": "emily",
+                "data": {"order_number": "FH-20418", "reference": "RT-20418-9", "filled": []},
+            },
+        )
+        await asyncio.sleep(0.1)
+        said = await rig.driver.user_idle()
+        assert said.units == []
 
 
 async def test_a_silent_refused_call_still_says_something() -> None:
     """A tool call refused, with nothing spoken: the floor speaks, honestly."""
-    llm = ScriptedGemini(
-        {"Submit it.": call("submit_return", request={"confirmed_by_voice": True})}
-    )
+    llm = ScriptedGemini({"Place it.": call("place_order", request={"confirmed_by_voice": True})})
     async with demo("fernhollow", llm) as rig:
         await rig.driver.start_session()
-        turn = await rig.driver.user_says("Submit it.")
+        turn = await rig.driver.user_says("Place it.")
         check_turn(rig, turn, units=1)
         assert [u.text for u in turn.units] == ["That didn't go through yet."]
-
-
-async def test_a_found_order_opens_its_form_in_one_hop() -> None:
-    """find_order opens the form of an order that can go back, so the answer is
-    one tool call and one reply — no second hop to start the return."""
-    llm = ScriptedGemini(
-        {
-            "Return something from FH-20418.": [
-                reply_and_call(
-                    "Order FH-20418, coming up.", "find_order", request={"order_number": "FH-20418"}
-                ),
-                reply("All three can go back — which one?"),
-            ]
-        }
-    )
-    async with demo("fernhollow", llm) as rig:
-        await rig.driver.start_session()
-        before = len(llm.captured_contents)
-        check_turn(rig, await rig.driver.user_says("Return something from FH-20418."), units=2)
-        assert len(llm.captured_contents) - before == 2
-        assert rig.command("navigate")["page"] == "returns/start?order=FH-20418"
-        assert "returns form is open" in _results(llm.captured_contents[-1])["find_order"]
-
-
-@pytest.mark.parametrize(
-    "said", ["Can you please submit it?", "Yes please.", "Go ahead and submit it."]
-)
-async def test_any_plain_yes_submits_once(said: str) -> None:
-    llm = ScriptedGemini(
-        {
-            "Return the chair from FH-20418": reply_and_call(
-                "Filling in your return now. Shall I submit it?",
-                "prepare_return",
-                request={
-                    "order_number": "FH-20418",
-                    "items": [{"product_id": CHAIR_ID, "qty": 1}],
-                    "reason": "changed_mind",
-                    "condition": "unused_unpacked",
-                    "resolution": "refund",
-                    "collection": "drop_off",
-                },
-            ),
-            "Did it go?": call("submit_return", request={"confirmed_by_voice": True}),
-        }
-    )
-    async with demo("fernhollow", llm) as rig:
-        await rig.driver.start_session()
-        await rig.driver.user_says("Return the chair from FH-20418")
-        await _answer(rig, _stage_moves(rig))
-        yes = await rig.driver.user_says(said)
-        assert [u.text for u in yes.units] == ["Submitting it now."]
-        submit = _stage_moves(rig)[-1]
-        await rig.driver.send_ui_event(
-            "stage_result",
-            {
-                "call_ref": submit["call_ref"],
-                "move": "returns.submit",
-                "outcome": "applied",
-                "detail": "return submitted, reference RT-20418-1",
-            },
-        )
-        await asyncio.sleep(0.1)
-        done = await rig.driver.user_idle()
-        assert [u.text for u in done.units] == [
-            "Done — your return is in, reference RT-20418-1. We'll be in touch about the drop-off."
-        ]
-        # The model, asked later, calls submit again: blocked, and still spoken.
-        dup = await rig.driver.user_says("Did it go?")
-        check_turn(rig, dup, units=1)
-        assert [u.text for u in dup.units] == [
-            "That's already done — your return is in, reference RT-20418-1. "
-            "We'll be in touch about the drop-off."
-        ]
-        assert [m["move"] for m in _stage_moves(rig)].count("returns.submit") == 1
 
 
 # ─── Every confirmation, one mechanism (parametrized across the acts) ─────────
@@ -1905,30 +1454,17 @@ ASKS: dict[str, tuple[str, tuple[tuple[str, dict[str, Any]], ...], str, str]] = 
         "It's placed — your order number is FH-30001.",
         "order_placed",
     ),
-    "submit_return": (
-        "Filling in your return now. Shall I submit it?",
-        (
-            (
-                "prepare_return",
-                {
-                    "request": {
-                        "order_number": "FH-20418",
-                        "items": [{"product_id": CHAIR_ID, "qty": 1}],
-                        "reason": "changed_mind",
-                        "condition": "unused_unpacked",
-                        "resolution": "refund",
-                        "collection": "drop_off",
-                    }
-                },
-            ),
-        ),
-        "Submitting it now.",
-        "returns.submit",
+    # Cancelling a packed order (owner, round 1, F8): the same ask, yes, act, outcome.
+    "cancel_order": (
+        "It's still packed, so it can be cancelled. Shall I cancel order FH-31207?",
+        (("cancel_order", {"order_number": "FH-31207"}),),
+        "Cancelling it now.",
+        "orders.cancel",
     ),
 }
 _CONFIRMED_CALL = {
     "place_order": ("place_order", {"request": {"confirmed_by_voice": True}}),
-    "submit_return": ("submit_return", {"request": {"confirmed_by_voice": True}}),
+    "cancel_order": ("cancel_order", {"order_number": "FH-31207", "confirmed_by_voice": True}),
 }
 
 
@@ -1940,7 +1476,7 @@ async def _type_email(rig: DemoRig) -> None:
 
 
 def _sent(rig: DemoRig, what: str) -> int:
-    if what.startswith("returns."):
+    if what.startswith(("returns.", "orders.")):
         return [m["move"] for m in _stage_moves(rig)].count(what)
     return rig.actions().count(what)
 
@@ -1958,7 +1494,7 @@ async def _asked(rig: DemoRig, kind: str) -> None:
         )
         await _type_email(rig)
     check_turn(rig, await rig.driver.user_says(f"Let's do the {kind}."))
-    if kind == "submit_return":
+    if kind == "cancel_order":
         await _answer(rig, _stage_moves(rig))
 
 
@@ -1968,7 +1504,9 @@ def _conf_llm(kind: str) -> ScriptedGemini:
     return ScriptedGemini(
         {
             f"Let's do the {kind}.": Reply(text=ask, calls=calls),
-            "Do it again.": Reply(calls=((name, args),)),
+            # A marked tool (cancel_order) gets a second hop: silent here, so
+            # the duplicate's exact line is the floor.
+            "Do it again.": [Reply(calls=((name, args),)), reply("")],
         }
     )
 
@@ -2009,7 +1547,8 @@ async def test_a_yes_acts_once_and_a_duplicate_still_speaks(kind: str) -> None:
         logger.remove(sink)
     # Every turn the model left silent was covered by the floor: no silent turn.
     silent = [t for t in seen if "speechless=yes" in t]
-    floored = [t for t in seen if "said nothing" in t]
+    # The model is asked once more (it may say nothing); then the written floor.
+    floored = [t for t in seen if "the brain says" in t]
     assert len(silent) == len(floored), seen
 
 
@@ -2036,13 +1575,13 @@ async def test_anything_but_a_plain_yes_acts_nothing(kind: str, said: str) -> No
     [
         (
             "applied",
-            "return submitted, reference RT-20418-1",
-            "Done — your return is in, reference RT-20418-1. We'll be in touch about the drop-off.",
+            "order FH-31207 cancelled",
+            "Done — order FH-31207 is cancelled, and nothing will be delivered.",
         ),
         (
             "refused",
-            "step 1: Enter the email",
-            "That didn't go through — the page says: step 1: Enter the email.",
+            "the order is already on the way",
+            "That didn't go through — the page says: the order is already on the way.",
         ),
         (
             "unknown",
@@ -2052,30 +1591,743 @@ async def test_anything_but_a_plain_yes_acts_nothing(kind: str, said: str) -> No
     ],
 )
 async def test_the_page_answer_is_said_once(outcome: str, detail: str | None, line: str) -> None:
-    llm = _conf_llm("submit_return")
+    llm = _conf_llm("cancel_order")
     async with demo("fernhollow", llm) as rig:
-        await _asked(rig, "submit_return")
+        await _asked(rig, "cancel_order")
         await rig.driver.user_says("Yes.")
-        submit = _stage_moves(rig)[-1]
+        cancel = _stage_moves(rig)[-1]
+        assert cancel["move"] == "orders.cancel"
         payload: dict[str, Any] = {
-            "call_ref": submit["call_ref"],
-            "move": "returns.submit",
+            "call_ref": cancel["call_ref"],
+            "move": "orders.cancel",
             "outcome": outcome,
         }
         if detail:
             payload["detail"] = detail
         await rig.driver.send_ui_event("stage_result", payload)
-        if outcome == "applied":
-            await rig.driver.send_ui_event(
-                "stage_event",
-                {
-                    "name": "returns.return_submitted",
-                    "by": "visitor",
-                    "data": {"reference": "RT-20418-1", "filled": []},
-                },
-            )
         await asyncio.sleep(0.1)
         said = await rig.driver.user_idle()
         assert [u.text for u in said.units] == [line]
         again = await rig.driver.user_idle()
         assert again.units == [], "the outcome was said twice"
+
+
+# ─── The front of house: a job per landing page (CONTRACT.md, v5) ─────────────
+
+from voqalize_demos._loaded.fernhollow.edits import stored as stored_edits  # noqa: E402
+
+KIOSK_PICKS = [x["product_id"] for x in stored_edits()["kiosk"]["living|warm_wood|400"]]
+SHEETS = "organic-cotton-sheet-set-oat-milk"
+SHEETS_KING = CATALOG.products[SHEETS].variant_for("King").id
+
+
+def _last_result(llm: ScriptedGemini, tool: str) -> str:
+    for contents in reversed(llm.captured_contents):
+        found = _results(contents).get(tool)
+        if found is not None:
+            return found
+    raise AssertionError(f"no result for {tool}")
+
+
+def _notes(rig: DemoRig) -> str:
+    brain = rig.brain
+    assert isinstance(brain, FernhollowBrain)
+    return " ".join(
+        p.text or ""
+        for c in brain._history  # pyright: ignore[reportPrivateUsage]
+        for p in c.parts or []
+        if p.text
+    )
+
+
+@pytest.mark.parametrize(
+    ("landing", "job"),
+    [
+        ("/", "shop"),
+        ("/returns", "orders"),
+        ("/orders/return?order=FH-20377", "returns"),
+        ("/gifts", "gifts"),
+        ("/orders", "orders"),
+        ("/kiosk", "kiosk"),
+    ],
+)
+async def test_each_landing_page_starts_its_own_job(landing: str, job: str) -> None:
+    """One brain, one character: the page the call starts on picks the job and
+    its greeting; the persona's voice and language land on both legs."""
+    async with demo("fernhollow", ScriptedGemini({})) as rig:
+        greeting = await rig.driver.start_session(
+            init={"surface": "fernhollow-web", "landing": landing, "lang": "en"}
+        )
+        check_greeting(rig, greeting)
+        assert greeting is not None and greeting.text == GREETINGS[job]  # type: ignore[index]
+        assert PERSONA.name in greeting.text
+        check_voice_pair(rig, voice=VOICE, language=LANGUAGE)
+        brain = rig.brain
+        assert isinstance(brain, FernhollowBrain) and brain.job == job
+
+
+async def test_landing_on_another_jobs_page_switches_the_job() -> None:
+    async with demo("fernhollow", ScriptedGemini({})) as rig:
+        await rig.driver.start_session(init={"landing": "/"})
+        brain = rig.brain
+        assert isinstance(brain, FernhollowBrain)
+        await rig.driver.send_ui_event(
+            "page_viewed", {"path": "/product/" + SHEETS, "by": "visitor"}
+        )
+        await asyncio.sleep(0.1)
+        assert brain.job == "shop", "a product page belongs to no job: the job holds"
+        await rig.driver.send_ui_event("page_viewed", {"path": "/gifts", "by": "visitor"})
+        await asyncio.sleep(0.1)
+        assert brain.job == "gifts"
+        assert "Your job is now: gifts" in _notes(rig)
+
+
+async def test_kiosk_three_questions_three_picks_and_start_over() -> None:
+    llm = ScriptedGemini(
+        {
+            "The living room.": [
+                reply_and_call("Living room.", "kiosk_answer", request={"room": "living"}),
+                reply("What feel?"),
+            ],
+            "Warm wood, up to four hundred.": [
+                reply_and_call(
+                    "Warm wood, up to four hundred.",
+                    "kiosk_answer",
+                    request={"room": "living", "feel": "warm_wood", "budget": "400"},
+                ),
+                reply("Three picks, and a QR code to take them home."),
+            ],
+            "Start over.": reply_and_call("Starting over.", "kiosk_restart"),
+        }
+    )
+    async with demo("fernhollow", llm) as rig:
+        greeting = await rig.driver.start_session(init={"landing": "/kiosk"})
+        # The call starting is the start (owner, round 1, F9): question 1 is on
+        # screen as she asks which room.
+        assert greeting is not None and "Which room" in greeting.text  # type: ignore[union-attr]
+        assert [m["move"] for m in _stage_moves(rig)] == ["kiosk.start"]
+        check_turn(rig, await rig.driver.user_says("The living room."), units=2)
+        assert [(m["move"], m["args"]) for m in _stage_moves(rig)] == [
+            ("kiosk.start", {}),
+            ("kiosk.answer", {"question": "room", "value": "living"}),
+        ]
+        assert "What feel?" in _last_result(llm, "kiosk_answer")
+
+        check_turn(rig, await rig.driver.user_says("Warm wood, up to four hundred."), units=2)
+        assert [(m["move"], m["args"]) for m in _stage_moves(rig)[2:]] == [
+            ("kiosk.answer", {"question": "feel", "value": "warm_wood"}),
+            ("kiosk.answer", {"question": "budget", "value": "400"}),
+        ], "the room already chosen is not sent again"
+        picks = _last_result(llm, "kiosk_answer")
+        assert len(KIOSK_PICKS) == 3 and "QR code" in picks
+        for pid in KIOSK_PICKS:
+            assert CATALOG.products[pid].title in picks and CATALOG.products[pid].price <= 400
+
+        check_turn(rig, await rig.driver.user_says("Start over."), units=1)
+        assert _stage_moves(rig)[-1]["move"] == "kiosk.restart"
+        brain = rig.brain
+        assert isinstance(brain, FernhollowBrain) and brain.kiosk == {}
+
+        # Tapped by hand: the third tap hands the model the picks to talk about.
+        for q, v in (("room", "living"), ("feel", "warm_wood"), ("budget", "400")):
+            await rig.driver.send_ui_event(
+                "stage_event",
+                {"name": "kiosk.answered", "by": "visitor", "data": {"question": q, "value": v}},
+            )
+        await asyncio.sleep(0.1)
+        notes = _notes(rig)
+        assert all(CATALOG.products[pid].title in notes for pid in KIOSK_PICKS)
+
+
+# ─── Round 1 (owner, 19 Nov 2026): she leads, remembers, and finishes the job ─
+
+SAND = eng.map_terms("colours", ["sand"]).words
+SAND_SOFAS = eng.Filters(category="sofas", colours=SAND).results()
+SAND_RUGS = eng.Filters(category="rugs", colours=SAND).results()
+SOFA_ID = SAND_SOFAS[0]
+RUG_ID = SAND_RUGS[0]
+CUSHIONS = [i.product_id for i in eng.goes_with(SOFA_ID, category="throw-pillows")]
+CUSHION_ID = CUSHIONS[0]
+
+
+def _brief_llm() -> ScriptedGemini:
+    """The owner's call, replayed the way it should go: a sofa, a rug and
+    cushions in sand, chosen one by one, seen together, added together."""
+    return ScriptedGemini(
+        {
+            "I'm doing up my living room. I want a sofa, a rug and a few cushions, in sand.": [
+                reply_and_call(
+                    "A sofa, a rug and cushions, in sand.",
+                    "update_brief",
+                    update={
+                        "room": "living",
+                        "colours": ["sand"],
+                        "pieces": ["sofa", "rug", "cushions"],
+                    },
+                ),
+                reply("Here are the sand sofas first. Which one do you like?"),
+            ],
+            "I like the first one.": [
+                reply_and_call("Good choice.", "shortlist", request={"add": ["the first one"]}),
+                reply(
+                    "It's saved. Shall we move on to the rug now, or see cushions that go with the sofa?"
+                ),
+            ],
+            "The rug now.": [
+                reply_and_call(
+                    "Sand rugs, then.",
+                    "set_filters",
+                    request={"category": "rugs", "colours": ["sand"]},
+                ),
+                reply("Two sand rugs. Which one suits the sofa?"),
+            ],
+            "That first rug.": [
+                reply_and_call("Saving it.", "shortlist", request={"add": ["the first one"]}),
+                reply("Saved. Shall I show you cushions that go with the sofa?"),
+            ],
+            "Yes, cushions.": [
+                reply_and_call(
+                    "Cushions for the sofa.",
+                    "goes_with",
+                    request={"anchor": SOFA_ID, "category": "cushions"},
+                ),
+                reply("These pick up the sofa's tone. Which one?"),
+            ],
+            "The first cushion.": [
+                reply_and_call("Saved.", "shortlist", request={"add": ["the first one"]}),
+                reply("All three are saved. Shall I show them together?"),
+            ],
+            # The live mistake: a compare of a sofa, a rug and a cushion. Refused;
+            # the model then shows the saved picks together instead.
+            "Show me what I've selected.": [
+                reply_and_call(
+                    "Here they are.",
+                    "compare",
+                    request={"products": [SOFA_ID, RUG_ID, CUSHION_ID]},
+                ),
+                reply_and_call("Your picks, together.", "show_saved"),
+                reply("They share sand. Shall I add all three to your cart?"),
+            ],
+            "Add them to the cart.": reply_and_call(
+                "Adding all three.", "add_to_cart", request={"what": "saved"}
+            ),
+        }
+    )
+
+
+async def test_the_brief_is_remembered_and_walked_in_order() -> None:
+    """F1: "a sofa, a rug and cushions" is the brief for the whole call. The
+    first piece opens in their taste; each saved pick hands the model the next
+    piece to offer, as a choice of two; "show me what I've selected" is the
+    saved picks together (never a cross-category compare); "add them" adds
+    every saved pick in one go, and the reply is only what the cart holds."""
+    llm = _brief_llm()
+    async with demo("fernhollow", llm) as rig:
+        await rig.driver.start_session()
+        brain = rig.brain
+        assert isinstance(brain, FernhollowBrain)
+
+        check_turn(
+            rig,
+            await rig.driver.user_says(
+                "I'm doing up my living room. I want a sofa, a rug and a few cushions, in sand."
+            ),
+            units=2,
+        )
+        assert brain.wants == ["sofas", "rugs", "throw-pillows"]
+        grid = rig.command("apply_filters")
+        assert grid["filters"]["category"] == "sofas" and grid["filters"]["colours"] == list(SAND)
+        brief = _last_result(llm, "update_brief")
+        assert "sofa — not chosen yet; rug — not chosen yet; cushions — not chosen yet" in brief
+        assert "entire room" not in brief, "they named their pieces: no whole-room offer"
+
+        check_turn(rig, await rig.driver.user_says("I like the first one."), units=2)
+        assert brain.shortlisted == [SOFA_ID]
+        saved = _last_result(llm, "shortlist")
+        assert "Shall we move on to the rug now, or see cushions that go with the sofa?" in saved
+
+        check_turn(rig, await rig.driver.user_says("The rug now."), units=2)
+        check_turn(rig, await rig.driver.user_says("That first rug."), units=2)
+        assert brain.shortlisted == [SOFA_ID, RUG_ID]
+        assert "Shall I show you cushions that go with the sofa?" in _last_result(llm, "shortlist")
+
+        check_turn(rig, await rig.driver.user_says("Yes, cushions."), units=2)
+        assert rig.command("show_goes_with")["anchor_id"] == SOFA_ID
+        check_turn(rig, await rig.driver.user_says("The first cushion."), units=2)
+        assert brain.shortlisted == [SOFA_ID, RUG_ID, CUSHION_ID]
+        assert "every piece on their list is saved" in _last_result(llm, "shortlist")
+        # The screen note carries the list with what is saved for each, every turn.
+        assert f"sofa — saved: {CATALOG.products[SOFA_ID].title}" in _notes(rig)
+
+        compares = rig.actions().count("show_compare")
+        check_turn(rig, await rig.driver.user_says("Show me what I've selected."), units=3)
+        assert rig.actions().count("show_compare") == compares, (
+            "a sofa, a rug and a cushion compare nothing"
+        )
+        assert "different kinds of piece" in _last_result(llm, "compare")
+        shown = rig.command("show_saved")
+        assert shown["product_ids"] == [SOFA_ID, RUG_ID, CUSHION_ID]
+        assert shown["title"] == "Your picks for the living room"
+
+        check_turn(rig, await rig.driver.user_says("Add them to the cart."))
+        cart = rig.command("cart_updated")
+        assert sorted(line["product_id"] for line in cart["lines"]) == sorted(
+            [SOFA_ID, RUG_ID, CUSHION_ID]
+        ), "every saved pick goes in, in one call"
+        assert sorted(pid for pid, _ in brain.cart) == sorted([SOFA_ID, RUG_ID, CUSHION_ID])
+
+
+async def test_a_silent_action_is_followed_by_a_real_sentence() -> None:
+    """F1/X4: a turn that only acted is not answered by a written two-word line
+    ("Filtered.", "It's on the shortlist."): the model is asked once more, with
+    tools off, and its sentence is what is heard."""
+    from loguru import logger
+
+    floor: list[str] = []
+    sink = logger.add(
+        lambda m: floor.append(m.record["message"]),
+        level="WARNING",
+        filter=lambda r: "the brain says" in r["message"],
+    )
+    llm = ScriptedGemini(
+        {
+            "Put it in my cart.": [
+                call("add_to_cart", request={"product": SOFA_ID}),
+                reply("I've added the sandstone sofa to your cart. Shall we look at rugs next?"),
+            ]
+        }
+    )
+    try:
+        async with demo("fernhollow", llm) as rig:
+            await rig.driver.start_session()
+            turn = await rig.driver.user_says("Put it in my cart.")
+            check_turn(rig, turn, units=1)
+            assert turn.units[0].text.startswith("I've added the sandstone sofa")
+            assert rig.command("cart_updated")["lines"][0]["product_id"] == SOFA_ID
+    finally:
+        logger.remove(sink)
+    assert floor == [], f"the written floor spoke instead of the model: {floor}"
+
+
+def _orders_llm() -> ScriptedGemini:
+    return ScriptedGemini(
+        {
+            "Where's my bed frame?": [
+                reply_and_call("Your bed frame order.", "track_order", order_number="FH-31207"),
+                reply("It's packed and booked for its van. You can change the day or cancel it."),
+            ],
+            "Show me the available options.": [
+                reply_and_call("Here are the days.", "change_delivery", order_number="FH-31207"),
+                reply("Those are the days it can move to. Which suits you?"),
+            ],
+            "The evening one, the day after tomorrow... no wait, the Sunday evening.": [
+                reply_and_call(
+                    "Moving it.",
+                    "change_delivery",
+                    order_number="FH-31207",
+                    slot="d3-evening",
+                ),
+                reply("Done."),
+            ],
+            "And the chair order, can I cancel that?": [
+                reply_and_call("The chair order.", "cancel_order", order_number="FH-31188"),
+                reply("It's already on the van, so it can't be cancelled now."),
+            ],
+            "Can it come earlier then?": [
+                reply_and_call("I'll ask the driver.", "request_earlier", order_number="FH-31188"),
+                reply("I've asked; it's a request, not a promise."),
+            ],
+            "Return the chairs from my old order.": [
+                reply_and_call("That order.", "start_return", order_number="FH-20155"),
+                reply("That one was delivered forty-one days ago, outside the thirty-day window."),
+            ],
+        }
+    )
+
+
+async def test_orders_act_by_status() -> None:
+    """F8: one orders page; what an order allows depends on its status.
+    Packed: the day picker opens with the days ("show me the options" opens
+    it, the live bug) and a day is saved. On the way: no cancel, an earlier
+    delivery is a request. Delivered outside the window: no return, honestly."""
+    llm = _orders_llm()
+    async with demo("fernhollow", llm) as rig:
+        greeting = await rig.driver.start_session(init={"landing": "/orders"})
+        assert greeting is not None and greeting.text == GREETINGS["orders"]  # type: ignore[union-attr]
+
+        check_turn(rig, await rig.driver.user_says("Where's my bed frame?"), units=2)
+        assert _stage_moves(rig)[-1]["move"] == "orders.open"
+        where = _last_result(llm, "track_order")
+        assert "packed" in where and "change the delivery day" in where and "cancel" in where
+
+        check_turn(rig, await rig.driver.user_says("Show me the available options."), units=2)
+        shown = _stage_moves(rig)[-1]
+        assert (shown["move"], shown["args"]) == ("orders.show_slots", {"order_number": "FH-31207"})
+        days = _last_result(llm, "change_delivery")
+        assert "d3-evening" in days and "picker" in days
+
+        check_turn(
+            rig,
+            await rig.driver.user_says(
+                "The evening one, the day after tomorrow... no wait, the Sunday evening."
+            ),
+            units=2,
+        )
+        moved = _stage_moves(rig)[-1]
+        assert (moved["move"], moved["args"]) == (
+            "orders.reschedule",
+            {"order_number": "FH-31207", "slot": "d3-evening"},
+        )
+
+        check_turn(
+            rig, await rig.driver.user_says("And the chair order, can I cancel that?"), units=2
+        )
+        assert "orders.cancel" not in [m["move"] for m in _stage_moves(rig)]
+        assert "cannot be cancelled" in _last_result(llm, "cancel_order")
+
+        check_turn(rig, await rig.driver.user_says("Can it come earlier then?"))
+        earlier = _stage_moves(rig)[-1]
+        assert (earlier["move"], earlier["args"]) == (
+            "orders.request_earlier",
+            {"order_number": "FH-31188"},
+        )
+        assert "not a promise" in _last_result(llm, "request_earlier")
+
+        check_turn(rig, await rig.driver.user_says("Return the chairs from my old order."), units=2)
+        assert "orders.start_return" not in [m["move"] for m in _stage_moves(rig)]
+        assert "outside the 30-day return window" in _last_result(llm, "start_return")
+
+
+def _return_llm() -> ScriptedGemini:
+    return ScriptedGemini(
+        {
+            "I'd like to return something from my living room order.": [
+                reply_and_call("That order.", "start_return", order_number="FH-20377"),
+                reply("Which items are going back: the runner or the cushions?"),
+            ],
+            "The cushions.": [
+                reply_and_call(
+                    "The cushions.", "fill_return", answers={"items": [{"product": "the cushions"}]}
+                ),
+                reply("How many of the two are going back?"),
+            ],
+            "Both of them.": [
+                reply_and_call(
+                    "Both.",
+                    "fill_return",
+                    answers={"items": [{"product": "cushion", "qty": 2}]},
+                ),
+                reply("Why are they going back?"),
+            ],
+            "It's unused and still in its packaging.": [
+                reply_and_call(
+                    "Unused, in its packaging.",
+                    "fill_return",
+                    answers={"condition": "unused_in_packaging"},
+                ),
+                reply("Would you like a refund, an exchange, or store credit?"),
+            ],
+            "A refund, and I'll drop it off.": [
+                reply_and_call(
+                    "A refund, dropped off.",
+                    "fill_return",
+                    answers={"resolution": "refund", "collection": "drop_off"},
+                ),
+                reply("That's everything filled in. Please press Submit return when you're happy."),
+            ],
+        }
+    )
+
+
+async def test_a_return_is_filled_two_ways_one_answer_at_a_time() -> None:
+    """F5/F8: a delivered order's return form opens on its items with nothing
+    chosen; each answer is ticked the moment it is said (the item and its
+    quantity included — the live bug); what the shopper taps by hand the brain
+    hears with its value and carries on from; the form moves on by itself; only
+    the shopper's own press submits it. No order number typed, no email anywhere."""
+    llm = _return_llm()
+    async with demo("fernhollow", llm) as rig:
+        await rig.driver.start_session(init={"landing": "/orders"})
+        brain = rig.brain
+        assert isinstance(brain, FernhollowBrain)
+
+        check_turn(
+            rig,
+            await rig.driver.user_says("I'd like to return something from my living room order."),
+            units=2,
+        )
+        opened = _stage_moves(rig)[-1]
+        assert (opened["move"], opened["args"]) == (
+            "orders.start_return",
+            {"order_number": "FH-20377"},
+        )
+        started = _last_result(llm, "start_return")
+        assert "nothing is chosen" in started and "email" not in started.lower()
+        assert "Which items are going back" in started
+
+        check_turn(rig, await rig.driver.user_says("The cushions."), units=2)
+        assert [m["move"] for m in _stage_moves(rig)][-1] == "orders.start_return", (
+            "two cushions were ordered: how many is asked before anything is ticked"
+        )
+        assert "How many of the 2" in _last_result(llm, "fill_return")
+
+        check_turn(rig, await rig.driver.user_says("Both of them."), units=2)
+        moves = _stage_moves(rig)
+        assert [(m["move"], m["args"]) for m in moves[-2:]] == [
+            (
+                "returns.select_item",
+                {"product_id": "textured-wool-cushion-in-pebble-grey", "qty": 2},
+            ),
+            ("returns.next_step", {}),
+        ]
+        assert "Why is it going back" in _last_result(llm, "fill_return")
+
+        # The shopper taps the reason by hand: the brain hears it, with its value.
+        await rig.driver.send_ui_event(
+            "stage_event",
+            {
+                "name": "returns.field_filled",
+                "by": "visitor",
+                "data": {
+                    "order_number": "FH-20377",
+                    "field": "reason",
+                    "value": "wrong_item",
+                    "filled": ["items", "reason"],
+                },
+            },
+        )
+        await asyncio.sleep(0.1)
+        assert brain.form["reason"] == "wrong_item"
+        assert "set reason to received the wrong item by hand" in _notes(rig)
+        assert "Is it unused and still in its packaging" in _notes(rig)
+
+        check_turn(
+            rig, await rig.driver.user_says("It's unused and still in its packaging."), units=2
+        )
+        check_turn(rig, await rig.driver.user_says("A refund, and I'll drop it off."), units=2)
+        fills = [
+            (m["args"].get("field"), m["args"].get("value"))
+            for m in _stage_moves(rig)
+            if m["move"] == "returns.fill"
+        ]
+        assert fills == [
+            ("condition", "unused_in_packaging"),
+            ("resolution", "refund"),
+            ("collection", "drop_off"),
+        ], "nothing is filled that was not said, and the reason they tapped is not sent again"
+        assert "press Submit return" in _last_result(llm, "fill_return")
+        assert [m["move"] for m in _stage_moves(rig)].count("returns.next_step") == 3
+        await _answer(rig, _stage_moves(rig))
+
+        # Only the shopper sends it (F10): her yes gets Emily's line, not a submit.
+        yes = await rig.driver.user_says("Yes.")
+        assert [u.text for u in yes.units] == [
+            "I can't send it for you — please press Submit return on screen when you're ready."
+        ]
+        assert "returns.submit" not in [m["move"] for m in _stage_moves(rig)]
+
+
+def _gifts_llm() -> ScriptedGemini:
+    return ScriptedGemini(
+        {
+            "It's for a colleague, a thank-you.": [
+                reply_and_call(
+                    "A thank-you for a colleague.",
+                    "gift_edit",
+                    request={"recipient": "colleague", "occasion": "thank_you"},
+                ),
+                reply("Do you have a budget in mind, or shall I not worry about it?"),
+            ],
+            "Don't worry about the budget.": [
+                reply_and_call("No limit, then.", "gift_edit", request={"no_budget": True}),
+                reply("Here's a short list."),
+            ],
+            "Add the second one.": reply_and_call(
+                "Adding it.", "add_to_cart", request={"product": "the second one"}
+            ),
+        }
+    )
+
+
+async def test_gifts_ask_who_and_why_together_then_the_budget() -> None:
+    """F7: nothing is set before she starts; one question for who and the
+    occasion, then the budget question, which can be skipped — only then the
+    short list."""
+    llm = _gifts_llm()
+    async with demo("fernhollow", llm) as rig:
+        greeting = await rig.driver.start_session(init={"landing": "/gifts"})
+        assert greeting is not None and "Who is it for, and what's the occasion?" in greeting.text  # type: ignore[union-attr]
+        assert _stage_moves(rig) == [], "nothing is chosen before she starts"
+
+        check_turn(rig, await rig.driver.user_says("It's for a colleague, a thank-you."), units=2)
+        first = _stage_moves(rig)[-1]
+        assert (first["move"], first["args"]) == (
+            "gifts.set",
+            {"recipient": "colleague", "occasion": "thank_you"},
+        )
+        assert "Do you have a budget in mind, or shall I not worry about it?" in _last_result(
+            llm, "gift_edit"
+        )
+
+        check_turn(rig, await rig.driver.user_says("Don't worry about the budget."), units=2)
+        budget = _stage_moves(rig)[-1]
+        assert (budget["move"], budget["args"]) == ("gifts.set", {"budget": 0})
+        picks = [x["product_id"] for x in stored_edits()["gifts"]["colleague|thank_you|0"]]
+        listed = _last_result(llm, "gift_edit")
+        assert "no budget limit" in listed
+        for pid in picks:
+            assert CATALOG.products[pid].title in listed
+
+        check_turn(rig, await rig.driver.user_says("Add the second one."))
+        assert rig.command("cart_updated")["lines"][0]["product_id"] == picks[1]
+
+
+# ─── A call outlives a dropped brain socket (F11; CONTRACT.md, v7) ────────────
+
+
+def _f11_llm() -> ScriptedGemini:
+    """The /gifts call of 23 Nov, as said: a friend's birthday, then "no limit"."""
+    return ScriptedGemini(
+        {
+            "I'm looking for a gift for my friend's birthday.": [
+                reply_and_call(
+                    "A birthday gift for a friend.",
+                    "gift_edit",
+                    request={"recipient": "friend", "occasion": "birthday"},
+                ),
+                reply("Do you have a budget in mind, or shall I not worry about it?"),
+            ],
+            "Don't worry about it.": [
+                reply_and_call("No limit, then.", "gift_edit", request={"no_budget": True}),
+                reply("Here's a short list for your friend."),
+            ],
+            "Add the second one.": reply_and_call(
+                "Adding it.", "add_to_cart", request={"product": "the second one"}
+            ),
+        }
+    )
+
+
+def _redials(driver: VoqalizeDriver) -> list[bool | None]:
+    return [
+        r.config.redial.enabled
+        for r in driver.requests
+        if isinstance(r, ConfigureFrame) and r.config.redial is not None
+    ]
+
+
+async def test_a_dropped_socket_rejoins_the_call_where_it_was() -> None:
+    """F11: the /gifts call — a friend's birthday, "no limit" — then the brain's
+    socket drops without a hang-up. Emily turns redial on; Voqalize dials again
+    for the same session; the new socket's brain adopts the call (job, gift
+    edit, screen, the model's history) and the next turn carries on from it."""
+    from voqalize_demos._loaded.fernhollow.brain import REJOIN
+    from voqalize_demos.discovery import build_for
+
+    from voqalize.conformance import (
+        BrainServer,
+        DirectConnection,
+        generate_keypair,
+        mint_voqalize_token,
+    )
+
+    llm = _f11_llm()
+    build = build_for("fernhollow")
+    built: list[FernhollowBrain] = []
+
+    def _build() -> Any:
+        brain = build(llm)  # type: ignore[arg-type]
+        built.append(brain)
+        return brain
+
+    keypair = generate_keypair()
+    server = BrainServer(_build, host="127.0.0.1", port=0, public_keys=keypair.public_pem)
+    port = await server.start()
+    sid = "fernhollow-redial-e2e"
+
+    def driver() -> VoqalizeDriver:
+        token = mint_voqalize_token(
+            private_key_pem=keypair.private_pem,
+            session_id=sid,
+            agent_id="fernhollow",
+            tenant_id="demo",
+        )
+        return VoqalizeDriver(
+            DirectConnection(f"ws://127.0.0.1:{port}", sid, token=token),
+            session_id=sid,
+            default_timeout=10.0,
+        )
+
+    first, second = driver(), driver()
+    try:
+        await first.open()
+        await first.start_session(init={"landing": "/gifts"})
+        assert _redials(first) == [True], "redial is turned on with the voice, before the greeting"
+        await first.user_says("I'm looking for a gift for my friend's birthday.")
+        await first.user_says("Don't worry about it.")
+        before = built[-1]
+        assert before.gift == ("friend", "birthday", 0)
+
+        # The socket drops: no End, no close code a hang-up would send.
+        await first.aclose()
+        for _ in range(50):
+            if len(REJOIN) and before.screen.listing:
+                break
+            await asyncio.sleep(0.02)
+        await asyncio.sleep(0.1)
+
+        # Voqalize redials: the same session id, the same init.
+        await second.open()
+        await second.start_session(init={"landing": "/gifts"})
+        after = built[-1]
+        assert after is not before
+        assert after.job == "gifts" and after.gift == ("friend", "birthday", 0)
+        assert after.screen.listing == before.screen.listing, "the short list on screen is kept"
+        assert _redials(second) == [True]
+
+        turn = await second.user_says("Add the second one.")
+        assert turn.units, "the call carried on after the drop"
+        picks = [x["product_id"] for x in stored_edits()["gifts"]["friend|birthday|0"]]
+        lines = [
+            c["payload"]["lines"] for c in second.ui_commands if c.get("command") == "cart_updated"
+        ]
+        assert lines and lines[-1][0]["product_id"] == picks[1], "the second pick of the list"
+        last = json.dumps([str(c) for c in llm.captured_contents[-1]])
+        assert "my friend's birthday" in last, "the model's history came across"
+    finally:
+        await second.aclose()
+        await server.aclose()
+
+
+async def test_a_redial_that_finds_nothing_starts_fresh_and_a_hang_up_is_let_go() -> None:
+    """A redial reaching a process that never held the call (a deploy) carries
+    on as a new conversation; held calls are let go two minutes after a drop."""
+    from voqalize_demos._loaded.fernhollow.rejoin import KEEP_AFTER_DROP_S, Rejoin
+
+    now = [0.0]
+    store: Rejoin[object] = Rejoin(clock=lambda: now[0])
+    a, b = object(), object()
+    store.hold("s1", a)
+    store.dropped("s1", b)  # not the brain held: nothing changes
+    now[0] = KEEP_AFTER_DROP_S + 1
+    assert store.take("s1") is a, "a live call is kept however long it runs"
+    store.hold("s1", a)
+    store.dropped("s1", a)
+    now[0] += KEEP_AFTER_DROP_S - 1
+    assert len(store) == 1
+    now[0] += 2
+    assert store.take("s1") is None and len(store) == 0
+    assert store.take("never-held") is None
+
+
+async def test_no_redial_is_asked_of_a_voqalize_that_does_not_offer_it() -> None:
+    """``configure`` raises for redial without the capability: Emily asks only
+    where it is offered, and the call starts the same either way."""
+    from voqalize.sdk.wire import Capability
+
+    async with demo("fernhollow", ScriptedGemini({})) as rig:
+        rig.driver.capabilities.discard(Capability.REDIAL)
+        greeting = await rig.driver.start_session(init={"landing": "/gifts"})
+        check_greeting(rig, greeting)
+        assert _redials(rig.driver) == []
+        check_voice_pair(rig, voice=VOICE, language=LANGUAGE)

@@ -456,12 +456,11 @@ class SttConfig:
 
     language: Language | str | None = None
 
-    #: How long the recognizer waits through a pause before deciding the caller
-    #: has finished, from ``PATIENCE_MIN`` to ``PATIENCE_MAX``. Higher waits
-    #: longer: ``0`` answers as soon as it can and will sometimes cut a slow
+    #: How long the recognizer waits through a pause it is not sure about before
+    #: deciding the caller has finished, from ``PATIENCE_MIN`` to
+    #: ``PATIENCE_MAX``. Higher waits longer: ``0`` will sometimes cut a slow
     #: speaker off mid-thought; ``10`` lets a caller finish a sentence they are
-    #: still assembling, and costs a beat on every turn. Left unset, the
-    #: deployment's own calibration applies, which is ``7``.
+    #: still assembling. Left unset, the deployment's own calibration applies.
     #:
     #: It is a scale, not a duration, and nothing between here and the
     #: recognizer converts it to one. What that scale is worth in milliseconds
