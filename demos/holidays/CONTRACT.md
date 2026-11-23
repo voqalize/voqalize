@@ -132,3 +132,18 @@ the visitor, mock payment — the visitor presses Pay; the agent never pays), `/
 The call starts with `init = {page: "home" | "plan", lang: "en" | "hi", trip?: {...brief, flight_id,
 hotels, split, activities}}` — `trip` only when the visitor already built something by hand, so the
 brain starts from what is on screen.
+
+## Redial: a dropped brain socket does not end the call (SDK 0.15.0 `Config.redial`)
+
+On a Voqalize that offers redial (`session.can_redial`), `on_session_start` turns it on in the same
+configure as the voice. Each live brain is kept in this process by session id (`backend/rejoin.py`, the
+same mechanism as Fernhollow's) while its socket is up and for two minutes after it drops; a hang-up
+also ends in a drop and is let go on the same clock. A redial that reaches the same process (a Cortex
+restart, a network blip) adopts the call as it was: the trip (brief, flight, hotels and nights per
+city, activities), the page and language it had moved to (and so the voice and STT language it
+configures again), the flight sort, a booking reference, a line queued for the next quiet spell, the
+model's history and the Stage director. Redial resends the original `init`, which is ignored for a
+rejoined call: the trip and language in it are stale. The rejoined brain does not greet (`greet`
+returns nothing). A redial that reaches a fresh process, or comes after the two minutes, finds nothing
+and starts a new conversation from `init`, greeted. A move in flight when the socket dropped is settled
+by the Stage director's own expiry. `Config.late` stays at Voqalize's default.

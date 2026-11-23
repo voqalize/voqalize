@@ -7,7 +7,8 @@ landing page's main flow: the home page helps choose a destination and starts
 the brief; the trip builder takes a brief in one sentence, builds a priced
 package, edits it item by item ("swap the hotel in Ubud for something by the
 beach"), takes the visitor's own clicks, and ends at checkout with the visitor
-paying. Plus the language: English or Hindi from the page, and a switch mid-call.
+paying. Plus the language: English or Hindi from the page, and a switch mid-call;
+and redial: a call whose brain socket drops picks up where it was.
 
 Run: ``cd demos && uv run pytest tests/test_holidays_e2e.py``
 """
@@ -16,9 +17,11 @@ from __future__ import annotations
 
 import asyncio
 import json
+from collections.abc import Iterator
 from datetime import date
 from typing import Any
 
+import pytest
 from voqalize_demos.discovery import discover
 from voqalize_demos.testing import (
     ScriptedOpenAI,
@@ -30,6 +33,9 @@ from voqalize_demos.testing import (
     tool_results_of,
 )
 
+from voqalize.conformance import VoqalizeDriver
+from voqalize.sdk.wire import ConfigureFrame
+
 from ._harness import DemoRig, check_greeting, check_turn, check_voice_pair, demo, demo_from
 
 discover()
@@ -39,6 +45,18 @@ from voqalize_demos._loaded.holidays.brain import HolidaysBrain  # noqa: E402
 from voqalize_demos._loaded.holidays.persona import LANGUAGES  # noqa: E402
 
 TODAY = date(2026, 11, 18)
+
+
+@pytest.fixture(autouse=True)
+def _no_call_carried_between_tests() -> Iterator[None]:
+    """Every test here opens the same session id, and a dropped call is held for
+    a redial to rejoin (CONTRACT.md, Redial): clear the store around each test,
+    so no test rejoins the one before it. Real session ids never repeat."""
+    from voqalize_demos._loaded.holidays.brain import REJOIN
+
+    REJOIN.clear()
+    yield
+    REJOIN.clear()
 
 
 def _moves(rig: DemoRig) -> list[dict[str, Any]]:
@@ -57,13 +75,22 @@ def _move(rig: DemoRig, move: str) -> dict[str, Any]:
 
 async def _page_answers(rig: DemoRig, answered: set[str]) -> None:
     """The page lands every move it was sent (so the queue moves on)."""
+    await _lands(rig.driver, answered)
+
+
+async def _lands(driver: VoqalizeDriver, answered: set[str]) -> None:
     for _ in range(4):
-        new = [m for m in _moves(rig) if m["call_ref"] not in answered]
+        new = [
+            dict(c.get("payload") or {})
+            for c in driver.ui_commands
+            if c.get("command") == "stage_move"
+        ]
+        new = [m for m in new if m["call_ref"] not in answered]
         if not new:
             return
         for m in new:
             answered.add(m["call_ref"])
-            await rig.driver.send_ui_event(
+            await driver.send_ui_event(
                 "stage_result",
                 {
                     "call_ref": m["call_ref"],
@@ -369,4 +396,236 @@ async def test_the_umbrella_factory_builds_the_brain() -> None:
     async with demo("holidays", ScriptedOpenAI()) as rig:
         greeting = await rig.driver.start_session()
         check_greeting(rig, greeting)
+        check_voice_pair(rig, voice=LANGUAGES["en"].voice, language="en")
+
+
+# ── Redial: a dropped brain socket does not end the call ─────────────────────
+
+
+def _configs(driver: VoqalizeDriver) -> list[ConfigureFrame]:
+    return [r for r in driver.requests if isinstance(r, ConfigureFrame)]
+
+
+def _redials(driver: VoqalizeDriver) -> list[bool | None]:
+    return [c.config.redial.enabled for c in _configs(driver) if c.config.redial is not None]
+
+
+def _redial_llm() -> ScriptedOpenAI:
+    return ScriptedOpenAI(
+        {
+            "Delhi to Bali": replies(
+                call(
+                    "set_trip",
+                    from_city="Delhi",
+                    destination="Bali",
+                    month="February",
+                    nights=6,
+                    adults=2,
+                    style="honeymoon",
+                ),
+                reply("Lovely. Shall I build the whole package?"),
+            ),
+            "build the whole thing": replies(
+                call("build_package"), reply("{show: total} Here it is, all in.")
+            ),
+            "the flights": replies(call("show_flights"), reply("दो विकल्प हैं।")),
+        }
+    )
+
+
+async def _redial_rig(llm: ScriptedOpenAI, sid: str) -> tuple[Any, list[HolidaysBrain], Any]:
+    """A real brain server two drivers can dial on one session id, as Voqalize
+    does when it redials; and every brain it built, in order."""
+    from voqalize.conformance import (
+        BrainServer,
+        DirectConnection,
+        generate_keypair,
+        mint_voqalize_token,
+    )
+
+    built: list[HolidaysBrain] = []
+
+    def _build() -> HolidaysBrain:
+        brain = HolidaysBrain(client=llm, today=TODAY)  # type: ignore[arg-type]
+        built.append(brain)
+        return brain
+
+    keypair = generate_keypair()
+    server = BrainServer(_build, host="127.0.0.1", port=0, public_keys=keypair.public_pem)
+    port = await server.start()
+
+    def driver() -> VoqalizeDriver:
+        token = mint_voqalize_token(
+            private_key_pem=keypair.private_pem,
+            session_id=sid,
+            agent_id="holidays",
+            tenant_id="demo",
+        )
+        return VoqalizeDriver(
+            DirectConnection(f"ws://127.0.0.1:{port}", sid, token=token),
+            session_id=sid,
+            default_timeout=10.0,
+        )
+
+    return server, built, driver
+
+
+async def _drop(driver: VoqalizeDriver, brain: HolidaysBrain) -> None:
+    """The socket drops: no End, no close code a hang-up would send. Returns once
+    the brain's ``on_session_end`` has marked the call dropped."""
+    from voqalize_demos._loaded.holidays.brain import REJOIN
+
+    await driver.aclose()
+    for _ in range(50):
+        entry = REJOIN._held.get(driver.session_id)  # pyright: ignore[reportPrivateUsage]
+        if entry is not None and entry[0] is brain and entry[2] is not None:
+            return
+        await asyncio.sleep(0.02)
+    raise AssertionError("the dropped socket never reached on_session_end")
+
+
+async def test_a_dropped_socket_rejoins_the_call_where_it_was() -> None:
+    """Mid-flow — a brief, a built package, a switch to Hindi on the toggle and a
+    room the visitor picked by hand — the brain's socket drops without a hang-up.
+    The planner turned redial on; Voqalize dials again for the same session with
+    the same (now stale) init; the new socket's brain adopts the call — trip,
+    page, language and voice, the model's history — greets no one, and the next
+    turn carries on from it."""
+    llm = _redial_llm()
+    sid = "holidays-redial-e2e"
+    server, built, driver = await _redial_rig(llm, sid)
+    first, second = driver(), driver()
+    init = {"page": "plan", "lang": "en"}
+    try:
+        await first.open()
+        greeting = await first.start_session(init=init)
+        assert greeting is not None and greeting.text == LANGUAGES["en"].greeting_plan
+        assert _redials(first) == [True], "redial is turned on with the voice, before the greeting"
+        answered: set[str] = set()
+        await first.user_says(
+            "Delhi to Bali in February for six nights, my wife and I, it's our honeymoon"
+        )
+        await _lands(first, answered)
+        await first.user_says("Just build the whole thing for us")
+        await _lands(first, answered)
+        await first.send_ui_event("language_chosen", {"language": "hi"})
+        await first.send_ui_event(
+            "stage_event",
+            {
+                "name": "trip.hotel_picked",
+                "by": "visitor",
+                "data": {
+                    "city": "seminyak",
+                    "hotel_id": "petitenget-villas",
+                    "room_id": "one-bed",
+                    "label": "Petitenget Pool Villas, One-bedroom Pool Villa, in Seminyak",
+                },
+            },
+        )
+        await asyncio.sleep(0.1)
+        before = built[-1]
+        assert before.lang == "hi"
+        assert before.trip.hotels["seminyak"] == ("petitenget-villas", "one-bed")
+        trip_before = before.trip.to_json()
+        history_before = len(before._history)  # pyright: ignore[reportPrivateUsage]
+
+        await _drop(first, before)
+
+        # Voqalize redials: the same session id, the same init it started with.
+        await second.open()
+        regreeting = await second.start_session(init=init, greeting_timeout=0.5)
+        after = built[-1]
+        assert after is not before
+        assert regreeting is None, "a rejoined call is not greeted again"
+        assert after.trip.to_json() == trip_before, "the trip on screen is kept"
+        assert after.lang == "hi" and after.page == "plan"
+        assert "This call is in Hindi" in after.system_instruction
+        assert after._history and len(after._history) >= history_before  # pyright: ignore[reportPrivateUsage]
+        last = _configs(second)[-1].config
+        assert last.tts is not None and last.tts.voice == LANGUAGES["hi"].voice
+        assert last.tts.language == "hi" and last.stt is not None and last.stt.language == "hi"
+        assert _redials(second) == [True]
+
+        turn = await second.user_says("And what are the flights?")
+        assert turn.units, "the call carried on after the drop"
+        flights = tool_results_of(llm.captured_inputs[-1], "show_flights")[0]
+        assert flights.startswith("2 options from Delhi"), "the brief came across"
+        heard = json.dumps(llm.captured_inputs[-1], ensure_ascii=False)
+        assert "Delhi to Bali in February" in heard, "the model's history came across"
+        assert heard.count(LANGUAGES["en"].greeting_plan) <= 1, "no second greeting"
+        # The Stage director now dispatches on the new socket.
+        moved = [
+            c["payload"]["move"] for c in second.ui_commands if c.get("command") == "stage_move"
+        ]
+        assert moved == ["trip.flights"], moved
+    finally:
+        await second.aclose()
+        await server.aclose()
+
+
+async def test_a_redial_after_two_minutes_starts_fresh_from_init() -> None:
+    """Expiry: a call held longer than two minutes after its drop is let go, so a
+    redial then starts a new conversation on the page, greeted, from init."""
+    from voqalize_demos._loaded.holidays.brain import REJOIN
+    from voqalize_demos._loaded.holidays.rejoin import KEEP_AFTER_DROP_S
+
+    llm = _redial_llm()
+    sid = "holidays-redial-expired-e2e"
+    server, built, driver = await _redial_rig(llm, sid)
+    now = [1000.0]
+    REJOIN._clock = lambda: now[0]  # pyright: ignore[reportPrivateUsage]
+    first, second = driver(), driver()
+    try:
+        await first.open()
+        await first.start_session(init={"page": "plan", "lang": "en"})
+        await first.user_says(
+            "Delhi to Bali in February for six nights, my wife and I, it's our honeymoon"
+        )
+        before = built[-1]
+        assert before.trip.destination == "bali"
+        await _drop(first, before)
+        now[0] += KEEP_AFTER_DROP_S + 1
+        assert len(REJOIN) == 0, "let go two minutes after the drop"
+
+        await second.open()
+        greeting = await second.start_session(init={"page": "plan", "lang": "en"})
+        after = built[-1]
+        assert greeting is not None and greeting.text == LANGUAGES["en"].greeting_plan
+        assert not after.trip.destination and not after._history[1:]  # pyright: ignore[reportPrivateUsage]
+    finally:
+        REJOIN._clock = __import__("time").monotonic  # pyright: ignore[reportPrivateUsage]
+        await second.aclose()
+        await server.aclose()
+
+
+def test_the_rejoin_store_keeps_live_calls_and_lets_dropped_ones_go() -> None:
+    from voqalize_demos._loaded.holidays.rejoin import KEEP_AFTER_DROP_S, Rejoin
+
+    now = [0.0]
+    store: Rejoin[object] = Rejoin(clock=lambda: now[0])
+    a, b = object(), object()
+    store.hold("s1", a)
+    store.dropped("s1", b)  # not the brain held: nothing changes
+    now[0] = KEEP_AFTER_DROP_S + 1
+    assert store.take("s1") is a, "a live call is kept however long it runs"
+    store.hold("s1", a)
+    store.dropped("s1", a)
+    now[0] += KEEP_AFTER_DROP_S - 1
+    assert len(store) == 1
+    now[0] += 2
+    assert store.take("s1") is None and len(store) == 0
+    assert store.take("never-held") is None
+
+
+async def test_no_redial_is_asked_of_a_voqalize_that_does_not_offer_it() -> None:
+    """``configure`` raises for redial without the capability: the planner asks
+    only where it is offered, and the call starts the same either way."""
+    from voqalize.sdk.wire import Capability
+
+    async with _rig(ScriptedOpenAI()) as rig:
+        rig.driver.capabilities.discard(Capability.REDIAL)
+        greeting = await rig.driver.start_session(init={"page": "plan", "lang": "en"})
+        check_greeting(rig, greeting)
+        assert greeting is not None and greeting.text == LANGUAGES["en"].greeting_plan
+        assert _redials(rig.driver) == []
         check_voice_pair(rig, voice=LANGUAGES["en"].voice, language="en")

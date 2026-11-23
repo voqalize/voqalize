@@ -33,6 +33,10 @@ opens a console that fires every Stage move by hand.
   `uv run voqalize stage gen holidays/frontend/src/stage/scene.json --py holidays/backend/stage_gen.py --ts holidays/frontend/src/stage/scene.gen.ts`
 - `backend/brain.py` — `HolidaysBrain`, an `OpenAIBrain` (GPT-6.1 Terra, medium reasoning). Tools read
   the engine and send Stage moves; the model's words carry `{go:}`, `{step:}` and `{show:}` cues.
+- `backend/rejoin.py` — redial (SDK 0.15.0): when the brain's socket drops without a hang-up and
+  Voqalize dials again for the same session, the new brain adopts the call held in this process for two
+  minutes (trip, page, language, the model's history, the Stage director) and does not greet again.
+  See `CONTRACT.md`, "Redial".
 
 ## The character and languages: `persona.json`
 

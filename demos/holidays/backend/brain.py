@@ -48,12 +48,13 @@ from voqalize.sdk import AppEvent, AppEvents, RTVIMessage, Session, Speech, User
 from voqalize.sdk.openai import OpenAIBrain, needs_result_now
 from voqalize.sdk.stage import Mirror, Stage, match_label
 from voqalize.sdk.stage.wire import StageEvent, StageHello, StageProgress, StageResult
-from voqalize.sdk.wire import Config, IdleConfig, SttConfig, TtsConfig
+from voqalize.sdk.wire import Config, IdleConfig, RedialConfig, SttConfig, TtsConfig
 
 from . import engine as eng
 from .engine import Trip
 from .persona import LANGUAGES, Speaking, speaking
 from .prompt import system_instruction
+from .rejoin import Rejoin
 from .stage_gen import SPEC
 
 #: GPT-6.1 Terra, as the other OpenAI demos run it, at medium reasoning: at low,
@@ -68,6 +69,11 @@ _IDLE_MS = 30_000
 _SAY_NOW_MS = 400
 
 Lang = Literal["en", "hi"]
+
+#: What a brain holds for one socket only: the session object and the speech
+#: units waiting for the runtime to say what was heard. Everything else a call
+#: built is carried to the brain a redial starts (rejoin.py).
+_PER_SOCKET = frozenset({"_session", "_awaiting"})
 
 
 class LanguageChosen(AppEvent):
@@ -306,6 +312,7 @@ class HolidaysBrain(OpenAIBrain):
         self._fallback = FallbackLine()
         self._say_next: Callable[[], str] | None = None
         self._said_state = ""
+        self._rejoined = False  # this socket picked up a call a dropped one served
 
     # ─── Session ────────────────────────────────────────────────────────
 
@@ -317,21 +324,61 @@ class HolidaysBrain(OpenAIBrain):
 
     async def on_session_start(self, session: Session) -> None:
         """The page and language the call started on, and any trip the visitor
-        already built by hand; then both legs of the language, before the greeting."""
-        init: dict[str, Any] = dict(session.init or {})
-        self.page = "home" if init.get("page") == "home" else "plan"
-        s = speaking(str(init.get("lang") or ""))
-        self.lang = "hi" if s.tag == "hi" else "en"
-        raw = init.get("trip")
-        if isinstance(raw, dict):
-            self.trip = Trip.from_json(raw)  # pyright: ignore[reportUnknownArgumentType]
-        self.system_instruction = system_instruction(self.page, self.lang, self.today)
+        already built by hand; then both legs of the language, before the greeting.
+
+        A call outlives a dropped socket (CONTRACT.md, Redial; SDK 0.15.0):
+        redial is on wherever Voqalize offers it, and a brain started by a
+        redial on a session this process still holds adopts that call as it
+        was — the trip, the page and language it had moved to, the model's
+        history — instead of starting over from the (now stale) ``init``."""
+        prior = REJOIN.take(session.id)
+        rejoined = prior is not None and prior is not self
+        if prior is not None and rejoined:
+            self._adopt(prior)
+            logger.info("holidays: rejoined call {} after its socket dropped", session.id)
+            s = LANGUAGES[self.lang]
+        else:
+            init: dict[str, Any] = dict(session.init or {})
+            self.page = "home" if init.get("page") == "home" else "plan"
+            s = speaking(str(init.get("lang") or ""))
+            self.lang = "hi" if s.tag == "hi" else "en"
+            raw = init.get("trip")
+            if isinstance(raw, dict):
+                self.trip = Trip.from_json(raw)  # pyright: ignore[reportUnknownArgumentType]
+            self.system_instruction = system_instruction(self.page, self.lang, self.today)
+        self._rejoined = rejoined
+        REJOIN.hold(session.id, self)
         config = self._speaking(s)
-        await session.configure(replace(config, idle=IdleConfig(timeout_ms=_IDLE_MS)))
-        if self.trip.destination:
+        await session.configure(
+            replace(
+                config,
+                idle=IdleConfig(timeout_ms=_IDLE_MS),
+                redial=RedialConfig(enabled=True) if session.can_redial else None,
+            )
+        )
+        if not rejoined and self.trip.destination:
             self.append_note(f"[The visitor already started a trip on screen. {self.state_line()}]")
 
-    async def greet(self, session: Session) -> str:
+    async def on_session_end(self, session: Session) -> None:
+        """The socket closed: a hang-up, or a drop Voqalize may redial. Kept a
+        short while for the redial; runs at least once, and a second run (or
+        one on a brain a redial already replaced) changes nothing."""
+        REJOIN.dropped(session.id, self)
+
+    def _adopt(self, prior: HolidaysBrain) -> None:
+        """Take over ``prior``'s call: every piece of state but its socket's.
+        ``prior`` then shares this brain's state, so whatever still points at
+        it — the Stage director's dispatch, a line queued for the next quiet
+        spell — acts on this call and this socket."""
+        self.__dict__.update({k: v for k, v in prior.__dict__.items() if k not in _PER_SOCKET})
+        prior.__dict__ = self.__dict__
+
+    async def greet(self, session: Session) -> str | None:
+        """The page's greeting in the call's language; none for a rejoined call,
+        which the visitor already heard greeted (Voqalize does not speak a
+        redialled brain's greeting either, and none means none in the history)."""
+        if self._rejoined:
+            return None
         s = LANGUAGES[self.lang]
         return s.greeting_home if self.page == "home" else s.greeting_plan
 
@@ -1218,3 +1265,7 @@ class HolidaysBrain(OpenAIBrain):
                 f"[The visitor chose {s.name} on the toggle. Reply in {s.name} from now on.]"
             )
             self._say_soon(s.switched)
+
+
+#: Live calls by session id, for a redial to rejoin (rejoin.py).
+REJOIN: Rejoin[HolidaysBrain] = Rejoin()
