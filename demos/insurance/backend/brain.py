@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import AsyncGenerator
+from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from typing import Any, Literal
 
@@ -48,12 +49,13 @@ from voqalize.sdk import (
 from voqalize.sdk.openai import OpenAIBrain, needs_result_now
 from voqalize.sdk.stage import Mirror, Stage
 from voqalize.sdk.stage.wire import StageEvent, StageHello, StageProgress, StageResult
-from voqalize.sdk.wire import Config, IdleConfig
+from voqalize.sdk.wire import Config, IdleConfig, RedialConfig
 
 from . import claims as cl
 from . import persona, quotes, rating
 from .policies import clause_text, search
 from .prompt import system_instruction
+from .rejoin import Rejoin
 from .stage_gen import MOVES, SPEC
 from .store import (
     CLAIMS_GUIDE,
@@ -241,6 +243,11 @@ class LanguageRequest(BaseModel):
 
 # ─── The brain ────────────────────────────────────────────────────────────────
 
+#: What a brain holds for one socket only: the session object and the speech
+#: units waiting for the runtime to say what was heard. Everything else a call
+#: built is carried to the brain a redial starts (rejoin.py).
+_PER_SOCKET = frozenset({"_session", "_awaiting"})
+
 
 class InsuranceBrain(OpenAIBrain):
     """One per session: the job, the language, the quote and claim as known."""
@@ -270,18 +277,39 @@ class InsuranceBrain(OpenAIBrain):
         self._fallback = FallbackLine()
         self._talk: str | None = None  # an ask for the next quiet spell
         self._say: str | None = None  # a written line for the next quiet spell
+        # This socket picked up a call a dropped one had (rejoin.py): no greeting.
+        self._rejoined = False
 
     # ─── Session ────────────────────────────────────────────────────────
 
     async def on_session_start(self, session: Session) -> None:
         """Both speech legs of the language the page's toggle chose, before the
-        greeting; the job from the page the call started on."""
-        init = session.init or {}
-        self.lang = persona.language_of(init.get("lang"))
-        self._arrive(str(init.get("landing") or "/"))
+        greeting; the job from the page the call started on.
+
+        A call outlives a dropped socket (CONTRACT.md, redial; SDK 0.15.0):
+        redial is on wherever Voqalize offers it, and a brain started by a
+        redial on a session this process still holds adopts that call as it
+        was — the job, page and language it had moved to, the quote and claim,
+        the model's history — instead of starting over. Its greeting is not
+        spoken, and no second start note goes to the model."""
+        prior = REJOIN.take(session.id)
+        rejoined = False
+        if prior is not None and prior is not self:
+            self._adopt(prior)
+            rejoined = True
+            logger.info("insurance: rejoined call {} after its socket dropped", session.id)
+        else:
+            init = session.init or {}
+            self.lang = persona.language_of(init.get("lang"))
+            self._arrive(str(init.get("landing") or "/"))
+        self._rejoined = rejoined
+        REJOIN.hold(session.id, self)
+        speech = persona.speech_config(self.lang, patience=PATIENCE, idle_ms=_IDLE_MS)
         await session.configure(
-            persona.speech_config(self.lang, patience=PATIENCE, idle_ms=_IDLE_MS)
+            replace(speech, redial=RedialConfig(enabled=True) if session.can_redial else None)
         )
+        if rejoined:
+            return
         self.append_note(
             f"[Today is {self.today.strftime('%A, %d %b %Y')} ({self.today.isoformat()}). "
             f"The customer is on /{self.route}. Your job here: {JOBS[self.mode]} "
@@ -289,7 +317,25 @@ class InsuranceBrain(OpenAIBrain):
         )
         logger.info("insurance: session start on /{} ({}) in {}", self.route, self.mode, self.lang)
 
-    async def greet(self, session: Session) -> str:
+    async def on_session_end(self, session: Session) -> None:
+        """The socket closed: a hang-up, or a drop Voqalize may redial. Kept a
+        short while for the redial; runs at least once, and a second run (or
+        one on a brain a redial already replaced) changes nothing."""
+        REJOIN.dropped(session.id, self)
+
+    def _adopt(self, prior: InsuranceBrain) -> None:
+        """Take over ``prior``'s call: every piece of state but its socket's.
+        ``prior`` then shares this brain's state, so whatever still points at
+        it — the Stage director's dispatch, a line queued for the next quiet
+        spell — acts on this call and this socket."""
+        self.__dict__.update({k: v for k, v in prior.__dict__.items() if k not in _PER_SOCKET})
+        prior.__dict__ = self.__dict__
+
+    async def greet(self, session: Session) -> str | None:
+        """The job's fixed opening line; none on a socket that rejoined a call
+        already greeted (Voqalize would not speak it anyway)."""
+        if self._rejoined:
+            return None
         return persona.greeting(self.mode, self.lang, FIRST_NAME)
 
     def _arrive(self, path: str) -> bool:
@@ -736,3 +782,7 @@ class InsuranceBrain(OpenAIBrain):
             return "The call is already in that language."
         configure_soon(self.session, self._speaking(req.language))
         return f"The call is now in {persona.LANGUAGES[req.language].label}."
+
+
+#: Live calls by session id, for a redial to rejoin (rejoin.py).
+REJOIN: Rejoin[InsuranceBrain] = Rejoin()

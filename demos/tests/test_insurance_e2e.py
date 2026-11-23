@@ -5,6 +5,7 @@ an add-on toggled by voice), "am I covered if…" answered from his own car poli
 with the clause marked, and a motor claim and a health claim filled from what
 he says, up to the review step he submits himself. Plus the language: the
 toggle's Hindi at connect, Hindi heard mid-call, and the toggle moved mid-call.
+And a call that outlives a dropped brain socket (redial, CONTRACT.md).
 
 Run: ``cd demos && uv run pytest tests/test_insurance_e2e.py``
 """
@@ -13,11 +14,16 @@ from __future__ import annotations
 
 import asyncio
 import json
+from collections.abc import Iterator
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
+import pytest
 from voqalize_demos.discovery import discover
 from voqalize_demos.testing import ScriptedOpenAI, call, reply, reply_and_call
+
+from voqalize.conformance import VoqalizeDriver
+from voqalize.sdk.wire import Capability, ConfigureFrame
 
 from ._harness import DemoRig, check_greeting, check_turn, check_voice_pair, demo
 
@@ -28,6 +34,18 @@ from voqalize_demos._loaded.insurance.brain import InsuranceBrain  # noqa: E402
 from voqalize_demos._loaded.insurance.store import POLICIES, clauses  # noqa: E402
 
 VOICE = persona.LANGUAGES["en"].voice
+
+
+@pytest.fixture(autouse=True)
+def _no_call_carried_between_tests() -> Iterator[None]:
+    """Every test here opens the same session id, and a dropped call is held for
+    a redial to rejoin (CONTRACT.md, redial): clear the store around each test,
+    so no test rejoins the one before it. Real session ids never repeat."""
+    from voqalize_demos._loaded.insurance.brain import REJOIN
+
+    REJOIN.clear()
+    yield
+    REJOIN.clear()
 
 
 def _moves(rig: DemoRig) -> list[dict[str, Any]]:
@@ -452,3 +470,208 @@ def test_every_policy_the_customer_holds_has_a_document() -> None:
 def test_the_golden_quotes_are_current() -> None:
     golden = json.loads((rating.DATA / "quote_cases.json").read_text())["cases"]
     assert golden == rating.golden(), "run: uv run python insurance/backend/rating.py --cases"
+
+
+# ─── A call outlives a dropped brain socket (redial) ──────────────────────────
+
+
+def _redials(driver: VoqalizeDriver) -> list[bool | None]:
+    return [
+        r.config.redial.enabled
+        for r in driver.requests
+        if isinstance(r, ConfigureFrame) and r.config.redial is not None
+    ]
+
+
+def _spoken(driver: VoqalizeDriver) -> list[tuple[str | None, str | None]]:
+    return [
+        (r.config.tts.voice, r.config.tts.language)
+        for r in driver.requests
+        if isinstance(r, ConfigureFrame) and r.config.tts is not None
+    ]
+
+
+async def test_a_dropped_socket_rejoins_the_claim_where_it_was() -> None:
+    """Mid-claim (the incident filled, the call switched to Hindi by the
+    toggle), the brain's socket drops without a hang-up. Ananya turned redial
+    on; Voqalize dials again for the same session with the same init; the new
+    socket's brain adopts the call — job, language, claim, the model's history —
+    greets no one, and the next turn fills the claim on from where it was."""
+    from voqalize_demos._loaded.insurance.brain import REJOIN
+    from voqalize_demos.discovery import build_for
+
+    from voqalize.conformance import (
+        BrainServer,
+        DirectConnection,
+        generate_keypair,
+        mint_voqalize_token,
+    )
+
+    llm = ScriptedOpenAI(
+        {
+            MOTOR_SAID: [
+                call("start_claim", claim_type="motor", policy_id="car-2026"),
+                call(
+                    "fill_claim",
+                    answers=[
+                        {"field": "incident_kind", "value": "accident"},
+                        {"field": "incident_date", "value": YESTERDAY},
+                        {"field": "incident_city", "value": "Pune"},
+                    ],
+                ),
+                reply("I'm sorry. Were you driving?"),
+            ],
+            MOTOR_MORE: [
+                call(
+                    "fill_claim",
+                    answers=[
+                        {"field": "driver_is_policyholder", "value": "yes"},
+                        {"field": "injuries", "value": "none"},
+                    ],
+                ),
+                reply("ठीक है। गाड़ी अभी कहाँ है?"),
+            ],
+        }
+    )
+    build = build_for("insurance")
+    built: list[InsuranceBrain] = []
+
+    def _build() -> Any:
+        brain = build(llm)  # type: ignore[arg-type]
+        built.append(brain)
+        return brain
+
+    keypair = generate_keypair()
+    server = BrainServer(_build, host="127.0.0.1", port=0, public_keys=keypair.public_pem)
+    port = await server.start()
+    sid = "insurance-redial-e2e"
+    init = {"landing": "/claim", "lang": "en"}
+
+    def driver() -> VoqalizeDriver:
+        token = mint_voqalize_token(
+            private_key_pem=keypair.private_pem,
+            session_id=sid,
+            agent_id="insurance",
+            tenant_id="demo",
+        )
+        return VoqalizeDriver(
+            DirectConnection(f"ws://127.0.0.1:{port}", sid, token=token),
+            session_id=sid,
+            default_timeout=10.0,
+        )
+
+    first, second = driver(), driver()
+    try:
+        await first.open()
+        greeting = await first.start_session(init=init)
+        assert greeting is not None and "fill in the form" in greeting.text
+        assert _redials(first) == [True], "redial is turned on with the voice, before the greeting"
+        await first.user_says(MOTOR_SAID)
+        await first.send_ui_event(
+            "stage_event",
+            {"name": "site.language_chosen", "by": "visitor", "data": {"language": "hi"}},
+        )
+        await asyncio.sleep(0.2)
+        before = built[-1]
+        assert before.lang == "hi" and before.mode == "claim"
+        claim_before = dict(before.claim.values)
+        assert claim_before["incident_city"] == "Pune"
+
+        # The socket drops: no End, no close code a hang-up would send.
+        await first.aclose()
+        for _ in range(50):
+            if len(REJOIN):
+                break
+            await asyncio.sleep(0.02)
+        await asyncio.sleep(0.1)
+
+        # Voqalize redials: the same session id, the same init (still "en").
+        await second.open()
+        again = await second.start_session(init=init, greeting_timeout=0.5)
+        assert again is None, "no second greeting"
+        after = built[-1]
+        assert after is not before
+        assert after.mode == "claim" and after.route == "claim"
+        assert after.lang == "hi", "the language it had moved to, not the init's"
+        assert after.claim.claim_type == "motor" and after.claim.values == claim_before
+        assert _redials(second) == [True]
+        assert _spoken(second)[-1] == (persona.LANGUAGES["hi"].voice, "hi")
+
+        turn = await second.user_says(MOTOR_MORE)
+        assert turn.units, "the call carried on after the drop"
+        fills = [
+            c["payload"]["args"]["field"]
+            for c in second.ui_commands
+            if c.get("command") == "stage_move" and c["payload"]["move"] == "claim.fill"
+        ]
+        assert fills == ["driver_is_policyholder", "injuries"]
+        assert after.claim.values["incident_city"] == "Pune"
+        assert after.claim.values["driver_is_policyholder"] == "yes"
+        sent = json.dumps(llm.captured_inputs[-1], ensure_ascii=False)
+        assert MOTOR_SAID in sent, "the model's history came across"
+        assert sent.count("[Today is") == 1, "no second start note"
+    finally:
+        await second.aclose()
+        await server.aclose()
+
+
+async def test_redial_held_calls_are_let_go_two_minutes_after_a_drop() -> None:
+    """A live call is kept however long it runs; a dropped one two minutes; a
+    redial reaching a process that never held the call finds nothing."""
+    from voqalize_demos._loaded.insurance.rejoin import KEEP_AFTER_DROP_S, Rejoin
+
+    now = [0.0]
+    store: Rejoin[object] = Rejoin(clock=lambda: now[0])
+    a, b = object(), object()
+    store.hold("s1", a)
+    store.dropped("s1", b)  # not the brain held: nothing changes
+    now[0] = KEEP_AFTER_DROP_S + 1
+    assert store.take("s1") is a, "a live call is kept however long it runs"
+    store.hold("s1", a)
+    store.dropped("s1", a)
+    now[0] += KEEP_AFTER_DROP_S - 1
+    assert len(store) == 1
+    now[0] += 2
+    assert store.take("s1") is None and len(store) == 0
+    assert store.take("never-held") is None
+
+
+async def test_a_redial_after_expiry_starts_fresh_and_greets() -> None:
+    """Past the two minutes, a redial on the same session id is a new call: it
+    greets again from the init's page and language, none of the old call's."""
+    from voqalize_demos._loaded.insurance import brain as ib
+    from voqalize_demos._loaded.insurance.rejoin import KEEP_AFTER_DROP_S, Rejoin
+    from voqalize_demos.discovery import build_for
+
+    llm = ScriptedOpenAI()
+    stale = build_for("insurance")(llm)  # type: ignore[arg-type]
+    assert isinstance(stale, InsuranceBrain)
+    stale.mode, stale.route, stale.lang = "claim", "claim", "hi"
+    stale.claim.start("motor", "car-2026")
+    now = [0.0]
+    held: Rejoin[InsuranceBrain] = Rejoin(clock=lambda: now[0])
+    old, ib.REJOIN = ib.REJOIN, held
+    try:
+        async with demo("insurance", llm) as rig:
+            held.hold(rig.driver.session_id, stale)
+            held.dropped(rig.driver.session_id, stale)
+            now[0] = KEEP_AFTER_DROP_S + 1
+            greeting = await rig.driver.start_session(init={"landing": "/quote", "lang": "en"})
+            fresh = _brain(rig)
+            assert fresh is not stale
+            assert greeting is not None and persona.name_in("en") in greeting.text
+            assert fresh.mode == "quote" and fresh.lang == "en"
+            assert fresh.claim.claim_type is None
+    finally:
+        ib.REJOIN = old
+
+
+async def test_no_redial_is_asked_of_a_voqalize_that_does_not_offer_it() -> None:
+    """``configure`` raises for redial without the capability: Ananya asks only
+    where it is offered, and the call starts the same either way."""
+    async with demo("insurance", ScriptedOpenAI()) as rig:
+        rig.driver.capabilities.discard(Capability.REDIAL)
+        greeting = await rig.driver.start_session(init={"landing": "/claim", "lang": "en"})
+        assert greeting is not None and "fill in the form" in greeting.text
+        assert _redials(rig.driver) == []
+        check_voice_pair(rig, voice=VOICE, language="en")

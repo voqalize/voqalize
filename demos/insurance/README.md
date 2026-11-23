@@ -35,6 +35,13 @@ The page the call starts on decides the job; the brain follows the visitor when 
   `cd demos && uv run voqalize stage gen insurance/frontend/src/stage/scene.json --py insurance/backend/stage_gen.py --ts insurance/frontend/src/stage/scene.gen.ts`
 - `CONTRACT.md` — the agreement between the page and the brain.
 
+## Redial
+
+A dropped brain socket does not end the call. Where Voqalize offers redial, the brain turns it on, and
+a redial reaching this process within two minutes picks the call up where it was: job, language,
+quote, claim, the model's history and the screen, with no second greeting (`backend/rejoin.py`,
+CONTRACT.md "Redial").
+
 ## Run it
 
 ```bash
