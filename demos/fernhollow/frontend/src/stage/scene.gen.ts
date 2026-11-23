@@ -1,58 +1,14 @@
-// Generated from demos/fernhollow/frontend/src/stage/scene.json by `voqalize stage gen`. Do not edit — regenerate with:
-//   voqalize stage gen demos/fernhollow/frontend/src/stage/scene.json --py demos/fernhollow/backend/stage_gen.py --ts demos/fernhollow/frontend/src/stage/scene.gen.ts
+// Generated from fernhollow/frontend/src/stage/scene.json by `voqalize stage gen`. Do not edit — regenerate with:
+//   voqalize stage gen fernhollow/frontend/src/stage/scene.json --py fernhollow/backend/stage_gen.py --ts fernhollow/frontend/src/stage/scene.gen.ts
 import { defineScene } from "@voqalize/stage";
 
-/** The moves of fernhollow_returns, from its Stage Spec. */
+/** The moves of fernhollow, from its Stage Spec. */
 export const scene = defineScene({
   "stage": 1,
-  "id": "fernhollow_returns",
+  "id": "fernhollow",
   "moves": [
     {
-      "id": "returns.find",
-      "verb": "find",
-      "class": "reversible",
-      "args": [
-        {
-          "name": "order_number"
-        },
-        {
-          "name": "email",
-          "optional": true
-        }
-      ]
-    },
-    {
-      "id": "returns.next_step",
-      "verb": "next",
-      "class": "reversible"
-    },
-    {
-      "id": "returns.open_step",
-      "verb": "step",
-      "class": "look",
-      "args": [
-        {
-          "name": "step",
-          "type": "integer"
-        }
-      ]
-    },
-    {
-      "id": "returns.fill",
-      "verb": "fill",
-      "class": "reversible",
-      "args": [
-        {
-          "name": "field"
-        },
-        {
-          "name": "value"
-        }
-      ]
-    },
-    {
       "id": "returns.select_item",
-      "verb": "item",
       "class": "reversible",
       "args": [
         {
@@ -66,14 +22,156 @@ export const scene = defineScene({
       ]
     },
     {
-      "id": "returns.submit",
-      "class": "confirmed"
+      "id": "returns.fill",
+      "class": "reversible",
+      "args": [
+        {
+          "name": "field"
+        },
+        {
+          "name": "value"
+        }
+      ]
+    },
+    {
+      "id": "returns.open_step",
+      "class": "look",
+      "args": [
+        {
+          "name": "step",
+          "type": "integer"
+        }
+      ]
+    },
+    {
+      "id": "returns.next_step",
+      "class": "reversible"
+    },
+    {
+      "id": "orders.open",
+      "class": "look",
+      "args": [
+        {
+          "name": "order_number"
+        }
+      ]
+    },
+    {
+      "id": "orders.show_slots",
+      "class": "look",
+      "args": [
+        {
+          "name": "order_number"
+        }
+      ]
+    },
+    {
+      "id": "orders.reschedule",
+      "class": "reversible",
+      "args": [
+        {
+          "name": "order_number"
+        },
+        {
+          "name": "slot"
+        }
+      ]
+    },
+    {
+      "id": "orders.cancel",
+      "class": "confirmed",
+      "args": [
+        {
+          "name": "order_number"
+        }
+      ]
+    },
+    {
+      "id": "orders.request_earlier",
+      "class": "reversible",
+      "args": [
+        {
+          "name": "order_number"
+        }
+      ]
+    },
+    {
+      "id": "orders.start_return",
+      "class": "navigate",
+      "args": [
+        {
+          "name": "order_number"
+        }
+      ]
+    },
+    {
+      "id": "gifts.set",
+      "class": "reversible",
+      "args": [
+        {
+          "name": "recipient",
+          "enum": [
+            "partner",
+            "parent",
+            "sibling",
+            "friend",
+            "host",
+            "colleague"
+          ],
+          "optional": true
+        },
+        {
+          "name": "occasion",
+          "enum": [
+            "housewarming",
+            "birthday",
+            "thank_you",
+            "wedding",
+            "just_because"
+          ],
+          "optional": true
+        },
+        {
+          "name": "budget",
+          "type": "integer",
+          "optional": true
+        }
+      ]
+    },
+    {
+      "id": "kiosk.start",
+      "class": "reversible"
+    },
+    {
+      "id": "kiosk.answer",
+      "class": "reversible",
+      "args": [
+        {
+          "name": "question",
+          "enum": [
+            "room",
+            "feel",
+            "budget"
+          ]
+        },
+        {
+          "name": "value"
+        }
+      ]
+    },
+    {
+      "id": "kiosk.restart",
+      "class": "reversible"
     }
   ],
   "slices": [
     {
       "id": "returns_form",
       "fields": [
+        {
+          "name": "order_number",
+          "optional": true
+        },
         {
           "name": "step",
           "type": "integer",
@@ -84,11 +182,67 @@ export const scene = defineScene({
           "optional": true
         },
         {
+          "name": "value",
+          "optional": true
+        },
+        {
           "name": "filled",
           "type": "array"
         },
         {
           "name": "reference",
+          "optional": true
+        }
+      ]
+    },
+    {
+      "id": "gift_edit",
+      "fields": [
+        {
+          "name": "recipient",
+          "optional": true
+        },
+        {
+          "name": "occasion",
+          "optional": true
+        },
+        {
+          "name": "budget",
+          "type": "integer",
+          "optional": true
+        }
+      ]
+    },
+    {
+      "id": "orders",
+      "fields": [
+        {
+          "name": "order_number",
+          "optional": true
+        },
+        {
+          "name": "slot",
+          "optional": true
+        },
+        {
+          "name": "status",
+          "optional": true
+        }
+      ]
+    },
+    {
+      "id": "kiosk",
+      "fields": [
+        {
+          "name": "screen",
+          "optional": true
+        },
+        {
+          "name": "question",
+          "optional": true
+        },
+        {
+          "name": "value",
           "optional": true
         }
       ]
@@ -143,6 +297,38 @@ export const scene = defineScene({
       "slice": "returns_form"
     },
     {
+      "id": "gifts.changed",
+      "slice": "gift_edit"
+    },
+    {
+      "id": "orders.opened",
+      "slice": "orders"
+    },
+    {
+      "id": "orders.delivery_changed",
+      "slice": "orders"
+    },
+    {
+      "id": "orders.cancelled",
+      "slice": "orders"
+    },
+    {
+      "id": "orders.earlier_requested",
+      "slice": "orders"
+    },
+    {
+      "id": "orders.return_started",
+      "slice": "returns_form"
+    },
+    {
+      "id": "kiosk.screen",
+      "slice": "kiosk"
+    },
+    {
+      "id": "kiosk.answered",
+      "slice": "kiosk"
+    },
+    {
       "id": "view.changed",
       "slice": "view",
       "op": "set"
@@ -155,4 +341,4 @@ export const scene = defineScene({
   ]
 });
 
-export const SPEC_SHA256 = "77c054e830ae17299aadaecf873f95e32370987f1b33662425ac6aa19b544cdc";
+export const SPEC_SHA256 = "3f61e44a5afcf597225e0971bcd3a7cd0c84cb82260eb9ef6837825c151bbdc5";

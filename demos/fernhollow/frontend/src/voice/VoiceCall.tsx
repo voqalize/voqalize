@@ -9,7 +9,7 @@
  * which reads its state off the same client. Every `ui-command` goes to the
  * controller's `dispatch`; every UI event goes out through `events.ts`.
  */
-import { type ComponentProps, useCallback, useEffect, useMemo, useState } from "react";
+import { type ComponentProps, useCallback, useEffect, useState } from "react";
 import { type APIRequest, PipecatClient, RTVIEvent, type UICommandData } from "@pipecat-ai/client-js";
 import { PipecatClientProvider, useRTVIClientEvent } from "@pipecat-ai/client-react";
 import { Avatar } from "@voqalize/avatar/react";
@@ -21,11 +21,14 @@ import { dispatch } from "./controller";
 import { setVoiceBegin, setVoiceClient, setVoiceLive } from "../stage/client";
 import { debugMode, setEventSender } from "./events";
 import { CallTile } from "./CallTile";
+import { LanguageToggle, callInit } from "./lang";
+import { useLocation } from "react-router-dom";
+import { persona, roleFor } from "../persona";
 import { useDockMode } from "./useDockMode";
 
 type Activity = "idle" | "connecting" | "listening" | "thinking" | "speaking" | "error";
 
-function useCall(media: VoqalizeMedia, params: APIRequest) {
+function useCall(media: VoqalizeMedia, request: () => APIRequest) {
   const [call] = useState(() => {
     const transport = createVoqalizeTransport({ mediaManager: media.manager, keepAcrossPageLoads: true });
     const client = new PipecatClient({ transport, enableMic: true, enableCam: false });
@@ -56,16 +59,17 @@ function useCall(media: VoqalizeMedia, params: APIRequest) {
     if (!["initialized", "disconnected", "error"].includes(client.state)) return;
     setError(null);
     try {
-      const response = await client.startBot({ ...params });
+      // Built now, not at mount: `landing` is where the call starts.
+      const response = await client.startBot({ ...request() });
       if (typeof response === "object" && response !== null && "iceConfig" in response) {
         transport.iceServers = (response as { iceConfig: { iceServers: RTCIceServer[] } }).iceConfig.iceServers;
       }
       await client.connect(withRealHeaders(response));
     } catch (err) {
       console.error("Connection error:", err);
-      setError("Emily could not connect. Check your microphone permission and try again.");
+      setError(`${persona.name} could not connect. Check your microphone permission and try again.`);
     }
-  }, [call, params]);
+  }, [call, request]);
   const end = useCallback(async () => {
     try {
       await call.client.disconnectBot();
@@ -78,10 +82,9 @@ function useCall(media: VoqalizeMedia, params: APIRequest) {
 }
 
 export default function VoiceCall() {
-  const init = useMemo(() => ({ surface: "fernhollow-web" }), []);
-  const params = useMemo(() => connectRequest(init), [init]);
+  const request = useCallback(() => connectRequest(callInit()), []);
   const media = useVoqalizeMedia();
-  const call = useCall(media, params);
+  const call = useCall(media, request);
   return (
     <PipecatClientProvider client={call.client as unknown as ComponentProps<typeof PipecatClientProvider>["client"]}>
       <Dock call={call} />
@@ -137,8 +140,9 @@ function Dock({ call }: { call: ReturnType<typeof useCall> }) {
     return () => setVoiceBegin(null);
   }, [call]);
   useEffect(() => setVoiceLive(on), [on]);
+  const role = roleFor(useLocation().pathname);
   const STATUS: Record<Activity, string> = {
-    idle: "Design adviser",
+    idle: role,
     connecting: "Connecting…",
     listening: muted ? "Microphone off" : "Listening",
     thinking: "Thinking",
@@ -159,12 +163,12 @@ function Dock({ call }: { call: ReturnType<typeof useCall> }) {
       }}
       onEnd={() => void call.end()}
     >
-      <Avatar className="dock-avatar" client={call.client} character="emily" aria-label="Emily" />
+      <Avatar className="dock-avatar" client={call.client} character={persona.character} aria-label={persona.name} />
     </CallTile>
-    <div className={`dock${on ? " is-live is-calling" : ""} is-${activity}${mode.classes}`} role="region" aria-label="Talk to Emily">
+    <div className={`dock${on ? " is-live is-calling" : ""} is-${activity}${mode.classes}`} role="region" aria-label={`Talk to ${persona.name}`}>
       <div className="dock-face dock-face-slot" aria-hidden />
       <div className="dock-text">
-        <p className="dock-name">Emily</p>
+        <p className="dock-name">{persona.name}</p>
         <p className="dock-status" aria-live="polite">
           {call.error ?? (on && heard ? `“${heard}”` : STATUS[activity])}
         </p>
@@ -188,6 +192,8 @@ function Dock({ call }: { call: ReturnType<typeof useCall> }) {
           </button>
         </>
       ) : (
+        <>
+        <LanguageToggle />
         <button
           type="button"
           className="dock-cta"
@@ -196,8 +202,9 @@ function Dock({ call }: { call: ReturnType<typeof useCall> }) {
             void call.begin();
           }}
         >
-          <Mic size={16} /> <span className="dock-cta-label">Talk to Emily</span>
+          <Mic size={16} /> <span className="dock-cta-label">Talk to {persona.name}</span>
         </button>
+        </>
       )}
     </div>
     </>

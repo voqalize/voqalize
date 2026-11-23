@@ -230,7 +230,9 @@ the English recognizer. The VAD knobs that
 left the wire in the rewrite stay off it and keep the voice runtime's internal
 defaults. `patience` came back in 0.5.0 as a step on a 0-to-10 scale rather than
 a duration, so it survives a retune of the tier underneath it; unset takes the
-deployment's calibration, which is 7. We widen as we learn.
+deployment's calibration, which is 3 on dev (prod runs 7 until it is moved). Since
+2026-11-22 it sets only how long an unsure pause waits, 1.5 s at 0 to 3.5 s at 10;
+a confident answer comes at once. We widen as we learn.
 
 The `Voice` enum is deprecated and frozen, like `Language`: a brain names a voice
 by its `voice_id` string, so a voice added to the speech tier needs no proto

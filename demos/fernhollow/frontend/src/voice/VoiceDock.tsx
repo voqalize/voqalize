@@ -4,6 +4,8 @@ import { demo } from "../config";
 import { create } from "zustand";
 import { type CallState, CallTile } from "./CallTile";
 import { useDockMode } from "./useDockMode";
+import { useLocation } from "react-router-dom";
+import { persona, roleFor } from "../persona";
 
 const VoiceCall = lazy(() => import("./VoiceCall"));
 
@@ -38,6 +40,7 @@ export const useFakeCall = create<{ on: boolean; state: CallState; heard: string
 function DockPlaceholder({ loading = false }: { loading?: boolean }) {
   const fake = useFakeCall();
   const mode = useDockMode(fake.on);
+  const role = roleFor(useLocation().pathname);
   return (
     <>
       <CallTile
@@ -49,17 +52,19 @@ function DockPlaceholder({ loading = false }: { loading?: boolean }) {
         onEnd={() => useFakeCall.setState({ on: false, heard: "" })}
       >
         <div className="face-placeholder" aria-hidden>
-          <span>E</span>
+          <span>{persona.name.slice(0, 1)}</span>
         </div>
       </CallTile>
-      <div className={`dock is-off${fake.on ? " is-calling" : ""}${mode.classes}`} role="region" aria-label="Talk to Emily">
+      <div className={`dock is-off${fake.on ? " is-calling" : ""}${mode.classes}`} role="region" aria-label={`Talk to ${persona.name}`}>
         <div className="dock-face dock-face-slot" aria-hidden />
         <div className="dock-text">
-          <p className="dock-name">Emily</p>
-          <p className="dock-status">{loading ? "Getting ready…" : "Voice coming soon"}</p>
+          <p className="dock-name">{persona.name}</p>
+          <p className="dock-status" title={loading ? undefined : "Voice is not switched on for this preview"}>
+            {loading ? "Getting ready…" : role}
+          </p>
         </div>
         <button type="button" className="dock-cta" disabled title="Voice is not switched on for this preview">
-          <Mic size={16} /> <span className="dock-cta-label">Talk to Emily</span>
+          <Mic size={16} /> <span className="dock-cta-label">Talk to {persona.name}</span>
         </button>
       </div>
     </>

@@ -27,11 +27,11 @@ interface Pending {
   orders_known: {
     orders: {
       number: string;
-      email: string;
+      email?: string;
       name: string;
       placed_at: string;
       placed_days_ago: number;
-      delivered_days_ago: number;
+      delivered_days_ago: number | null;
       lines: { product_id: string; variant_id: string; title: string; variant: string; qty: number; unit_price: number }[];
       total: number;
       status: string;
