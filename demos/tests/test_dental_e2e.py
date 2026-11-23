@@ -18,7 +18,8 @@ One storyline per landing page:
 
 Plus the rules that are code, not prompt: a CBCT without a referral or a
 consultation is refused; the language toggle moves both legs mid-call; a move the
-page refused is undone and said.
+page refused is undone and said; a call whose socket drops mid-change is redialled
+and carries on where it was (CONTRACT.md, "Redial").
 
 Run: ``cd demos && uv run pytest tests/test_dental_e2e.py``
 """
@@ -32,7 +33,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from voqalize_demos.discovery import discover
+from voqalize_demos.discovery import build_for, discover
 from voqalize_demos.testing import (
     ScriptedOpenAI,
     call,
@@ -42,17 +43,31 @@ from voqalize_demos.testing import (
     tool_results_of,
 )
 
+from voqalize.conformance import (
+    BrainServer,
+    DirectConnection,
+    VoqalizeDriver,
+    generate_keypair,
+    mint_voqalize_token,
+)
 from voqalize.sdk.stage import load_spec
 from voqalize.sdk.stage.gen import render_python, render_typescript
+from voqalize.sdk.wire import Capability, ConfigureFrame
 
 from ._harness import DemoRig, _configs, check_greeting, check_voice_pair, demo
 
 discover()
 
 from voqalize_demos._loaded.dental import clinic as cl  # noqa: E402
-from voqalize_demos._loaded.dental.brain import DentalBrain, affirmed, clinical  # noqa: E402
+from voqalize_demos._loaded.dental.brain import (  # noqa: E402
+    REJOIN,
+    DentalBrain,
+    affirmed,
+    clinical,
+)
 from voqalize_demos._loaded.dental.persona import PERSONA  # noqa: E402
 from voqalize_demos._loaded.dental.prompt import greeting  # noqa: E402
+from voqalize_demos._loaded.dental.rejoin import KEEP_AFTER_DROP_S, Rejoin  # noqa: E402
 
 NOW = datetime(2026, 11, 18, 10, 7, tzinfo=cl.IST)  # a Wednesday morning
 CAL = cl.Calendar.build(NOW)
@@ -67,6 +82,16 @@ RCT_PLAN = CAL.plan_sittings(RCT, RCT_SLOT)
 def fixed_clock(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     monkeypatch.setattr(cl, "now_ist", lambda: NOW)
     yield
+
+
+@pytest.fixture(autouse=True)
+def _no_call_carried_between_tests() -> Iterator[None]:
+    """Every test here opens the same session id, and a dropped call is held for
+    a redial to rejoin (CONTRACT.md, "Redial"): clear the store around each
+    test, so no test rejoins the one before it. Real session ids never repeat."""
+    REJOIN.clear()
+    yield
+    REJOIN.clear()
 
 
 def _moves(rig: DemoRig, move: str | None = None) -> list[dict[str, Any]]:
@@ -426,6 +451,185 @@ async def test_the_page_schedule_is_laid_over_the_calendar() -> None:
         )
         await asyncio.sleep(0.1)
         assert brain.cal.slot_at(RCT, RCT_SLOT.on, RCT_SLOT.time, dentist_id="dr-kavitha") is None
+
+
+# ─── Redial: a call outlives its socket ───────────────────────────────────────
+
+
+def _redials(driver: VoqalizeDriver) -> list[bool | None]:
+    return [
+        r.config.redial.enabled
+        for r in driver.requests
+        if isinstance(r, ConfigureFrame) and r.config.redial is not None
+    ]
+
+
+def _driver_moves(driver: VoqalizeDriver, move: str) -> list[dict[str, Any]]:
+    return [
+        dict(c.get("payload") or {})
+        for c in driver.ui_commands
+        if c.get("command") == "stage_move" and (c.get("payload") or {}).get("move") == move
+    ]
+
+
+async def test_a_dropped_socket_rejoins_the_call_where_it_was() -> None:
+    """Rohan verifies on /my-appointments, switches to Hindi, and a move of his
+    cleaning is on screen waiting for his yes; then the brain's socket drops
+    without a hang-up. Meera turns redial on; Voqalize dials again for the same
+    session; the new socket's brain adopts the call (language, page, patient,
+    the pending change, the call's calendar, the model's history), says no
+    second greeting, and the yes on the new socket moves the cleaning."""
+    scaling = cl.service("scaling")
+    assert scaling is not None
+    a = CAL.appts["DT-24063"]
+    target_day, targets = CAL.next_days(
+        scaling, dentist_id=a.dentist, start=a.on + timedelta(days=1), ignore=a.id
+    )[0]
+    target = targets[0]
+    llm = ScriptedOpenAI(
+        {
+            "98450 31726": [call("send_code", phone="9845031726"), reply("Code please.")],
+            "4821": [call("verify_code", code="4821"), reply("Thanks Rohan.")],
+            "Move the cleaning": [
+                reply_and_call(
+                    "Let me put that on screen.",
+                    "propose_change",
+                    appointment_id="DT-24063",
+                    action="reschedule",
+                    date=target_day.isoformat(),
+                    time=target.time,
+                ),
+                reply("It's free to move. Shall I go ahead?"),
+            ],
+            "Yes please": [reply_and_call("Moving it now.", "confirm_change")],
+        }
+    )
+    build = build_for("dental")
+    built: list[DentalBrain] = []
+
+    def _build() -> Any:
+        brain = build(llm)  # type: ignore[arg-type]
+        built.append(brain)
+        return brain
+
+    keypair = generate_keypair()
+    server = BrainServer(_build, host="127.0.0.1", port=0, public_keys=keypair.public_pem)
+    port = await server.start()
+    sid = "dental-redial-e2e"
+    init = {"landing": "my-appointments", "lang": "en"}
+
+    def driver() -> VoqalizeDriver:
+        token = mint_voqalize_token(
+            private_key_pem=keypair.private_pem,
+            session_id=sid,
+            agent_id="dental",
+            tenant_id="demo",
+        )
+        return VoqalizeDriver(
+            DirectConnection(f"ws://127.0.0.1:{port}", sid, token=token),
+            session_id=sid,
+            default_timeout=10.0,
+        )
+
+    first, second = driver(), driver()
+    try:
+        await first.open()
+        greeted = await first.start_session(init=init)
+        assert greeted is not None and greeted.text == greeting("en", "my-appointments")
+        assert _redials(first) == [True], "redial is turned on with the voice, before the greeting"
+        for text in ("98450 31726", "4821"):
+            await first.user_says(text)
+        await first.send_ui_event("language_requested", {"language": "hi", "by": "visitor"})
+        await asyncio.sleep(0.1)
+        await first.user_says("Move the cleaning")
+        for _ in range(200):
+            if _driver_moves(first, "appt.propose"):
+                break
+            await asyncio.sleep(0.02)
+        propose = _driver_moves(first, "appt.propose")[0]
+        await first.send_ui_event(
+            "stage_result",
+            {"call_ref": propose["call_ref"], "move": "appt.propose", "outcome": "applied"},
+        )
+        await asyncio.sleep(0.05)
+        before = built[-1]
+        assert before.pending is not None and before.pending.appt.id == "DT-24063"
+        assert before.lang == "hi" and before.patient is not None
+        cal = before.cal
+
+        # The socket drops: no End, no close code a hang-up would send.
+        await first.aclose()
+        await asyncio.sleep(0.2)
+        assert len(REJOIN) == 1, "the dropped call is held for a redial"
+
+        # Voqalize redials: the same session id, the same init.
+        await second.open()
+        again = await second.start_session(init=init, greeting_timeout=0.5)
+        after = built[-1]
+        assert after is not before
+        assert again is None, "a rejoined call is not greeted a second time"
+        assert after.lang == "hi" and after.page == "my-appointments"
+        assert after.patient is not None and after.patient.id == "P-1001"
+        assert after.pending is not None and after.pending.appt.id == "DT-24063"
+        assert after.cal is cal, "the call's own calendar came across"
+        assert _redials(second) == [True]
+        configs = [r.config for r in second.requests if isinstance(r, ConfigureFrame)]
+        assert configs[0].tts is not None and configs[0].tts.language == "hi"
+        assert configs[0].tts.voice == PERSONA.voice("hi"), "the Hindi voice, as the call had"
+
+        await second.user_says("Yes please")
+        for _ in range(200):
+            if _driver_moves(second, "appt.apply"):
+                break
+            await asyncio.sleep(0.02)
+        apply = _driver_moves(second, "appt.apply")
+        assert apply and apply[0]["args"]["action"] == "reschedule", (
+            "the yes landed on the new socket"
+        )
+        moved = after.cal.appts["DT-24063"]
+        assert moved.on == target_day and cl.hhmm(moved.start) == target.time
+        seen = input_texts(llm.captured_inputs[-1])
+        assert "Move the cleaning" in seen, "the model's history came across"
+        greetings = (greeting("en", "my-appointments"), greeting("hi", "my-appointments"))
+        assert sum(seen.count(g) for g in greetings) == 1, "one greeting in the history"
+    finally:
+        await second.aclose()
+        await server.aclose()
+
+
+async def test_no_redial_is_asked_of_a_voqalize_that_does_not_offer_it() -> None:
+    """``configure`` raises for redial without the capability: Meera asks only
+    where it is offered, and the call starts and runs the same either way."""
+    llm = ScriptedOpenAI({"hello": reply("Hi!")})
+    async with demo("dental", llm) as rig:
+        rig.driver.capabilities.discard(Capability.REDIAL)
+        greeted = await rig.driver.start_session(init={"landing": "home", "lang": "en"})
+        check_greeting(rig, greeted)
+        assert _redials(rig.driver) == []
+        check_voice_pair(rig, voice=PERSONA.voice("en"), language="en")
+        turn = await rig.driver.user_says("hello")
+        assert turn.units
+
+
+def test_a_held_call_expires_and_a_fresh_process_starts_over() -> None:
+    """A redial reaching a process that never held the call (a deploy) finds
+    nothing and starts fresh; a live call is held however long it runs; a
+    dropped one (a hang-up looks the same to the brain) is let go two minutes
+    after its socket closed."""
+    now = [0.0]
+    store: Rejoin[object] = Rejoin(clock=lambda: now[0])
+    a, b = object(), object()
+    store.hold("s1", a)
+    store.dropped("s1", b)  # not the brain held: nothing changes
+    now[0] = KEEP_AFTER_DROP_S + 1
+    assert store.take("s1") is a, "a live call is kept however long it runs"
+    store.hold("s1", a)
+    store.dropped("s1", a)
+    now[0] += KEEP_AFTER_DROP_S - 1
+    assert len(store) == 1
+    now[0] += 2
+    assert store.take("s1") is None and len(store) == 0
+    assert store.take("never-held") is None
 
 
 # ─── Pure rules ───────────────────────────────────────────────────────────────

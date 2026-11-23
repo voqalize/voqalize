@@ -38,6 +38,10 @@ the visitor to the others.
   a cleaning), Ishita Banerjee `99000 48213` (aligner consult; no referral, so no CBCT),
   Suresh Gowda `98860 55102` (check-up on the next open day, an OPG, a CBCT referral on file).
   Any other mobile number is a new patient.
+- **Redial**: if the brain's socket drops mid-call (a restart, a network blip), Voqalize dials
+  it again and the call carries on where it was, with no second greeting: language, page,
+  patient, held slot, pending change, the call's calendar and the model's history are kept in
+  memory by session id for two minutes (`backend/rejoin.py`, `CONTRACT.md` "Redial").
 
 Dates are never stored: bookings name a week relative to the current one and a weekday, so the
 calendar is full whatever day the demo runs.

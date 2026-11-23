@@ -1,4 +1,4 @@
-# Dantika Dental — page ↔ brain contract (v1)
+# Dantika Dental — page ↔ brain contract (v2)
 
 Dantika Dental Studio is a fictional two-branch dental clinic in Bengaluru (Indiranagar and HSR
 Layout) and a Voqalize voice demo. The front-desk agent (character, voices and languages in
@@ -124,3 +124,18 @@ reason, urgency}`, `language_requested{language}`. Every one carries `by: "visit
 - Clinical questions (bleeding, swelling with fever, which medicine, stopping a medicine, pregnancy,
   worsening pain) are never answered: the agent offers a dentist's callback (`callback.request`),
   and for the red-flag signs says the authored red-flag line first.
+
+## Redial (v2, SDK 0.15.0 `Config.redial`)
+
+A dropped brain socket does not end the call. Where Voqalize offers redial (`session.can_redial`),
+`on_session_start` turns it on in the same configure as the voice, before the greeting; where it
+does not, nothing is asked and the call runs as before. Each live brain is kept in this process by
+session id (`backend/rejoin.py`) while its socket is up and for two minutes after it drops. A
+redial that reaches the same process adopts the call as it was: the language and page, the call's
+own calendar (with what this browser booked, moved or cancelled laid over it), the verified
+patient and the code state, the held slot, the change waiting for a yes, the numbers minted so
+far, a line waiting to be said, the model's history and the Stage director. No greeting is sent
+on the new socket. A redial that reaches a fresh process (a deploy of the brain) finds nothing
+and starts a new conversation on the same page. The brain cannot tell a hang-up from a drop (the
+SDK does not hand it the End frame), so a hung-up call is let go by the same two-minute expiry.
+The page changes nothing for this.

@@ -52,7 +52,7 @@ from voqalize.sdk import (
 from voqalize.sdk.openai import OpenAIBrain, needs_result_now
 from voqalize.sdk.stage import Stage
 from voqalize.sdk.stage.wire import StagePageEvents, StageResult
-from voqalize.sdk.wire import Config, IdleConfig, SttConfig, TtsConfig
+from voqalize.sdk.wire import Config, IdleConfig, RedialConfig, SttConfig, TtsConfig
 
 from . import clinic as cl
 from .app_events import (
@@ -72,6 +72,7 @@ from .app_events import (
 from .clinic import Appt, Calendar, Patient, Service, Slot
 from .persona import PERSONA, Lang
 from .prompt import LANDINGS, LINES, greeting, system_instruction
+from .rejoin import Rejoin
 from .stage_gen import MOVES
 
 #: GPT-6.1 Terra at medium reasoning: the repo's rule for a new demo (at low,
@@ -263,6 +264,12 @@ def _sitting_arg(s: Slot) -> str:
     return f"{_iso(s.on)} {s.time} {s.branch} {s.chair or ''}".strip()
 
 
+#: What a brain holds for one socket only: the session object and the speech
+#: units waiting for the runtime to say what was heard. Everything else a call
+#: built is carried to the brain a redial starts (rejoin.py).
+_PER_SOCKET = frozenset({"_session", "_awaiting"})
+
+
 class DentalBrain(OpenAIBrain):
     """One per call: the calendar, the patient, the slot held and the change pending."""
 
@@ -291,17 +298,35 @@ class DentalBrain(OpenAIBrain):
         self._new_name: str | None = None
         self._fallback = FallbackLine()
         self.stage = Stage(dispatch=lambda a: self.session.dispatch(a), moves=MOVES)
+        # This socket's brain took over a call a dropped socket had (rejoin.py).
+        self._rejoined = False
 
     # ─── Session ────────────────────────────────────────────────────────
 
     async def on_session_start(self, session: Session) -> None:
-        """Both legs in the page's chosen language, before the greeting."""
+        """Both legs in the page's chosen language, before the greeting.
+
+        A call outlives a dropped socket (CONTRACT.md, "Redial"; SDK 0.15.0):
+        redial is on wherever Voqalize offers it, and a brain started by a
+        redial on a session this process still holds adopts that call as it
+        was: the language and page it had moved to, its calendar, the patient,
+        the held slot, the pending change and the model's history. Its greeting
+        is not sent, and the session note is not written twice."""
+        prior = REJOIN.take(session.id)
+        if prior is not None and prior is not self:
+            self._adopt(prior)
+            self._rejoined = True
+            REJOIN.hold(session.id, self)
+            await session.configure(self._speaking(self.lang, idle=True, session=session))
+            logger.info("dental: rejoined call {} after its socket dropped", session.id)
+            return
+        REJOIN.hold(session.id, self)
         init: dict[str, Any] = dict(session.init or {})
         self.lang = PERSONA.pick(init.get("lang"))
         landing = str(init.get("landing") or "home")
         self.page = landing if landing in LANDINGS else "home"  # type: ignore[assignment]
         self.cal = Calendar.build(cl.now_ist())
-        await session.configure(self._speaking(self.lang, idle=True))
+        await session.configure(self._speaking(self.lang, idle=True, session=session))
         logger.info("dental: session start on {} in {}", self.page, self.lang)
         now = self.cal.now
         self.append_note(
@@ -309,19 +334,44 @@ class DentalBrain(OpenAIBrain):
             f"The call is in {self._lang_name(self.lang)}. {self._page_note()}]"
         )
 
-    def _speaking(self, lang: Lang, *, idle: bool = False) -> Config:
+    async def on_session_end(self, session: Session) -> None:
+        """The socket closed: a hang-up, or a drop Voqalize may redial. Kept a
+        short while for the redial; runs at least once, and a second run (or
+        one on a brain a redial already replaced) changes nothing."""
+        REJOIN.dropped(session.id, self)
+
+    def _adopt(self, prior: DentalBrain) -> None:
+        """Take over ``prior``'s call: every piece of state but its socket's.
+        ``prior`` then shares this brain's state, so whatever still points at
+        it (the Stage director's dispatch, a line queued for the next quiet
+        spell) acts on this call and this socket."""
+        self.__dict__.update({k: v for k, v in prior.__dict__.items() if k not in _PER_SOCKET})
+        prior.__dict__ = self.__dict__
+
+    def _speaking(
+        self, lang: Lang, *, idle: bool = False, session: Session | None = None
+    ) -> Config:
+        """The voice for ``lang`` on both legs. With ``session`` (the call's
+        first configure on each socket), redial too, where it is offered."""
         return Config(
             stt=SttConfig(language=lang, patience=PATIENCE),
             tts=TtsConfig(voice=PERSONA.voice(lang), language=lang),
             idle=IdleConfig(timeout_ms=_IDLE_MS) if idle else None,
+            redial=RedialConfig(enabled=True)
+            if session is not None and session.can_redial
+            else None,
         )
 
     @staticmethod
     def _lang_name(lang: Lang) -> str:
         return {"en": "English", "hi": "Hindi"}[lang]
 
-    async def greet(self, session: Session) -> str:
-        """Written, per language and landing page: no model call."""
+    async def greet(self, session: Session) -> str | None:
+        """Written, per language and landing page: no model call. A rejoined
+        call has been greeted already, so none (Voqalize would not speak it,
+        and the model must not read a second greeting in its history)."""
+        if self._rejoined:
+            return None
         return greeting(self.lang, self.page)
 
     def _line(self, key: str, **kw: str) -> str:
@@ -1163,3 +1213,7 @@ class DentalBrain(OpenAIBrain):
         self.session.dispatch(LanguageChanged(language=lang))
         landed(self._line("switch"))
         return f"Switched to {self._lang_name(lang)}: speak {self._lang_name(lang)} from now on."
+
+
+#: Live calls by session id, for a redial to rejoin (rejoin.py).
+REJOIN: Rejoin[DentalBrain] = Rejoin()
