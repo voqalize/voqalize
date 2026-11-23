@@ -5,10 +5,10 @@
  */
 import { Suspense, lazy } from "react";
 import { demo } from "../config";
-import { PERSONA } from "../persona";
 import { actions } from "../state/store";
 import { DockView } from "./DockView";
 import { endFakeCall, useFakeCall } from "./fakeCall";
+import { Face } from "./Face";
 
 export { useFakeCall };
 
@@ -38,11 +38,7 @@ function Placeholder({ loading = false }: { loading?: boolean }) {
       onMute={() => useFakeCall.setState({ muted: !fake.muted })}
       onEnd={endFakeCall}
       onLanguage={(code) => actions.setLang(code)}
-      face={
-        <div className="face-placeholder" aria-hidden>
-          <span>{PERSONA.display_name.slice(0, 1)}</span>
-        </div>
-      }
+      face={<Face live={false} avatar={() => null} />}
     />
   );
 }

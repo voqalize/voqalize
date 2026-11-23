@@ -15,6 +15,7 @@ import { useLocation } from "react-router-dom";
 import { demo } from "../config";
 import { PERSONA, roleFor } from "../persona";
 import { CallTile } from "./CallTile";
+import { Face } from "./Face";
 import { useFakeCall } from "./fake";
 import { LangToggle } from "./LangToggle";
 import { useDockMode } from "./useDockMode";
@@ -67,14 +68,6 @@ export function DockBar({
   );
 }
 
-/** The face without a client: the persona's initial. */
-export function FacePlaceholder() {
-  return (
-    <div className="face-placeholder" aria-hidden>
-      <span>{PERSONA.display_name.charAt(0)}</span>
-    </div>
-  );
-}
 
 function DockPlaceholder({ loading = false }: { loading?: boolean }) {
   const fake = useFakeCall();
@@ -87,7 +80,7 @@ function DockPlaceholder({ loading = false }: { loading?: boolean }) {
         onMute={() => useFakeCall.setState({ muted: !fake.muted })}
         onEnd={() => useFakeCall.setState({ on: false })}
       >
-        <FacePlaceholder />
+        <Face live={false} avatar={() => null} />
       </CallTile>
       <DockBar
         calling={fake.on}

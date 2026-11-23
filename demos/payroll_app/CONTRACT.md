@@ -113,8 +113,11 @@ job: `/welcome` → onboarding; `/` and `/help` → support; anything else → c
   opens that tab first, then rings.
 - `setup.fill` opens the step that holds the field before ringing it.
 - Round 1 (owner review): only the company details come from signup. The pay structure and the leave
-  policy are the admin's: the agent asks, or fills the common defaults (`setup_defaults`) on her word;
-  `Use common defaults` on the page does the same. **There is no import move**: the admin downloads
+  policy are the admin's: the agent asks, then `setup_fill` sends each value she gave once, as she
+  said it, and the common defaults only for the fields she did not give and only on her word (round
+  2, R1: never the defaults first and then her values over them). Defaults never overwrite a field
+  that holds something (`setup.changed {filled}`); `Use common defaults` on the page fills only the
+  empty fields too. **There is no import move**: the admin downloads
   `data/employees_import.csv` from the import step (served from the demo's own data folder) and
   chooses it with Import file; her import reaches the brain as `setup.changed {imported}`.
 - A confirmed move's yes waits up to 3 s for the page's result, so the one line said is the outcome
@@ -124,6 +127,16 @@ job: `/welcome` → onboarding; `/` and `/help` → support; anything else → c
   choice; small things it answers, opens (`payroll_register` for any month's run) or says plainly it
   can't, without a request.
 - `employee.added`'s email is private in the slice, so it never reaches the brain.
+- Round 2, R2: approving, rejecting or fixing a claim closes its detail panel (store `closeDecided`,
+  by click or by move), so the list is back in front; a refused decision leaves it open.
+- Round 2, R3: `me.view {employee_id, tab, month?, against?}` opens the employee view, on payslips
+  a month's payslip (`/me/<id>/payslips/<month>`). The brain keeps the view (`view_as`) until the
+  admin asks to leave it (`view_as_admin`, or `view_as_employee` for another) or leaves it by hand
+  (a `screen.viewed` off `/me/` by the visitor): payslips and the regime open in the employee view,
+  and admin tools are refused there with the reason.
+- Round 2, R5/R6/R7: the idle dock shows the character's still photo; `@voqalize/avatar` (`^0.6.3`,
+  Fernhollow's release and runtime, with its default gains) mounts only while a call is up. The
+  toggle's language is kept in `localStorage` (`payroll-app-lang`) and starts the next page load.
 
 ## Redial: a call outlives a dropped brain socket (SDK 0.15.0, owner 2026-11-23)
 

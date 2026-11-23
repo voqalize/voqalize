@@ -20,7 +20,7 @@
     "@pipecat-ai/client-js": "^1.13.0",
     "@pipecat-ai/client-react": "^1.8.0",
     "@pipecat-ai/small-webrtc-transport": "~1.10.8",
-    "@voqalize/avatar": "^0.7.0",
+    "@voqalize/avatar": "^0.6.3",
     "@voqalize/client-transport": "0.4.1",
     "@voqalize/demo-kit": "file:../../shared",
     "@voqalize/stage": "link:../../../sdk/js/stage",

@@ -3,7 +3,8 @@
  * publishable key. A stock client over `@voqalize/client-transport`, the
  * connect request from `src/config.ts`, and the guide's face from
  * `@voqalize/avatar` (the character named in persona.json), which reads its
- * state off the same client. Stage attaches to this client (`stage/runtime`):
+ * state off the same client; it mounts only while a call is up, and the idle
+ * dock shows the character's still photo (`Face`). Stage attaches to this client (`stage/runtime`):
  * cues and tool moves run through the one `Moves` the app made at start.
  */
 import { type ComponentProps, useCallback, useEffect, useState } from "react";
@@ -22,6 +23,7 @@ import { debugMode } from "./debug";
 import { CallTile } from "./CallTile";
 import { type CallState, useFakeCall } from "./fake";
 import { DockBar } from "./VoiceDock";
+import { Face } from "./Face";
 
 type Activity = "idle" | "connecting" | "listening" | "thinking" | "speaking" | "error";
 
@@ -137,7 +139,8 @@ function Dock({ call }: { call: ReturnType<typeof useCall> }) {
         onMute={toggleMute}
         onEnd={() => (on ? void call.end() : useFakeCall.setState({ on: false }))}
       >
-        <Avatar className="dock-avatar" client={call.client} character={PERSONA.avatar_character} aria-label={PERSONA.display_name} />
+        {/* Idle: the still photo; the live avatar only once the call tile is up (round 2, R5). */}
+        <Face live={live} avatar={() => <Avatar className="dock-avatar" client={call.client} character={PERSONA.avatar_character} aria-label={PERSONA.display_name} />} />
       </CallTile>
       <DockBar
         calling={live}

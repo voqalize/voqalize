@@ -25,6 +25,7 @@ import { actions, useSite } from "../state/store";
 import { attachCall, currentPath, sendSiteEvent, useCall } from "../stage/host";
 import { type CallState, DockView } from "./DockView";
 import { endFakeCall, useFakeCall } from "./fakeCall";
+import { Face } from "./Face";
 
 export default function VoiceCall() {
   const media = useVoqalizeMedia();
@@ -116,7 +117,8 @@ function Live({ client, transport }: { client: PipecatClient; transport: ReturnT
   useRTVIClientEvent(RTVIEvent.BotStartedSpeaking, useCallback(() => setState("speaking"), []));
   useRTVIClientEvent(RTVIEvent.BotStoppedSpeaking, useCallback(() => setState("listening"), []));
 
-  const face = useMemo(
+  // Idle: the still photo; the live avatar mounts only with the call tile (round 2, R5).
+  const avatar = useMemo(
     () => <Avatar className="agent-avatar" client={client as never} character={PERSONA.avatar_character} aria-label={PERSONA.display_name} />,
     [client],
   );
@@ -132,7 +134,7 @@ function Live({ client, transport }: { client: PipecatClient; transport: ReturnT
         onMute={() => useFakeCall.setState({ muted: !fake.muted })}
         onEnd={endFakeCall}
         onLanguage={(code) => actions.setLang(code)}
-        face={face}
+        face={<Face live avatar={() => avatar} />}
       />
     );
   }
@@ -154,7 +156,7 @@ function Live({ client, transport }: { client: PipecatClient; transport: ReturnT
         // Before the call the choice rides `init`; during it the brain moves both legs.
         if (live) sendSiteEvent("language_requested", { language: code });
       }}
-      face={face}
+      face={<Face live={live} avatar={() => avatar} />}
     />
   );
 }

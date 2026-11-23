@@ -575,3 +575,16 @@
 .debug-log .is-result {
   color: #f4c47a;
 }
+
+/* The idle face: the character's still photo (round 2, R5); the live avatar
+   replaces it only when a call is up. */
+.call-face > .face-still {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  object-position: 50% 30%;
+  user-select: none;
+}

@@ -2,10 +2,12 @@
  * The EN / हिंदी toggle's state. Before a call it is only the `lang` the
  * connect `init` carries; during one, a press sends the typed app event
  * `language_requested {language}` and the toggle follows the brain's
- * `language_changed {language}` site command.
+ * `language_changed {language}` site command. The last language used is
+ * remembered across reloads (`savedLang.ts`).
  */
 import { create } from "zustand";
 import { PERSONA, type Language } from "../persona";
+import { loadLang, saveLang } from "../savedLang";
 
 type Code = Language["code"];
 interface LangState {
@@ -14,7 +16,17 @@ interface LangState {
   send: ((event: string, payload: unknown) => void) | null;
 }
 
-export const useLang = create<LangState>(() => ({ lang: PERSONA.default_language, send: null }));
+const saved = loadLang();
+export const useLang = create<LangState>(() => ({
+  lang: PERSONA.languages.some((l) => l.code === saved) ? (saved as Code) : PERSONA.default_language,
+  send: null,
+}));
+
+// Every change of language — the toggle before a call, the brain's
+// `language_changed` during one — is remembered for the next page load (R7).
+useLang.subscribe((s, prev) => {
+  if (s.lang !== prev.lang) saveLang(s.lang);
+});
 
 export function requestLanguage(code: Code) {
   const { send } = useLang.getState();

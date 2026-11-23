@@ -10,7 +10,7 @@ import { create } from "zustand";
 import { LEAD, painById, type PlanId } from "../data/product";
 import { businessDays, reference, slotById, todayIst } from "../lib/calendar";
 import { type Billing, choosePlan, type PriceInput } from "../lib/pricing";
-import { PERSONA } from "../persona";
+import { loadLang, saveLang } from "../savedLang";
 
 export type LeadField = "company" | "name" | "headcount" | "states" | "current_tool" | "pains" | "recommended_plan" | "email";
 export type BookingField = "company" | "name" | "headcount" | "topic" | "email";
@@ -63,7 +63,7 @@ const EMPTY_LEAD: Lead = {
 const firstDay = () => businessDays(todayIst())[0];
 
 const initial = (): SiteState => ({
-  lang: PERSONA.default_language,
+  lang: loadLang(),
   lead: { ...EMPTY_LEAD },
   leadField: "",
   leadOpen: false,
@@ -99,7 +99,10 @@ export const isEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim()
 
 export const actions = {
   reset: () => useSite.setState(initial()),
-  setLang: (lang: string) => useSite.setState({ lang }),
+  setLang: (lang: string) => {
+    saveLang(lang);
+    useSite.setState({ lang });
+  },
 
   openLead: (open: boolean) => useSite.setState({ leadOpen: open }),
 
