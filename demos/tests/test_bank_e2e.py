@@ -12,10 +12,15 @@ from __future__ import annotations
 
 import asyncio
 import json
+from collections.abc import Iterator
 from typing import Any
 
+import pytest
 from voqalize_demos.discovery import discover
 from voqalize_demos.testing import ScriptedOpenAI, reply, reply_and_call, tool_results_of
+
+from voqalize.conformance import VoqalizeDriver
+from voqalize.sdk.wire import ConfigureFrame
 
 from ._harness import (
     DemoRig,
@@ -35,6 +40,18 @@ from voqalize_demos._loaded.bank.forms import OPEN_STEPS  # noqa: E402
 from voqalize_demos._loaded.bank.prompt import greeting  # noqa: E402
 
 PERSONA = json.loads((b.ROOT / "persona.json").read_text("utf-8"))
+
+
+@pytest.fixture(autouse=True)
+def _no_call_carried_between_tests() -> Iterator[None]:
+    """Every test here opens the same session id, and a dropped call is held for
+    a redial to rejoin (CONTRACT.md, Redial): clear the store around each test,
+    so no test rejoins the one before it. Real session ids never repeat."""
+    from voqalize_demos._loaded.bank.brain import REJOIN
+
+    REJOIN.clear()
+    yield
+    REJOIN.clear()
 
 
 def _moves(rig: DemoRig) -> list[dict[str, Any]]:
@@ -506,3 +523,240 @@ async def test_page_moves_switch_the_job() -> None:
         await rig.driver.user_says("hello")
         text = json.dumps(llm.captured_inputs[-1], ensure_ascii=False)
         assert "the credit-card advisor" in text
+
+
+# ─── Redial: a call outlives a dropped socket ────────────────────────────────
+
+
+def _redials(driver: VoqalizeDriver) -> list[bool | None]:
+    return [
+        r.config.redial.enabled
+        for r in driver.requests
+        if isinstance(r, ConfigureFrame) and r.config.redial is not None
+    ]
+
+
+def _driver_moves(driver: VoqalizeDriver) -> list[dict[str, Any]]:
+    return [dict(c["payload"]) for c in driver.ui_commands if c.get("command") == "stage_move"]
+
+
+class _Redial:
+    """One brain server and two sockets on the same session id: the first call,
+    and Voqalize dialling the brain again after that socket dropped."""
+
+    def __init__(self, llm: ScriptedOpenAI) -> None:
+        from voqalize_demos.discovery import build_for
+
+        from voqalize.conformance import BrainServer, generate_keypair
+
+        build = build_for("bank")
+        self.built: list[BankBrain] = []
+
+        def _build() -> Any:
+            brain = build(llm)  # type: ignore[arg-type]
+            self.built.append(brain)
+            return brain
+
+        self.keypair = generate_keypair()
+        self.server = BrainServer(
+            _build, host="127.0.0.1", port=0, public_keys=self.keypair.public_pem
+        )
+        self.sid = "bank-redial-e2e"
+        self.port = 0
+
+    async def start(self) -> None:
+        self.port = await self.server.start()
+
+    def driver(self) -> VoqalizeDriver:
+        from voqalize.conformance import DirectConnection, mint_voqalize_token
+
+        token = mint_voqalize_token(
+            private_key_pem=self.keypair.private_pem,
+            session_id=self.sid,
+            agent_id="bank",
+            tenant_id="demo",
+        )
+        return VoqalizeDriver(
+            DirectConnection(f"ws://127.0.0.1:{self.port}", self.sid, token=token),
+            session_id=self.sid,
+            default_timeout=10.0,
+        )
+
+
+async def _drop(driver: VoqalizeDriver) -> None:
+    """The socket drops: no End, no close code a hang-up would send."""
+    from voqalize_demos._loaded.bank.brain import REJOIN
+
+    await driver.aclose()
+    for _ in range(50):
+        if len(REJOIN):
+            break
+        await asyncio.sleep(0.02)
+    await asyncio.sleep(0.1)
+
+
+_BANKING = {"landing": "banking", "path": "/app", "lang": "en", "signed_in": True}
+
+
+async def test_a_dropped_socket_rejoins_the_call_where_it_was() -> None:
+    """Mid-flow on the app: she switched to Hindi, opened her credit card, and
+    asked to block her debit card, so the sheet awaits a yes. The brain's socket
+    drops without a hang-up; Voqalize dials again for the same session with the
+    same init. The new socket's brain adopts the call (language, screen, the
+    sheet, the model's history, her cards) and does not greet again; her yes
+    presses the sheet that was asked on the first socket."""
+    llm = ScriptedOpenAI(
+        {
+            "Block my debit card.": [
+                reply_and_call("ठीक है।", "request_change", kind="card_block", card="debit"),
+                reply("स्क्रीन पर है: डेबिट कार्ड 7712 ब्लॉक करना है। आगे बढ़ूँ?"),
+            ],
+            "How much did I spend on food last month?": [
+                reply_and_call("देखती हूँ।", "spending", month="last_month", category="food"),
+                reply("पिछले महीने खाने पर इतना खर्च हुआ।"),
+            ],
+        }
+    )
+    rig = _Redial(llm)
+    await rig.start()
+    first, second = rig.driver(), rig.driver()
+    try:
+        await first.open()
+        greeted = await first.start_session(init=_BANKING)
+        assert greeted is not None and "Aditi" in greeted.text
+        assert _redials(first) == [True], "redial is turned on with the voice, before the greeting"
+        await first.send_ui_event("language_requested", {"language": "hi", "by": "visitor"})
+        await first.send_ui_event(
+            "page_viewed",
+            {
+                "path": "/app/cards/credit",
+                "screen": "credit_card",
+                "signed_in": True,
+                "by": "visitor",
+            },
+        )
+        await asyncio.sleep(0.2)
+        await first.user_says("Block my debit card.")
+        before = rig.built[-1]
+        assert before.awaiting == "A1" and before.lang == "hi" and before.screen == "credit_card"
+        assert "confirm.answer" not in [p["move"] for p in _driver_moves(first)]
+
+        await _drop(first)
+
+        # Voqalize redials: the same session id, the same init (English, the dashboard).
+        await second.open()
+        again = await second.start_session(init=_BANKING, greeting_timeout=0.5)
+        after = rig.built[-1]
+        assert after is not before
+        assert again is None, "a rejoined call is not greeted a second time"
+        assert after.lang == "hi" and after.screen == "credit_card" and after.mode == "banking"
+        assert after.awaiting == "A1" and "A1" in after.asked, "the sheet still awaits her yes"
+        assert after.turns == 1
+        assert _redials(second) == [True]
+        tts = [
+            r.config.tts
+            for r in second.requests
+            if isinstance(r, ConfigureFrame) and r.config.tts is not None
+        ]
+        assert tts and tts[-1].voice == PERSONA["voices"]["hi"], "the language it moved to, kept"
+
+        # Her yes answers the sheet asked on the first socket: no model turn.
+        asked = len(llm.requests)
+        yes = await second.user_says("हाँ")
+        assert yes.units, "the call carried on after the drop"
+        assert len(llm.requests) == asked
+        answer = [p for p in _driver_moves(second) if p["move"] == "confirm.answer"][-1]
+        assert answer["args"] == {"action_id": "A1", "yes": True}
+        await second.send_ui_event(
+            "stage_result",
+            {
+                "call_ref": answer["call_ref"],
+                "move": "confirm.answer",
+                "outcome": "applied",
+                "detail": "done, reference ANVCB482113: Debit card ending 7712 blocked",
+            },
+        )
+        await asyncio.sleep(0.1)
+        assert after.cards["debit"]["controls"]["blocked"] is True
+        idle = await second.user_idle()
+        assert "ANVCB482113" in idle.text
+
+        # The model's history came across: the next model turn still holds it.
+        await second.user_says("How much did I spend on food last month?")
+        last = json.dumps(llm.captured_inputs[-1], ensure_ascii=False)
+        assert "Block my debit card." in last
+        assert last.count("[On screen: dashboard.") == 1, "the rejoin added no second opening note"
+    finally:
+        await second.aclose()
+        await rig.server.aclose()
+
+
+async def test_a_redial_after_expiry_starts_fresh_and_the_store_lets_go(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A dropped call is held two minutes, then let go: a redial after that (or
+    one reaching a process that never held the call) is a new conversation on
+    the same page, greeted, with none of the old call's state."""
+    from voqalize_demos._loaded.bank.brain import REJOIN
+    from voqalize_demos._loaded.bank.rejoin import KEEP_AFTER_DROP_S, Rejoin
+
+    now = [0.0]
+    store: Rejoin[object] = Rejoin(clock=lambda: now[0])
+    a, other = object(), object()
+    store.hold("s1", a)
+    store.dropped("s1", other)  # not the brain held: nothing changes
+    now[0] = KEEP_AFTER_DROP_S + 1
+    assert store.take("s1") is a, "a live call is kept however long it runs"
+    store.hold("s1", a)
+    store.dropped("s1", a)
+    store.dropped("s1", a)  # on_session_end runs at least once: a second run changes nothing
+    now[0] += KEEP_AFTER_DROP_S - 1
+    assert len(store) == 1
+    now[0] += 2
+    assert store.take("s1") is None and len(store) == 0
+    assert store.take("never-held") is None
+
+    # Over the wire: the same drop, then a redial after the window.
+    clock = [1000.0]
+    monkeypatch.setattr(REJOIN, "_clock", lambda: clock[0])
+    llm = ScriptedOpenAI(
+        {
+            "Block my debit card.": reply_and_call(
+                "Sure.", "request_change", kind="card_block", card="debit"
+            )
+        }
+    )
+    rig = _Redial(llm)
+    await rig.start()
+    first, second = rig.driver(), rig.driver()
+    try:
+        await first.open()
+        await first.start_session(init=_BANKING)
+        await first.user_says("Block my debit card.")
+        before = rig.built[-1]
+        assert before.awaiting == "A1"
+        await _drop(first)
+        clock[0] += KEEP_AFTER_DROP_S + 1
+
+        await second.open()
+        greeted = await second.start_session(init=_BANKING)
+        after = rig.built[-1]
+        assert greeted is not None and "Aditi" in greeted.text, "a new call is greeted"
+        assert after.awaiting is None and after.turns == 0 and not after.asked
+        assert len(REJOIN) == 1, "only the new call is held"
+    finally:
+        await second.aclose()
+        await rig.server.aclose()
+
+
+async def test_no_redial_is_asked_of_a_voqalize_that_does_not_offer_it() -> None:
+    """``configure`` raises for redial without the capability: the assistant asks
+    only where it is offered, and the call starts the same either way."""
+    from voqalize.sdk.wire import Capability
+
+    async with demo("bank", ScriptedOpenAI()) as rig:
+        rig.driver.capabilities.discard(Capability.REDIAL)
+        greeting_turn = await rig.driver.start_session(init=_BANKING)
+        check_greeting(rig, greeting_turn)
+        assert _redials(rig.driver) == []
+        check_voice_pair(rig, voice=PERSONA["voices"]["en"], language="en")

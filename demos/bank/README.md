@@ -34,6 +34,13 @@ Sign-in is a mock: one tap, no real authentication.
   performers over the same stores the buttons use. `?debug=1` adds a console that fires any move by
   hand (`window.__bankMove(id, args)`).
 
+## Redial
+
+A call survives the brain's socket dropping (SDK 0.15.0 `Config.redial`, on wherever Voqalize offers
+it). The live brain is held by session id in `backend/rejoin.py` for two minutes after a drop; the
+brain Voqalize's redial starts adopts the whole call (screen, language, history, a sheet awaiting a
+yes, her cards and balances) and does not greet again. Details in `CONTRACT.md`, Redial.
+
 ## Run it
 
 ```sh

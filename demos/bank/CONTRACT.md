@@ -144,3 +144,20 @@ answered, by tap or by `confirm.answer`; a sheet the visitor opened by hand gets
 `form_submitted {form, reference, summary}`, `cards_profile_changed {dining… other, top[]}`,
 `loan_calc_changed {loan_type, amount, tenure_months, rate, emi}`, `language_requested {language}`.
 Stage's own `stage_result` / `stage_hello` / `stage_progress` ride beside them.
+
+## Redial: a call outlives a dropped brain socket (SDK 0.15.0 `Config.redial`, owner 2026-11-23)
+
+On a voice runtime that offers redial (`session.can_redial`), `on_session_start` turns it on in the
+same `configure` as the voice and languages; elsewhere it asks nothing and the call starts the same.
+Each live brain is kept in this process by session id (`backend/rejoin.py`) while its socket is up and
+for two minutes after it drops. A redial that reaches the same process (a Cortex restart, a network
+blip) adopts the call as it was: the mode and screen it had moved to, the language (both legs
+reconfigured to it, not to `init`'s), the model's history, a confirmation sheet still awaiting a yes
+(`asked`, `awaiting`), the answers the page still owes (`answering`, `submitting`), the forms as
+filled, a line queued for the next quiet spell, the Stage director, and this call's own copy of the
+customer's cards, balances and EMI conversions that confirmed changes moved. No opening note is added
+again, and a call the customer already spoke on is not greeted again (`greet` returns nothing; one
+that dropped before her first word still is). A redial that reaches a fresh process (a deploy of the
+brain) finds nothing and carries on as a new conversation on the same landing page. The brain cannot
+tell Voqalize's `End` from a drop (`on_session_end` is the same for both), so a hung-up call is let go
+by the same two-minute expiry; Voqalize never redials it. `Config.late` stays at Voqalize's default.

@@ -27,6 +27,11 @@ when the page's result says so, with its reference.
 **Persona and languages** come from ``persona.json``: both speech legs are set in
 ``on_session_start`` from the language the visitor picked, and move together on
 the toggle or ``set_language``.
+
+**A call outlives a dropped socket** (CONTRACT.md, Redial; SDK 0.15.0): redial is
+on wherever Voqalize offers it, and the brain a redial starts on a session this
+process still holds adopts that call whole (``rejoin.py``) and does not greet it
+again.
 """
 
 from __future__ import annotations
@@ -53,7 +58,7 @@ from voqalize.sdk import (
 from voqalize.sdk.openai import OpenAIBrain, needs_result_now
 from voqalize.sdk.stage import Stage
 from voqalize.sdk.stage.wire import StageHello, StageProgress, StageResult
-from voqalize.sdk.wire import Config, IdleConfig, SttConfig, TtsConfig
+from voqalize.sdk.wire import Config, IdleConfig, RedialConfig, SttConfig, TtsConfig
 
 from . import bank as b
 from . import bankmath as m
@@ -73,6 +78,7 @@ from .app_events import (
 )
 from .forms import FIELDS, STEP_OF, check, missing
 from .prompt import MODES, TIMES, greeting, line, system_instruction
+from .rejoin import Rejoin
 from .stage_gen import MOVES
 
 MODEL = "gpt-6.1-terra"
@@ -374,6 +380,12 @@ def _not_done(why: str) -> str:
     return f"Not done: {why}"
 
 
+#: What a brain holds for one socket only: the session object and the speech
+#: units waiting for the runtime to say what was heard. Everything else a call
+#: built is carried to the brain a redial starts (rejoin.py).
+_PER_SOCKET = frozenset({"_session", "_awaiting"})
+
+
 class BankBrain(OpenAIBrain):
     """One per session."""
 
@@ -414,10 +426,42 @@ class BankBrain(OpenAIBrain):
         self._last_heard = ""
         #: A line of the brain's own for the next quiet spell (a page's answer).
         self._say_next: str | None = None
+        #: The customer's turns so far: a rejoined call past its first is not greeted.
+        self.turns = 0
+        self.rejoined = False
 
     # ─── Session ────────────────────────────────────────────────────────
 
     async def on_session_start(self, session: Session) -> None:
+        """Both speech legs in the language the visitor picked, and the job from
+        the landing page, before the greeting.
+
+        A call outlives a dropped socket (CONTRACT.md, Redial): redial is on
+        wherever Voqalize offers it, and a brain started by a redial on a
+        session this process still holds adopts that call as it was (the job,
+        screen and language it had moved to, the model's history, a sheet
+        awaiting a yes, the call's cards and balances) instead of starting over."""
+        prior = REJOIN.take(session.id)
+        if prior is not None and prior is not self:
+            self._adopt(prior)
+            self.rejoined = True
+            REJOIN.hold(session.id, self)
+            await session.configure(
+                Config(
+                    stt=SttConfig(language=self.lang, patience=PATIENCE),
+                    tts=TtsConfig(voice=b.voice_for(self.lang), language=self.lang),
+                    idle=IdleConfig(timeout_ms=_IDLE_MS),
+                    redial=RedialConfig(enabled=True) if session.can_redial else None,
+                )
+            )
+            logger.info(
+                "bank: rejoined call {} after its socket dropped (mode={} lang={} turns={})",
+                session.id,
+                self.mode,
+                self.lang,
+                self.turns,
+            )
+            return
         init = session.init or {}
         lang = str(init.get("lang") or "")
         self.lang = lang if lang in b.LANGUAGES else b.DEFAULT_LANGUAGE
@@ -430,11 +474,13 @@ class BankBrain(OpenAIBrain):
             "cards": "cards",
             "loans": "loans",
         }.get(self.mode, "home")
+        REJOIN.hold(session.id, self)
         await session.configure(
             Config(
                 stt=SttConfig(language=self.lang, patience=PATIENCE),
                 tts=TtsConfig(voice=b.voice_for(self.lang), language=self.lang),
                 idle=IdleConfig(timeout_ms=_IDLE_MS),
+                redial=RedialConfig(enabled=True) if session.can_redial else None,
             )
         )
         logger.info(
@@ -443,8 +489,26 @@ class BankBrain(OpenAIBrain):
         self.append_note(self._language_note())
         self.append_note(self._screen_note())
 
+    async def on_session_end(self, session: Session) -> None:
+        """The socket closed: a hang-up, or a drop Voqalize may redial. Kept a
+        short while for the redial; runs at least once, and a second run (or
+        one on a brain a redial already replaced) changes nothing."""
+        REJOIN.dropped(session.id, self)
+
+    def _adopt(self, prior: BankBrain) -> None:
+        """Take over ``prior``'s call: every piece of state but its socket's.
+        ``prior`` then shares this brain's state, so whatever still points at
+        it (the Stage director's dispatch, a line queued for the next quiet
+        spell) acts on this call and this socket."""
+        self.__dict__.update({k: v for k, v in prior.__dict__.items() if k not in _PER_SOCKET})
+        prior.__dict__ = self.__dict__
+
     async def greet(self, session: Session) -> str:
-        """Written, not generated: the voice starts the moment the call connects."""
+        """Written, not generated: the voice starts the moment the call connects.
+        A rejoined call the customer already spoke on is not greeted again (a
+        call that dropped before her first word still is)."""
+        if self.rejoined and self.turns:
+            return ""
         return greeting(self.mode, self.lang, self.signed_in)
 
     def _language_note(self) -> str:
@@ -469,6 +533,7 @@ class BankBrain(OpenAIBrain):
         return self._answer(session, msg)
 
     async def _answer(self, session: Session, msg: UserMessage) -> AsyncGenerator[Speech, None]:
+        self.turns += 1
         self._last_heard = msg.text
         self._say_next = None
         self._settle_expired()
@@ -1451,4 +1516,7 @@ def _sounds_yes(text: str) -> bool:
     return bool(_YES_ANYWHERE.search(text)) and not _NO.match(text.strip().lower())
 
 
-__all__ = ["BankBrain", "classify", "mode_of"]
+#: Live calls by session id, for a redial to rejoin (rejoin.py).
+REJOIN: Rejoin[BankBrain] = Rejoin()
+
+__all__ = ["REJOIN", "BankBrain", "classify", "mode_of"]
