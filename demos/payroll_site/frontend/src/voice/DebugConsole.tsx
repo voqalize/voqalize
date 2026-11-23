@@ -10,7 +10,7 @@ import { businessDays, slotsOn, todayIst } from "../lib/calendar";
 import { actions, useSite } from "../state/store";
 import { runByHand, useStageLog } from "../stage/host";
 import { scene } from "../stage/scene.gen";
-import { useFakeCall } from "./VoiceDock";
+import { useFakeCall } from "./fakeCall";
 import type { CallState } from "./DockView";
 
 function firstFree(): { day: string; slot: string } {
@@ -77,7 +77,7 @@ export async function runScript(name: string): Promise<void> {
   for (const [id, args] of SCRIPTS[name]()) await runByHand(id, args);
 }
 
-const CALL_STATES: CallState[] = ["idle", "listening", "speaking", "thinking"];
+const CALL_STATES: CallState[] = ["idle", "connecting", "listening", "thinking", "speaking"];
 
 export function DebugConsole() {
   const [open, setOpen] = useState(true);
@@ -137,11 +137,14 @@ export function DebugConsole() {
                 key={s}
                 type="button"
                 className={fake.state === s ? "is-on" : ""}
-                onClick={() => useFakeCall.setState({ state: s, heard: s === "listening" ? "We're about 56 people across four states" : "" })}
+                onClick={() => useFakeCall.setState({ state: s })}
               >
                 {s}
               </button>
             ))}
+            <button type="button" className={fake.muted ? "is-on" : ""} aria-pressed={fake.muted} onClick={() => useFakeCall.setState({ muted: !fake.muted })}>
+              muted
+            </button>
           </div>
           <ol className="debug-log">
             {lines.slice(-8).map((l) => (

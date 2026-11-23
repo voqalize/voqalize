@@ -19,7 +19,7 @@ export function Home() {
             <p className="hero-for">{h.eyebrow}</p>
             <h1>{h.headline}</h1>
             <p className="hero-sub">{h.sub}</p>
-            <div className="hero-actions">
+            <div className="hero-actions" data-dock-avoid>
               <Link to="/book-demo" className="btn btn-primary btn-lg">
                 {h.primary_cta}
               </Link>
@@ -87,7 +87,7 @@ export function Home() {
             <h2>{h.cta_title}</h2>
             <p>{h.cta_body}</p>
           </div>
-          <Link to="/book-demo" className="btn btn-accent btn-lg">
+          <Link to="/book-demo" className="btn btn-accent btn-lg" data-dock-avoid>
             {h.primary_cta}
           </Link>
         </div>
@@ -114,7 +114,7 @@ function TaxShowcase() {
           <p className="showcase-missing">
             Proofs that never came in: {after_proofs.missing.join(" and ")}.
           </p>
-          <Link to="/tax" className="btn btn-on-dark">
+          <Link to="/tax" className="btn btn-on-dark" data-dock-avoid>
             See the full working
           </Link>
         </div>

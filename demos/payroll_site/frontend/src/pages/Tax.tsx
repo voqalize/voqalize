@@ -173,7 +173,7 @@ export function Tax() {
       <section className="section section-tight">
         <div className="wrap inline-cta">
           <p>See this working for your own employees.</p>
-          <Link to="/book-demo" className="btn btn-primary">
+          <Link to="/book-demo" className="btn btn-primary" data-dock-avoid>
             Book a demo
           </Link>
         </div>

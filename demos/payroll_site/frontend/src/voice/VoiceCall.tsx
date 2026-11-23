@@ -8,7 +8,9 @@
  * language), and the face from `@voqalize/avatar` with the character in
  * persona.json. Stage attaches to the same client (`stage/host.tsx`); the
  * language toggle mid-call sends `language_requested`, and the brain's
- * `language_changed` moves the toggle back.
+ * `language_changed` moves the toggle back. The dock pill carries the toggle
+ * before the call and the face tile during it; neither shows what the visitor
+ * said.
  */
 import { type ComponentProps, useCallback, useEffect, useMemo, useState } from "react";
 import { PipecatClient, RTVIEvent } from "@pipecat-ai/client-js";
@@ -22,6 +24,7 @@ import { PERSONA } from "../persona";
 import { actions, useSite } from "../state/store";
 import { attachCall, currentPath, sendSiteEvent, useCall } from "../stage/host";
 import { type CallState, DockView } from "./DockView";
+import { endFakeCall, useFakeCall } from "./fakeCall";
 
 export default function VoiceCall() {
   const media = useVoqalizeMedia();
@@ -43,7 +46,6 @@ export default function VoiceCall() {
 function Live({ client, transport }: { client: PipecatClient; transport: ReturnType<typeof createVoqalizeTransport> }) {
   const [state, setState] = useState<CallState>("idle");
   const [error, setError] = useState<string | null>(null);
-  const [heard, setHeard] = useState("");
   const [muted, setMuted] = useState(false);
   const lang = useSite((s) => s.lang);
   const live = state !== "idle" && state !== "error";
@@ -106,29 +108,38 @@ function Live({ client, transport }: { client: PipecatClient; transport: ReturnT
     useCallback(() => {
       setState("idle");
       setReady(false);
-      setHeard("");
+      setMuted(false);
     }, []),
   );
   useRTVIClientEvent(RTVIEvent.UserStartedSpeaking, useCallback(() => setState("listening"), []));
   useRTVIClientEvent(RTVIEvent.BotLlmStarted, useCallback(() => setState("thinking"), []));
   useRTVIClientEvent(RTVIEvent.BotStartedSpeaking, useCallback(() => setState("speaking"), []));
   useRTVIClientEvent(RTVIEvent.BotStoppedSpeaking, useCallback(() => setState("listening"), []));
-  useRTVIClientEvent(
-    RTVIEvent.UserTranscript,
-    useCallback((d: { text: string }) => {
-      if (d.text) setHeard(d.text);
-    }, []),
-  );
 
   const face = useMemo(
     () => <Avatar className="agent-avatar" client={client as never} character={PERSONA.avatar_character} aria-label={PERSONA.display_name} />,
     [client],
   );
 
+  // `?debug=1` can fake a call for the live look; a real one always wins.
+  const fake = useFakeCall();
+  if (state === "idle" && fake.state !== "idle") {
+    return (
+      <DockView
+        state={fake.state}
+        muted={fake.muted}
+        onStart={() => undefined}
+        onMute={() => useFakeCall.setState({ muted: !fake.muted })}
+        onEnd={endFakeCall}
+        onLanguage={(code) => actions.setLang(code)}
+        face={face}
+      />
+    );
+  }
+
   return (
     <DockView
       state={state}
-      heard={heard}
       muted={muted}
       error={error}
       onStart={() => void begin()}

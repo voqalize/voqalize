@@ -46,7 +46,7 @@ function Calendar() {
           <Clock size={14} /> {CALENDAR.slot_minutes} minutes, times in {CALENDAR.tz_label}
         </p>
       </div>
-      <div className="day-strip" role="tablist" aria-label="Days">
+      <div className="day-strip" role="tablist" aria-label="Days" data-stage-group="days">
         {days.map((d) => {
           const n = free(d);
           return (
@@ -68,46 +68,48 @@ function Calendar() {
           );
         })}
       </div>
-      <p className="cal-date">
-        {weekday(day)}, {dmy(day)}
-      </p>
-      <div className="slot-parts">
-        {PARTS.map((part) => {
-          const list = slots.filter((s) => part.test(minutes(s.time)));
-          if (!list.length) return null;
-          return (
-            <div key={part.id} className="slot-part">
-              <h3 className="slot-part-h">{part.label}</h3>
-              <div className="slots">
-                {list.map((s) => {
-                  const rep = repById(s.rep)!;
-                  const taken = s.taken || booked.includes(s.id);
-                  const on = booking.slotId === s.id;
-                  return (
-                    <button
-                      type="button"
-                      key={s.id}
-                      className={`slot${on ? " is-on" : ""}${taken ? " is-taken" : ""}`}
-                      disabled={taken || locked}
-                      aria-pressed={on}
-                      data-stage-part={`slot:${s.id}`}
-                      data-stage-label={`${time12(s.time)} with ${rep.name}`}
-                      onClick={() => actions.pickSlot(s.id)}
-                    >
-                      <span className="slot-time num">{time12(s.time)}</span>
-                      <span className="slot-rep">
-                        <span className="rep-dot" aria-hidden>
-                          {rep.initials}
+      <div className="cal-day" data-stage-group="slots">
+        <p className="cal-date">
+          {weekday(day)}, {dmy(day)}
+        </p>
+        <div className="slot-parts">
+          {PARTS.map((part) => {
+            const list = slots.filter((s) => part.test(minutes(s.time)));
+            if (!list.length) return null;
+            return (
+              <div key={part.id} className="slot-part">
+                <h3 className="slot-part-h">{part.label}</h3>
+                <div className="slots">
+                  {list.map((s) => {
+                    const rep = repById(s.rep)!;
+                    const taken = s.taken || booked.includes(s.id);
+                    const on = booking.slotId === s.id;
+                    return (
+                      <button
+                        type="button"
+                        key={s.id}
+                        className={`slot${on ? " is-on" : ""}${taken ? " is-taken" : ""}`}
+                        disabled={taken || locked}
+                        aria-pressed={on}
+                        data-stage-part={`slot:${s.id}`}
+                        data-stage-label={`${time12(s.time)} with ${rep.name}`}
+                        onClick={() => actions.pickSlot(s.id)}
+                      >
+                        <span className="slot-time num">{time12(s.time)}</span>
+                        <span className="slot-rep">
+                          <span className="rep-dot" aria-hidden>
+                            {rep.initials}
+                          </span>
+                          {taken ? "Taken" : rep.name.split(" ")[0]}
                         </span>
-                        {taken ? "Taken" : rep.name.split(" ")[0]}
-                      </span>
-                    </button>
-                  );
-                })}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
       <div className="reps">
         {CALENDAR.reps.map((r) => (
@@ -148,7 +150,7 @@ function BookingForm() {
     if ("missing" in r) setTried(r.missing);
   };
   return (
-    <form className="book-form" data-stage-thing="booking-form" data-stage-label="Booking form" onSubmit={submit} noValidate>
+    <form className="book-form" data-stage-group="booking-form" data-stage-thing="booking-form" data-stage-label="Booking form" onSubmit={submit} noValidate>
       <h2 className="h-small">Your details</h2>
       <div className={`picked${slot ? " is-set" : ""}`}>
         {slot && rep ? (

@@ -84,7 +84,8 @@ uv run voqalize stage gen payroll_site/frontend/src/stage/scene.json \
 The character lives in one file, `persona.json`: the avatar character, the display name, the role,
 a voice per language, the languages offered (code, label, toggle text) and the default. The brain
 (`backend/persona.py`) and the page (`frontend/src/persona.ts`) both read it; the greeting, the
-"Talk to …" button, the toggle and the tests take the name from there.
+"Talk to …" button, the toggle and the tests take the name from there. `roles` holds the dock's
+label per job (sales, pricing, demo booking), picked by the page the visitor is on.
 
 - **Another character**: change `avatar_character`, `display_name` and `voices` to a character
   and a voice from the catalogue (`GET /api/v1/catalog.get`) whose voice speaks every listed

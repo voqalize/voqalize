@@ -45,7 +45,7 @@ export function Customers() {
       <section className="section section-tight">
         <div className="wrap inline-cta">
           <p>See how your payroll would look in Paynora.</p>
-          <Link to="/book-demo" className="btn btn-primary">
+          <Link to="/book-demo" className="btn btn-primary" data-dock-avoid>
             Book a demo
           </Link>
         </div>

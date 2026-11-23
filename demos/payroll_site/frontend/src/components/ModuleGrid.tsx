@@ -47,7 +47,7 @@ export function ModuleCard({ m, detailed = false }: { m: Module; detailed?: bool
 /** The ten modules in three bands, by the plan that first includes them. */
 export function ModuleGrid({ detailed = false }: { detailed?: boolean }) {
   return (
-    <div className="module-bands">
+    <div className="module-bands" data-stage-group="modules">
       {BANDS.map((b) => {
         const plan = PLANS.find((p) => p.id === b.plan)!;
         const mods = MODULES.filter((m) => m.min_plan === b.plan);

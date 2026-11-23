@@ -137,7 +137,7 @@ function Calculator() {
             </div>
           </div>
 
-          <fieldset className="ctl">
+          <fieldset className="ctl" data-stage-group="pricing-modules">
             <legend className="ctl-label">Modules</legend>
             <p className="ctl-hint">Payroll, records, leave, payslips, income tax and PF, ESI and PT are in every plan.</p>
             <div className="mod-checks">
@@ -177,12 +177,12 @@ function Calculator() {
           </label>
         </div>
 
-        <div className="receipt" aria-live="polite">
+        <div className="receipt" aria-live="polite" data-stage-group="breakdown">
           {q.status === "custom" ? (
             <div className="receipt-custom">
               <h3>Custom pricing</h3>
               <p>{RULES.above_max_employees}</p>
-              <Link to="/book-demo" className="btn btn-primary">
+              <Link to="/book-demo" className="btn btn-primary" data-dock-avoid>
                 Talk to sales
               </Link>
             </div>
@@ -205,7 +205,7 @@ function Calculator() {
                 ))}
               </ol>
               <div className="receipt-foot">
-                <Link to="/book-demo" className="btn btn-primary btn-block">
+                <Link to="/book-demo" className="btn btn-primary btn-block" data-dock-avoid>
                   Book a demo
                 </Link>
                 <p>{RULES.free_trial_days}-day free trial on any plan.</p>

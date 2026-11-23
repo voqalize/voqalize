@@ -3,6 +3,7 @@
   "id": "rohan",
   "display_name": "Rohan",
   "role": "Paynora's sales specialist",
+  "roles": { "sdr": "Sales specialist", "pricing": "Pricing specialist", "booker": "Demo booking" },
   "avatar_character": "rohan",
   "voices": { "en": "omnivoice/rohan", "hi": "omnivoice/rohan" },
   "languages": [

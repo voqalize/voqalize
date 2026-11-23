@@ -18,7 +18,7 @@ export function Modules() {
       <section className="section section-tight">
         <div className="wrap inline-cta">
           <p>Not sure which plan your modules need?</p>
-          <Link to="/pricing" className="btn btn-primary">
+          <Link to="/pricing" className="btn btn-primary" data-dock-avoid>
             Work out your price
           </Link>
         </div>

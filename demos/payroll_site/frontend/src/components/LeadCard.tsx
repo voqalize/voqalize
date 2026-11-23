@@ -27,7 +27,7 @@ export function LeadCard() {
 
   if (!open) {
     return (
-      <button type="button" className="lead-tab" onClick={() => actions.openLead(true)} data-dock-avoid data-stage-thing="lead-open" data-stage-label="Your brief">
+      <button type="button" className="lead-tab" onClick={() => actions.openLead(true)} data-tile-avoid data-stage-thing="lead-open" data-stage-label="Your brief">
         <ClipboardList size={16} /> Your brief <span className="num">{filled}/{LEAD.fields.length}</span>
       </button>
     );
@@ -45,7 +45,7 @@ export function LeadCard() {
   const availableStates = LEAD.states.filter((s) => !lead.states.includes(s));
 
   return (
-    <aside className="lead-card" data-stage-thing="lead-card" data-stage-label="Your brief" aria-label="Your Paynora brief">
+    <aside className="lead-card" data-tile-avoid data-stage-thing="lead-card" data-stage-label="Your brief" aria-label="Your Paynora brief">
       <div className="lead-head">
         <div>
           <h2>Your brief</h2>

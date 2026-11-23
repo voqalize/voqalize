@@ -4,18 +4,18 @@
  * says so plainly, and every surface the agent would drive still works by hand.
  */
 import { Suspense, lazy } from "react";
-import { create } from "zustand";
 import { demo } from "../config";
+import { PERSONA } from "../persona";
 import { actions } from "../state/store";
-import { type CallState, DockView } from "./DockView";
+import { DockView } from "./DockView";
+import { endFakeCall, useFakeCall } from "./fakeCall";
+
+export { useFakeCall };
 
 const VoiceCall = lazy(() => import("./VoiceCall"));
 
 /** True when this build carries the wiring for a call. */
 export const voiceReady = () => !!demo.agentId && !!demo.publishableKey;
-
-/** A call, faked for the `?debug=1` console: the live look without a client. */
-export const useFakeCall = create<{ state: CallState; heard: string }>(() => ({ state: "idle", heard: "" }));
 
 export function VoiceDock() {
   if (!voiceReady()) return <Placeholder />;
@@ -31,15 +31,18 @@ function Placeholder({ loading = false }: { loading?: boolean }) {
   return (
     <DockView
       state={fake.state}
-      heard={fake.heard}
-      muted={false}
+      muted={fake.muted}
       disabled
       disabledNote={fake.state === "idle" ? (loading ? "Getting ready…" : "Voice is off in this preview") : undefined}
       onStart={() => undefined}
-      onMute={() => undefined}
-      onEnd={() => useFakeCall.setState({ state: "idle", heard: "" })}
+      onMute={() => useFakeCall.setState({ muted: !fake.muted })}
+      onEnd={endFakeCall}
       onLanguage={(code) => actions.setLang(code)}
-      face={<div className="agent-face-fallback" aria-hidden />}
+      face={
+        <div className="face-placeholder" aria-hidden>
+          <span>{PERSONA.display_name.slice(0, 1)}</span>
+        </div>
+      }
     />
   );
 }

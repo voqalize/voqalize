@@ -3,6 +3,9 @@
  * rings what it touches before anything changes, refuses with what the page
  * offers instead of guessing, changes the page only through the same store
  * actions a click uses, and returns one short line the agent can repeat.
+ * Before a ring, the whole group it belongs to is scrolled into view
+ * (`bringIntoView`: the breakdown, the module checkboxes, the day's slots, the
+ * booking form, a row of the brief inside its own scroll area).
  */
 import { findThing, type MoveContext, type Performers, things } from "@voqalize/stage";
 import { LEAD, MODULES, moduleById, painById, PLANS, SITE, toolLabel } from "../data/product";
@@ -11,6 +14,7 @@ import { businessDays, repById, slotById, slotsOn, todayIst } from "../lib/calen
 import { quote } from "../lib/pricing";
 import { actions, type BookingField, isEmail, type LeadField, useSite } from "../state/store";
 import { currentPath, goTo, part, thing, titleOf, waitFor } from "./host";
+import { bringIntoView, wholeInView } from "./view";
 import type { scene } from "./scene.gen";
 
 type Spec = typeof scene.spec;
@@ -35,9 +39,10 @@ async function open(path: string, c: MoveContext): Promise<void> {
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
+/** Bring `el` and its group into view, then ring it. */
 async function ringAt(c: MoveContext, el: Element | null, label: string): Promise<void> {
   if (!el) return;
-  await c.scrollTo(el);
+  await bringIntoView(c, el);
   await c.ring(el, label);
 }
 
@@ -49,7 +54,7 @@ async function leadCard(c: MoveContext): Promise<Element | null> {
   if (currentPath() !== "/") return null;
   if (!useSite.getState().leadOpen) {
     const opener = thing("lead-open") ?? thing("lead-open-hero") ?? thing("modules");
-    if (opener) await c.ring(opener, "Your plan");
+    if (opener) await ringAt(c, opener, "Your plan");
     actions.openLead(true);
   }
   return waitFor(() => thing("lead-card"), 900);
@@ -143,10 +148,17 @@ export function performers(): Performers<Spec> {
         actions.setMatched(list);
         return `marked ${list.join(", ")} (the module cards are on the home page)`;
       }
+      // The whole set first (all the cards together when they fit on screen),
+      // then each card in turn, scrolling again only for one still cut off.
+      const cards = list.map((id) => thing(`module:${id}`)).filter((e): e is Element => !!e);
+      await bringIntoView(c, cards);
       const marked: string[] = [];
       for (const id of list) {
         const card = thing(`module:${id}`);
-        if (card) await ringAt(c, card, `Fits: ${moduleById(id)!.name}`);
+        if (card) {
+          if (!wholeInView([card])) await bringIntoView(c, card);
+          await c.ring(card, `Fits: ${moduleById(id)!.name}`);
+        }
         marked.push(id);
         actions.setMatched([...marked]);
       }
@@ -159,7 +171,7 @@ export function performers(): Performers<Spec> {
       const card = await leadCard(c);
       if (card) {
         const row = (await waitFor(() => part(`lead:${f}`), 600)) ?? card;
-        await c.ring(row, `${leadLabel(f)}: ${v.say}`);
+        await ringAt(c, row, `${leadLabel(f)}: ${v.say}`);
       }
       actions.setLead(f, v.set as never);
       return `${leadLabel(f).toLowerCase()} set to ${v.say}${card ? "" : " (the lead card is on the home page)"}`;
@@ -174,33 +186,33 @@ export function performers(): Performers<Spec> {
       if (bad.length) c.refuse("modules", `not a module the calculator adds: ${bad.join(", ")}`, extra);
       await open("/pricing", c);
       const calc = (await waitFor(() => thing("calculator"), 1500)) ?? c.refuse("headcount", "the calculator is not on screen");
-      await c.scrollTo(calc);
       const s = useSite.getState().pricing;
       if (s.headcount !== n) {
-        await c.ring(part("pricing:headcount") ?? calc, `${n} employees`);
+        await ringAt(c, part("pricing:headcount") ?? calc, `${n} employees`);
         actions.setPricing({ headcount: n });
       }
       for (const id of extra) {
         if (mods.includes(id) !== useSite.getState().pricing.modules.includes(id)) {
-          await c.ring(part(`pricing:module:${id}`) ?? calc, moduleById(id)!.name);
+          await ringAt(c, part(`pricing:module:${id}`) ?? calc, moduleById(id)!.name);
           actions.togglePricingModule(id);
         }
       }
       const b = billing ?? "monthly";
       if (useSite.getState().pricing.billing !== b) {
-        await c.ring(part("pricing:billing") ?? calc, b === "annual" ? "Annual billing" : "Monthly billing");
+        await ringAt(c, part("pricing:billing") ?? calc, b === "annual" ? "Annual billing" : "Monthly billing");
         actions.setBilling(b);
       }
       const fl = !!filing;
       if (useSite.getState().pricing.filing !== fl) {
-        await c.ring(part("pricing:filing") ?? calc, fl ? "Filing service on" : "Filing service off");
+        await ringAt(c, part("pricing:filing") ?? calc, fl ? "Filing service on" : "Filing service off");
         actions.setPricing({ filing: fl });
       }
       const q = quote(useSite.getState().pricing);
       c.done(q.status === "custom" ? "above 1,000 employees: custom quote" : `${q.plan_name}, ${inr(q.monthly)} a month before GST`);
       c.after(async () => {
         const total = await waitFor(() => part("line:total"), 600);
-        if (total) await c.ring(total, `${inr(q.monthly_total)} a month with GST`);
+        // The whole breakdown in view, then its total.
+        if (total) await ringAt(c, total, `${inr(q.monthly_total)} a month with GST`);
       });
       return null;
     },
@@ -222,8 +234,11 @@ export function performers(): Performers<Spec> {
       c.after(async () => {
         const list = await waitFor(() => thing("calendar"), 600);
         const slots = free.map((s) => part(`slot:${s.id}`)).filter((e): e is Element => !!e);
-        if (slots.length) await c.ring(slots, "Free slots");
-        else if (list) await c.ring(list, "No free slots");
+        // The day's whole slot list in view, then its free slots.
+        if (slots.length) {
+          await bringIntoView(c, slots);
+          await c.ring(slots, "Free slots");
+        } else if (list) await ringAt(c, list, "No free slots");
       });
       return null;
     },
