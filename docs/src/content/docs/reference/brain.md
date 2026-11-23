@@ -256,7 +256,7 @@ BCP-47 tag such as `"ta"`; the values are in [the catalog](/reference/catalog/).
   running. See [when each change lands](/reference/wire/#when-each-change-lands).
 - **`stt.patience` is a scale from 0 to 10**, not a duration, and a value off it
   raises `ConfigError` where you build the `SttConfig` rather than at the far end
-  of the wire. Unset takes the deployment's own calibration, which is 7.
+  of the wire. Unset takes the deployment's own calibration, which is 3.
 - The call waits `REQUEST_TIMEOUT_S`, 10.0 seconds, then raises `TimeoutError`
   saying that whether it applied is unknown.
 
