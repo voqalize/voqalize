@@ -72,7 +72,7 @@ function ImportStep() {
       <div className="step-head">
         <div>
           <h2>Import employees</h2>
-          <p className="muted">One row per person from your spreadsheet: job, CTC, PAN, UAN, regime and manager. Tankora checks every row before anything is saved.</p>
+          <p className="muted">One row per person from your spreadsheet: job, CTC, PAN, UAN, regime and manager. Paynora checks every row before anything is saved.</p>
         </div>
       </div>
       <div className={`dropzone${imp ? " is-done" : ""}`} {...thing("Import employees", "step-import")}>
@@ -287,7 +287,7 @@ export function WelcomePage() {
   const i = SETUP_STEPS.indexOf(step);
   return (
     <div className="page welcome">
-      <PageHead title="Welcome to Tankora" sub={`Set up ${COMPANY.company.name} for payroll. Six steps; you can come back to any of them.`} />
+      <PageHead title="Welcome to Paynora" sub={`Set up ${COMPANY.company.name} for payroll. Six steps; you can come back to any of them.`} />
       <ol className="stepper">
         {SETUP_STEPS.map((s, n) => (
           <li key={s}>

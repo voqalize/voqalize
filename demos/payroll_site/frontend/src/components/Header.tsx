@@ -11,7 +11,7 @@ export function Header() {
   return (
     <header className={`site-header${open ? " is-open" : ""}`}>
       <div className="wrap header-row">
-        <Link to="/" className="header-logo" data-stage-thing="nav:/" data-stage-label="Home" aria-label="Tankora home">
+        <Link to="/" className="header-logo" data-stage-thing="nav:/" data-stage-label="Home" aria-label="Paynora home">
           <Logo />
         </Link>
         <nav className="header-nav" aria-label="Main">

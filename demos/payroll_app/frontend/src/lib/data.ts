@@ -1,6 +1,6 @@
 /**
  * The ground truth this app starts from: data/company.json (the customer,
- * frozen at `today`) and data/product.json (Tankora itself), typed. Nothing
+ * frozen at `today`) and data/product.json (Paynora itself), typed. Nothing
  * here changes; the session's mutable copy lives in the store (state/store.ts).
  */
 import companyJson from "../../../data/company.json";

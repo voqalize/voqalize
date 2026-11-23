@@ -17,31 +17,31 @@ Lines = Mapping[str, Mapping[str, tuple[str, ...]]]
 GREETING: Mapping[str, Mapping[str, str]] = {
     "sdr": {
         "en": (
-            "Hi, I'm {name} from Tankora. I can show you how Tankora would run payroll for "
+            "Hi, I'm {name} from Paynora. I can show you how Paynora would run payroll for "
             "your team. Roughly how many people do you have, and how do you run payroll today?"
         ),
         "hi": (
-            "नमस्ते, मैं Tankora से {name} हूँ। मैं आपको दिखा सकता हूँ कि Tankora आपकी टीम का "
+            "नमस्ते, मैं Paynora से {name} हूँ। मैं आपको दिखा सकता हूँ कि Paynora आपकी टीम का "
             "पेरोल कैसे चलाएगा। आपकी टीम में लगभग कितने लोग हैं, और अभी पेरोल कैसे चलता है?"
         ),
     },
     "pricing": {
         "en": (
-            "Hi, I'm {name} from Tankora. Tell me how many employees you have and what you "
+            "Hi, I'm {name} from Paynora. Tell me how many employees you have and what you "
             "need, and I'll work out your price on the calculator, line by line."
         ),
         "hi": (
-            "नमस्ते, मैं Tankora से {name} हूँ। बताइए आपके कितने कर्मचारी हैं और आपको क्या "
+            "नमस्ते, मैं Paynora से {name} हूँ। बताइए आपके कितने कर्मचारी हैं और आपको क्या "
             "चाहिए, मैं कैलकुलेटर पर आपकी कीमत लाइन दर लाइन निकाल दूँगा।"
         ),
     },
     "booker": {
         "en": (
-            "Hi, I'm {name} from Tankora. I can book you a 30-minute demo with our sales "
+            "Hi, I'm {name} from Paynora. I can book you a 30-minute demo with our sales "
             "team. Which day suits you?"
         ),
         "hi": (
-            "नमस्ते, मैं Tankora से {name} हूँ। मैं आपके लिए हमारी सेल्स टीम के साथ 30 मिनट "
+            "नमस्ते, मैं Paynora से {name} हूँ। मैं आपके लिए हमारी सेल्स टीम के साथ 30 मिनट "
             "का डेमो बुक कर सकता हूँ। आपके लिए कौन सा दिन ठीक रहेगा?"
         ),
     },

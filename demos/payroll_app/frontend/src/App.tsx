@@ -33,7 +33,7 @@ function Frame() {
   // Every route change: the tab title, `screen.viewed` (silent) and a fresh hello.
   useEffect(() => {
     const s = screenOf(loc.pathname, loc.search);
-    document.title = `${s.title}, ${"Tankora"}`;
+    document.title = `${s.title}, ${"Paynora"}`;
     emit("screen.viewed", s);
     hello();
     window.scrollTo({ top: 0 });
@@ -73,7 +73,7 @@ function Notices() {
 function NotFound() {
   return (
     <div className="page">
-      <PageHead title="Page not found" sub="This address is not a page in Tankora." />
+      <PageHead title="Page not found" sub="This address is not a page in Paynora." />
       <Link to="/" className="btn btn-primary">
         Go to the dashboard
       </Link>

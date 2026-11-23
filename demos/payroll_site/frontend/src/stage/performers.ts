@@ -1,5 +1,5 @@
 /**
- * The agent's moves on the Tankora site (scene.json), one performer each. Each
+ * The agent's moves on the Paynora site (scene.json), one performer each. Each
  * rings what it touches before anything changes, refuses with what the page
  * offers instead of guessing, changes the page only through the same store
  * actions a click uses, and returns one short line the agent can repeat.

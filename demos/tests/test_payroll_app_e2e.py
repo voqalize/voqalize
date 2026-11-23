@@ -1,4 +1,4 @@
-"""Tankora app (payroll_app): the brain over the real wire, model scripted.
+"""Paynora app (payroll_app): the brain over the real wire, model scripted.
 
 One brain, three jobs by landing: the onboarding guide on ``/welcome`` fills the
 setup wizard and runs a test payroll equal to the February draft; in-app support
@@ -36,7 +36,7 @@ from ._harness import DemoRig, check_greeting, check_turn, check_voice_pair, dem
 discover()
 
 from voqalize_demos._loaded.payroll_app import books as books_mod  # noqa: E402
-from voqalize_demos._loaded.payroll_app.brain import TankoraBrain  # noqa: E402
+from voqalize_demos._loaded.payroll_app.brain import PaynoraBrain  # noqa: E402
 
 DEMOS = Path(__file__).resolve().parents[1]
 APP = DEMOS / "payroll_app"
@@ -60,9 +60,9 @@ async def _answer(rig: DemoRig, moves: list[dict[str, Any]], detail: str = "") -
     await asyncio.sleep(0.1)
 
 
-def _brain(rig: DemoRig) -> TankoraBrain:
+def _brain(rig: DemoRig) -> PaynoraBrain:
     brain = rig.brain
-    assert isinstance(brain, TankoraBrain)
+    assert isinstance(brain, PaynoraBrain)
     return brain
 
 

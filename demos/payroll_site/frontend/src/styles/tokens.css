@@ -1,9 +1,9 @@
-/* Tankora tokens, from data/product.json brand.palette and brand.type. */
+/* Paynora tokens, from data/product.json brand.palette and brand.type. */
 
 /* JetBrains Mono has no ₹ (U+20B9); figures take it from Plus Jakarta Sans,
    whose latin-ext subset carries it, so a rupee amount never falls back. */
 @font-face {
-  font-family: "Tankora Rupee";
+  font-family: "Paynora Rupee";
   src: url("../../node_modules/@fontsource-variable/plus-jakarta-sans/files/plus-jakarta-sans-latin-ext-wght-normal.woff2") format("woff2-variations");
   font-weight: 200 800;
   font-display: swap;
@@ -29,7 +29,7 @@
 
   --display: "Fraunces Variable", Georgia, serif;
   --ui: "Plus Jakarta Sans Variable", system-ui, sans-serif;
-  --num: "Tankora Rupee", "JetBrains Mono Variable", ui-monospace, monospace;
+  --num: "Paynora Rupee", "JetBrains Mono Variable", ui-monospace, monospace;
 
   --step--1: 0.8125rem;
   --step-0: 1rem;

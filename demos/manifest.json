@@ -78,12 +78,12 @@
     },
     {
       "name": "payroll_site",
-      "title": "Tankora — HR and Payroll (website)",
+      "title": "Paynora — HR and Payroll (website)",
       "tagline": "The marketing site of an Indian payroll product, where a voice sales rep qualifies a lead, works out the per-employee price and books a demo on screen."
     },
     {
       "name": "payroll_app",
-      "title": "Tankora — HR and Payroll (app)",
+      "title": "Paynora — HR and Payroll (app)",
       "tagline": "Inside an Indian HRMS as the HR admin: a voice guide sets up the company, explains why a payslip changed, compares the old and new tax regimes slab by slab, and makes changes with a confirm step."
     }
   ]

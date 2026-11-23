@@ -1,4 +1,4 @@
-"""Tankora marketing site: demo backend (brain + route). See ``routes.py``."""
+"""Paynora marketing site: demo backend (brain + route). See ``routes.py``."""
 
 from .routes import NAME, build, router
 

@@ -1,5 +1,5 @@
 /**
- * Stage for the whole app: ONE `Moves` (with its spotlight in Tankora's
+ * Stage for the whole app: ONE `Moves` (with its spotlight in Paynora's
  * green), made at start and independent of any call, so `?debug=1` and the
  * tests run the same performers a live call does. When a call exists,
  * `attach` puts it on that client with `stagePage`; until then results and

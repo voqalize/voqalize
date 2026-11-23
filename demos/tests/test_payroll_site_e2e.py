@@ -1,4 +1,4 @@
-"""Tankora's marketing site, end to end: the real brain on a real socket, only the model scripted.
+"""Paynora's marketing site, end to end: the real brain on a real socket, only the model scripted.
 
 One agent, three jobs by landing page. On ``/`` the sales rep fills the lead
 card field by field and marks the modules that fit; on ``/pricing`` it sets the
@@ -26,7 +26,7 @@ discover()
 
 from voqalize_demos._loaded.payroll_site import calendar_rules as cal  # noqa: E402
 from voqalize_demos._loaded.payroll_site import pricing  # noqa: E402
-from voqalize_demos._loaded.payroll_site.brain import TankoraSiteBrain  # noqa: E402
+from voqalize_demos._loaded.payroll_site.brain import PaynoraSiteBrain  # noqa: E402
 from voqalize_demos._loaded.payroll_site.data import inr  # noqa: E402
 from voqalize_demos._loaded.payroll_site.lines import GREETING  # noqa: E402
 from voqalize_demos._loaded.payroll_site.persona import PERSONA  # noqa: E402
@@ -74,9 +74,9 @@ async def _answer_all(rig: DemoRig, rounds: int = 20) -> None:
         await asyncio.sleep(0.1)
 
 
-def _brain(rig: DemoRig) -> TankoraSiteBrain:
+def _brain(rig: DemoRig) -> PaynoraSiteBrain:
     brain = rig.brain
-    assert isinstance(brain, TankoraSiteBrain)
+    assert isinstance(brain, PaynoraSiteBrain)
     return brain
 
 

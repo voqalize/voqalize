@@ -1,7 +1,7 @@
 /**
  * A file at every route, so deep links and refreshes work on static hosting.
  *
- * Tankora routes on the path (/demos/payroll_app/payslips/BB-1030/2026-01…).
+ * Paynora routes on the path (/demos/payroll_app/payslips/BB-1030/2026-01…).
  * The apex's hosting serves static files first and answers anything else with
  * ITS OWN index.html, so without a file at each route a refreshed screen would
  * show the wrong site. After `vite build`, this writes a copy of
@@ -42,7 +42,7 @@ for (const e of company.employees) {
 
 let written = 0;
 for (const [path, title] of routes) {
-  const html = shell.replace(/<title>[^<]*<\/title>/, `<title>${escape(`${title}, Tankora`)}</title>`);
+  const html = shell.replace(/<title>[^<]*<\/title>/, `<title>${escape(`${title}, Paynora`)}</title>`);
   const target = join(dist, path, "index.html");
   await mkdir(dirname(target), { recursive: true });
   await writeFile(target, html);

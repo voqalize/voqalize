@@ -1,6 +1,6 @@
-# Tankora app — UI ↔ brain contract
+# Paynora app — UI ↔ brain contract
 
-Tankora is a fictional Indian HRMS and payroll product. This demo is the product itself, signed in as
+Paynora is a fictional Indian HRMS and payroll product. This demo is the product itself, signed in as
 Meghna Rao (HR admin, BB-1004) of Banyan & Bay Foods Pvt. Ltd., a fictional customer. One brain, three
 jobs (onboarding guide, in-app support, feature coach), one Stage scene. The character (name, face,
 voices, languages) lives only in `persona.json`.

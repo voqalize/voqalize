@@ -1,5 +1,5 @@
 /**
- * Tankora's payroll and income-tax engine, the TypeScript twin of
+ * Paynora's payroll and income-tax engine, the TypeScript twin of
  * `backend/payroll_engine.py`. Same rules (read from data/product.json), same
  * rounding, same results: `engine.test.ts` holds it to every case in
  * data/tax_fixtures.json, which the Python engine writes. Change one, change both,

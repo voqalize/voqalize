@@ -1,6 +1,6 @@
-# Tankora site — UI ↔ brain contract
+# Paynora site — UI ↔ brain contract
 
-Tankora is a fictional Indian HR and payroll SaaS; `payroll_site` is its marketing website, with
+Paynora is a fictional Indian HR and payroll SaaS; `payroll_site` is its marketing website, with
 one voice agent (the character in `persona.json`) who does three jobs, one per landing page. This
 file is the agreement between `frontend/` and `backend/`. Change it in the same PR as the code.
 

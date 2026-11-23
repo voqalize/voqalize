@@ -1,6 +1,6 @@
 /**
  * The hero's working sheet: the sample employee from tax_example.json, her
- * year's tax under both regimes after proofs, as Tankora's payroll shows it.
+ * year's tax under both regimes after proofs, as Paynora's payroll shows it.
  * Every number is read from the file, nothing recomputed.
  */
 import { TAX_EXAMPLE } from "../data/product";

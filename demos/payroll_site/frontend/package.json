@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Tankora, the marketing site of a fictional Indian HR and payroll product, where a voice sales rep qualifies a lead, works out the price and books a demo on screen. A standalone Vite app served at /demos/payroll_site.",
+  "description": "Paynora, the marketing site of a fictional Indian HR and payroll product, where a voice sales rep qualifies a lead, works out the price and books a demo on screen. A standalone Vite app served at /demos/payroll_site.",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build && node scripts/route-shells.mjs",

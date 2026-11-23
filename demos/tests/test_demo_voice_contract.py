@@ -229,7 +229,7 @@ DEMOS: dict[str, Expected] = {
     # a gallery card (the page is Uno Salud's own site). Asserted in
     # test_unosalud_e2e.py.
     "unosalud": Expected(voice="omnivoice/javier", language="es", provider="openai"),
-    # Tankora's two demos read their character from demos/<name>/persona.json:
+    # Paynora's two demos read their character from demos/<name>/persona.json:
     # the default language, in that language's voice (both speak en and hi; the
     # Hindi toggle is asserted in test_payroll_site_e2e.py / test_payroll_app_e2e.py).
     "payroll_site": Expected(

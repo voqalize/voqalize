@@ -1,6 +1,6 @@
-# Tankora — the marketing site (`payroll_site`)
+# Paynora — the marketing site (`payroll_site`)
 
-Tankora is a fictional Indian HR and payroll product for companies of 20 to 1,000 people. This
+Paynora is a fictional Indian HR and payroll product for companies of 20 to 1,000 people. This
 demo is its marketing website, with a voice sales agent who talks to the visitor and drives the
 screen while he talks: he fills a lead card field by field, sets the pricing calculator control by
 control, and picks a slot on the sales calendar. Its sibling, `payroll_app`, is the product itself;

@@ -2,10 +2,10 @@
 //   voqalize stage gen payroll_app/frontend/src/stage/scene.json --py payroll_app/backend/stage_gen.py --ts payroll_app/frontend/src/stage/scene.gen.ts
 import { defineScene } from "@voqalize/stage";
 
-/** The moves of tankora_app, from its Stage Spec. */
+/** The moves of paynora_app, from its Stage Spec. */
 export const scene = defineScene({
   "stage": 1,
-  "id": "tankora_app",
+  "id": "paynora_app",
   "moves": [
     {
       "id": "app.go",
@@ -417,4 +417,4 @@ export const scene = defineScene({
   ]
 });
 
-export const SPEC_SHA256 = "1501794a573db8417cdd56e33354a6f8528c8abb55d43087d0a7782d02aa71f2";
+export const SPEC_SHA256 = "004aebca4fdb0a252021459a1720354fdb3197697cc14b798c44157601d761b7";

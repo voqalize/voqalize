@@ -26,7 +26,7 @@ export function MePage() {
       <div className="viewas-banner" {...thing("Employee view")}>
         <Eye size={16} aria-hidden />
         <span>
-          Viewing as <strong>{e?.name ?? employeeId}</strong>. This is what they see in Tankora.
+          Viewing as <strong>{e?.name ?? employeeId}</strong>. This is what they see in Paynora.
         </span>
         <Link to={e ? `/employees/${e.id}` : "/employees"} className="btn btn-sm btn-onbanner">
           <ArrowLeft size={14} aria-hidden /> Back to admin
@@ -52,7 +52,7 @@ export function MePage() {
           </div>
         ) : null}
       </header>
-      <nav className="me-tabs" aria-label="My Tankora">
+      <nav className="me-tabs" aria-label="My Paynora">
         {TABS.map(([id, label]) => (
           <NavLink key={id} to={`/me/${employeeId}/${id}`} className={() => `me-tab${tab === id ? " is-on" : ""}`}>
             {label}
@@ -61,7 +61,7 @@ export function MePage() {
       </nav>
       <main id="main" className="me-main" tabIndex={-1}>
         <h1 className="sr-only" data-stage-heading>
-          {TABS.find(([id]) => id === tab)?.[1] ?? "My Tankora"}
+          {TABS.find(([id]) => id === tab)?.[1] ?? "My Paynora"}
         </h1>
         {!e ? <p className="empty">There is no employee {employeeId}.</p> : null}
         {e && tab === "payslips" ? <PayslipView employeeId={e.id} month={month ?? "2026-01"} against={params.get("against")} base={`/me/${e.id}/payslips`} /> : null}

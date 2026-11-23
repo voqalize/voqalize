@@ -1,13 +1,13 @@
 {
-  "_about": "Tankora, a fictional Indian HRMS and payroll product. The ONE source of brand, modules, plans and tax rules for both demos (payroll_site and payroll_app). Hand-authored; build_data.py copies it to demos/payroll_site/data/product.json and the e2e tests fail if the copy drifts. Every company, person and number here is invented.",
+  "_about": "Paynora, a fictional Indian HRMS and payroll product. The ONE source of brand, modules, plans and tax rules for both demos (payroll_site and payroll_app). Hand-authored; build_data.py copies it to demos/payroll_site/data/product.json and the e2e tests fail if the copy drifts. Every company, person and number here is invented.",
   "brand": {
-    "name": "Tankora",
-    "legal_name": "Tankora Software Pvt. Ltd.",
+    "name": "Paynora",
+    "legal_name": "Paynora Software Pvt. Ltd.",
     "tagline": "Payroll that gets Indian tax right.",
     "one_liner": "HR and payroll for Indian companies of 20 to 1,000 people: payroll runs, leave, reimbursements, payslips and income tax in one place.",
-    "domain_display": "tankora.example",
-    "support_email": "help@tankora.example",
-    "sales_email": "sales@tankora.example",
+    "domain_display": "paynora.example",
+    "support_email": "help@paynora.example",
+    "sales_email": "sales@paynora.example",
     "hq": "Bengaluru",
     "palette": {
       "primary": "#0B6E5F",
@@ -30,7 +30,7 @@
       "numbers": "JetBrains Mono",
       "note": "Numbers in tables use tabular figures. Install with @fontsource-variable/fraunces, @fontsource-variable/plus-jakarta-sans, @fontsource-variable/jetbrains-mono."
     },
-    "logo_svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 40 40\" role=\"img\" aria-label=\"Tankora\"><rect width=\"40\" height=\"40\" rx=\"10\" fill=\"#0B6E5F\"/><path d=\"M10 12.5h20v4.2h-7.9V30h-4.2V16.7H10z\" fill=\"#fff\"/><circle cx=\"28.5\" cy=\"27.5\" r=\"3.2\" fill=\"#E8A33D\"/></svg>"
+    "logo_svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 40 40\" role=\"img\" aria-label=\"Paynora\"><rect width=\"40\" height=\"40\" rx=\"10\" fill=\"#0B6E5F\"/><path fill-rule=\"evenodd\" d=\"M11 10h10.2a6.6 6.6 0 0 1 0 13.2h-5.9V30H11zm4.3 4.1v5h5.6a2.5 2.5 0 0 0 0-5z\" fill=\"#fff\"/><circle cx=\"28.5\" cy=\"27.5\" r=\"3.2\" fill=\"#E8A33D\"/></svg>"
   },
   "modules": [
     {

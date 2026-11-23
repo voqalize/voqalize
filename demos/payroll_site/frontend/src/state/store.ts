@@ -209,5 +209,5 @@ export function leadValue(lead: Lead, field: LeadField): string {
 }
 
 if (import.meta.env.DEV) {
-  (window as unknown as { __tankora?: unknown }).__tankora = { useSite, actions };
+  (window as unknown as { __paynora?: unknown }).__paynora = { useSite, actions };
 }

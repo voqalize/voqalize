@@ -37,32 +37,32 @@ _ADMIN = _CO["admin"]["name"].split()[0]
 GREETINGS: dict[Mode, dict[Lang, str]] = {
     "onboarding": {
         "en": (
-            f"Hi {_ADMIN}, I'm {{name}}, your Tankora setup guide. I'll fill in each step "
+            f"Hi {_ADMIN}, I'm {{name}}, your Paynora setup guide. I'll fill in each step "
             f"with you, starting with {_CO['name']}'s company details. Shall we begin?"
         ),
         "hi": (
-            f"नमस्ते {_ADMIN}, मैं {{name}} हूँ, Tankora में आपकी सेटअप गाइड। हम हर स्टेप साथ में "
+            f"नमस्ते {_ADMIN}, मैं {{name}} हूँ, Paynora में आपकी सेटअप गाइड। हम हर स्टेप साथ में "
             "भरेंगे, पहले कंपनी की जानकारी से। शुरू करें?"
         ),
     },
     "support": {
         "en": (
-            f"Hi {_ADMIN}, I'm {{name}} from Tankora. I can explain any payslip, sort out "
+            f"Hi {_ADMIN}, I'm {{name}} from Paynora. I can explain any payslip, sort out "
             "leave and claims in the February draft, or get our payroll team on it. "
             "What do you need?"
         ),
         "hi": (
-            f"नमस्ते {_ADMIN}, मैं {{name}} हूँ, Tankora से। मैं किसी भी पेस्लिप को समझा सकती हूँ, "
+            f"नमस्ते {_ADMIN}, मैं {{name}} हूँ, Paynora से। मैं किसी भी पेस्लिप को समझा सकती हूँ, "
             "फ़रवरी के ड्राफ़्ट में छुट्टी और क्लेम ठीक कर सकती हूँ। बताइए, क्या चाहिए?"
         ),
     },
     "coach": {
         "en": (
-            "Hi, I'm {name}. Ask me how to do anything in Tankora and I'll show you on this "
+            "Hi, I'm {name}. Ask me how to do anything in Paynora and I'll show you on this "
             "screen, control by control."
         ),
         "hi": (
-            "नमस्ते, मैं {name} हूँ। Tankora में कुछ भी कैसे करना है, पूछिए, मैं इसी स्क्रीन पर एक-एक कंट्रोल दिखाऊँगी।"
+            "नमस्ते, मैं {name} हूँ। Paynora में कुछ भी कैसे करना है, पूछिए, मैं इसी स्क्रीन पर एक-एक कंट्रोल दिखाऊँगी।"
         ),
     },
 }
@@ -119,7 +119,7 @@ pay date {day(draft["pay_date"])}. January 2026 and earlier are paid.
 def system_instruction() -> str:
     cues = "\n".join(f"- {line}" for line in PROMPT_LINES)
     return f"""\
-You are {PERSONA.name}, {PERSONA.role}, on a voice call inside Tankora, an HR and payroll app \
+You are {PERSONA.name}, {PERSONA.role}, on a voice call inside Paynora, an HR and payroll app \
 for Indian companies. You see the app's screen with the admin and you move it: you open screens, \
 ring what you talk about, fill forms, and make changes once she says yes. You are a woman; in \
 Hindi use feminine forms for yourself ("मैं दिखाती हूँ").

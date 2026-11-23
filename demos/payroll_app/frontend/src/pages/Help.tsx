@@ -5,7 +5,7 @@ import { date } from "../lib/format";
 import { discardTicketDraft, editTicketDraft, nameOf, submitTicket, useTk } from "../state/store";
 import { PageHead, Panel, Status, thing } from "../components/ui";
 
-/** Short articles about Tankora's own features. No legal advice. */
+/** Short articles about Paynora's own features. No legal advice. */
 const ARTICLES: { title: string; body: string; link?: [string, string] }[] = [
   {
     title: "Why did someone's net pay drop this month?",
@@ -14,7 +14,7 @@ const ARTICLES: { title: string; body: string; link?: [string, string] }[] = [
   },
   {
     title: "How TDS is spread over the year",
-    body: "Each month Tankora works out the year's tax from pay so far, the rest of the year at the current structure and the verified declarations, takes away the TDS already deducted, and divides by the months left. When proofs are verified late in the year, the change lands in the few months remaining.",
+    body: "Each month Paynora works out the year's tax from pay so far, the rest of the year at the current structure and the verified declarations, takes away the TDS already deducted, and divides by the months left. When proofs are verified late in the year, the change lands in the few months remaining.",
   },
   {
     title: "Comparing the new and old regimes",
@@ -33,7 +33,7 @@ const ARTICLES: { title: string; body: string; link?: [string, string] }[] = [
   },
   {
     title: "Adding a mid-month joiner",
-    body: "Employees > Add employee. Tankora builds the structure from the CTC and city, and prorates the first month: days before joining are unpaid. The preview shows the first payslip before you save.",
+    body: "Employees > Add employee. Paynora builds the structure from the CTC and city, and prorates the first month: days before joining are unpaid. The preview shows the first payslip before you save.",
     link: ["/employees/new", "Add an employee"],
   },
 ];
@@ -44,7 +44,7 @@ export function HelpPage() {
   const d = st.ticketDraft;
   return (
     <div className="page">
-      <PageHead title="Help" sub="Guides to Tankora, your tickets with our payroll team, and a hand-off when something needs a person." />
+      <PageHead title="Help" sub="Guides to Paynora, your tickets with our payroll team, and a hand-off when something needs a person." />
       <div className="help-grid">
         <div className="help-main">
           <Panel title="Guides">
@@ -88,7 +88,7 @@ export function HelpPage() {
           </Panel>
         </div>
         <aside className={`panel handoff${d ? " has-draft" : ""}`} {...thing("Hand-off ticket")}>
-          <h2>Hand off to Tankora's payroll team</h2>
+          <h2>Hand off to Paynora's payroll team</h2>
           <p className="small muted">A payroll specialist reads the summary and replies by email. Nothing is sent until you press Send ticket.</p>
           <label className="field">
             <span>Subject</span>

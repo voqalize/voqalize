@@ -44,7 +44,7 @@ export function Customers() {
       </section>
       <section className="section section-tight">
         <div className="wrap inline-cta">
-          <p>See how your payroll would look in Tankora.</p>
+          <p>See how your payroll would look in Paynora.</p>
           <Link to="/book-demo" className="btn btn-primary">
             Book a demo
           </Link>

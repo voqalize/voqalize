@@ -3,7 +3,7 @@ import { defineConfig } from "vite";
 import { avatarRuntime } from "../../shared/avatar-runtime.mjs";
 import { noDaily } from "../../shared/no-daily.mjs";
 
-// Tankora is a marketing site with real URLs (/demos/payroll_site/pricing,
+// Paynora is a marketing site with real URLs (/demos/payroll_site/pricing,
 // /modules/<id>…): the app routes on the path, and scripts/route-shells.mjs
 // writes a copy of index.html at every route after the build so a deep link
 // or a refresh on static hosting finds a file of its own. The dev port is

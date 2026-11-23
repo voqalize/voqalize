@@ -312,7 +312,7 @@ export function submitTicket(): Result {
   const id = `TK-${n}`;
   set({ tickets: [{ id, subject: d.subject, summary: d.summary, status: "open", opened: TODAY, employee_id: d.employee_id }, ...s.tickets], ticketDraft: null });
   emit("ticket.created", { ticket_id: id, subject: d.subject });
-  const detail = `ticket ${id} sent to Tankora's payroll team`;
+  const detail = `ticket ${id} sent to Paynora's payroll team`;
   notify(detail);
   return ok(detail);
 }

@@ -1,5 +1,5 @@
 /**
- * Tankora's price for a team: the plan and the per-employee maths, line by line.
+ * Paynora's price for a team: the plan and the per-employee maths, line by line.
  *
  * The page's twin of backend/pricing.py; both are held to
  * content/pricing_cases.json (pricing.test.ts here, the e2e on the brain's

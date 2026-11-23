@@ -1,4 +1,4 @@
-"""Tankora's price for a team: the plan and the per-employee maths, line by line.
+"""Paynora's price for a team: the plan and the per-employee maths, line by line.
 
 The one pricing function on the brain's side. Its twin is
 ``frontend/src/lib/pricing.ts``; both are held to ``content/pricing_cases.json``

@@ -15,7 +15,7 @@ import "./voice.css";
 export type CallState = "idle" | "connecting" | "listening" | "thinking" | "speaking" | "error";
 
 const STATUS: Record<CallState, string> = {
-  idle: "Sales, Tankora",
+  idle: "Sales, Paynora",
   connecting: "Connecting…",
   listening: "Listening",
   thinking: "Thinking",

@@ -1,4 +1,4 @@
-"""Tankora's payroll and income-tax engine: salary structure, monthly payslip and
+"""Paynora's payroll and income-tax engine: salary structure, monthly payslip and
 TDS on salary, and the old-vs-new regime computation for one stated year.
 
 Pure functions over integers (rupees). The rules are read from

@@ -1,5 +1,5 @@
 {
-  "_about": "Site-only content for the Tankora marketing site (payroll_site): page copy, the lead card's vocabulary, the sales calendar and the booking rules. Read by the brain (backend/site.py) and the page (frontend/src/data/site.ts). Product facts (modules, plans, prices, tax rules, customers) live in data/product.json and are never repeated here. Every person and company is invented.",
+  "_about": "Site-only content for the Paynora marketing site (payroll_site): page copy, the lead card's vocabulary, the sales calendar and the booking rules. Read by the brain (backend/site.py) and the page (frontend/src/data/site.ts). Product facts (modules, plans, prices, tax rules, customers) live in data/product.json and are never repeated here. Every person and company is invented.",
   "nav": [
     { "path": "/modules", "label": "Modules" },
     { "path": "/tax", "label": "Tax & compliance" },
@@ -17,7 +17,7 @@
   "home": {
     "eyebrow": "HR and payroll for Indian companies",
     "headline": "Payroll that closes on time, with the tax already right.",
-    "sub": "Tankora runs payroll for every state you operate in, works out TDS under both regimes every month, and keeps PF, ESI and professional tax in order. Built for teams of 20 to 1,000.",
+    "sub": "Paynora runs payroll for every state you operate in, works out TDS under both regimes every month, and keeps PF, ESI and professional tax in order. Built for teams of 20 to 1,000.",
     "primary_cta": "Book a demo",
     "secondary_cta": "See pricing",
     "pains_title": "Where payroll usually goes wrong",
@@ -46,10 +46,10 @@
     ],
     "modules_title": "Everything payroll touches, in one place",
     "modules_intro": "Ten modules. Starter covers the first six; Growth and Scale add the rest.",
-    "tax_title": "Old regime or new? Tankora shows the working.",
-    "tax_body": "For every employee, Tankora works out tax under both regimes, slab by slab, and recalculates TDS each month as declarations turn into verified proofs.",
-    "quotes_title": "Teams that moved their payroll to Tankora",
-    "cta_title": "See your own payroll in Tankora",
+    "tax_title": "Old regime or new? Paynora shows the working.",
+    "tax_body": "For every employee, Paynora works out tax under both regimes, slab by slab, and recalculates TDS each month as declarations turn into verified proofs.",
+    "quotes_title": "Teams that moved their payroll to Paynora",
+    "cta_title": "See your own payroll in Paynora",
     "cta_body": "A 30-minute walk-through with someone from our sales team, on your headcount and your states."
   },
   "modules_page": {
@@ -59,7 +59,7 @@
   "module_detail": {
     "payroll": {
       "headline": "Approve payroll in an afternoon, not a week.",
-      "body": "Tankora pulls approved leave, arrears and one-time payments into the month's run, works out TDS, PF, ESI and professional tax, and shows you a review screen before anything is paid. When you approve, you get the bank transfer file and the payment register."
+      "body": "Paynora pulls approved leave, arrears and one-time payments into the month's run, works out TDS, PF, ESI and professional tax, and shows you a review screen before anything is paid. When you approve, you get the bank transfer file and the payment register."
     },
     "employees": {
       "headline": "One record for every person, from joining to exit.",
@@ -71,11 +71,11 @@
     },
     "payslips": {
       "headline": "Payslips your team can read without asking HR.",
-      "body": "Every line on a Tankora payslip says what it is and why it changed. Employees find their slips, leave balances and tax working in the self-service portal, and get a password-protected PDF by email."
+      "body": "Every line on a Paynora payslip says what it is and why it changed. Employees find their slips, leave balances and tax working in the self-service portal, and get a password-protected PDF by email."
     },
     "tax": {
       "headline": "TDS under the right regime, every month.",
-      "body": "Tankora compares the old and new regimes for each employee, spreads the year's tax over the months left, and recalculates when salary, leave or declarations change. Form 16 Part B and the quarterly 24Q data come out of the same numbers."
+      "body": "Paynora compares the old and new regimes for each employee, spreads the year's tax over the months left, and recalculates when salary, leave or declarations change. Form 16 Part B and the quarterly 24Q data come out of the same numbers."
     },
     "compliance": {
       "headline": "PF, ESI and professional tax, state by state.",
@@ -94,16 +94,16 @@
       "body": "Run payroll for each legal entity with its own PF, ESI and TAN, and see group-level reports across all of them. The employee directory is shared."
     },
     "api": {
-      "headline": "Tankora in the rest of your stack.",
+      "headline": "Paynora in the rest of your stack.",
       "body": "Use the REST API and webhooks to connect your HR system, export journals to accounting, and sign in with SAML single sign-on."
     }
   },
   "tax_page": {
     "title": "Tax & compliance",
-    "intro": "What Tankora works out for every employee each month, written down. The figures on this page follow the Income-tax Act, 1961 for FY 2025-26 and are illustrative.",
+    "intro": "What Paynora works out for every employee each month, written down. The figures on this page follow the Income-tax Act, 1961 for FY 2025-26 and are illustrative.",
     "example_title": "A worked example: ₹16.8 lakh CTC in Mumbai",
     "example_intro": "A senior sales executive pays ₹35,000 a month in rent. Here is the year's tax under each regime, first on what she declared in April and then on the proofs she submitted in January.",
-    "example_note": "Illustrative, FY 2025-26. Computed by the same engine that runs payroll in Tankora. Not tax advice."
+    "example_note": "Illustrative, FY 2025-26. Computed by the same engine that runs payroll in Paynora. Not tax advice."
   },
   "customers_page": {
     "title": "Customers",
@@ -134,7 +134,7 @@
       },
       {
         "q": "What does the setup fee cover?",
-        "a": "Moving your employee records, salary structures and opening balances into Tankora with a named onboarding manager. It is waived when you pay annually."
+        "a": "Moving your employee records, salary structures and opening balances into Paynora with a named onboarding manager. It is waived when you pay annually."
       }
     ]
   },

@@ -1,10 +1,10 @@
-# Tankora app (`payroll_app`)
+# Paynora app (`payroll_app`)
 
-The product of **Tankora**, a fictional Indian HR and payroll SaaS, signed in as Meghna Rao, HR admin
+The product of **Paynora**, a fictional Indian HR and payroll SaaS, signed in as Meghna Rao, HR admin
 of **Banyan & Bay Foods Pvt. Ltd.** (a fictional customer, 56 employees in Bengaluru, Mumbai, Pune,
 New Delhi and Hyderabad). A voice agent talks with the admin and drives the app on screen with
 Stage: she opens screens, rings what she talks about, fills forms, and makes changes after a spoken
-yes. Every company, person and number is invented. Its sibling `payroll_site` is Tankora's marketing
+yes. Every company, person and number is invented. Its sibling `payroll_site` is Paynora's marketing
 site.
 
 The app works by click alone: dashboard, employees (list, detail, add), payroll runs (register, the

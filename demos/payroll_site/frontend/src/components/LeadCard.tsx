@@ -45,7 +45,7 @@ export function LeadCard() {
   const availableStates = LEAD.states.filter((s) => !lead.states.includes(s));
 
   return (
-    <aside className="lead-card" data-stage-thing="lead-card" data-stage-label="Your brief" aria-label="Your Tankora brief">
+    <aside className="lead-card" data-stage-thing="lead-card" data-stage-label="Your brief" aria-label="Your Paynora brief">
       <div className="lead-head">
         <div>
           <h2>Your brief</h2>

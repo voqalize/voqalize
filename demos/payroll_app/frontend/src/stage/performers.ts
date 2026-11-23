@@ -1,5 +1,5 @@
 /**
- * The agent's moves, made on Tankora's screens as its voice reaches them.
+ * The agent's moves, made on Paynora's screens as its voice reaches them.
  *
  * Each performer brings the right screen up through the app's own router,
  * waits for its target, rings it, and only then acts, through the SAME
@@ -214,7 +214,7 @@ export function performers(): Performers<Spec> {
       const [bare, query] = p.split("?");
       const clean = bare!.replace(/\/+$/, "") || "/";
       const examples = ["/", "/employees/BB-1030", "/leave", "/tax/regime/BB-1007", "/me/BB-1030/payslips", "/welcome"];
-      if (!ROUTE_PATTERNS.some((r) => r.test(clean))) c.refuse("path", `Tankora has no screen at ${clean}`, examples);
+      if (!ROUTE_PATTERNS.some((r) => r.test(clean))) c.refuse("path", `Paynora has no screen at ${clean}`, examples);
       const id = /BB-\d{4}/.exec(clean)?.[0];
       if (id && !S.employee(id)) c.refuse("path", `there is no employee ${id}`, examples);
       const run = /PR-\d{4}-\d{2}/.exec(clean)?.[0];

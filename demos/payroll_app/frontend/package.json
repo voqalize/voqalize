@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Tankora, the product UI of a fictional Indian HRMS and payroll SaaS, where a voice guide drives the screen through Stage moves. A standalone Vite app served at /demos/payroll_app.",
+  "description": "Paynora, the product UI of a fictional Indian HRMS and payroll SaaS, where a voice guide drives the screen through Stage moves. A standalone Vite app served at /demos/payroll_app.",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build && node scripts/route-shells.mjs",

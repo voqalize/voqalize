@@ -1,4 +1,4 @@
-"""TankoraSiteBrain: the sales agent on Tankora's marketing site.
+"""PaynoraSiteBrain: the sales agent on Paynora's marketing site.
 
 An :class:`~voqalize.sdk.openai.OpenAIBrain`. One brain, three jobs, picked by
 the page the call starts on (``init.page``) and followed as the visitor moves
@@ -216,7 +216,7 @@ def page_title(path: str) -> str:
     return f"the {PAGES.get(path, path).lower()} page" if path != "/" else "the home page"
 
 
-class TankoraSiteBrain(OpenAIBrain):
+class PaynoraSiteBrain(OpenAIBrain):
     """One per session: the job, the lead card, the calculator and the booking."""
 
     def __init__(
@@ -842,4 +842,4 @@ class TankoraSiteBrain(OpenAIBrain):
         return mirror.read(request.slice) if mirror is not None else "nothing reported"
 
 
-__all__ = ["LanguageChanged", "LanguageRequested", "TankoraSiteBrain", "canonical", "job_of"]
+__all__ = ["LanguageChanged", "LanguageRequested", "PaynoraSiteBrain", "canonical", "job_of"]

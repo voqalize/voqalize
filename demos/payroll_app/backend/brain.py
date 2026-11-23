@@ -1,4 +1,4 @@
-"""TankoraBrain — the in-app agent of Tankora, a fictional Indian HR and payroll app.
+"""PaynoraBrain — the in-app agent of Paynora, a fictional Indian HR and payroll app.
 
 An :class:`~voqalize.sdk.openai.OpenAIBrain`. The admin of Banyan & Bay Foods
 (a fictional customer) is signed in; the agent talks and drives her screen with
@@ -373,7 +373,7 @@ class ConfirmRequest(BaseModel):
 # ─── The brain ─────────────────────────────────────────────────────────────────
 
 
-class TankoraBrain(OpenAIBrain):
+class PaynoraBrain(OpenAIBrain):
     """One per session: the company's books, the job, the language, the screen."""
 
     def __init__(self, *, client: AsyncOpenAI, model: str = MODEL) -> None:
@@ -1151,7 +1151,7 @@ class TankoraBrain(OpenAIBrain):
         )
 
     async def hand_off(self, request: HandOff) -> str:
-        """Hand the matter to Tankora's payroll team: the written ticket is
+        """Hand the matter to Paynora's payroll team: the written ticket is
         shown on screen, and it is sent only after she says yes."""
         e = self.books.employee(request.employee or "") if request.employee else None
         args: dict[str, Any] = {"subject": request.subject, "summary": request.summary}
@@ -1250,7 +1250,7 @@ class TankoraBrain(OpenAIBrain):
             return e
         self._send("me.view", {"employee_id": e["id"], "tab": request.tab})
         landed(f"This is what {e['name']} sees.")
-        return f"Showing Tankora as {e['name']} sees it, on {request.tab}."
+        return f"Showing Paynora as {e['name']} sees it, on {request.tab}."
 
     @needs_result_now
     async def read_screen(self, request: ReadRequest) -> str:
@@ -1445,4 +1445,4 @@ def _setup_values(step: str) -> list[tuple[str, str]]:
     ]
 
 
-__all__ = ["GUIDE", "MODEL", "TankoraBrain"]
+__all__ = ["GUIDE", "MODEL", "PaynoraBrain"]

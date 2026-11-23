@@ -3,7 +3,7 @@ import { defineConfig } from "vite";
 import { avatarRuntime } from "../../shared/avatar-runtime.mjs";
 import { noDaily } from "../../shared/no-daily.mjs";
 
-// Tankora is the product itself, signed in as an HR admin, with real URLs
+// Paynora is the product itself, signed in as an HR admin, with real URLs
 // (/demos/payroll_app/payslips/BB-1030/2026-01, /tax/regime/BB-1007…). The app
 // routes on the path (BrowserRouter with this base), and
 // scripts/route-shells.mjs writes a copy of index.html at every route after the

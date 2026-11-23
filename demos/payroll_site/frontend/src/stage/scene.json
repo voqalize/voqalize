@@ -1,7 +1,7 @@
 {
   "$schema": "../../../../../sdk/js/stage/stage.schema.json",
   "stage": 1,
-  "id": "tankora_site",
+  "id": "paynora_site",
   "languages": ["en", "hi"],
   "moves": [
     {
