@@ -13,18 +13,34 @@ from __future__ import annotations
 
 import asyncio
 import json
+from collections.abc import Iterator
 from typing import Any
 
+import pytest
 from voqalize_demos.discovery import discover
 from voqalize_demos.testing import ScriptedOpenAI, call, reply, reply_and_call, tool_results_of
+
+from voqalize.conformance import VoqalizeDriver
+from voqalize.sdk.wire import ConfigureFrame
 
 from ._harness import DemoRig, check_greeting, check_turn, check_voice_pair, demo
 
 discover()
 
 from voqalize_demos._loaded.property import homes as h  # noqa: E402
-from voqalize_demos._loaded.property.brain import PropertyBrain  # noqa: E402
+from voqalize_demos._loaded.property.brain import REJOIN, PropertyBrain  # noqa: E402
+from voqalize_demos._loaded.property.lines import GREETING  # noqa: E402
 from voqalize_demos._loaded.property.persona import PERSONA  # noqa: E402
+
+
+@pytest.fixture(autouse=True)
+def _no_call_carried_between_tests() -> Iterator[None]:
+    """Every test here opens the same session id, and a dropped call is held for
+    a redial to rejoin (CONTRACT.md, "Redial"): clear the store around each
+    test, so no test rejoins the one before it. Real session ids never repeat."""
+    REJOIN.clear()
+    yield
+    REJOIN.clear()
 
 
 def _moves(rig: DemoRig, move: str | None = None) -> list[dict[str, Any]]:
@@ -371,3 +387,239 @@ def test_the_page_and_the_brain_share_one_slot_rule() -> None:
     assert h.day_slots(x, wednesday) is None
     assert h.inr(11400000) == "₹1,14,00,000"
     assert h.short(11400000) == "₹1.14 crore"
+
+
+# ─── Redial: a call outlives a dropped brain socket ───────────────────────────
+
+
+def _redials(driver: VoqalizeDriver) -> list[bool | None]:
+    return [
+        r.config.redial.enabled
+        for r in driver.requests
+        if isinstance(r, ConfigureFrame) and r.config.redial is not None
+    ]
+
+
+def _stage_moves(driver: VoqalizeDriver, move: str) -> list[dict[str, Any]]:
+    return [
+        dict(c.get("payload") or {})
+        for c in driver.ui_commands
+        if c.get("command") == "stage_move" and (c.get("payload") or {}).get("move") == move
+    ]
+
+
+async def test_a_dropped_socket_rejoins_the_call_where_it_was() -> None:
+    """Mid-booking: the call started on /listings in English, moved to a
+    listing (the booker), switched to Hindi, searched, shortlisted and held a
+    visit for a yes; then the brain's socket drops without a hang-up. Karthik
+    turned redial on; Voqalize dials again for the same session with the same
+    init; the new socket's brain adopts the call — job, listing, language,
+    search, shortlist, the held visit and the model's history — says no second
+    hello, and the buyer's yes books the visit that was held."""
+    from voqalize_demos.discovery import build_for
+
+    from voqalize.conformance import (
+        BrainServer,
+        DirectConnection,
+        generate_keypair,
+        mint_voqalize_token,
+    )
+
+    day, slot = _afternoon()
+    llm = ScriptedOpenAI(
+        {
+            "Hindi mein baat karein?": reply_and_call(
+                "ज़रूर, अब हिंदी में बात करते हैं।", "set_language", language="hindi"
+            ),
+            "Save it.": reply_and_call("Saved.", "shortlist_home", listing_id="BLR-101"),
+            "Saturday afternoon?": [
+                call("visit_slots", listing_id="BLR-101", day="saturday", part="afternoon"),
+                reply("शनिवार दोपहर कुछ स्लॉट खाली हैं।"),
+            ],
+            "The first one. I'm Ravi, two of us.": [
+                call("propose_visit", listing_id="BLR-101", slot=slot, name="Ravi", visitors=2),
+                reply("रवि, दो लोगों के लिए बुक कर दूँ?"),
+            ],
+            "What did I ask you to save?": reply("Kosha Aranya."),
+        }
+    )
+    build = build_for("property")
+    built: list[PropertyBrain] = []
+
+    def _build() -> Any:
+        brain = build(llm)  # type: ignore[arg-type]
+        built.append(brain)  # type: ignore[arg-type]
+        return brain
+
+    keypair = generate_keypair()
+    server = BrainServer(_build, host="127.0.0.1", port=0, public_keys=keypair.public_pem)
+    port = await server.start()
+    sid = "property-redial-e2e"
+    init = {"page": "/listings", "lang": "en"}
+
+    def driver() -> VoqalizeDriver:
+        token = mint_voqalize_token(
+            private_key_pem=keypair.private_pem,
+            session_id=sid,
+            agent_id="property",
+            tenant_id="demo",
+        )
+        return VoqalizeDriver(
+            DirectConnection(f"ws://127.0.0.1:{port}", sid, token=token),
+            session_id=sid,
+            default_timeout=10.0,
+        )
+
+    first, second = driver(), driver()
+    try:
+        await first.open()
+        greeting = await first.start_session(init=init)
+        assert greeting is not None and PERSONA.name in greeting.text
+        assert _redials(first) == [True], "redial is turned on with the voice, before the greeting"
+        await first.user_says("Hindi mein baat karein?")
+        await asyncio.sleep(0.1)
+        await first.send_ui_event(
+            "stage_event",
+            {
+                "name": "screen.viewed",
+                "by": "visitor",
+                "data": {"path": "/listing/BLR-101", "page": "listing", "listing_id": "BLR-101"},
+            },
+        )
+        await asyncio.sleep(0.1)
+        await first.user_says("Save it.")
+        await first.user_says("Saturday afternoon?")
+        await first.user_says("The first one. I'm Ravi, two of us.")
+        before = built[-1]
+        assert before.job == "booker" and before.listing_id == "BLR-101"
+        assert before.lang == "hi" and before.shortlisted == ["BLR-101"]
+        assert before.pending is not None and before.pending.slot == slot
+        assert not _stage_moves(first, "visit.book")
+
+        # The socket drops: no End, no close code a hang-up would send.
+        await first.aclose()
+        for _ in range(50):
+            if len(REJOIN):
+                break
+            await asyncio.sleep(0.02)
+        await asyncio.sleep(0.1)
+        assert len(REJOIN) == 1, "the dropped call is held for a redial"
+
+        # Voqalize redials: the same session id, the same init.
+        await second.open()
+        again = await second.start_session(init=init, greeting_timeout=0.5)
+        assert again is None, "no second greeting on a rejoined call"
+        after = built[-1]
+        assert after is not before
+        assert after.job == "booker" and after.listing_id == "BLR-101", "the page it moved to"
+        assert after.lang == "hi" and after.shortlisted == ["BLR-101"]
+        assert after.pending is not None and after.pending.slot == slot, "the held visit"
+        assert _redials(second) == [True]
+        # Both legs come back in the language the call had moved to, not init's.
+        check_voice_pair(
+            DemoRig(name="property", server=server, driver=second, _built=[]),
+            voice=PERSONA.voices["hi"],
+            language="hi",
+        )
+
+        requests = len(llm.requests)
+        yes = await second.user_says("Yes, please book it.")
+        assert yes.units, "the call carried on after the drop"
+        (book,) = _stage_moves(second, "visit.book")
+        assert book["args"] == {
+            "listing_id": "BLR-101",
+            "slot": slot,
+            "name": "Ravi",
+            "visitors": 2,
+        }
+        assert len(llm.requests) == requests, "the yes to the held visit needed no model call"
+        await second.send_ui_event(
+            "stage_result",
+            {
+                "call_ref": book["call_ref"],
+                "move": "visit.book",
+                "outcome": "applied",
+                "detail": f"visit booked, {h.reference('BLR-101', slot)}",
+            },
+        )
+        await asyncio.sleep(0.1)
+        assert f"kosha-aranya|{slot}" in after.taken, "the booking in flight landed on this call"
+
+        await second.user_says("What did I ask you to save?")
+        last = json.dumps(llm.captured_inputs[-1], ensure_ascii=False)
+        assert "Hindi mein baat karein?" in last and "Save it." in last, "the history came across"
+        rehello = GREETING["booker"]["hi"].format(
+            name=PERSONA.name, title=h.LISTINGS["BLR-101"]["title"]
+        )
+        assert rehello not in last, "no second hello reached the model's history"
+        assert day in last or slot in last
+    finally:
+        await second.aclose()
+        await server.aclose()
+
+
+async def test_a_redial_that_finds_nothing_starts_fresh_and_a_hang_up_is_let_go() -> None:
+    """A redial reaching a process that never held the call (a deploy) carries
+    on as a new conversation; a held call is let go two minutes after its
+    socket closes (a hang-up looks the same from here), and kept however long
+    it runs while the socket is up."""
+    from voqalize_demos._loaded.property.rejoin import KEEP_AFTER_DROP_S, KEEP_LIVE_S, Rejoin
+
+    now = [0.0]
+    store: Rejoin[object] = Rejoin(clock=lambda: now[0])
+    a, b = object(), object()
+    store.hold("s1", a)
+    store.dropped("s1", b)  # not the brain held: nothing changes
+    now[0] = KEEP_AFTER_DROP_S + 1
+    assert store.take("s1") is a, "a live call is kept however long it runs"
+    store.hold("s1", a)
+    store.dropped("s1", a)
+    store.dropped("s1", a)  # on_session_end runs at least once: a second run changes nothing
+    now[0] += KEEP_AFTER_DROP_S - 1
+    assert len(store) == 1
+    now[0] += 2
+    assert store.take("s1") is None and len(store) == 0, "expired two minutes after the drop"
+    assert store.take("never-held") is None
+    store.hold("s2", a)
+    now[0] += KEEP_LIVE_S + 1
+    assert len(store) == 0, "a socket that never reported closing is let go after twelve hours"
+
+
+async def test_a_redial_after_expiry_starts_a_new_conversation() -> None:
+    """A redial that comes after the held call expired finds nothing: the brain
+    starts from init and greets, as a new call on the same page would."""
+    from voqalize_demos._loaded.property import rejoin
+
+    llm = ScriptedOpenAI(
+        {"Save it.": reply_and_call("Saved.", "shortlist_home", listing_id="BLR-101")}
+    )
+    async with demo("property", llm) as rig:
+        await rig.driver.start_session(init={"page": "/listing/BLR-101", "lang": "en"})
+        await rig.driver.user_says("Save it.")
+        held = _brain(rig)
+        assert held.shortlisted == ["BLR-101"]
+    # The socket closed; expire it by moving the store's clock on.
+    real = REJOIN._clock  # pyright: ignore[reportPrivateUsage]
+    try:
+        REJOIN._clock = lambda: real() + rejoin.KEEP_AFTER_DROP_S + 1  # pyright: ignore[reportPrivateUsage]
+        assert len(REJOIN) == 0
+    finally:
+        REJOIN._clock = real  # pyright: ignore[reportPrivateUsage]
+    async with demo("property", ScriptedOpenAI()) as rig:
+        greeting = await rig.driver.start_session(init={"page": "/listing/BLR-101", "lang": "en"})
+        check_greeting(rig, greeting)
+        fresh = _brain(rig)
+        assert fresh is not held and fresh.shortlisted == [] and fresh.pending is None
+
+
+async def test_no_redial_is_asked_of_a_voqalize_that_does_not_offer_it() -> None:
+    """``configure`` raises for redial without the capability: Karthik asks only
+    where it is offered, and the call starts the same either way."""
+    from voqalize.sdk.wire import Capability
+
+    async with demo("property", ScriptedOpenAI()) as rig:
+        rig.driver.capabilities.discard(Capability.REDIAL)
+        greeting = await rig.driver.start_session(init={"page": "/", "lang": "en"})
+        check_greeting(rig, greeting)
+        assert _redials(rig.driver) == []
+        check_voice_pair(rig, voice=PERSONA.voices["en"], language="en")

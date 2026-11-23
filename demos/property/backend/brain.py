@@ -35,12 +35,13 @@ from voqalize.sdk import Action, AppEvents, RTVIMessage, Session, Speech, UserId
 from voqalize.sdk.openai import OpenAIBrain
 from voqalize.sdk.stage import Mirror, Move, Stage, match_label
 from voqalize.sdk.stage.wire import StageEvent, StageHello, StageProgress, StageResult
-from voqalize.sdk.wire import Config, IdleConfig, SttConfig, TtsConfig
+from voqalize.sdk.wire import Config, IdleConfig, RedialConfig, SttConfig, TtsConfig
 
 from . import homes as h
 from .lines import BOOKING, BRING_SHORT, GREETING, LANDED, NO_WORDS, YES_WORDS
 from .persona import PERSONA, Persona
 from .prompt import system_instruction
+from .rejoin import Rejoin
 from .stage_gen import MOVES as STAGE_MOVES
 from .stage_gen import SPEC, ReadRequest
 
@@ -175,6 +176,12 @@ def _canonical(path: str) -> str:
     return p.rstrip("/") or "/"
 
 
+#: What a brain holds for one socket only: the session object and the speech
+#: units waiting for the runtime to say what was heard. Everything else a call
+#: built is carried to the brain a redial starts (rejoin.py).
+_PER_SOCKET = frozenset({"_session", "_awaiting"})
+
+
 class PropertyBrain(OpenAIBrain):
     """One per session: the job, the search, the shortlist and the visit being booked."""
 
@@ -209,13 +216,31 @@ class PropertyBrain(OpenAIBrain):
             mirror=Mirror(SPEC),
         )
         self._fallback = FallbackLine()
+        # This socket's brain took over a call a dropped socket left (rejoin.py).
+        self._rejoined = False
 
     # ─── Session ────────────────────────────────────────────────────────
 
     async def on_session_start(self, session: Session) -> None:
-        init = session.init or {}
-        self.lang = self.persona.tag(str(init.get("lang") or init.get("language") or ""))
-        self._at(_canonical(str(init.get("page") or "/")))
+        """The persona's voice for the call's language on both legs, and the job
+        from the page the call started on.
+
+        A call outlives a dropped socket (CONTRACT.md, "Redial"; SDK 0.15.0):
+        redial is on wherever Voqalize offers it, and a brain started by a
+        redial on a session this process still holds adopts that call as it
+        was — the language and the page it had moved to included — instead of
+        starting over. Its greeting is not spoken."""
+        prior = REJOIN.take(session.id)
+        self._rejoined = False
+        if prior is not None and prior is not self:
+            self._adopt(prior)
+            self._rejoined = True
+            logger.info("property: rejoined call {} after its socket dropped", session.id)
+        else:
+            init = session.init or {}
+            self.lang = self.persona.tag(str(init.get("lang") or init.get("language") or ""))
+            self._at(_canonical(str(init.get("page") or "/")))
+        REJOIN.hold(session.id, self)
         await session.configure(
             Config(
                 stt=SttConfig(language=self.persona.language(self.lang), patience=PATIENCE),
@@ -223,12 +248,31 @@ class PropertyBrain(OpenAIBrain):
                     voice=self.persona.voice(self.lang), language=self.persona.language(self.lang)
                 ),
                 idle=IdleConfig(timeout_ms=_IDLE_MS),
+                redial=RedialConfig(enabled=True) if session.can_redial else None,
             )
         )
         logger.info("property: session on {} as {} in {}", self.path, self.job, self.lang)
 
-    async def greet(self, session: Session) -> str:
-        """Written, not generated: the job's opener in the call's language."""
+    async def on_session_end(self, session: Session) -> None:
+        """The socket closed: a hang-up, or a drop Voqalize may redial. Kept a
+        short while for the redial; runs at least once, and a second run (or
+        one on a brain a redial already replaced) changes nothing."""
+        REJOIN.dropped(session.id, self)
+
+    def _adopt(self, prior: PropertyBrain) -> None:
+        """Take over ``prior``'s call: every piece of state but its socket's.
+        ``prior`` then shares this brain's state, so whatever still points at
+        it — the Stage director's dispatch and resolver, a booking in flight, a
+        line queued for the next quiet spell — acts on this call and this socket."""
+        self.__dict__.update({k: v for k, v in prior.__dict__.items() if k not in _PER_SOCKET})
+        prior.__dict__ = self.__dict__
+
+    async def greet(self, session: Session) -> str | None:
+        """Written, not generated: the job's opener in the call's language. A
+        rejoined call opens silently: the buyer already heard hello, and the
+        model's history should not gain a second one."""
+        if self._rejoined:
+            return None
         title = h.LISTINGS[self.listing_id]["title"] if self.listing_id else ""
         return GREETING[self.job][self.lang].format(name=self.persona.name, title=title)
 
@@ -751,4 +795,7 @@ class PropertyBrain(OpenAIBrain):
         return mirror.read(request.slice) if mirror is not None else "nothing reported"
 
 
-__all__ = ["LanguageChanged", "PropertyBrain"]
+#: Live calls by session id, for a redial to rejoin (rejoin.py).
+REJOIN: Rejoin[PropertyBrain] = Rejoin()
+
+__all__ = ["REJOIN", "LanguageChanged", "PropertyBrain"]

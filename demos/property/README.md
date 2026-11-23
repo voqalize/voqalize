@@ -48,3 +48,11 @@ site works fully by click. Tests: `cd demos && uv run pytest tests/test_property
 - **Language:** add it to `languages` and `voices` in `persona.json` (the voice must speak it), and add
   its written lines to every table in `backend/lines.py` (the brain refuses to import without them).
   The page's toggle picks it up from the persona file.
+
+## Redial
+
+A call survives a dropped brain socket (SDK 0.15.0 `Config.redial`): where Voqalize offers it, the
+brain turns redial on, keeps each call in memory by session id for two minutes after its socket
+drops (`backend/rejoin.py`), and the brain a redial starts picks the call up where it was (page,
+language, search, shortlist, a visit held for a yes, the model's history) without greeting again.
+Details in CONTRACT.md, "Redial". Tests: the `redial` cases in `demos/tests/test_property_e2e.py`.

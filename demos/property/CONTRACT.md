@@ -81,3 +81,19 @@ result ids), `shortlist.changed {count, ids}`, `visit.slot_picked {listing_id, s
 - Everything works by click alone; the voice layer is an adapter over the same store.
 - `?debug=1` shows a console that fires any Stage move by hand (it runs the registered performer).
 - The agent books only after the buyer's spoken yes (`visit.book` is `confirmed`).
+
+## Redial: a call outlives a dropped brain socket (SDK 0.15.0, owner 2026-11-23)
+
+On a voice runtime that offers redial (`session.can_redial`), `on_session_start` turns it on
+(`Config.redial`) with the persona's voice and language. Each live brain is kept in this process by
+session id (`backend/rejoin.py`, the same pattern as Fernhollow's) while its socket is up and for two
+minutes after it closes. When the socket drops without a hang-up, Voqalize dials again with the same
+session id and init; a redial that reaches the same process adopts the call as it was: the job and
+the page in front (not init's page), the language (both legs come back in it), the search and its
+results, the shortlist, the slots taken and visits booked, a visit held for the buyer's yes, a
+`visit.book` still in flight, a line owed for the next quiet spell, the model's history and the Stage
+director with its mirror. The rejoined brain opens silently (no second greeting). A redial that
+reaches a fresh process (a deploy) finds nothing and starts a new conversation on the same page. The
+brain cannot tell a hang-up from a drop, so a hung-up call is let go the same way, two minutes after
+its socket closes; a socket that never reports closing is let go after twelve hours. Without the
+capability no redial is asked for and the call runs as before.
