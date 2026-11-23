@@ -76,13 +76,15 @@ brain uses (each screen marks these):
 - Regime comparison: `New regime`, `Old regime`, `New regime slabs`, `Old regime slabs`,
   `Deductions`, `Switch regime`, `TDS for months left`, `Employee picker`.
 - Leave: `Pending requests`, `Approve`, `Reject`, `Balances`.
-- Reimbursements: `Claims to review`, `Bill amount`, `Fix amount`.
+- Reimbursements: `Claims to review`, `Bill amount`, `Fix amount`. `claim.open` opens one claim's panel.
 - Payroll run: `Review checklist`, `Payroll register`, `Approve run`, `Run totals`.
 - Dashboard: `February draft`, `Alerts`, `Proof window`, `Headcount`.
 - Tax: `Declarations`, `Proof status`, `Form 16`.
 - Setup: one thing per step (`Company details`, `Pay structure`, `Import employees`,
-  `Validation summary`, `Leave policy`, `Test payroll`, `Test totals`).
-- Help: `Hand-off ticket`, `Send ticket`.
+  `Validation summary`, `Leave policy`, `Test payroll`, `Test totals`), plus `Use details from signup`
+  (company only), `Use common defaults` (structure, leave), `Expected data`, `Download sample file`,
+  `Import file`.
+- Hand-off panel (a side drawer over any screen): `Hand-off ticket`, `Send ticket`.
 
 Results: a performer returns one short line (what landed). Refusals list what the page offers.
 
@@ -110,4 +112,15 @@ job: `/welcome` → onboarding; `/` and `/help` → support; anything else → c
 - `{show: Label}` for a label on another tab of the same page (`Balances` on Leave, `Form 16` on Tax)
   opens that tab first, then rings.
 - `setup.fill` opens the step that holds the field before ringing it.
+- Round 1 (owner review): only the company details come from signup. The pay structure and the leave
+  policy are the admin's: the agent asks, or fills the common defaults (`setup_defaults`) on her word;
+  `Use common defaults` on the page does the same. **There is no import move**: the admin downloads
+  `data/employees_import.csv` from the import step (served from the demo's own data folder) and
+  chooses it with Import file; her import reaches the brain as `setup.changed {imported}`.
+- A confirmed move's yes waits up to 3 s for the page's result, so the one line said is the outcome
+  ("Approved. 1 day becomes loss of pay, …"); only a slower page hears a holding line first.
+- `ticket.draft {kind: support|feature, subject, summary}` opens the hand-off panel as a drawer over
+  the screen in front; it never navigates. The brain files one only after `offer_request` and her
+  choice; small things it answers, opens (`payroll_register` for any month's run) or says plainly it
+  can't, without a request.
 - `employee.added`'s email is private in the slice, so it never reaches the brain.

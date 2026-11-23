@@ -60,6 +60,25 @@ async def _answer(rig: DemoRig, moves: list[dict[str, Any]], detail: str = "") -
     await asyncio.sleep(0.1)
 
 
+async def _yes(rig: DemoRig, text: str, move: str, detail: str = "") -> Any:
+    """Say a yes and play the page: answer the confirmed move the moment it is
+    sent, as the page does about a second later, so the turn's one line is the
+    outcome (round 1, A3)."""
+
+    async def page() -> None:
+        for _ in range(200):
+            sent = [m for m in _moves(rig) if m["move"] == move]
+            if sent:
+                await _answer(rig, sent[-1:], detail)
+                return
+            await asyncio.sleep(0.01)
+
+    task = asyncio.create_task(page())
+    turn = await rig.driver.user_says(text)
+    await task
+    return turn
+
+
 def _brain(rig: DemoRig) -> PaynoraBrain:
     brain = rig.brain
     assert isinstance(brain, PaynoraBrain)
@@ -124,16 +143,37 @@ def _onboarding_llm() -> ScriptedOpenAI:
                 reply("Those are in from your signup. Shall we do the pay structure next?"),
             ],
             "Looks right. Next.": [
-                reply_and_call("Now the pay structure.", "setup_step", step="structure"),
-                reply("That's your rule. Shall I import your employees?"),
+                reply_and_call("Here's the pay structure.", "setup_step", step="structure"),
+                reply(
+                    "How would you like basic and HRA set, or shall I put in what most "
+                    "companies use?"
+                ),
+            ],
+            "Use what most companies use.": [
+                reply_and_call("Putting those in.", "setup_defaults", step="structure"),
+                reply("They're in, and you can change any of them. Import employees next?"),
+            ],
+            "Make basic 45 percent.": [
+                reply_and_call("Changing basic.", "setup_fill", field="basic_pct", value="45"),
+                reply("Basic is now 45% of CTC."),
             ],
             "Go on, import them.": [
-                reply_and_call("Importing your file.", "setup_step", step="import"),
-                reply("All 56 rows are valid. Leave policy next?"),
+                reply_and_call("Here's the import step.", "setup_step", step="import"),
+                reply(
+                    "{show: Download sample file} You can download the sample file, then "
+                    "{show: Import file} click Import file and choose it."
+                ),
             ],
+            "[She imported her employee file herself": reply(
+                "{show: Validation summary} All 56 rows came in clean. Leave policy next?"
+            ),
             "Yes, the leave policy.": [
                 reply_and_call("Here's the leave policy.", "setup_step", step="leave"),
-                reply("Done. Shall I run a test payroll?"),
+                reply("What would you like, or shall I use the common policy?"),
+            ],
+            "The common one is fine.": [
+                reply_and_call("Putting it in.", "setup_defaults", step="leave"),
+                reply("That's in. Shall I run a test payroll?"),
             ],
             "Run the test payroll.": [
                 reply_and_call("Running February as a test.", "setup_step", step="test_run"),
@@ -143,7 +183,18 @@ def _onboarding_llm() -> ScriptedOpenAI:
     )
 
 
-async def test_onboarding_fills_each_step_and_the_test_payroll_equals_the_draft() -> None:
+def _fills(rig: DemoRig, since: int = 0) -> dict[str, str]:
+    return {
+        m["args"]["field"]: m["args"]["value"]
+        for m in _moves(rig)[since:]
+        if m["move"] == "setup.fill"
+    }
+
+
+async def test_onboarding_asks_each_step_and_only_the_admin_imports() -> None:
+    """Round 1, A1: only the company details come from signup; the structure
+    and leave policy are asked or taken from the common defaults on her word;
+    she imports the file herself; the test payroll equals the draft."""
     llm = _onboarding_llm()
     async with demo("payroll_app", llm) as rig:
         greeting = await rig.driver.start_session(init={"landing": "/welcome", "lang": "en"})
@@ -151,27 +202,58 @@ async def test_onboarding_fills_each_step_and_the_test_payroll_equals_the_draft(
         check_turn(rig, await rig.driver.user_says("Yes, let's begin."))
         moves = _moves(rig)
         assert moves[0] == {**moves[0], "move": "setup.step", "args": {"step": "company"}}
-        fills = {m["args"]["field"]: m["args"]["value"] for m in moves if m["move"] == "setup.fill"}
+        fills = _fills(rig)
         co = COMPANY["company"]
         assert fills["legal_name"] == co["legal_name"]
         assert fills["pan"] == co["pan"] and fills["tan"] == co["tan"]
         await _answer(rig, moves)
 
+        # The pay structure opens empty: nothing is filled until she says.
+        seen = len(_moves(rig))
         check_turn(rig, await rig.driver.user_says("Looks right. Next."))
-        fills = {
-            m["args"]["field"]: m["args"]["value"] for m in _moves(rig) if m["move"] == "setup.fill"
-        }
+        assert _fills(rig, seen) == {}
+        offer = tool_results(llm.captured_inputs[-1])["setup_step"]
+        assert "nothing came from signup" in offer and "basic 40% of CTC" in offer
+
+        seen = len(_moves(rig))
+        check_turn(rig, await rig.driver.user_says("Use what most companies use."))
+        fills = _fills(rig, seen)
         assert fills["basic_pct"] == "40" and fills["hra_metro_pct"] == "50"
 
-        check_turn(rig, await rig.driver.user_says("Go on, import them."))
-        imported = tool_results(llm.captured_inputs[-1])["setup_step"]
-        assert "56 rows, 56 valid, no errors" in imported
-        assert "setup.import" in [m["move"] for m in _moves(rig)]
+        seen = len(_moves(rig))
+        check_turn(rig, await rig.driver.user_says("Make basic 45 percent."))
+        assert _fills(rig, seen) == {"basic_pct": "45"}
 
+        # The import is hers: Priya points at the sample and the button.
+        seen = len(_moves(rig))
+        check_turn(rig, await rig.driver.user_says("Go on, import them."))
+        told = tool_results(llm.captured_inputs[-1])["setup_step"]
+        assert "You cannot import" in told
+        assert [m["move"] for m in _moves(rig)[seen:]] == ["setup.step"]
+        shown = [
+            c["payload"]["args"]
+            for c in rig.driver.ui_commands
+            if c.get("command") == "stage_cue" and c["payload"]["move"] == "app.show"
+        ]
+        assert ["Download sample file"] in shown and ["Import file"] in shown
+
+        await rig.driver.send_ui_event(
+            "stage_event",
+            {
+                "name": "setup.changed",
+                "by": "visitor",
+                "data": {"step": "import", "filled": [], "imported": 56, "test_run": False},
+            },
+        )
+        await asyncio.sleep(0.1)
+        said = await rig.driver.user_idle()
+        assert "56 rows" in said.text
+
+        seen = len(_moves(rig))
         check_turn(rig, await rig.driver.user_says("Yes, the leave policy."))
-        fills = {
-            m["args"]["field"]: m["args"]["value"] for m in _moves(rig) if m["move"] == "setup.fill"
-        }
+        assert _fills(rig, seen) == {}
+        check_turn(rig, await rig.driver.user_says("The common one is fine."))
+        fills = _fills(rig, seen)
         assert fills["el_per_year"] == "18" and fills["cl_per_year"] == "8"
 
         check_turn(rig, await rig.driver.user_says("Run the test payroll."))
@@ -202,21 +284,54 @@ def _support_llm() -> ScriptedOpenAI:
                 ),
             ],
             "Approve Asha's leave.": [
-                reply_and_call(
-                    "Let me see what that does.",
-                    "decide_leave",
-                    request="Asha Chavan",
-                    decision="approve",
-                ),
-                reply("One day becomes loss of pay. Shall I approve it?"),
+                reply_and_call("", "decide_leave", request="Asha Chavan", decision="approve"),
+                reply("Asha asked for 2 days of casual leave. Shall I approve it?"),
+            ],
+            "Reject Asha's leave.": [
+                reply_and_call("", "decide_leave", request="Asha Chavan", decision="reject"),
+                reply("Asha asked for 2 days of casual leave. Shall I reject it?"),
             ],
             "Fix Imran's claim.": [
-                reply_and_call("Checking his bill.", "fix_claim", claim="Imran"),
-                reply("The bill says ₹4,580. Shall I fix it?"),
+                reply_and_call("", "fix_claim", claim="Imran"),
+                reply("The bill says ₹4,580. Shall I correct it?"),
             ],
-            "I need someone to look at our PF upload.": reply_and_call(
+            "Show me RB-3109.": [
+                reply_and_call("Here's that claim.", "open_claim", claim="RB-3109"),
+                reply("{show: Bill amount} Rajat's travel claim matches its bill."),
+            ],
+            "Show me last month's payroll. Who earned the most?": [
+                reply_and_call("Here's January's run.", "payroll_register", month="2026-01"),
+                reply("{show: Payroll register} January's run is open."),
+            ],
+            "Can you email this register to my CA?": [
+                reply_and_call(
+                    "", "hand_off", kind="feature", subject="Email the register", summary="x"
+                ),
+                reply_and_call("", "offer_request", topic="email the register to her CA"),
+                reply(
+                    "I can't send email from here. Shall I file it as a support request or a "
+                    "feature request?"
+                ),
+            ],
+            "A feature request.": [
+                reply_and_call(
+                    "I'll write it up beside your screen.",
+                    "hand_off",
+                    kind="feature",
+                    subject="Email the payroll register to an outside accountant",
+                    summary="Meghna wants to email a month's payroll register to her CA from "
+                    "Paynora. Today she can only view it on screen.",
+                ),
+                reply("It's written up beside your screen. Shall I send it?"),
+            ],
+            "I need someone to look at our PF upload.": [
+                reply_and_call("", "offer_request", topic="checking the PF ECR upload"),
+                reply("I can't check that here. Support request or feature request?"),
+            ],
+            "Support, please.": reply_and_call(
                 "I'll write it up for our payroll team.",
                 "hand_off",
+                kind="support",
                 subject="PF ECR upload for February",
                 summary="Meghna wants help uploading the February PF ECR. Nothing in the app is wrong; "
                 "she needs the payroll team to check the file before the 15 March due date.",
@@ -250,30 +365,56 @@ async def test_support_explains_ravi_with_the_datas_numbers() -> None:
         assert ["Loss of pay"] in shown and ["TDS"] in shown
 
 
-async def test_support_approves_asha_after_a_yes_and_the_draft_follows() -> None:
+async def test_support_approves_asha_with_one_question_and_one_outcome() -> None:
+    """Round 1, A3: one natural question, then one line on yes: the outcome
+    itself, with the page's answer in it (no "On it." then "Done")."""
     llm = _support_llm()
     async with demo("payroll_app", llm) as rig:
         await rig.driver.start_session(init={"landing": "/", "lang": "en"})
         check_turn(rig, await rig.driver.user_says("Approve Asha's leave."))
         asked = tool_results(llm.captured_inputs[-1])["decide_leave"]
         before = COMPANY["payslips"]["BB-1046"][-1]
-        assert "LV-2412" in asked and "1 day(s) become loss of pay" in asked
+        assert "Asha Chavan asked for 2 days of casual leave" in asked
+        assert "1 day becomes loss of pay" in asked and asked.rstrip().endswith(
+            "Shall I approve it?"
+        )
         assert inr(before["net_pay"]) in asked
         assert "leave.decide" not in [m["move"] for m in _moves(rig)]
 
-        yes = await rig.driver.user_says("Yes.")
+        yes = await _yes(rig, "Yes.", "leave.decide", "Asha Chavan's leave approved")
         check_turn(rig, yes, units=1)
         decide = _moves(rig)[-1]
-        assert decide["move"] == "leave.decide"
         assert decide["args"] == {"request_id": "LV-2412", "decision": "approve"}
-        await _answer(rig, [decide], "Asha Chavan's leave approved")
-        outcome = await rig.driver.user_idle()
         brain = _brain(rig)
         feb = brain.books.slip("BB-1046", "2026-02")
         assert feb is not None and feb["lop_days"] == 1
-        assert outcome.text.startswith("Done — Asha Chavan's leave is approved.")
-        assert inr(feb["net_pay"]) in outcome.text
+        assert yes.text.startswith("Approved. 1 day becomes loss of pay")
+        assert inr(feb["net_pay"]) in yes.text
+        assert "On it" not in yes.text and "Done" not in yes.text
         assert brain.books.draft["net_pay"] == FEB["net_pay"] - (before["net_pay"] - feb["net_pay"])
+
+
+async def test_support_rejects_with_the_past_tense_right() -> None:
+    llm = _support_llm()
+    async with demo("payroll_app", llm) as rig:
+        await rig.driver.start_session(init={"landing": "/", "lang": "en"})
+        check_turn(rig, await rig.driver.user_says("Reject Asha's leave."))
+        yes = await _yes(rig, "Yes, reject it.", "leave.decide")
+        check_turn(rig, yes, units=1)
+        assert (
+            yes.text
+            == "Rejected. Asha Chavan's leave request LV-2412 is closed, and Asha can see it."
+        )
+
+
+async def test_a_yes_with_a_new_request_is_not_a_yes() -> None:
+    """Round 1: "Okay, can you show me the last one" sent a waiting ticket."""
+    llm = _support_llm()
+    async with demo("payroll_app", llm) as rig:
+        await rig.driver.start_session(init={"landing": "/", "lang": "en"})
+        check_turn(rig, await rig.driver.user_says("Approve Asha's leave."))
+        await rig.driver.user_says("Okay, can you show me last month's payroll?")
+        assert "leave.decide" not in [m["move"] for m in _moves(rig)]
 
 
 async def test_support_fixes_imrans_claim_after_a_yes() -> None:
@@ -282,32 +423,82 @@ async def test_support_fixes_imrans_claim_after_a_yes() -> None:
         await rig.driver.start_session(init={"landing": "/", "lang": "en"})
         check_turn(rig, await rig.driver.user_says("Fix Imran's claim."))
         asked = tool_results(llm.captured_inputs[-1])["fix_claim"]
-        assert "RB-3108" in asked and "₹4,850" in asked and "₹4,580" in asked
-        check_turn(rig, await rig.driver.user_says("Yes, fix it."), units=1)
+        assert "₹4,850" in asked and "₹4,580" in asked
+        assert {"move": "claim.open", "args": {"claim_id": "RB-3108"}}.items() <= _moves(rig)[
+            -1
+        ].items()
+        yes = await _yes(rig, "Yes, fix it.", "claim.fix")
+        check_turn(rig, yes, units=1)
         fix = _moves(rig)[-1]
         assert fix["move"] == "claim.fix" and fix["args"] == {"claim_id": "RB-3108", "amount": 4580}
-        await _answer(rig, [fix])
-        await rig.driver.user_idle()
+        assert yes.text.startswith("Fixed. RB-3108 is now ₹4,580")
         books = _brain(rig).books
         assert books.feb_reimbursements("BB-1032") == 4580
         assert books.draft["reimbursements"] == FEB["reimbursements"] + 4580
 
 
-async def test_support_hands_off_with_a_written_ticket_on_screen() -> None:
+async def test_support_opens_a_claim_it_is_asked_about() -> None:
+    llm = _support_llm()
+    async with demo("payroll_app", llm) as rig:
+        await rig.driver.start_session(init={"landing": "/reimbursements", "lang": "en"})
+        check_turn(rig, await rig.driver.user_says("Show me RB-3109."))
+        assert _moves(rig)[-1]["move"] == "claim.open"
+        assert "the bill matches" in tool_results(llm.captured_inputs[-1])["open_claim"]
+
+
+async def test_support_opens_last_months_payroll_instead_of_a_ticket() -> None:
+    """Round 1, A4: previous month's payroll is a move she makes, and the
+    highest earner is answered from the data."""
+    llm = _support_llm()
+    async with demo("payroll_app", llm) as rig:
+        await rig.driver.start_session(init={"landing": "/payroll/PR-2026-02", "lang": "en"})
+        check_turn(
+            rig, await rig.driver.user_says("Show me last month's payroll. Who earned the most?")
+        )
+        opened = _moves(rig)[-1]
+        assert opened["move"] == "app.open" and opened["args"] == {"path": "/payroll/PR-2026-01"}
+        result = tool_results(llm.captured_inputs[-1])["payroll_register"]
+        jan = next(r for r in COMPANY["payroll_runs"] if r["id"] == "PR-2026-01")
+        assert f"net pay {inr(jan['net_pay'])}" in result
+        top = max(
+            COMPANY["employees"],
+            key=lambda e: next(
+                (p["gross"] for p in COMPANY["payslips"][e["id"]] if p["month"] == "2026-01"), 0
+            ),
+        )
+        assert top["name"] in result
+        assert "ticket.draft" not in [m["move"] for m in _moves(rig)]
+
+
+async def test_a_request_is_offered_first_and_filed_beside_the_screen() -> None:
+    """Round 1, A4: hand_off is refused until she was offered support or
+    feature and answered; the draft never navigates."""
+    llm = _support_llm()
+    async with demo("payroll_app", llm) as rig:
+        await rig.driver.start_session(init={"landing": "/payroll/PR-2026-01", "lang": "en"})
+        check_turn(rig, await rig.driver.user_says("Can you email this register to my CA?"))
+        assert "ticket.draft" not in [m["move"] for m in _moves(rig)]
+        check_turn(rig, await rig.driver.user_says("A feature request."))
+        draft = _moves(rig)[-1]
+        assert draft["move"] == "ticket.draft" and draft["args"]["kind"] == "feature"
+        assert "app.open" not in [m["move"] for m in _moves(rig)]
+
+
+async def test_support_hands_off_with_a_written_request_on_screen() -> None:
     llm = _support_llm()
     async with demo("payroll_app", llm) as rig:
         await rig.driver.start_session(init={"landing": "/help", "lang": "en"})
         check_turn(rig, await rig.driver.user_says("I need someone to look at our PF upload."))
+        check_turn(rig, await rig.driver.user_says("Support, please."))
         draft = _moves(rig)[-1]
         assert draft["move"] == "ticket.draft"
+        assert draft["args"]["kind"] == "support"
         assert draft["args"]["subject"] == "PF ECR upload for February"
         assert "PF ECR" in draft["args"]["summary"]
-        check_turn(rig, await rig.driver.user_says("Yes, send it."), units=1)
-        submit = _moves(rig)[-1]
-        assert submit["move"] == "ticket.submit"
-        await _answer(rig, [submit])
-        sent = await rig.driver.user_idle()
-        assert "TK-1208" in sent.text
+        sent = await _yes(rig, "Yes, send it.", "ticket.submit")
+        check_turn(rig, sent, units=1)
+        assert _moves(rig)[-1]["move"] == "ticket.submit"
+        assert "TK-1208" in sent.text and "support request" in sent.text
 
 
 async def test_a_change_made_by_click_reaches_the_books_and_the_model() -> None:

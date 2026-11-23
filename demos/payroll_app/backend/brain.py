@@ -33,6 +33,7 @@ brain sends the confirmed move itself, then says the page's answer once.
 
 from __future__ import annotations
 
+import asyncio
 import re
 from collections.abc import AsyncGenerator, Callable, Sequence
 from typing import Any, Literal
@@ -89,8 +90,14 @@ _IDLE_MS = 15_000
 _SAY_NOW_MS = 400
 _REACT_IDLE_MS = 1_500
 
-#: The spoken line while a confirmed move is sent, per language.
-HELD: dict[Lang, str] = {"en": "On it.", "hi": "जी, कर रही हूँ।"}
+#: How long a yes waits for the page to answer the move it sent, so the one
+#: line she says is the outcome itself (owner, round 1, A3: "On it." and then
+#: "Done — …" was two lines for one act). The page answers in about 1.2 s.
+_OUTCOME_WAIT_S = 3.0
+#: Said only when the page has not answered by then; the outcome follows.
+HELD: dict[Lang, str] = {"en": "Just a moment, it's going through.", "hi": "एक पल, हो रहा है।"}
+#: Past tense of a decision, for the outcome lines.
+_PAST = {"approve": "approved", "reject": "rejected"}
 
 _DEVANAGARI = re.compile(r"[ऀ-ॿ]")
 _HINDI_GRAMMAR = (
@@ -339,7 +346,26 @@ class RegimeRequest(BaseModel):
     regime: Literal["new", "old"]
 
 
+class RegisterRequest(BaseModel):
+    month: str | None = Field(
+        default=None,
+        description="The run's month, 2026-01 for January; empty for the February 2026 draft. "
+        "Last month's payroll is 2026-01.",
+    )
+    rank_by: Literal["gross", "net_pay"] = Field(
+        default="gross", description="Rank employees by gross pay or by net pay."
+    )
+
+
+class OfferRequest(BaseModel):
+    topic: str = Field(description="What she wants that you cannot do here, in a few words.")
+
+
 class HandOff(BaseModel):
+    kind: Literal["support", "feature"] = Field(
+        description="The one she chose: support (something wrong, or needs a person) or feature "
+        "(something Paynora does not do yet)."
+    )
     subject: str = Field(description="A short subject line.")
     summary: str = Field(
         description=(
@@ -352,6 +378,36 @@ class HandOff(BaseModel):
 
 class SetupStep(BaseModel):
     step: Literal["company", "structure", "import", "leave", "test_run", "done"]
+
+
+class SetupDefaults(BaseModel):
+    step: Literal["structure", "leave"]
+
+
+SetupField = Literal[
+    "basic_pct",
+    "hra_metro_pct",
+    "hra_non_metro_pct",
+    "lta_g5",
+    "lta_g6_up",
+    "pf_rule",
+    "esi_rule",
+    "el_per_year",
+    "cl_per_year",
+    "sl_per_year",
+    "el_carry_forward",
+    "attendance_cutoff",
+    "lop_rule",
+]
+
+
+class SetupFill(BaseModel):
+    field: SetupField = Field(
+        description="The pay-structure or leave-policy field she gave a value for."
+    )
+    value: str = Field(
+        description="As she said it: a percentage as 45, rupees as 3000, days as 12."
+    )
 
 
 class ViewAs(BaseModel):
@@ -410,6 +466,12 @@ class PaynoraBrain(OpenAIBrain):
             backstop=self._backstop,
         )
         self._fallback = FallbackLine()
+        #: A yes waiting on its move's result, by call_ref: the outcome line.
+        self._outcome_waiters: dict[str, asyncio.Future[Callable[[], str]]] = {}
+        #: The support-or-feature offer she has been asked about, and when.
+        self._offered: tuple[str, int] | None = None
+        #: The import count the page last reported, to notice her own import.
+        self._imported: int | None = None
         self._say_next: Callable[[], str] | None = None
         self._talk: str | None = None
         self._confirm_line: str | None = None
@@ -469,7 +531,10 @@ class PaynoraBrain(OpenAIBrain):
         if pending is not None and answer == "yes":
             acted = self.confirms.act(pending)
             self.append_note(acted.note)
-            async for speech in self.say_line(acted.line, remember=True):
+            line = acted.line
+            if acted.ref is not None:
+                line = await self._outcome_of(acted.ref) or line
+            async for speech in self.say_line(line, remember=True):
                 yield speech
             return
         if pending is not None and answer == "no":
@@ -510,6 +575,19 @@ class PaynoraBrain(OpenAIBrain):
         self.append_note(f"[{ask}]")
         async for speech in self.respond(session):
             yield speech
+
+    async def _outcome_of(self, ref: str) -> str | None:
+        """The page's answer to a confirmed move, as its one line, if it comes
+        within :data:`_OUTCOME_WAIT_S`; ``None`` leaves it to be said when it
+        lands (after the held line)."""
+        waiter: asyncio.Future[Callable[[], str]] = asyncio.get_running_loop().create_future()
+        self._outcome_waiters[ref] = waiter
+        try:
+            return (await asyncio.wait_for(waiter, _OUTCOME_WAIT_S))()
+        except TimeoutError:
+            return None
+        finally:
+            self._outcome_waiters.pop(ref, None)
 
     def _say_line_soon(self, line: str | Callable[[], str]) -> None:
         self._say_next = line if callable(line) else (lambda: line)
@@ -618,10 +696,35 @@ class PaynoraBrain(OpenAIBrain):
                     run["status"] = "approved"
                 return f"[She approved the payroll run {data.get('run_id')}. It is locked for payment.]"
             case "setup.changed":
-                return None
+                return self._setup_changed(data)
             case _:
                 return None
         return None
+
+    def _setup_changed(self, data: dict[str, Any]) -> str | None:
+        """Her own import (only she imports, round 1, A1): told to the model,
+        and the agent says what came in at the next quiet moment."""
+        rows = data.get("imported")
+        if not isinstance(rows, int) or rows == self._imported:
+            return None
+        self._imported = rows
+        s = import_summary()
+        if rows == s["rows"]:
+            locs = ", ".join(f"{k} {v}" for k, v in s["by_location"].items())
+            got = (
+                f"{rows} rows, {s['valid']} valid, "
+                + (f"{len(s['errors'])} with errors" if s["errors"] else "no errors")
+                + f"; by location {locs}; {s['regimes'].get('new', 0)} on the new regime, "
+                f"{s['regimes'].get('old', 0)} on the old"
+            )
+        else:
+            got = f"{rows} rows; the validation summary on screen has the details"
+        self._talk = (
+            f"She imported her employee file herself: {got}. Say in one or two sentences what "
+            "came in ({show: Validation summary}), then ask whether to set up the leave policy next."
+        )
+        configure_soon(self.session, Config(idle=IdleConfig(timeout_ms=_REACT_IDLE_MS)))
+        return f"[She imported her employee file: {got}.]"
 
     def _moved_to(self, path: str, *, by: str) -> None:
         self.path = "/" + path.strip("/")
@@ -650,7 +753,11 @@ class PaynoraBrain(OpenAIBrain):
             ):
                 self._said[ref] = effect(result.detail)
             line = self.confirms.outcome(ref, result.outcome, result.detail, why)
-            self._say_line_soon(line)
+            waiter = self._outcome_waiters.pop(ref, None)
+            if waiter is not None and not waiter.done():
+                waiter.set_result(line)
+            else:
+                self._say_line_soon(line)
             return f"[The page answered: {result.outcome} — {result.detail or why or 'no detail'}.]"
         if result.moved or result.outcome in ("applied", "partial", "undone"):
             return None
@@ -720,13 +827,18 @@ class PaynoraBrain(OpenAIBrain):
             self.open_feature,
             self.whats_pending,
             self.decide_leave,
+            self.open_claim,
             self.fix_claim,
             self.decide_claim,
             self.fill_new_employee,
             self.switch_regime,
+            self.payroll_register,
+            self.offer_request,
             self.hand_off,
             self.confirm,
             self.setup_step,
+            self.setup_defaults,
+            self.setup_fill,
             self.view_as_employee,
             self.read_screen,
             self.set_language,
@@ -986,53 +1098,82 @@ class PaynoraBrain(OpenAIBrain):
         if req["status"] != "pending":
             return _not_done(f"{req['id']} is already {req['status']}", "Tell her so.")
         name = b.name(req["employee_id"])
-        what = f"{request.decision} {name}'s {req['type']} leave {req['id']}"
+        first = name.split()[0]
+        decision = request.decision
+        what = f"{decision} {name}'s {req['type']} leave {req['id']}"
         covered, lop = b.leave_impact(req)
-        facts = (
-            f"{req['id']}: {name}, {req['type']} {req['days']} days, {day(req['from'])} to "
-            f"{day(req['to'])}, '{req['reason']}'."
+        when = (
+            day(req["from"])
+            if req["from"] == req["to"]
+            else f"{day(req['from'])} to {day(req['to'])}"
         )
-        if request.decision == "approve":
+        days = "a day" if req["days"] == 1 else f"{req['days']:g} days"
+        reason = str(req["reason"]).split(". ")[0].rstrip(".")
+        kind = _LEAVE_WORD.get(req["type"], req["type"])
+        ask = f"{name} asked for {days} of {kind} leave, {when}: {reason}."
+        if decision == "approve":
             impact = b.preview_leave(req)
             if lop and impact is not None:
-                facts += (
-                    f" Balance covers {covered} day(s); {lop} day(s) become loss of pay in the "
-                    f"February draft: net pay {inr((impact.before or {}).get('net_pay', 0))} → "
-                    f"{inr(impact.after['net_pay'])} ({inr(impact.net_delta)})."
+                ask += (
+                    f" {covered:g} of them are covered, so {lop:g} "
+                    f"{'day becomes' if lop == 1 else 'days become'} loss of pay and {first}'s February "
+                    f"net pay goes from {inr((impact.before or {}).get('net_pay', 0))} to "
+                    f"{inr(impact.after['net_pay'])}."
                 )
             elif lop:
-                facts += (
-                    f" {lop} day(s) become loss of pay in that month's payroll, not February's."
-                )
+                ask += f" {lop:g} of the days become loss of pay in that month's payroll."
             else:
-                facts += f" The {req['type']} balance covers it; no change to pay."
+                ask += f" {first}'s balance covers it, so pay doesn't change."
+        ask += f" Shall I {decision} it?"
         self._send("app.open", {"path": "/leave?tab=requests"})
         dup = self.confirms.ask(
             "leave",
-            ("leave", req["id"], request.decision),
+            ("leave", req["id"], decision),
             what,
             self.turns,
             request_id=req["id"],
-            decision=request.decision,
+            decision=decision,
         )
         if dup is not None:
             return dup
-        return facts + f" Say that, then ask: shall I {what}? Wait for her yes."
+        return _ask_once(ask)
 
     async def _ask_claim(
-        self, kind: str, c: dict[str, Any], what: str, facts: str, **data: Any
+        self, kind: str, c: dict[str, Any], what: str, ask: str, **data: Any
     ) -> str:
-        self._send("app.open", {"path": "/reimbursements"})
+        self._send("claim.open", {"claim_id": c["id"]})
         dup = self.confirms.ask(
             kind, (kind, c["id"], data.get("decision")), what, self.turns, **data
         )
-        return dup or facts + f" Say that, then ask: shall I {what}? Wait for her yes."
+        return dup or _ask_once(ask)
 
     def _claim(self, ref: str) -> dict[str, Any] | str:
         c = self.books.claim(ref)
         if c is None:
             return _not_done(f"no open claim matches {ref!r}", "Ask which claim.")
         return c
+
+    @needs_result_now
+    async def open_claim(self, request: ClaimRef) -> str:
+        """Open one claim's panel on the Reimbursements screen, the bill beside
+        what was claimed. Nothing changes."""
+        c = self._claim(request.claim)
+        if isinstance(c, str):
+            return c
+        self._send("claim.open", {"claim_id": c["id"]})
+        landed(f"Here's {c['id']}, with the bill beside it.")
+        name = self.books.name(c["employee_id"])
+        bill = (
+            "the bill matches"
+            if int(c["amount"]) == int(c["bill_amount"])
+            else f"but the bill says {inr(c['bill_amount'])}"
+        )
+        return (
+            f"{c['id']} is open: {name}, {c['category']}, {c['description']}, claimed "
+            f"{inr(c['amount'])}, {bill}. Status {c['status'].replace('_', ' ')}."
+            + (f" Note: {c['note']}" if c.get("note") else "")
+            + " {show: Bill amount} rings the bill."
+        )
 
     @needs_result_now
     async def fix_claim(self, request: ClaimRef) -> str:
@@ -1044,17 +1185,16 @@ class PaynoraBrain(OpenAIBrain):
         name = self.books.name(c["employee_id"])
         if int(c["amount"]) == int(c["bill_amount"]):
             return _not_done(f"{c['id']} already matches its bill", "Offer to approve it instead.")
-        facts = (
-            f"{c['id']}: {name}, {c['category']}, '{c['description']}', claimed {inr(c['amount'])} "
-            f"but the bill says {inr(c['bill_amount'])}. Fixing sets it to {inr(c['bill_amount'])} "
-            f"and approves it into the February draft, so {name}'s February net pay rises by "
-            f"{inr(c['bill_amount'])}."
+        ask = (
+            f"{name} claimed {inr(c['amount'])} for {c['description']}, but the bill says "
+            f"{inr(c['bill_amount'])}. Shall I correct it to {inr(c['bill_amount'])} and approve it "
+            "into February pay?"
         )
         return await self._ask_claim(
             "fix_claim",
             c,
             f"fix {name}'s claim {c['id']} to {inr(c['bill_amount'])}",
-            facts,
+            ask,
             claim_id=c["id"],
             amount=int(c["bill_amount"]),
         )
@@ -1066,15 +1206,26 @@ class PaynoraBrain(OpenAIBrain):
         if isinstance(c, str):
             return c
         name = self.books.name(c["employee_id"])
-        facts = (
-            f"{c['id']}: {name}, {c['category']} {inr(c['amount'])}, bill {inr(c['bill_amount'])}, "
-            f"'{c['description']}'." + (f" Note: {c['note']}" if c.get("note") else "")
+        decision = request.decision
+        mismatch = int(c["amount"]) != int(c["bill_amount"])
+        if decision == "approve" and mismatch:
+            return _not_done(
+                f"{c['id']} claims {inr(c['amount'])} against a bill of {inr(c['bill_amount'])}, "
+                "so it can't be approved as it stands",
+                "Offer to correct it to the bill and approve it (fix_claim).",
+            )
+        ask = f"{name}'s {c['category'].lower()} claim {c['id']} is {inr(c['amount'])}"
+        ask += (
+            f", but the bill says {inr(c['bill_amount'])}."
+            if mismatch
+            else f", {c['description'][:1].lower()}{c['description'][1:]}, and the bill matches."
         )
+        ask += f" Shall I {decision} it?"
         return await self._ask_claim(
             "claim",
             c,
-            f"{request.decision} {name}'s claim {c['id']}",
-            facts,
+            f"{decision} {name}'s claim {c['id']}",
+            ask,
             claim_id=c["id"],
             decision=request.decision,
         )
@@ -1150,24 +1301,86 @@ class PaynoraBrain(OpenAIBrain):
             f"{COMPANY['company']['regime_change_policy']} Say that, then ask: shall I switch?"
         )
 
+    @needs_result_now
+    async def payroll_register(self, request: RegisterRequest) -> str:
+        """Open one month's payroll run (the February draft, January, or any
+        month back to April 2025) and get its totals and the highest-paid
+        employees. Use it for "show me last month's payroll", "who earns the
+        most", "what did we pay in December"."""
+        b = self.books
+        key = request.month or FEB_KEY
+        run = next((r for r in COMPANY["payroll_runs"] if r["id"] == f"PR-{key}"), None)
+        if run is None:
+            have = ", ".join(r["label"] for r in COMPANY["payroll_runs"])
+            return _not_done(f"there is no payroll run for {key}", f"Runs there are: {have}.")
+        run = b.run(run["id"]) or run
+        self._send("app.open", {"path": f"/payroll/{run['id']}"})
+        landed(f"Here's the {run['label']} run.")
+        by = request.rank_by
+        rows = [(e, b.slip(e["id"], key)) for e in b.employees]
+        paid = sorted(((e, sl) for e, sl in rows if sl is not None), key=lambda x: -int(x[1][by]))[
+            :3
+        ]
+        top = "; ".join(f"{e['name']} ({e['title']}) {inr(sl[by])}" for e, sl in paid)
+        word = "gross pay" if by == "gross" else "net pay"
+        return (
+            f"The {run['label']} run ({run['status']}) is opening at /payroll/{run['id']}: "
+            f"{run['employees']} employees, gross {inr(run['gross'])}, TDS {inr(run['tds'])}, net pay "
+            f"{inr(run['net_pay'])}. Highest {word} that month: {top}. "
+            "{show: Payroll register} rings the register."
+        )
+
+    @needs_result_now
+    async def offer_request(self, request: OfferRequest) -> str:
+        """Something substantial that the app cannot do here and that you
+        cannot answer: ask her whether to file it as a support request or a
+        feature request. Nothing is filed and the screen does not change.
+        Never for something small you can answer, show or open."""
+        self._offered = (request.topic, self.turns)
+        return (
+            "Nothing filed, the screen stays. Say plainly, in one sentence, that you can't do "
+            f"that here ({request.topic}), then ask: shall I file it as a support request or a "
+            "feature request? File only if she picks one."
+        )
+
+    @needs_result_now
     async def hand_off(self, request: HandOff) -> str:
-        """Hand the matter to Paynora's payroll team: the written ticket is
-        shown on screen, and it is sent only after she says yes."""
+        """File the request she agreed to: a support or a feature request,
+        written out in a panel over her screen; it is sent only after she says
+        yes to sending it. Only after offer_request and her answer."""
+        offered = self._offered
+        if offered is None or offered[1] >= self.turns:
+            return _not_done(
+                "she has not been offered a request yet",
+                "If you can answer, show or open it, do that. If it is small and you can't, say "
+                "so plainly and stay on this screen. Only for a substantial need call "
+                "offer_request first and wait for her answer.",
+            )
+        self._offered = None
         e = self.books.employee(request.employee or "") if request.employee else None
-        args: dict[str, Any] = {"subject": request.subject, "summary": request.summary}
+        args: dict[str, Any] = {
+            "kind": request.kind,
+            "subject": request.subject,
+            "summary": request.summary,
+        }
         if e is not None:
             args["employee_id"] = e["id"]
         self._send("ticket.draft", args)
-        landed("The ticket's written up on screen.")
+        what = "support request" if request.kind == "support" else "feature request"
+        landed(f"The {what} is written up beside your screen.")
         self.confirms.ask(
             "ticket",
             ("ticket", request.subject),
-            f"send the ticket '{request.subject}'",
+            f"send the {what} '{request.subject}'",
             self.turns,
+            request_kind=request.kind,
             subject=request.subject,
             summary=request.summary,
         )
-        return "The ticket draft is on screen. Ask her if you should send it to the payroll team."
+        return (
+            f"The {what} is written out in a panel beside her screen; the page under it has not "
+            "changed. Ask, in one sentence, whether to send it."
+        )
 
     async def confirm(self, request: ConfirmRequest) -> str:
         """She said yes to the change you just asked about, in words the brain
@@ -1184,10 +1397,10 @@ class PaynoraBrain(OpenAIBrain):
 
     @needs_result_now
     async def setup_step(self, request: SetupStep) -> str:
-        """Onboarding: open one step of the setup wizard and do it on screen —
-        fill its fields from the company's signup details, import the
-        employee file, or run the test payroll. One step per reply; ask before
-        the next."""
+        """Onboarding: open one step of the setup wizard. Company details are
+        filled from signup; the pay structure and leave policy open empty for
+        her to decide; the import step is hers to do; the test payroll runs.
+        One step per reply; ask before the next."""
         step = request.step
         if step == "done":
             self._send("setup.step", {"step": "test_run"})
@@ -1195,32 +1408,47 @@ class PaynoraBrain(OpenAIBrain):
             return "Everything is in place. Ask: shall I finish setup and open the dashboard?"
         self._send("setup.step", {"step": step})
         co = COMPANY["company"]
-        if step in ("company", "structure", "leave"):
+        if step == "company":
             values = _setup_values(step)
             for field, value in values:
                 self._send("setup.fill", {"field": field, "value": value})
             self.setup_done.add(step)
-            landed("That step's filled in on screen.")
+            landed("Your company details are in, from your signup.")
             said = "; ".join(f"{f.replace('_', ' ')}: {v}" for f, v in values)
-            nxt = {
-                "company": "the pay structure",
-                "structure": "importing employees",
-                "leave": "the test payroll",
-            }[step]
-            return f"Filling the {step} step on screen: {said}. Next would be {nxt}. Ask before moving on."
-        if step == "import":
-            self._send("setup.import", {})
-            s = import_summary()
-            self.setup_done.add(step)
-            landed("Your employee file is in, with the checks beside it.")
-            locs = ", ".join(f"{k} {v}" for k, v in s["by_location"].items())
-            errs = "; ".join(s["errors"][:5]) or "no errors"
             return (
-                f"employees_import.csv imported: {s['rows']} rows, {s['valid']} valid, {errs}. "
-                f"By location: {locs}. Regimes: {s['regimes'].get('new', 0)} new, "
-                f"{s['regimes'].get('old', 0)} old. Total annual CTC {inr(s['annual_ctc'])}. "
-                f"Year-to-date pay from April 2025 to January 2026 came with {co['name']}'s data. "
-                "Next would be the leave policy. Ask before moving on."
+                f"Filling the company details on screen from {co['name']}'s signup: {said}. "
+                "This is the only step that comes from signup. Say what went in, in a sentence, "
+                "and ask whether to move on to the pay structure."
+            )
+        if step in ("structure", "leave"):
+            what = "pay structure" if step == "structure" else "leave policy"
+            defaults = "; ".join(_said(f, v) for f, v in _setup_values(step))
+            return (
+                f"The {what} step is open and empty; nothing came from signup and you fill "
+                "nothing on your own. Ask her how she wants it set up, or offer what most "
+                f"companies use, which she can change after: {defaults}. If she takes those, "
+                "call setup_defaults; if she gives her own values, call setup_fill for each. "
+                "One short question; do not read every value out unless she asks."
+            )
+        if step == "import":
+            if self._imported:
+                s = import_summary()
+                return (
+                    f"She has already imported her file: {self._imported} rows. "
+                    f"(The sample file has {s['rows']} rows, {s['valid']} valid.) Ask whether to set "
+                    "up the leave policy next."
+                )
+            return (
+                "The import step is open. You cannot import: she does it. Tell her, in two "
+                "sentences: the example on screen shows the columns the file needs; if she has "
+                "no file, {show: Download sample file} downloads one; then {show: Import file} "
+                "click Import file and choose it. Put those two cues in your words. When her "
+                "import lands, a note tells you what came in."
+            )
+        if not self._imported:
+            return _not_done(
+                "no employees are imported yet",
+                "Ask her to import her employee file on the import step first.",
             )
         self._send("setup.test_run", {})
         t = test_payroll(self.books)
@@ -1241,6 +1469,33 @@ class PaynoraBrain(OpenAIBrain):
             )
             + " Ask if she wants to finish setup."
         )
+
+    @needs_result_now
+    async def setup_defaults(self, request: SetupDefaults) -> str:
+        """She chose the common defaults for the pay structure or the leave
+        policy: fill them on screen. She can change any field after."""
+        step = request.step
+        values = _setup_values(step)
+        self._send("setup.step", {"step": step})
+        for field, value in values:
+            self._send("setup.fill", {"field": field, "value": value})
+        self.setup_done.add(step)
+        landed("The common defaults are in; change any of them on screen.")
+        nxt = "importing employees" if step == "structure" else "the test payroll"
+        return (
+            "Filling the common defaults on screen: "
+            + "; ".join(_said(f, v) for f, v in values)
+            + f". Say they are in and that she can change any field, then ask about {nxt}."
+        )
+
+    @needs_result_now
+    async def setup_fill(self, request: SetupFill) -> str:
+        """Set one setup field to what she said, on screen. Call it once per
+        field she gave; never for a value she did not say."""
+        field = request.field
+        self._send("setup.fill", {"field": field, "value": request.value})
+        landed("That's in.")
+        return f"On screen now: {_said(field, request.value)}."
 
     async def view_as_employee(self, request: ViewAs) -> str:
         """Switch to the employee self-service view as one employee: their own
@@ -1290,16 +1545,16 @@ class PaynoraBrain(OpenAIBrain):
             changed = self.books.decide_leave(rid, decision)
             req = self.books.request(rid) or {}
             name = self.books.name(str(req.get("employee_id", "")))
-            line = f"Done — {name}'s leave is {decision}d."
-            if changed is not None:
-                line += (
-                    f" {changed.lop_days} day becomes loss of pay, so her February net pay is now "
-                    f"{inr(changed.after['net_pay'])}."
-                    if changed.lop_days == 1
-                    else f" {changed.lop_days} days become loss of pay; February net pay is now "
-                    f"{inr(changed.after['net_pay'])}."
-                )
-            return line
+            first = name.split()[0]
+            if decision == "reject":
+                return f"Rejected. {name}'s leave request {rid} is closed, and {first} can see it."
+            if changed is None or not changed.lop_days:
+                return f"Approved. {name}'s leave is in, with no change to pay."
+            days = "1 day becomes" if changed.lop_days == 1 else f"{changed.lop_days} days become"
+            return (
+                f"Approved. {days} loss of pay, so {first}'s February net pay is now "
+                f"{inr(changed.after['net_pay'])}."
+            )
 
         return self._flight(
             "leave.decide",
@@ -1313,10 +1568,11 @@ class PaynoraBrain(OpenAIBrain):
 
         def effect() -> str:
             changed = self.books.fix_claim(cid, amount)
-            line = f"Done — claim {cid} is corrected to {inr(amount)} and approved."
+            line = f"Fixed. {cid} is now {inr(amount)} and approved into February pay"
             if changed is not None:
-                line += f" It's in the February draft: net pay {inr(changed.after['net_pay'])}."
-            return line
+                name = self.books.name(changed.employee_id).split()[0]
+                return f"{line}, so {name}'s net pay is {inr(changed.after['net_pay'])}."
+            return f"{line}."
 
         return self._flight(
             "claim.fix",
@@ -1329,8 +1585,12 @@ class PaynoraBrain(OpenAIBrain):
         cid, decision = p.data["claim_id"], p.data["decision"]
 
         def effect() -> str:
+            c = self.books.claim(cid) or {}
             self.books.decide_claim(cid, decision)
-            return f"Done — claim {cid} is {decision}d."
+            name = self.books.name(str(c.get("employee_id", "")))
+            if decision == "reject":
+                return f"Rejected. {name}'s claim {cid} won't be paid."
+            return f"Approved. {name}'s claim {cid} is paid with February's salary."
 
         return self._flight(
             "claim.decide",
@@ -1345,7 +1605,7 @@ class PaynoraBrain(OpenAIBrain):
         def effect() -> str:
             e, slip = self.books.add_employee(fields)
             return (
-                f"Done — {e['name']} is {e['id']}, with {inr(slip['net_pay'])} net pay in the "
+                f"Saved. {e['name']} is {e['id']}, with {inr(slip['net_pay'])} net pay in the "
                 "February draft."
             )
 
@@ -1360,9 +1620,9 @@ class PaynoraBrain(OpenAIBrain):
             changed = self.books.switch_regime(eid, regime)
             name = self.books.name(eid)
             if changed is None:
-                return f"Done — {name} is on the {regime} regime."
+                return f"Switched. {name} is on the {regime} regime."
             return (
-                f"Done — {name} is on the {regime} regime. February TDS is now "
+                f"Switched. {name} is on the {regime} regime, and February TDS is now "
                 f"{inr(changed.after['tds'])}, and net pay {inr(changed.after['net_pay'])}."
             )
 
@@ -1378,9 +1638,10 @@ class PaynoraBrain(OpenAIBrain):
 
         def effect() -> str:
             tid = self.books.add_ticket(subject, summary)
-            return (
-                f"Sent — your ticket is {tid}. Our payroll team will pick it up from the summary."
+            what = (
+                "feature request" if p.data.get("request_kind") == "feature" else "support request"
             )
+            return f"Sent. Your {what} is {tid}, and our team will pick it up from that summary."
 
         return self._flight(
             "ticket.submit", {}, effect, f"[Sent: {p.label}. Do not call hand_off again.]"
@@ -1395,6 +1656,15 @@ class PaynoraBrain(OpenAIBrain):
         return self._flight("setup.finish", {}, effect, "[Sent: finish setup.]")
 
 
+#: Leave types as said in a sentence.
+_LEAVE_WORD = {"EL": "earned", "CL": "casual", "SL": "sick", "LOP": "unpaid"}
+
+
+def _ask_once(question: str) -> str:
+    """A change tool's result: the one question to ask, said as given."""
+    return f"Ask exactly this, as your only words this turn, then wait for her answer: {question}"
+
+
 def _path_of(move: str, args: dict[str, Any]) -> str:
     if move == "payslip.compare":
         return f"/payslips/{args['employee_id']}/{args['month']}"
@@ -1405,8 +1675,30 @@ def _path_of(move: str, args: dict[str, Any]) -> str:
     return "/" + str(args.get("path", "/")).split("?")[0].strip("/")
 
 
+def _said(field: str, value: str) -> str:
+    """A setup field and its value, as said in a sentence."""
+    money = inr(int(value)) if value.isdigit() else value
+    return {
+        "basic_pct": f"basic {value}% of CTC",
+        "hra_metro_pct": f"HRA {value}% of basic in Mumbai and New Delhi",
+        "hra_non_metro_pct": f"{value}% elsewhere",
+        "lta_g5": f"LTA {money} a month for G5",
+        "lta_g6_up": f"{money} for G6 and up",
+        "pf_rule": f"provident fund {value}",
+        "esi_rule": f"ESI {value}",
+        "el_per_year": f"{value} days of earned leave a year",
+        "cl_per_year": f"{value} casual",
+        "sl_per_year": f"{value} sick",
+        "el_carry_forward": f"up to {value} earned-leave days carried forward",
+        "attendance_cutoff": f"cut-off: {value}",
+        "lop_rule": f"loss of pay: {value}",
+    }.get(field, f"{field.replace('_', ' ')}: {value}")
+
+
 def _setup_values(step: str) -> list[tuple[str, str]]:
-    """The setup wizard's fields for a step, from the company's signup data."""
+    """The setup wizard's presets for a step: the company's signup details for
+    the company step; for the pay structure and leave policy, the common
+    defaults the page's "Use common defaults" also fills (``lib/setup.ts``)."""
     co = COMPANY["company"]
     if step == "company":
         pt = co["pt_registrations"]

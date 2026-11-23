@@ -107,6 +107,15 @@ export const scene = defineScene({
       ]
     },
     {
+      "id": "claim.open",
+      "class": "navigate",
+      "args": [
+        {
+          "name": "claim_id"
+        }
+      ]
+    },
+    {
       "id": "employee.fill",
       "class": "reversible",
       "args": [
@@ -142,6 +151,13 @@ export const scene = defineScene({
       "id": "ticket.draft",
       "class": "reversible",
       "args": [
+        {
+          "name": "kind",
+          "enum": [
+            "support",
+            "feature"
+          ]
+        },
         {
           "name": "subject"
         },
@@ -186,10 +202,6 @@ export const scene = defineScene({
           "name": "value"
         }
       ]
-    },
-    {
-      "id": "setup.import",
-      "class": "reversible"
     },
     {
       "id": "setup.test_run",
@@ -417,4 +429,4 @@ export const scene = defineScene({
   ]
 });
 
-export const SPEC_SHA256 = "004aebca4fdb0a252021459a1720354fdb3197697cc14b798c44157601d761b7";
+export const SPEC_SHA256 = "5e13cc0f8e26526ef406396efae54a57c47dd760a2f29c4576a2c9cb030686d5";

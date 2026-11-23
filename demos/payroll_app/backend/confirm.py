@@ -50,10 +50,26 @@ NO = re.compile(
 )
 
 
+#: A new request riding after a yes word ("Okay, can you show me…"): not an answer.
+_ASKS = re.compile(
+    r"\?|\b(can|could|would|will) you\b|\b(show|open|go to|take me|what|which|why|how|who|where|when|tell)\b"
+    r"|क्या|दिखा|बताइए|बताओ|खोल",
+    re.IGNORECASE,
+)
+
+
 def classify(text: str) -> str | None:
-    """``"yes"``, ``"no"``, or ``None`` for anything that is not a plain answer."""
-    if YES.match(text) and not _HEDGE.search(text):
-        return "yes"
+    """``"yes"``, ``"no"``, or ``None`` for anything that is not a plain answer.
+
+    A yes word followed by a new request is not a yes: "Okay, can you show me
+    last month's payroll?" sent a waiting ticket in a round-1 call. Only a
+    short tail ("yes, fix it", "haan, kar do") still counts."""
+    m = YES.match(text)
+    if m and not _HEDGE.search(text):
+        rest = text[m.end() :].strip(" ,.!।")
+        if not rest or (len(rest.split()) <= 6 and not _ASKS.search(rest)):
+            return "yes"
+        return None
     if NO.match(text):
         return "no"
     return None
@@ -106,8 +122,8 @@ class Confirmations:
     def already(self, key: tuple[Any, ...]) -> str | None:
         """The words for a duplicate: done, or on its way."""
         if key in self.done:
-            said = re.sub(r"^(Done|It's done)\s*[—.,-]\s*", "", self.done[key])
-            return f"That's already done — {said[:1].lower()}{said[1:]}"
+            said = self.done[key]
+            return f"That's already done: {said[:1].lower()}{said[1:]}"
         if any(f.key == key for f in self._flights.values()):
             return "That's already on its way through."
         return None
