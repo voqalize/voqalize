@@ -1,0 +1,36 @@
+{
+  "$comment": "The gift edit's authored rules: who it is for, the occasion, the budget chips, and the categories that make a good gift for each, each with the one line said about it. backend/edits.py turns these into a ranked short list per (recipient, occasion, budget) from the catalog, written to backend/data/edits.json, which both the brain and the /gifts page read. Nothing here is a product fact: a pick's other words are the catalog's own.",
+  "picks": 6,
+  "budgets": [30, 50, 80, 100, 150, 250, 500],
+  "recipients": [
+    { "id": "partner", "label": "Partner", "weights": { "candle-holders": 2, "bath-towels-washcloths": 2, "throw-pillows": 1, "picture-frames": 2, "table-lamps": 1, "vases": 1 } },
+    { "id": "parent", "label": "Mum or Dad", "weights": { "picture-frames": 3, "vases": 2, "artificial-flora": 2, "serveware": 1, "clocks": 1, "bath-towels-washcloths": 1 } },
+    { "id": "sibling", "label": "Sister or brother", "weights": { "throw-pillows": 2, "candle-holders": 2, "vases": 1, "barware": 2, "household-storage-baskets": 1, "picture-frames": 1 } },
+    { "id": "friend", "label": "A friend", "weights": { "candle-holders": 2, "barware": 2, "vases": 1, "artificial-flora": 1, "throw-pillows": 1 } },
+    { "id": "host", "label": "A host", "weights": { "serveware": 3, "barware": 2, "candle-holders": 1, "dinnerware": 1 } },
+    { "id": "colleague", "label": "A colleague", "weights": { "artificial-flora": 2, "candle-holders": 2, "picture-frames": 1, "vases": 1 } }
+  ],
+  "occasions": [
+    { "id": "housewarming", "label": "New home", "weights": { "vases": 3, "artificial-flora": 3, "throw-pillows": 3, "household-storage-baskets": 3, "candle-holders": 2, "serveware": 2, "picture-frames": 1, "food-storage": 1 } },
+    { "id": "birthday", "label": "Birthday", "weights": { "candle-holders": 3, "vases": 2, "throw-pillows": 2, "bath-towels-washcloths": 2, "picture-frames": 2, "table-lamps": 1, "barware": 1 } },
+    { "id": "thank_you", "label": "Thank you", "weights": { "artificial-flora": 3, "candle-holders": 3, "vases": 2, "serveware": 1 } },
+    { "id": "wedding", "label": "Wedding", "weights": { "serveware": 3, "dinnerware": 3, "barware": 2, "cookware": 2, "picture-frames": 2, "bath-towels-washcloths": 1 } },
+    { "id": "just_because", "label": "Just because", "weights": { "candle-holders": 2, "artificial-flora": 2, "throw-pillows": 2, "vases": 1, "bath-towels-washcloths": 1 } }
+  ],
+  "angles": {
+    "vases": "A vase is useful from the first bunch of flowers",
+    "artificial-flora": "Faux stems never need watering, so they suit a busy home",
+    "throw-pillows": "A cushion is the quickest way to make a sofa feel like theirs",
+    "household-storage-baskets": "A basket gives the first clutter somewhere to go",
+    "candle-holders": "A candle holder is a small gift for slow evenings",
+    "serveware": "Something to bring to the table the next time they have people round",
+    "picture-frames": "A frame asks for a photo, so it is a personal gift without trying",
+    "food-storage": "Kitchen storage is the thing nobody buys for themselves",
+    "bath-towels-washcloths": "Good towels are a treat people rarely buy themselves",
+    "table-lamps": "A lamp changes how a room feels in the evening",
+    "barware": "Glassware for the next toast",
+    "dinnerware": "Plates they will use every day",
+    "cookware": "A pan they will cook with for years",
+    "clocks": "A clock is a gift that is seen every day"
+  }
+}

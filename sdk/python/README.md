@@ -192,7 +192,7 @@ failure it prevents is silent, because a Hindi call read by an English clip has 
 correct transcript and clean logs and merely sounds wrong.
 
 `stt.patience` is a scale from 0 to 10 for how long the recognizer waits through
-a pause; unset takes the deployment's own calibration, which is 7. A value off
+a pause it is not sure about; unset takes the deployment's own calibration. A value off
 the scale raises `ConfigError` at the call site too.
 
 Two refusals with different homes: `ConfigError` is raised in your process for

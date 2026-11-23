@@ -51,7 +51,7 @@ advertises it today.
 
 | Setting | Values | Default |
 |---|---|---|
-| `stt.patience` | `0` (answer as soon as possible) to `10` (wait longest through a pause) | `7` when unset |
+| `stt.patience` | `0` (answer as soon as possible) to `10` (wait longest through a pause the turn model is unsure about) | `3` when unset |
 | `idle.timeout_ms` | `0` (off) to `300000` | `0`, so `on_user_idle` never fires until you set it |
 | `ack.enabled` | `true` or `false` | on |
 

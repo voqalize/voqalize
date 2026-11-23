@@ -1,4 +1,4 @@
-import { Heart, Menu, Search, ShoppingBag, X } from "lucide-react";
+import { Heart, Menu, Package, Search, ShoppingBag, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { ROOMS, bestSaving, categoriesIn, money, products, roomCover } from "../data/catalog";
@@ -7,9 +7,9 @@ import { useCart } from "../state/cart";
 import { useShortlist } from "../state/shortlist";
 import { Photo } from "./bits";
 
-export function Wordmark() {
-  return (
-    <Link to="/" className="wordmark" aria-label="Fernhollow, home">
+export function Wordmark({ still = false }: { still?: boolean } = {}) {
+  const inner = (
+    <>
       <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden className="wordmark-leaf">
         <path
           d="M12 22V9M12 13c-2.6-.3-4.6-2-5.2-4.6 2.6.2 4.6 1.9 5.2 4.6Zm0-3c2.4-.5 4-2.3 4.3-4.9-2.4.6-4 2.4-4.3 4.9Zm0 7c-3-.2-5.4-2-6.3-5 3 .2 5.4 2 6.3 5Zm0-.5c2.8-.5 4.8-2.5 5.4-5.5-2.8.6-4.8 2.6-5.4 5.5ZM12 7c-.9-1.4-.9-3.3 0-5 .9 1.7.9 3.6 0 5Z"
@@ -20,6 +20,13 @@ export function Wordmark() {
         />
       </svg>
       <span>Fernhollow</span>
+    </>
+  );
+  // On the kiosk the mark goes nowhere: a showroom screen never leaves for the web store.
+  if (still) return <span className="wordmark">{inner}</span>;
+  return (
+    <Link to="/" className="wordmark" aria-label="Fernhollow, home">
+      {inner}
     </Link>
   );
 }
@@ -107,6 +114,11 @@ export function Header() {
                   Journal
                 </NavLink>
               </li>
+              <li onMouseEnter={() => setMenu(null)}>
+                <NavLink to="/gifts" className="nav-link">
+                  Gifts
+                </NavLink>
+              </li>
             </ul>
             {menu ? <MegaMenu room={menu} onEnter={() => openMenu(menu)} onLeave={closeSoon} /> : null}
           </nav>
@@ -114,6 +126,9 @@ export function Header() {
             <button type="button" className="icon-btn" aria-label="Search" onClick={() => setSearching(true)}>
               <Search size={19} strokeWidth={1.6} />
             </button>
+            <Link to="/orders" className="icon-btn only-desktop" aria-label="Your orders" title="Your orders">
+              <Package size={19} strokeWidth={1.6} />
+            </Link>
             <button type="button" className="icon-btn" aria-label={`Saved pieces, ${saved}`} onClick={() => openSaved(true)}>
               <Heart size={19} strokeWidth={1.6} />
               {saved ? <span className="count-dot">{saved}</span> : null}
@@ -249,6 +264,8 @@ function MobileMenu({ onClose }: { onClose: () => void }) {
           <div className="mobile-extra">
             <Link to="/sale">Sale</Link>
             <Link to="/journal">Journal</Link>
+            <Link to="/gifts">Gift edit</Link>
+            <Link to="/orders">Your orders</Link>
             <Link to="/board">Plan a room</Link>
             <Link to="/about">About</Link>
             <Link to="/contact">Contact</Link>

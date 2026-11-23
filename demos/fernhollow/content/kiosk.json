@@ -1,0 +1,38 @@
+{
+  "$comment": "The showroom kiosk's three questions and how they read the catalog. backend/edits.py ranks three picks for every answer set (room x feel x budget) into backend/data/edits.json; the /kiosk page and the brain read the same picks. Words under each feel are the catalog's own attribute words (backend/data/attributes.json).",
+  "headline": "Find your three",
+  "attract": "Touch to start, or just say hello",
+  "picks": 3,
+  "questions": [
+    {
+      "id": "room",
+      "label": "Which room?",
+      "options": [
+        { "value": "living", "label": "Living room" },
+        { "value": "bedroom", "label": "Bedroom" },
+        { "value": "dining", "label": "Dining room" },
+        { "value": "home-office", "label": "Home office" }
+      ]
+    },
+    {
+      "id": "feel",
+      "label": "What feel?",
+      "options": [
+        { "value": "warm_wood", "label": "Warm wood", "line": "warm wood", "materials": ["wood", "oak", "walnut", "ash", "teak", "birch", "acacia", "bamboo", "maple"], "colours": ["honey", "chestnut", "brown"], "styles": [] },
+        { "value": "soft_neutrals", "label": "Soft neutrals", "line": "soft neutrals", "materials": [], "colours": ["neutral", "taupe", "sand", "ivory", "cream", "beige", "oatmeal", "stone", "white"], "styles": [] },
+        { "value": "clean_lines", "label": "Clean and modern", "line": "a clean, modern look", "materials": [], "colours": [], "styles": ["modern", "minimalist", "contemporary", "sculptural"] },
+        { "value": "natural_texture", "label": "Natural texture", "line": "natural texture", "materials": ["linen", "wool", "cotton", "ceramic", "stoneware", "jute", "chenille"], "colours": [], "styles": ["organic", "rustic"] }
+      ]
+    },
+    {
+      "id": "budget",
+      "label": "Spend per piece?",
+      "options": [
+        { "value": "150", "label": "Up to $150", "max": 150 },
+        { "value": "400", "label": "Up to $400", "max": 400 },
+        { "value": "1000", "label": "Up to $1,000", "max": 1000 },
+        { "value": "any", "label": "No limit", "max": null }
+      ]
+    }
+  ]
+}
