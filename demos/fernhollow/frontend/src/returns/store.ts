@@ -63,7 +63,8 @@ interface Api extends ReturnsForm {
   setChoice(field: ChoiceField, value: string, by?: Who): void;
   setItem(productId: string, qty: number, by?: Who): void;
   setExchange(productId: string, value: string, by?: Who): void;
-  /** Save the return, mark it submitted and clear the form. */
+  /** Save the return, mark it submitted and clear the form. Only the
+   *  visitor's own press sends one: any other hand is refused (null). */
   submit(by?: Who): StoredReturn | null;
   reset(): void;
 }
@@ -112,6 +113,7 @@ export const useReturns = create<Api>((set, get) => ({
     set((s) => ({ exchange: { ...s.exchange, [productId]: value }, by: { ...s.by, [field]: by }, changed: { field, value, by, stamp: stamp() } }));
   },
   submit(by = "visitor") {
+    if (by !== "visitor") return null;
     const s = get();
     const order = currentOrder(s);
     if (!order || firstMissing(s)) return null;
@@ -142,14 +144,16 @@ export const useReturns = create<Api>((set, get) => ({
 }));
 
 /**
- * Who pressed Submit return: the agent's `returns.submit` marks its press just
- * before it clicks, so the button's own handler can tell the two hands apart.
+ * Only the shopper's own hand sends a return (owner, round 2, F10). The form
+ * notes every trusted pointer or key press on it; a script's `click()` or
+ * `dispatchEvent` is never trusted, and the agent has no move that submits. A
+ * submit with no such press just before it is the agent's, and is refused.
  */
-let agentPressAt = 0;
-export const markAgentPress = () => {
-  agentPressAt = Date.now();
+let handAt = Number.NEGATIVE_INFINITY;
+export const noteHand = (e: { isTrusted: boolean }) => {
+  if (e.isTrusted) handAt = Date.now();
 };
-export const pressedBy = (): Who => (Date.now() - agentPressAt < 1500 ? "emily" : "visitor");
+export const pressedByHand = (): boolean => Date.now() - handAt < 1500;
 
 export const currentOrder = (s: Pick<ReturnsForm, "order_number">): AccountOrder | undefined => findOrder(s.order_number);
 

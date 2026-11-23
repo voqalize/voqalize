@@ -139,6 +139,20 @@ _IDLE_MS = 12000
 _REACT_IDLE_MS = 1500
 #: A line the brain already knows (a return's outcome): said as soon as the voice is free.
 _SAY_NOW_MS = 400
+#: Only the shopper sends a return (owner, round 2, F10): Emily fills every step,
+#: and there is no tool or Stage move that submits. Once the form is complete
+#: she says this, and a "submit it" / yes is answered with ``PRESS_IT``.
+PRESS_SUBMIT = (
+    "That's everything filled in. Have a look, and press Submit return when you're happy — "
+    "only you can send it."
+)
+PRESS_IT = "I can't send it for you — please press Submit return on screen when you're ready."
+#: Asking Emily to send the return: "submit it", "can you send it?", "go ahead".
+_SEND_ASK = re.compile(
+    r"^\s*(?:(?:can|could|would|will) you\s+|please\s+|just\s+|go ahead and\s+)*"
+    r"(?:submit|send)\b",
+    re.IGNORECASE,
+)
 #: Once the address is filled: one line, nothing read back (owner, 2026-11-03 —
 #: reading the address field by field made checkout drag).
 CHECK_ON_SCREEN = (
@@ -658,13 +672,6 @@ class PlaceOrderRequest(BaseModel):
     )
 
 
-class SubmitReturnRequest(BaseModel):
-    confirmed_by_voice: bool = Field(
-        default=False,
-        description="True only when the shopper said yes to submitting the return.",
-    )
-
-
 class ExchangeRequest(BaseModel):
     product: str = Field(description="A line of the order: its product id, or its title.")
 
@@ -802,7 +809,6 @@ class FernhollowBrain(GeminiBrain):
         self.confirms = Confirmations()
         self.confirms.register("add_to_cart", self._act_add)
         self.confirms.register("place_order", self._act_place)
-        self.confirms.register("submit_return", self._act_submit)
         self.confirms.register("cancel_order", self._act_cancel)
         self.turns = 0
         self.seen: dict[str, list[str]] = {}  # slot → products shown there
@@ -907,6 +913,13 @@ class FernhollowBrain(GeminiBrain):
             answer = "yes"  # "cancel it" answers "Shall I cancel order…?" with a yes
         self.append_note(self.screen_now())
         self.append_note(msg.text)
+        if pending is None and self._press_owed() and self._asks_to_send(msg.text):
+            # Emily cannot submit a return (F10): no model turn that might
+            # claim she did, just the one honest line.
+            self.append_note("[Only the shopper can press Submit return. Nothing was sent.]")
+            async for speech in self.say_line(PRESS_IT, remember=True):
+                yield speech
+            return
         if pending is not None and answer == "yes":
             # The yes is acted on here, and its line is the brain's own: the
             # model does not run, so this turn cannot be a silent tool call.
@@ -981,18 +994,6 @@ class FernhollowBrain(GeminiBrain):
             f"It's placed — your order number is {number}.",
             f"[The order {number} is placed, {money(float(pending.data['total']))}. "
             "Do not call place_order again.]",
-        )
-
-    def _act_submit(self, pending: Pending) -> Acted:
-        ref = self.stage.send("returns.submit", {}, queue=False)
-        return Acted(
-            "Submitting it now.",
-            "[The return is being submitted; you tell them the page's answer when it comes. "
-            "Do not call submit_return again.]",
-            ref=ref,
-            on_applied=lambda detail: self._submitted_line(
-                _reference(detail) or self.last_reference
-            ),
         )
 
     async def respond(self, session: Session) -> AsyncGenerator[Speech, None]:
@@ -1074,6 +1075,10 @@ class FernhollowBrain(GeminiBrain):
             extra = self._fold_store_event(event)
             folded = self.stage.handle(event)
             if extra is not None and event.by == "visitor":
+                if self._say_next is not None:
+                    # The brain says this outcome itself (a return the shopper
+                    # sent): the page's "speak" reaction would be it twice.
+                    self.stage.take_reaction()
                 return extra
             if folded is None:
                 return None
@@ -1127,6 +1132,14 @@ class FernhollowBrain(GeminiBrain):
             + (f"; {offers}" if offers else "")
             + "). Never say it did; use one of the options, or ask.]"
         )
+
+    def _press_owed(self) -> bool:
+        """The return form is complete and waits for the shopper's own press."""
+        return self.order is not None and self.form_step >= 5 and self._form_gap() is None
+
+    @staticmethod
+    def _asks_to_send(text: str) -> bool:
+        return classify(text) == "yes" or bool(_SEND_ASK.match(text))
 
     def _submitted_line(self, reference: str) -> str:
         how = "the pickup" if self.return_collection == "pickup" else "the drop-off"
@@ -1462,7 +1475,6 @@ class FernhollowBrain(GeminiBrain):
             self.start_return,
             self.fill_return,
             self.check_exchange,
-            self.submit_return,
             self.resolve_product,
             self.fill_checkout,
             self.checkout_step,
@@ -2697,25 +2709,6 @@ class FernhollowBrain(GeminiBrain):
         )
         self.known_tracked[number] = tracked_from_known(number, lines, total, 0)
 
-    async def submit_return(self, request: SubmitReturnRequest) -> str:
-        """Submit the returns form — only with the shopper's yes. The first call
-        asks; their plain yes on the next turn submits it for you."""
-        if self.order is None:
-            return _not_done("no return is open", "Find the order first.")
-        if self.stage.moves.get("returns.submit") is None:
-            return _not_done(
-                "this page cannot submit the return by voice", "Ask them to press Submit return."
-            )
-        if request.confirmed_by_voice:
-            return self._confirmed_by_tool("submit_return")
-        key = ("submit_return", self.order.number)
-        label = f"Submit the return for {self.order.number}"
-        if (dup := self.confirms.ask("submit_return", key, label, self.turns)) is not None:
-            _exact(dup)
-            return _prose(f"Not asked again: {dup}")
-        landed("Shall I submit the return?")
-        return _prose("Ask for their yes before submitting. Nothing is submitted yet.")
-
     # ─── Front of house: gift edit, orders and returns, kiosk (CONTRACT v5, v6) ──
 
     def _send(self, move: str, args: dict[str, Any]) -> str:
@@ -3097,7 +3090,7 @@ class FernhollowBrain(GeminiBrain):
     def _return_question(self) -> str:
         gap = self._form_gap()
         if gap is None:
-            return "Everything is filled in. Shall I submit the return?"
+            return PRESS_SUBMIT
         _, name = gap
         if name == "items":
             if self.form_pending and self.order is not None:
@@ -3143,19 +3136,13 @@ class FernhollowBrain(GeminiBrain):
 
     def _form_after(self) -> None:
         """Move the form on to the step that needs something next, as Continue
-        does, and ask for the yes once it is complete."""
+        does. Once it is complete it waits on review for the shopper's own
+        press of Submit return: Emily never submits (owner, round 2, F10)."""
         gap = self._form_gap()
         target = 5 if gap is None else gap[0]
         while self.form_step < target:
             self._send("returns.next_step", {})
             self.form_step += 1
-        if gap is None and self.order is not None:
-            self.confirms.ask(
-                "submit_return",
-                ("submit_return", self.order.number),
-                f"Submit the return for {self.order.number}",
-                self.turns,
-            )
 
     @needs_result_now
     async def fill_return(self, answers: ReturnAnswers) -> str:
@@ -3248,7 +3235,8 @@ class FernhollowBrain(GeminiBrain):
             next=(
                 "say what you put down in a few words, then ask exactly the next question"
                 if self._form_gap() is not None
-                else 'say it is all filled in, then ask "Shall I submit the return?" and wait'
+                else "say it is all filled in and ask them to check it and press Submit return "
+                "themselves; you cannot submit it"
             ),
         )
 
@@ -3397,6 +3385,24 @@ class FernhollowBrain(GeminiBrain):
                 return (
                     f"[On the return form the shopper {what} by hand.{then} "
                     f"Next: {self._return_question()}]"
+                )
+            case "returns.return_submitted":
+                # Only a press by the shopper's own hand sends a return (F10);
+                # the page refuses any other, so an agent press is never told.
+                if not by_hand:
+                    return None
+                ref = str(d.get("reference") or "")
+                if ref:
+                    self.last_reference = ref
+                number = self.order.number if self.order is not None else ""
+                self.order = None
+                self.form, self.form_items, self.form_step, self.form_pending = {}, {}, 1, None
+                self.form_later = {}
+                self._say_line_soon(self._submitted_line(ref))
+                return (
+                    f"[The shopper pressed Submit return themselves: the return for {number} is "
+                    f"in, reference {ref or 'not shown'}. You are telling them so now; do not "
+                    "repeat it.]"
                 )
             case "returns.step_reached":
                 step = d.get("step")
@@ -3701,12 +3707,6 @@ def _together(ids: Sequence[str]) -> str:
             who = "all of them" if n == len(products) else f"{n} of them"
             return f"They share {shared[0]} ({kind}), across {who}."
     return "Each is a different kind of piece; see them side by side."
-
-
-def _reference(detail: str | None) -> str:
-    """A return reference in the page's own answer, if it gave one."""
-    m = re.search(r"\bRT-[\w-]+", detail or "")
-    return m.group(0) if m else ""
 
 
 _THIS = frozenset({"this", "this one", "that", "that one", "it", "here"})

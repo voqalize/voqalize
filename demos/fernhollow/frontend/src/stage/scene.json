@@ -81,18 +81,6 @@
       ]
     },
     {
-      "id": "returns.submit",
-      "class": "confirmed",
-      "doc": "Press Submit return, once the shopper has said yes. Refused, naming the step, while a step still needs something.",
-      "claims": [
-        "submitting your return",
-        "sending your return"
-      ],
-      "objects": [
-        "return"
-      ]
-    },
-    {
       "id": "orders.open",
       "class": "look",
       "doc": "On the orders page, select one order: its status, items and the actions its status allows show, ringed.",
@@ -393,7 +381,7 @@
       "note": "{by} submitted the return {reference}",
       "react": "speak",
       "ask": "thank them and say what happens next, in one line",
-      "doc": "The shopper pressed Submit return."
+      "doc": "The shopper pressed Submit return with their own hand. Only they can: there is no move that submits, and the page refuses a press that is not theirs."
     },
     {
       "id": "gifts.changed",

@@ -7,7 +7,8 @@
  * with Edit; the order card and the step progress sit beside it, "Policy in
  * short" below. It works entirely by hand; with a call live, the agent's
  * `returns.*` moves (src/stage/orders.ts, registered in the shell) set the same
- * fields, and Submit return is pressed only after the shopper's yes.
+ * fields. Only the shopper's own press of Submit return sends it: the agent has
+ * no move that submits, and a press that is not a person's is refused (F10).
  */
 import * as React from "react";
 import { useEffect, useRef, useState } from "react";
@@ -20,7 +21,7 @@ import { policies } from "../data/content";
 import { type AccountOrder, dayLabel, findOrder, normalOrderNumber, outsideWindowText, RETURN_WINDOW_DAYS, returnable, useAccount } from "../orders/tracking";
 import { persona } from "../persona";
 import { CHOICES, type ChoiceField, exchangeOptions, LAST_STEP, labelOf, STEP_FIELDS, STEPS } from "../returns/orders";
-import { type StoredReturn, filledNames, firstMissing, missingInStep, pressedBy, stepSummary, storedReturns, useReturns } from "../returns/store";
+import { type StoredReturn, filledNames, firstMissing, missingInStep, noteHand, pressedByHand, stepSummary, storedReturns, useReturns } from "../returns/store";
 import { useAppStage } from "../stage/host";
 import { scene } from "../stage/scene.gen";
 import { navigatedBy } from "../voice/controller";
@@ -205,7 +206,12 @@ function ReturnForm({ order, daysLeft }: { order: AccountOrder; daysLeft: number
       setStepError({ step: gap.step, why: gap.why });
       return;
     }
-    const stored = useReturns.getState().submit(pressedBy());
+    if (!pressedByHand()) {
+      // Not a person's press (a script, or the agent): only the shopper sends a return.
+      console.warn("fernhollow: Submit return refused: it was not pressed by hand");
+      return;
+    }
+    const stored = useReturns.getState().submit("visitor");
     if (stored) navigate(`/orders/return/confirmation?ref=${stored.reference}`, { state: stored });
   };
 
@@ -288,7 +294,7 @@ function ReturnForm({ order, daysLeft }: { order: AccountOrder; daysLeft: number
     <div className="wrap page-pad frontdesk ret-page">
       <Head order={order} />
       <div className="ret-layout">
-        <form className="ret-form" data-stage-form="Return" data-return-form={order.number} onSubmit={submit} noValidate aria-label={`Return for ${order.number}`}>
+        <form className="ret-form" data-stage-form="Return" data-return-form={order.number} onSubmit={submit} onPointerDownCapture={(e) => noteHand(e.nativeEvent)} onKeyDownCapture={(e) => noteHand(e.nativeEvent)} noValidate aria-label={`Return for ${order.number}`}>
           {step(
             1,
             <ul className="ret-items" data-reveal-group>
@@ -422,7 +428,7 @@ function ReturnForm({ order, daysLeft }: { order: AccountOrder; daysLeft: number
                 <button type="submit" className="btn btn-primary" data-stage-part="return:submit" data-dock-avoid>
                   Submit return
                 </button>
-                <p className="small">{persona.name} only submits after you say yes.</p>
+                <p className="small">Only you can send it: {persona.name} fills it in, you press Submit return.</p>
               </div>
             </>,
           )}

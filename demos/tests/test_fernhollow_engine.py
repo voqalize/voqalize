@@ -434,7 +434,6 @@ def _calls(brain: fb.FernhollowBrain) -> list[tuple[str, Any]]:
         ),
         ("checkout_step", fb.CheckoutStepRequest(step="review")),
         ("place_order", fb.PlaceOrderRequest()),
-        ("submit_return", fb.SubmitReturnRequest()),
         ("clear_selection", None),
         # The front of house (CONTRACT v5, v6).
         ("gift_edit", fb.GiftRequest(recipient="sibling", occasion="housewarming", budget=80)),
@@ -466,11 +465,7 @@ def test_every_tool_answers_inside_ten_milliseconds() -> None:
             )
             ms = (time.perf_counter() - start) * 1000
             took[name] = max(took.get(name, 0.0), ms)
-            # submit_return needs the page's returns.submit move; until the
-            # scene declares it, the tool says so honestly.
-            needs = {"submit_return": "returns.submit"}
-            honest = name in needs and brain.stage.moves.get(needs[name]) is None
-            assert isinstance(result, str) and (honest or not result.startswith("NOT DONE")), (
+            assert isinstance(result, str) and not result.startswith("NOT DONE"), (
                 name,
                 result,
             )
@@ -670,13 +665,13 @@ def test_a_new_confirmed_act_needs_no_new_yes_code() -> None:
     [
         (
             "applied",
-            "return submitted, reference RT-9-1",
-            "Done — your return is in, reference RT-9-1. We'll be in touch about the drop-off.",
+            "order FH-31207 cancelled",
+            "Done — order FH-31207 is cancelled, and nothing will be delivered.",
         ),
         (
             "refused",
-            "step 1: Enter the email",
-            "That didn't go through — the page says: step 1: Enter the email.",
+            "the order is already on the way",
+            "That didn't go through — the page says: the order is already on the way.",
         ),
         ("failed", None, "That didn't go through — the page says: failed."),
         (
@@ -692,30 +687,50 @@ async def test_a_page_answered_act_says_its_outcome_once(
     from voqalize.sdk.stage.wire import StageResult
 
     brain, screen = _brain()
-    await brain.start_return("FH-20418")
-    await brain.fill_return(
-        fb.ReturnAnswers(
-            items=[fb.ReturnItem(product=CHAIR, qty=1)],
-            reason="changed_mind",
-            condition="unused_unpacked",
-            resolution="refund",
-            collection="drop_off",
-        )
-    )
+    await brain.cancel_order("FH-31207")
     brain._say_next = None  # pyright: ignore[reportPrivateUsage]
     brain.turns += 1
     pending = brain.confirms.due(brain.turns)
-    assert pending is not None and pending.kind == "submit_return"
+    assert pending is not None and pending.kind == "cancel_order"
     acted = brain.confirms.act(pending)
-    assert acted.line == "Submitting it now." and acted.ref is not None
+    assert acted.line == "Cancelling it now." and acted.ref is not None
     brain._staged(
-        StageResult(call_ref=acted.ref, move="returns.submit", outcome=outcome, detail=detail)
+        StageResult(call_ref=acted.ref, move="orders.cancel", outcome=outcome, detail=detail)
     )  # pyright: ignore[reportPrivateUsage]
     say = brain._say_next  # pyright: ignore[reportPrivateUsage]
     assert say is not None and say() == line
     assert [a.move for a in screen.sent if type(a).__name__ == "StageMove"].count(
-        "returns.submit"
+        "orders.cancel"
     ) == 1
+
+
+def test_a_complete_return_waits_for_the_shoppers_own_press() -> None:
+    """F10: the form, complete, asks the shopper to press Submit return; nothing
+    is pending, no move submits, and "submit it" is a request Emily refuses."""
+    brain, screen = _brain()
+
+    async def run() -> None:
+        await brain.start_return("FH-20418")
+        r = await brain.fill_return(
+            fb.ReturnAnswers(
+                items=[fb.ReturnItem(product=CHAIR, qty=1)],
+                reason="changed_mind",
+                condition="unused_unpacked",
+                resolution="refund",
+                collection="drop_off",
+            )
+        )
+        assert "press Submit return" in r and "Shall I submit" not in r
+
+    asyncio.run(run())
+    assert brain.confirms.pending is None
+    assert brain._press_owed()  # pyright: ignore[reportPrivateUsage]
+    moves = [a.move for a in screen.sent if type(a).__name__ == "StageMove"]
+    assert "returns.submit" not in moves
+    for said in ("Yes.", "Submit it.", "Can you submit it?", "Please send it", "Go ahead."):
+        assert brain._asks_to_send(said), said  # pyright: ignore[reportPrivateUsage]
+    for said in ("No, wait.", "What happens after I submit?", "Change the reason"):
+        assert not brain._asks_to_send(said), said  # pyright: ignore[reportPrivateUsage]
 
 
 # ─── The front of house's data (CONTRACT.md, v5) ──────────────────────────────
@@ -806,8 +821,8 @@ def test_the_return_form_asks_one_thing_at_a_time_and_moves_on() -> None:
         r = await brain.fill_return(fb.ReturnAnswers(resolution="store_credit"))
         assert "weekday morning" in r
         r = await brain.fill_return(fb.ReturnAnswers(pickup_window="saturday"))
-        assert "Shall I submit the return?" in r
-        assert brain.confirms.pending is not None and brain.confirms.pending.kind == "submit_return"
+        assert "press Submit return" in r
+        assert brain.confirms.pending is None, "only the shopper's press sends a return (F10)"
         assert moves().count("returns.next_step") == 3, moves()
         fills = [
             a.args["field"]

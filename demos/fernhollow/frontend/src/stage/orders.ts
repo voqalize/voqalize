@@ -35,7 +35,7 @@ import {
   whyNoReturn,
 } from "../orders/tracking";
 import { CHOICE_FIELDS, CHOICES, type ChoiceField, exchangeOptions, FIELD_SPOKEN, LAST_STEP, SPOKEN, STEPS, stepOfField, labelOf } from "../returns/orders";
-import { currentOrder, filledNames, firstMissing, markAgentPress, missingFields, storedReturns, useReturns } from "../returns/store";
+import { currentOrder, filledNames, missingFields, useReturns } from "../returns/store";
 import { emily } from "../voice/controller";
 import type { By } from "../voice/events";
 import { type useAppStage, useMove } from "./host";
@@ -56,7 +56,6 @@ const ORDER_MOVES = [
   "returns.fill",
   "returns.open_step",
   "returns.next_step",
-  "returns.submit",
 ] as const;
 export type OrderMove = (typeof ORDER_MOVES)[number];
 
@@ -367,7 +366,7 @@ function typed(): Pick<Performers<Spec>, OrderMove> {
     "returns.next_step": async (_args, c) => {
       await openForm(c);
       const s = useReturns.getState();
-      if (s.step >= LAST_STEP) c.refuse("step", `the form is already on step ${LAST_STEP}, review; the shopper's yes submits it`);
+      if (s.step >= LAST_STEP) c.refuse("step", `the form is already on step ${LAST_STEP}, review; only the shopper can press Submit return`);
       const missing = missingFields(s, s.step);
       if (missing.length) c.refuse("step", `step ${s.step}, ${STEPS[s.step - 1].title.toLowerCase()}, still needs ${missing.join(", ")}`, missing);
       const button = q(`[data-stage-thing="step-${s.step}"] [data-continue]`) ?? thing(`step-${s.step}`);
@@ -375,23 +374,6 @@ function typed(): Pick<Performers<Spec>, OrderMove> {
       const next = s.step + 1;
       useReturns.getState().setStep(next, "emily");
       return `on step ${next}, ${STEPS[next - 1].title.toLowerCase()}`;
-    },
-
-    "returns.submit": async (_args, c) => {
-      const s = useReturns.getState();
-      if (!currentOrder(s)) c.refuse("form", "no return form is open; start one with orders.start_return");
-      const gap = firstMissing(s);
-      if (gap) c.refuse("form", `step ${gap.step}, ${STEPS[gap.step - 1].title.toLowerCase()}, still needs ${gap.fields.join(", ")}`, gap.fields);
-      await openForm(c);
-      await openStep(LAST_STEP, c);
-      const button = (await appear(() => part("return:submit"))) ?? c.refuse("form", "the review step is not on screen");
-      await ring(c, button, "Submit return");
-      const before = storedReturns().length;
-      markAgentPress();
-      (button as HTMLButtonElement).click();
-      await appear(() => (storedReturns().length > before ? document.body : null), 1500);
-      const ref = storedReturns().length > before ? storedReturns().at(-1)?.reference : null;
-      return ref ? `return submitted, reference ${ref}` : "submit pressed";
     },
   };
 }

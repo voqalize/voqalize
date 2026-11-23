@@ -176,23 +176,20 @@ describe("the return form", () => {
     expect(JSON.stringify(other)).toContain(CHAIR);
   });
 
-  it("next_step validates like Continue; open_step only to a reached step; submit names the gap", async () => {
+  it("next_step validates like Continue; open_step only to a reached step", async () => {
     await mount("/orders/return?order=FH-20418");
     const m = moves();
     expect(JSON.stringify(await run(m, "returns.next_step", {}))).toContain("items");
     const far = await run(m, "returns.open_step", { step: 4 });
     expect(far?.outcome).toBe("refused");
     expect(JSON.stringify(far)).toContain("reached step 1");
-    const sub = await run(m, "returns.submit", {});
-    expect(sub?.outcome).toBe("refused");
-    expect(JSON.stringify(sub)).toContain("step 1");
     await run(m, "returns.select_item", { product_id: CHAIR, qty: 1 });
     const ok = await run(m, "returns.next_step", {});
     expect(ok?.detail).toBe("on step 2, reason");
     expect(useReturns.getState().stepped).toMatchObject({ step: 2, by: "emily" });
   });
 
-  it("a whole return, by moves alone, ends on the confirmation", async () => {
+  it("a whole return, by moves alone, stops on review: only the shopper's hand sends it (F10)", async () => {
     await mount("/orders/return?order=FH-20418");
     const m = moves();
     const steps: [string, unknown][] = [
@@ -203,16 +200,27 @@ describe("the return form", () => {
       ["returns.fill", { field: "collection", value: "pickup" }],
       ["returns.fill", { field: "pickup_window", value: "weekday_morning" }],
       ["returns.next_step", {}],
-      ["returns.submit", {}],
     ];
     for (const [move, args] of steps) {
       const r = await run(m, move, args);
       expect([move, r?.outcome]).toEqual([move, "applied"]);
     }
+    // No move submits, and one more Continue is refused on review.
+    expect(scene.spec.moves.map((x) => x.id)).not.toContain("returns.submit");
+    expect(JSON.stringify(await run(m, "returns.next_step", {}))).toContain("only the shopper can press Submit return");
+    // A press that is not a person's — a script's click, as any agent's would be — sends nothing.
+    const button = document.querySelector<HTMLButtonElement>('[data-stage-part="return:submit"]');
+    expect(button).not.toBeNull();
+    button?.click();
     await sleep(300);
-    expect(document.querySelector(".return-ref")?.textContent).toMatch(/^RT-20418-\d+$/);
-    expect(JSON.parse(localStorage.getItem("fernhollow-returns") ?? "[]")).toHaveLength(1);
-    expect(useReturns.getState().submitted).toMatchObject({ order_number: "FH-20418", by: "emily" });
+    expect(document.querySelector(".return-ref")).toBeNull();
+    expect(JSON.parse(localStorage.getItem("fernhollow-returns") ?? "[]")).toHaveLength(0);
+    expect(useReturns.getState().submitted).toBeNull();
+    // The store refuses any hand but the visitor's; the visitor's press is saved.
+    expect(useReturns.getState().submit("emily")).toBeNull();
+    const stored = useReturns.getState().submit("visitor");
+    expect(stored?.reference).toMatch(/^RT-20418-\d+$/);
+    expect(useReturns.getState().submitted).toMatchObject({ order_number: "FH-20418", by: "visitor" });
   });
 });
 

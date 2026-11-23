@@ -48,10 +48,6 @@ export const scene = defineScene({
       "class": "reversible"
     },
     {
-      "id": "returns.submit",
-      "class": "confirmed"
-    },
-    {
       "id": "orders.open",
       "class": "look",
       "args": [
@@ -345,4 +341,4 @@ export const scene = defineScene({
   ]
 });
 
-export const SPEC_SHA256 = "2864fe8c248c896b581c51d359f8c41b136b2717f06b60fbb33c13391055b359";
+export const SPEC_SHA256 = "3f61e44a5afcf597225e0971bcd3a7cd0c84cb82260eb9ef6837825c151bbdc5";
