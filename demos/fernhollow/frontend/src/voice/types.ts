@@ -65,6 +65,7 @@ export interface Commands {
   show_more_like: { anchor_id: string; items: { product_id: string; differences: string[] }[] };
   show_savings: { swaps: Swap[]; saved: number; moved_to?: string | null };
   update_shortlist: { product_ids: string[] };
+  show_saved: { product_ids: string[]; title: string; note?: string | null };
   confirm_add: { lines: CartLine[]; label: string };
   cart_updated: { lines: CartLine[]; total: number; saved: number };
   suggest_finish: { product_id: string; reason: string };
@@ -98,6 +99,7 @@ export const COMMAND_NAMES: CommandName[] = [
   "show_more_like",
   "show_savings",
   "update_shortlist",
+  "show_saved",
   "confirm_add",
   "cart_updated",
   "suggest_finish",

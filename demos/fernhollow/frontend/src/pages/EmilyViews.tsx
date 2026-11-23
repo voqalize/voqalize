@@ -3,16 +3,17 @@
  * Each also works by hand — a shopper can plan a room, swap pieces, find
  * savings and compare saved pieces without saying a word.
  */
-import { ArrowLeftRight, Check, PiggyBank, Trash2, X } from "lucide-react";
+import { ArrowLeftRight, Check, Heart, PiggyBank, ShoppingBag, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { ROOMS, type RoomId, getCategory, getProduct, getRoom, imgUrl, money, productsByIds, roomName } from "../data/catalog";
+import { ROOMS, type RoomId, getCategory, getProduct, getRoom, getVariant, imgUrl, money, productsByIds, roomName } from "../data/catalog";
 import { site } from "../data/content";
 import { Crumbs, EmilyMark, EmilyTag, PriceLine } from "../components/bits";
 import { ProductCard, ProductGrid } from "../components/ProductCard";
 import { AddButton } from "../components/Overlays";
+import { useCart } from "../state/cart";
 import { useShortlist } from "../state/shortlist";
-import { emily, useEmily } from "../voice/controller";
+import { emily, useEmily, useMarked } from "../voice/controller";
 import { buildCompare, buildRoomSet, findSavings, nextInSlot, pieceFor, suggestedBudget, totalOf } from "../voice/local";
 import type { Piece } from "../voice/types";
 import { useTitle, useVisibleProducts } from "./usePage";
@@ -379,4 +380,106 @@ function filterChips(f: import("../data/catalog").ContractFilters | null): { key
     });
   if (f.on_sale) out.push({ key: "on_sale", label: "On sale" });
   return out;
+}
+
+/**
+ * /saved — the shopper's saved picks together on one page (owner, round 1:
+ * "show me what I've selected" wants to see how the sofa, the rug and the
+ * cushion go together — not a feature table, not the cart). Large photos side
+ * by side, the colour or material they share, the total, and one Add all.
+ */
+export function SavedPage() {
+  const ids = useShortlist((s) => s.ids);
+  const saved = useEmily((s) => s.saved);
+  const marked = useMarked("saved");
+  const list = useMemo(() => productsByIds(ids), [ids]);
+  useTitle(saved?.title ?? "Your picks");
+  useVisibleProducts(list.map((p) => p.id));
+  const total = list.reduce((t, p) => t + getVariant(p).price, 0);
+  const note = saved?.note || togetherNote(list);
+  const kinds = new Set(list.map((p) => p.categorySlug));
+  if (!list.length) {
+    return (
+      <div className="wrap page-pad empty-page">
+        <h1 className="h1">Your picks</h1>
+        <p className="lede">Tap the heart on any piece to keep it here, and see your picks side by side.</p>
+        <Link to="/shop" className="btn btn-ghost">
+          Browse all pieces
+        </Link>
+      </div>
+    );
+  }
+  return (
+    <div className="wrap page-pad saved-page">
+      <Crumbs items={[{ label: "Home", to: "/" }, { label: "Your picks" }]} />
+      <header className="saved-head" data-emily-start>
+        <div>
+          <h1 className="h1">
+            {saved?.title ?? "Your picks"} {marked && saved?.by === "emily" ? <EmilyTag /> : null}
+          </h1>
+          <p className="lede">{note}</p>
+        </div>
+        <div className="saved-sum" data-spot="section:saved-total">
+          <p className="small">
+            {list.length} {list.length === 1 ? "piece" : "pieces"} together
+          </p>
+          <p className="saved-total">{money(total)}</p>
+          <button
+            type="button"
+            className="btn btn-primary"
+            data-spot="button:add-saved"
+            data-dock-avoid
+            onClick={() => useCart.getState().add(list.map((p) => ({ product_id: p.id, variant_id: getVariant(p).id, qty: 1 })))}
+          >
+            <ShoppingBag size={16} aria-hidden /> Add all {list.length} to cart
+          </button>
+          {kinds.size === 1 && list.length >= 2 ? (
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              onClick={() => emily.show_compare(buildCompare(list.slice(0, 4).map((p) => p.id)), "visitor")}
+            >
+              <ArrowLeftRight size={14} aria-hidden /> Compare these
+            </button>
+          ) : null}
+        </div>
+      </header>
+      <ul className={`saved-board n-${Math.min(list.length, 4)}`} data-spot="section:saved">
+        {list.map((p, i) => {
+          const v = getVariant(p);
+          return (
+            <li key={p.id} className={`saved-piece${i === 0 ? " is-lead" : ""}`} data-spot={`product:${p.id}`} data-fh-thing={`product:${p.id}`}>
+              <Link to={`/product/${p.id}`} className="saved-photo">
+                <img src={imgUrl(p.images[0], i === 0 ? 1000 : 400)} alt={p.title} loading="lazy" />
+              </Link>
+              <div className="saved-body">
+                <p className="saved-kind">{p.category}</p>
+                <Link to={`/product/${p.id}`} className="saved-title">
+                  {p.title}
+                </Link>
+                <PriceLine price={v.price} compare={v.compareAtPrice} />
+                {p.taste.colours.length || p.taste.materials.length ? (
+                  <p className="small saved-words">{[...p.taste.colours.slice(0, 2), ...p.taste.materials.slice(0, 2)].join(" · ")}</p>
+                ) : null}
+                <button type="button" className="link small saved-remove" onClick={() => useShortlist.getState().toggle(p.id)}>
+                  <Heart size={12} aria-hidden fill="currentColor" /> Remove
+                </button>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
+/** The colour or material saved picks share, in the catalog's words (the brain says the same). */
+function togetherNote(list: import("../data/types").Product[]): string {
+  for (const [kind, key] of [["colour", "colours"], ["material", "materials"], ["feel", "styles"]] as const) {
+    const counts = new Map<string, number>();
+    for (const p of list) for (const w of new Set(p.taste[key])) counts.set(w, (counts.get(w) ?? 0) + 1);
+    const best = [...counts.entries()].filter(([, n]) => n >= 2).sort((a, b) => b[1] - a[1])[0];
+    if (best) return `They share ${best[0]} (${kind}), across ${best[1] === list.length ? "all of them" : `${best[1]} of them`}.`;
+  }
+  return list.length > 1 ? "Each is a different kind of piece; see them side by side." : "Your saved piece.";
 }

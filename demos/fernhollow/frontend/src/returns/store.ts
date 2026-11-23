@@ -1,19 +1,25 @@
 /**
- * The returns form's state, one store for both hands: the shopper's clicks and
- * Emily's Stage moves (src/stage/performers.ts) write the same fields, and
- * `by` remembers who set each one for the "Emily" tag.
+ * An order's return form, one store for both hands: the shopper's taps and the
+ * agent's Stage moves (src/stage/orders.ts) write the same fields, and `by`
+ * remembers who set each one for the agent's tag. The form belongs to one
+ * delivered order (`/orders/return?order=FH-31042`) and starts empty: no item,
+ * reason, condition, resolution or collection is chosen until someone says so.
  */
 import { create } from "zustand";
-import { type ChoiceField, type DemoOrder, RETURN_WINDOW_DAYS, eligibility, exchangeOptions, findOrder, normalOrderNumber } from "./orders";
+import { getProduct } from "../data/catalog";
+import { type AccountOrder, findOrder } from "../orders/tracking";
+import type { By } from "../voice/events";
+import { type ChoiceField, exchangeOptions, LAST_STEP, labelOf } from "./orders";
 
-export type Who = "visitor" | "emily";
+export type Who = By;
 
 export interface ReturnsForm {
+  /** The order the form is for. */
+  order_number: string;
+  /** The step in front, 1 to 5. */
   step: number;
   /** The furthest step the form has reached; a step up to it can be reopened. */
   reached: number;
-  order_number: string;
-  email: string;
   /** product_id → how many to return. */
   items: Record<string, number>;
   reason: string;
@@ -24,155 +30,213 @@ export interface ReturnsForm {
   collection: string;
   pickup_window: string;
   by: Record<string, Who>;
-  /** The field that changed last, for the state event. */
-  changed: { field: string; stamp: number } | null;
+  /** The field that changed last and its value, for `returns.field_filled`. */
+  changed: { field: string; value: string; by: Who; stamp: number } | null;
+  /** The step last opened, for `returns.step_reached`. */
+  stepped: { step: number; by: Who; stamp: number } | null;
+  /** The form was (re)started for an order, for `orders.return_started`. */
+  started: { order_number: string; by: Who; stamp: number } | null;
+  /** The return just submitted, for `returns.return_submitted`. */
+  submitted: { reference: string; order_number: string; filled: string[]; by: Who; stamp: number } | null;
 }
 
-const EMPTY: Omit<ReturnsForm, "by" | "changed"> = {
+const EMPTY = {
+  order_number: "",
   step: 1,
   reached: 1,
-  order_number: "",
-  email: "",
-  items: {},
+  items: {} as Record<string, number>,
   reason: "",
   condition: "",
   resolution: "",
-  exchange: {},
+  exchange: {} as Record<string, string>,
   collection: "",
   pickup_window: "",
+  by: {} as Record<string, Who>,
+  changed: null,
+  stepped: null,
 };
 
 interface Api extends ReturnsForm {
-  setStep(step: number): void;
-  setOrderNumber(value: string, by?: Who): void;
-  setEmail(value: string, by?: Who): void;
+  /** Begin the return for `order` (a no-op when the form is already on it). */
+  start(order: string, by?: Who): void;
+  setStep(step: number, by?: Who): void;
   setChoice(field: ChoiceField, value: string, by?: Who): void;
   setItem(productId: string, qty: number, by?: Who): void;
   setExchange(productId: string, value: string, by?: Who): void;
-  reset(orderNumber?: string, by?: Who): void;
+  /** Save the return, mark it submitted and clear the form. Only the
+   *  visitor's own press sends one: any other hand is refused (null). */
+  submit(by?: Who): StoredReturn | null;
+  reset(): void;
 }
+
+const stamp = () => Date.now();
 
 export const useReturns = create<Api>((set, get) => ({
   ...EMPTY,
-  by: {},
-  changed: null,
-  setStep: (step) =>
-    set((s) => {
-      const next = Math.max(1, Math.min(6, step));
-      return { step: next, reached: Math.max(s.reached, next) };
-    }),
-  setOrderNumber(value, by = "visitor") {
-    const prev = get().order_number;
-    const next = value;
-    // A different order clears what was chosen for the last one.
-    const sameOrder = normalOrderNumber(prev) === normalOrderNumber(next);
-    set((s) => ({
-      order_number: next,
-      items: sameOrder ? s.items : {},
-      exchange: sameOrder ? s.exchange : {},
-      by: { ...s.by, order_number: by },
-      changed: { field: "order_number", stamp: Date.now() },
-    }));
+  started: null,
+  submitted: null,
+  start(order, by = "visitor") {
+    if (get().order_number === order) return;
+    set({ ...EMPTY, items: {}, exchange: {}, by: {}, order_number: order, started: { order_number: order, by, stamp: stamp() } });
   },
-  setEmail: (email, by = "visitor") => set((s) => ({ email, by: { ...s.by, email: by }, changed: { field: "email", stamp: Date.now() } })),
+  setStep(step, by = "visitor") {
+    const next = Math.max(1, Math.min(LAST_STEP, step));
+    if (next === get().step) return;
+    set((s) => ({ step: next, reached: Math.max(s.reached, next), stepped: { step: next, by, stamp: stamp() } }));
+  },
   setChoice(field, value, by = "visitor") {
     set((s) => {
       const next: Partial<ReturnsForm> = { [field]: value };
+      const byNext = { ...s.by, [field]: by };
       // Drop-off has no collection window.
       if (field === "collection" && value !== "pickup") next.pickup_window = "";
-      return { ...next, by: { ...s.by, [field]: by }, changed: { field, stamp: Date.now() } };
+      // Only an exchange keeps the options chosen to swap to.
+      if (field === "resolution" && value !== "exchange") next.exchange = {};
+      return { ...next, by: byNext, changed: { field, value, by, stamp: stamp() } };
     });
   },
   setItem(productId, qty, by = "visitor") {
     set((s) => {
       const items = { ...s.items };
+      const exchange = { ...s.exchange };
       if (qty > 0) items[productId] = qty;
-      else delete items[productId];
-      return { items, by: { ...s.by, items: by, [`qty_${productId}`]: by }, changed: { field: `qty_${productId}`, stamp: Date.now() } };
+      else {
+        delete items[productId];
+        delete exchange[productId];
+      }
+      const field = `qty_${productId}`;
+      return { items, exchange, by: { ...s.by, items: by, [field]: by }, changed: { field, value: String(Math.max(0, qty)), by, stamp: stamp() } };
     });
   },
   setExchange(productId, value, by = "visitor") {
     const field = `exchange_variant_${productId}`;
-    set((s) => ({ exchange: { ...s.exchange, [productId]: value }, by: { ...s.by, [field]: by }, changed: { field, stamp: Date.now() } }));
+    set((s) => ({ exchange: { ...s.exchange, [productId]: value }, by: { ...s.by, [field]: by }, changed: { field, value, by, stamp: stamp() } }));
   },
-  reset(orderNumber = "", by = "visitor") {
-    set({ ...EMPTY, order_number: orderNumber, items: {}, exchange: {}, by: orderNumber ? { order_number: by } : {}, changed: null });
+  submit(by = "visitor") {
+    if (by !== "visitor") return null;
+    const s = get();
+    const order = currentOrder(s);
+    if (!order || firstMissing(s)) return null;
+    const filled = filledNames(s);
+    const stored = saveReturn({
+      order_number: order.number,
+      items: order.lines
+        .filter((l) => s.items[l.product_id])
+        .map((l) => ({
+          product_id: l.product_id,
+          title: getProduct(l.product_id)?.title ?? l.title,
+          variant: l.variant,
+          qty: s.items[l.product_id],
+          ...(s.resolution === "exchange" && s.exchange[l.product_id] ? { exchange_to: s.exchange[l.product_id] } : {}),
+        })),
+      reason: s.reason,
+      condition: s.condition,
+      resolution: s.resolution,
+      collection: s.collection,
+      pickup_window: s.pickup_window,
+    });
+    set({ ...EMPTY, items: {}, exchange: {}, by: {}, submitted: { reference: stored.reference, order_number: order.number, filled, by, stamp: stamp() } });
+    return stored;
+  },
+  reset() {
+    set({ ...EMPTY, items: {}, exchange: {}, by: {} });
   },
 }));
 
-/** What a step still needs, in the shopper's words; "" when it is complete. */
-export function missingInStep(form: ReturnsForm, step: number): string {
-  const order = currentOrder(form);
-  const elig = order ? eligibility(order) : null;
-  const chosen = order?.lines.filter((l) => form.items[l.product_id]) ?? [];
-  switch (step) {
-    case 1:
-      if (!order) return "Enter an order number from your confirmation email.";
-      if (!form.email.trim()) return "Enter the email you used for the order.";
-      if (form.email.trim().toLowerCase() !== order.email.toLowerCase()) return "That email does not match this order.";
-      if (elig?.kind === "not_delivered") return "This order has not been delivered yet. You can start a return once it arrives.";
-      if (elig?.kind === "outside_window") return `This order was delivered ${elig.days} days ago, outside the ${RETURN_WINDOW_DAYS}-day window.`;
-      return "";
-    case 2:
-      return chosen.length ? "" : "Choose at least one item to return.";
-    case 3:
-      return !form.reason ? "Choose a reason." : !form.condition ? "Tell us the condition of the items." : "";
-    case 4:
-      if (!form.resolution) return "Choose how you would like this resolved.";
-      if (form.resolution === "exchange" && chosen.some((l) => !form.exchange[l.product_id] && exchangeOptions(l).length)) {
-        return "Pick the option you would like instead for each item.";
-      }
-      return "";
-    case 5:
-      return !form.collection ? "Choose collection or drop-off." : form.collection === "pickup" && !form.pickup_window ? "Choose a collection window." : "";
-    default:
-      return "";
-  }
-}
+/**
+ * Only the shopper's own hand sends a return (owner, round 2, F10). The form
+ * notes every trusted pointer or key press on it; a script's `click()` or
+ * `dispatchEvent` is never trusted, and the agent has no move that submits. A
+ * submit with no such press just before it is the agent's, and is refused.
+ */
+let handAt = Number.NEGATIVE_INFINITY;
+export const noteHand = (e: { isTrusted: boolean }) => {
+  if (e.isTrusted) handAt = Date.now();
+};
+export const pressedByHand = (): boolean => Date.now() - handAt < 1500;
+
+export const currentOrder = (s: Pick<ReturnsForm, "order_number">): AccountOrder | undefined => findOrder(s.order_number);
+
+type FormView = Pick<ReturnsForm, "order_number" | "items" | "reason" | "condition" | "resolution" | "exchange" | "collection" | "pickup_window">;
+
+const chosenLines = (form: FormView) => currentOrder(form)?.lines.filter((l) => form.items[l.product_id]) ?? [];
 
 /** The fields a step still needs, by the form's names (for a refusal that names them). */
-export function missingFields(form: ReturnsForm, step: number): string[] {
-  const order = currentOrder(form);
-  const chosen = order?.lines.filter((l) => form.items[l.product_id]) ?? [];
+export function missingFields(form: FormView, step: number): string[] {
+  const chosen = chosenLines(form);
   switch (step) {
     case 1:
-      return [...(order ? [] : ["order_number"]), ...(form.email.trim() && order && form.email.trim().toLowerCase() === order.email.toLowerCase() ? [] : ["email"])];
-    case 2:
       return chosen.length ? [] : ["items"];
-    case 3:
+    case 2:
       return [...(form.reason ? [] : ["reason"]), ...(form.condition ? [] : ["condition"])];
-    case 4:
+    case 3:
       if (!form.resolution) return ["resolution"];
       return form.resolution === "exchange"
         ? chosen.filter((l) => !form.exchange[l.product_id] && exchangeOptions(l).length).map((l) => `exchange_variant_${l.product_id}`)
         : [];
-    case 5:
+    case 4:
       return [...(form.collection ? [] : ["collection"]), ...(form.collection === "pickup" && !form.pickup_window ? ["pickup_window"] : [])];
     default:
       return [];
   }
 }
 
+/** What a step still needs, in the shopper's words; "" when it is complete. */
+export function missingInStep(form: FormView, step: number): string {
+  const gap = missingFields(form, step);
+  if (!gap.length) return "";
+  switch (step) {
+    case 1:
+      return "Tick at least one item to return.";
+    case 2:
+      return gap.includes("reason") ? "Choose a reason." : "Tell us the condition the items are in.";
+    case 3:
+      return gap.includes("resolution") ? "Choose how you would like this resolved." : "Pick the option you would like instead for each item.";
+    case 4:
+      return gap.includes("collection") ? "Choose collection or drop-off." : "Choose a collection window.";
+    default:
+      return "";
+  }
+}
+
 /** The first step that still needs something, or null when the form is complete. */
-export function firstMissing(form: ReturnsForm): { step: number; why: string } | null {
-  for (let step = 1; step <= 5; step++) {
-    const why = missingInStep(form, step);
-    if (why) return { step, why };
+export function firstMissing(form: FormView): { step: number; why: string; fields: string[] } | null {
+  for (let step = 1; step < LAST_STEP; step++) {
+    const fields = missingFields(form, step);
+    if (fields.length) return { step, why: missingInStep(form, step), fields };
   }
   return null;
 }
 
-export const currentOrder = (s: ReturnsForm): DemoOrder | undefined => findOrder(s.order_number);
-
-/** The names of the fields that hold something — never their values. */
-export function filledNames(s: ReturnsForm): string[] {
+/** The names of the fields that hold something. */
+export function filledNames(s: FormView): string[] {
   const out: string[] = [];
-  if (s.order_number) out.push("order_number");
-  if (s.email) out.push("email");
   if (Object.keys(s.items).length) out.push("items", ...Object.keys(s.items).map((id) => `qty_${id}`));
   for (const f of ["reason", "condition", "resolution", "collection", "pickup_window"] as const) if (s[f]) out.push(f);
   for (const id of Object.keys(s.exchange)) if (s.exchange[id]) out.push(`exchange_variant_${id}`);
   return out;
+}
+
+/** A done step's one-line summary. */
+export function stepSummary(form: FormView, step: number): string {
+  const chosen = chosenLines(form);
+  switch (step) {
+    case 1:
+      return chosen.map((l) => `${form.items[l.product_id]} × ${getProduct(l.product_id)?.title ?? l.title}`).join(", ");
+    case 2:
+      return [labelOf("reason", form.reason), labelOf("condition", form.condition)].filter(Boolean).join(" · ");
+    case 3:
+      return [
+        labelOf("resolution", form.resolution),
+        ...(form.resolution === "exchange" ? chosen.filter((l) => form.exchange[l.product_id]).map((l) => `${l.variant} to ${form.exchange[l.product_id]}`) : []),
+      ]
+        .filter(Boolean)
+        .join(" · ");
+    case 4:
+      return [labelOf("collection", form.collection), labelOf("pickup_window", form.pickup_window)].filter(Boolean).join(" · ");
+    default:
+      return "";
+  }
 }
 
 // ── Submitted returns, kept in this browser ───────────────────────────────
@@ -193,7 +257,8 @@ const KEY = "fernhollow-returns";
 
 export function storedReturns(): StoredReturn[] {
   try {
-    return JSON.parse(localStorage.getItem(KEY) ?? "[]");
+    const all: unknown = JSON.parse(localStorage.getItem(KEY) ?? "[]");
+    return Array.isArray(all) ? (all as StoredReturn[]) : [];
   } catch {
     return [];
   }

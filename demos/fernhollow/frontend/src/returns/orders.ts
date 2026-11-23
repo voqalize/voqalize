@@ -1,70 +1,13 @@
 /**
- * The returns desk's data: the fictional demo orders (`data/demo_orders.json`)
- * and the form's fields, whose names and values are the contract
- * (CONTRACT.md, "Returns desk (v1)"). Dates are "days ago", so an order's
- * eligibility holds whenever the demo runs.
+ * The return form's fields, whose names and values are the contract
+ * (CONTRACT.md, "Returns desk"): the choices and their labels, the five steps
+ * and which fields each holds. The orders themselves (and whether one can be
+ * returned) are src/orders/tracking.ts.
  */
-import ordersJson from "../../../data/demo_orders.json";
 import { getProduct } from "../data/catalog";
-import { type PlacedOrder, daysSince, useOrders } from "../state/orders";
+import type { OrderLine } from "../orders/tracking";
 
-export interface OrderLine {
-  product_id: string;
-  variant_id: string;
-  title: string;
-  variant: string;
-  qty: number;
-  unit_price: number;
-}
-
-export interface DemoOrder {
-  number: string;
-  email: string;
-  name: string;
-  placed_days_ago: number;
-  delivered_days_ago: number | null;
-  status: string;
-  lines: OrderLine[];
-  total: number;
-}
-
-const data = ordersJson as unknown as { return_window_days: number; orders: DemoOrder[] };
-export const RETURN_WINDOW_DAYS = data.return_window_days;
-export const ORDERS = data.orders;
-
-/** An order the shopper placed here, as the returns desk reads it: delivered when placed. */
-export const asReturnable = (o: PlacedOrder, now = Date.now()): DemoOrder & { placed: true } => ({
-  number: o.number,
-  email: o.email,
-  name: o.name,
-  placed_days_ago: daysSince(o.placed_at, now),
-  delivered_days_ago: daysSince(o.placed_at, now),
-  status: "delivered",
-  lines: o.lines,
-  total: o.total,
-  placed: true,
-});
-
-/** Every order the desk can find: the shopper's own (newest first), then the demo orders. */
-export function allOrders(placed: PlacedOrder[] = useOrders.getState().orders): (DemoOrder & { placed?: true })[] {
-  const own = [...placed].sort((a, b) => (b.placed_at ?? "").localeCompare(a.placed_at ?? "")).map((o) => asReturnable(o));
-  return [...own, ...ORDERS.filter((d) => !own.some((o) => o.number === d.number))];
-}
-
-export const normalOrderNumber = (s: string) => {
-  const digits = s.replace(/\D/g, "");
-  return digits ? `FH-${digits}` : s.trim().toUpperCase();
-};
-export const findOrder = (number: string | null | undefined) =>
-  number ? allOrders().find((o) => o.number === normalOrderNumber(number)) : undefined;
-
-export type Eligibility = { kind: "eligible"; daysLeft: number } | { kind: "outside_window"; days: number } | { kind: "not_delivered" };
-
-export function eligibility(order: DemoOrder): Eligibility {
-  if (order.status !== "delivered" || order.delivered_days_ago == null) return { kind: "not_delivered" };
-  const days = order.delivered_days_ago;
-  return days <= RETURN_WINDOW_DAYS ? { kind: "eligible", daysLeft: RETURN_WINDOW_DAYS - days } : { kind: "outside_window", days };
-}
+export { RETURN_WINDOW_DAYS } from "../orders/tracking";
 
 /** The other option values the shopper could exchange a line for. */
 export function exchangeOptions(line: OrderLine): string[] {
@@ -108,21 +51,56 @@ export const CHOICE_FIELDS = Object.keys(CHOICES) as ChoiceField[];
 export const labelOf = (field: ChoiceField, value: string | null | undefined) =>
   CHOICES[field].find(([v]) => v === value)?.[1] ?? "";
 
+/** A choice as the agent says it back to the shopper: "reason set to doesn't suit the room". */
+export const SPOKEN: Record<string, string> = {
+  changed_mind: "changed your mind",
+  doesnt_suit_room: "doesn't suit the room",
+  arrived_damaged: "arrived damaged",
+  wrong_item: "wrong item received",
+  not_as_expected: "not what you expected",
+  unused_in_packaging: "unused, in its packaging",
+  unused_unpacked: "unused, unpacked",
+  damaged_on_arrival: "damaged on arrival",
+  refund: "refund",
+  exchange: "exchange for another option",
+  store_credit: "store credit",
+  pickup: "collect it from your home",
+  drop_off: "drop it off yourself",
+  weekday_morning: "weekday morning",
+  weekday_afternoon: "weekday afternoon",
+  saturday: "Saturday",
+};
+export const FIELD_SPOKEN: Record<ChoiceField, string> = {
+  reason: "reason",
+  condition: "condition",
+  resolution: "resolution",
+  collection: "collection",
+  pickup_window: "collection window",
+};
+
 export const STEPS = [
-  { n: 1, title: "Find your order" },
-  { n: 2, title: "Items" },
-  { n: 3, title: "Reason" },
-  { n: 4, title: "Resolution" },
-  { n: 5, title: "Collection" },
-  { n: 6, title: "Review" },
+  { n: 1, title: "Items", hint: "Tick what is going back" },
+  { n: 2, title: "Reason", hint: "Why, and the condition it is in" },
+  { n: 3, title: "Resolution", hint: "Refund, exchange or store credit" },
+  { n: 4, title: "Collection", hint: "Collected from you, or dropped off" },
+  { n: 5, title: "Review", hint: "Check and submit" },
 ] as const;
+export const LAST_STEP = STEPS.length;
 
 /** Which fields each step holds, for the dwell prompt and the step summaries. */
 export const STEP_FIELDS: Record<number, string[]> = {
-  1: ["order_number", "email"],
-  2: ["items"],
-  3: ["reason", "condition"],
-  4: ["resolution"],
-  5: ["collection", "pickup_window"],
-  6: [],
+  1: ["items"],
+  2: ["reason", "condition"],
+  3: ["resolution"],
+  4: ["collection", "pickup_window"],
+  5: [],
 };
+
+/** The step that holds a field, by its name (exchange_variant_* sits with resolution). */
+export function stepOfField(field: string): number | null {
+  if (field === "items" || field.startsWith("qty_")) return 1;
+  if (field === "reason" || field === "condition") return 2;
+  if (field === "resolution" || field.startsWith("exchange_variant_")) return 3;
+  if (field === "collection" || field === "pickup_window") return 4;
+  return null;
+}
