@@ -52,7 +52,10 @@ export function Footer() {
             <h3 className="footer-h">Help</h3>
             <ul>
               <li>
-                <Link to="/returns">Start a return</Link>
+                <Link to="/orders">Track an order</Link>
+              </li>
+              <li>
+                <Link to="/orders">Start a return</Link>
               </li>
               {INFO_PAGES.filter((p) => p.slug !== "about").map((p) => (
                 <li key={p.slug}>
@@ -78,6 +81,12 @@ export function Footer() {
               </li>
               <li>
                 <Link to="/shop">All pieces</Link>
+              </li>
+              <li>
+                <Link to="/gifts">Gift edit</Link>
+              </li>
+              <li>
+                <Link to="/kiosk">Showroom kiosk</Link>
               </li>
             </ul>
           </div>

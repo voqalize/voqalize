@@ -19,6 +19,7 @@ import { useShortlist } from "../state/shortlist";
 import { useSelection } from "./circle";
 import { CHECKOUT_FIELDS, CHECKOUT_STEPS, type CheckoutField, type CheckoutStep, STEP_OF_FIELD, placeOrder, useCheckout } from "../state/checkout";
 import { preferTileSide } from "./CallTile";
+import { revealGroup } from "../stage/reveal";
 import { type By, type CartLine, emit, isLive } from "./events";
 import { totalOf } from "./local";
 import type { Asking, Brief, CommandName, Commands, CompareRow, Piece, Swap } from "./types";
@@ -93,9 +94,11 @@ export interface EmilyState {
   history: Snapshot[];
   /** Numbered products Emily asked the shopper to pick between. */
   choices: { ids: string[]; label: string } | null;
+  /** The saved picks page's title and "how they go together" line, when the agent opened it. */
+  saved: { title: string; note: string; by: By } | null;
 }
 
-const SLICE_KEYS = ["brief", "listing", "board", "compare", "goesWith", "moreLike", "suggestion", "policy", "variants"] as const;
+const SLICE_KEYS = ["brief", "listing", "board", "compare", "goesWith", "moreLike", "suggestion", "policy", "variants", "saved"] as const;
 
 export const useEmily = create<EmilyState>(() => ({
   brief: null,
@@ -113,6 +116,7 @@ export const useEmily = create<EmilyState>(() => ({
   marks: {},
   history: [],
   choices: null,
+  saved: null,
 }));
 
 const set = useEmily.setState;
@@ -167,8 +171,10 @@ export async function ring(target: string): Promise<void> {
   if (el?.closest(".rail-filters")) preferTileSide("r");
   set({ spotlight: { target, stamp: Date.now() } });
   if (!el) return;
-  const box = el.getBoundingClientRect();
-  if (box.bottom < 0 || box.top > window.innerHeight) el.scrollIntoView({ block: "center", behavior: reduced() ? "auto" : "smooth" });
+  // The whole group it belongs to, in view — inside the filter rail's own
+  // scroll as well as the window (owner, round 1, F3/X1: only the top three
+  // colours showed while she ringed "sand").
+  await revealGroup(el);
   await wait(300);
 }
 
@@ -455,6 +461,17 @@ export const emily = {
     if (board) set({ board: { ...board, budget } });
   },
 
+  /** The saved picks together on one page (owner, round 1: "show me what I've selected"). */
+  show_saved(p: Commands["show_saved"], by: By = "emily") {
+    if (isEmily(by)) {
+      snapshot();
+      mark("saved");
+      useShortlist.setState({ ids: p.product_ids, open: false });
+    }
+    set({ saved: { title: p.title, note: p.note ?? "", by } });
+    go("/saved");
+  },
+
   show_compare(p: Commands["show_compare"], by: By = "emily") {
     if (isEmily(by)) snapshot();
     set({ compare: { ids: p.product_ids, rows: p.rows, summary: p.summary, by } });
@@ -620,10 +637,7 @@ export const emily = {
     const ids = p.product_ids.slice(0, 4);
     set({ choices: { ids, label: p.label } });
     const first = document.querySelector(`[data-spot="product:${CSS.escape(ids[0] ?? "")}"]`);
-    if (first) {
-      const r = first.getBoundingClientRect();
-      if (r.top < 80 || r.bottom > window.innerHeight) first.scrollIntoView({ block: "center", behavior: reduced() ? "auto" : "smooth" });
-    }
+    if (first) await revealGroup(first);
   },
 
   clear_choices() {
@@ -698,7 +712,7 @@ function tileSideFor(command: string, payload: unknown): "l" | "r" | null {
 const COMMANDS = new Set<string>([
   "navigate", "show_products", "apply_filters", "remove_filter", "open_product", "select_variant", "highlight",
   "update_brief", "show_room_set", "swap_piece", "remove_pieces", "show_compare", "show_goes_with", "show_more_like", "show_savings",
-  "update_shortlist", "confirm_add", "cart_updated", "suggest_finish", "open_policy", "undo",
+  "update_shortlist", "show_saved", "confirm_add", "cart_updated", "suggest_finish", "open_policy", "undo",
   "checkout_fill", "checkout_step", "confirm_place_order", "order_placed", "show_choices", "clear_choices", "clear_selection",
 ]);
 const isCommand = (c: string): c is CommandName => COMMANDS.has(c);

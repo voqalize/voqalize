@@ -1,10 +1,280 @@
 {
- "$comment": "Fictional demo orders for the Fernhollow returns desk. Real catalog products; dates are relative (days ago) so eligibility holds whenever the demo runs. Emails use the reserved example.com domain.",
+ "$comment": "Fictional orders of the one signed-in demo account (Sam Rivera), shown on the orders page (/orders). Real catalog products; dates are relative (days ago / days from now) so the statuses hold whenever the demo runs. Every order carries a `tracking` block: stage (packed, on_the_way, out_for_delivery, delivered), a timeline of authored events, the booked delivery slot and, while packed, the authored slots the day can move to — the only delivery days anywhere in the demo. `placed_order` is the template for an order placed in this browser: packed, with these authored slots.",
  "return_window_days": 30,
  "orders": [
   {
+   "number": "FH-20502",
+   "name": "Sam Rivera",
+   "placed_days_ago": 2,
+   "delivered_days_ago": null,
+   "status": "on_the_way",
+   "lines": [
+    {
+     "product_id": "ivory-linen-king-sheet-set",
+     "variant_id": "30098",
+     "title": "Ivory Linen king sheet set",
+     "variant": "Linen",
+     "qty": 1,
+     "unit_price": 198.0
+    },
+    {
+     "product_id": "matte-ceramic-vase-porcelain-cream",
+     "variant_id": "30892",
+     "title": "Matte Ceramic Vase Porcelain Cream",
+     "variant": "Small",
+     "qty": 1,
+     "unit_price": 56.0
+    }
+   ],
+   "total": 254.0,
+   "tracking": {
+    "stage": "on_the_way",
+    "events": [
+     {
+      "stage": "ordered",
+      "days_ago": 2,
+      "time": "6:12 pm",
+      "text": "Order placed"
+     },
+     {
+      "stage": "packed",
+      "days_ago": 1,
+      "time": "11:05 am",
+      "text": "Packed at the Fernhollow warehouse"
+     },
+     {
+      "stage": "on_the_way",
+      "days_ago": 0,
+      "time": "6:40 am",
+      "text": "On its way to your local depot"
+     }
+    ],
+    "delivery": {
+     "slot": "d2-morning"
+    },
+    "slots": [
+     {
+      "id": "d2-morning",
+      "days_from_now": 2,
+      "window": "morning",
+      "hours": "8 am to 12 pm"
+     }
+    ],
+    "can_reschedule": false,
+    "why_not": "It has left the warehouse, so the day can no longer be changed; you can ask for an earlier delivery."
+   }
+  },
+  {
+   "number": "FH-31207",
+   "name": "Sam Rivera",
+   "placed_days_ago": 2,
+   "delivered_days_ago": null,
+   "status": "packed",
+   "lines": [
+    {
+     "product_id": "natural-wood-bedframe-with-slatted-headboard",
+     "variant_id": "27169",
+     "title": "Natural Wood Bedframe With Slatted Headboard",
+     "variant": "Queen",
+     "qty": 1,
+     "unit_price": 249.0
+    },
+    {
+     "product_id": "soft-taupe-linen-quilt",
+     "variant_id": "27185",
+     "title": "Soft taupe linen quilt",
+     "variant": "Queen",
+     "qty": 1,
+     "unit_price": 179.0
+    }
+   ],
+   "total": 477.0,
+   "tracking": {
+    "stage": "packed",
+    "events": [
+     {
+      "stage": "ordered",
+      "days_ago": 2,
+      "time": "9:14 am",
+      "text": "Order placed"
+     },
+     {
+      "stage": "packed",
+      "days_ago": 0,
+      "time": "7:40 am",
+      "text": "Packed at the Fernhollow warehouse and waiting for its van"
+     }
+    ],
+    "delivery": {
+     "slot": "d3-morning"
+    },
+    "slots": [
+     {
+      "id": "d2-afternoon",
+      "days_from_now": 2,
+      "window": "afternoon",
+      "hours": "12 pm to 5 pm"
+     },
+     {
+      "id": "d3-morning",
+      "days_from_now": 3,
+      "window": "morning",
+      "hours": "8 am to 12 pm"
+     },
+     {
+      "id": "d3-evening",
+      "days_from_now": 3,
+      "window": "evening",
+      "hours": "5 pm to 9 pm"
+     },
+     {
+      "id": "d4-morning",
+      "days_from_now": 4,
+      "window": "morning",
+      "hours": "8 am to 12 pm"
+     },
+     {
+      "id": "d5-afternoon",
+      "days_from_now": 5,
+      "window": "afternoon",
+      "hours": "12 pm to 5 pm"
+     }
+    ],
+    "can_reschedule": true,
+    "two_person": true
+   },
+   "delivery_fee": 49
+  },
+  {
+   "number": "FH-31188",
+   "name": "Sam Rivera",
+   "placed_days_ago": 5,
+   "delivered_days_ago": null,
+   "status": "out_for_delivery",
+   "lines": [
+    {
+     "product_id": "taupe-linen-lounge-chair-with-wide-seat",
+     "variant_id": "27546",
+     "title": "Taupe linen lounge chair with wide seat",
+     "variant": "Boucle",
+     "qty": 1,
+     "unit_price": 485.0
+    },
+    {
+     "product_id": "textured-linen-cushion-cover-in-sandstone-hue",
+     "variant_id": "30656",
+     "title": "Textured Linen Cushion Cover In Sandstone Hue",
+     "variant": "Linen",
+     "qty": 2,
+     "unit_price": 38.0
+    }
+   ],
+   "total": 561.0,
+   "tracking": {
+    "stage": "out_for_delivery",
+    "events": [
+     {
+      "stage": "ordered",
+      "days_ago": 5,
+      "time": "8:02 pm",
+      "text": "Order placed"
+     },
+     {
+      "stage": "packed",
+      "days_ago": 2,
+      "time": "3:15 pm",
+      "text": "Packed at the Fernhollow warehouse"
+     },
+     {
+      "stage": "out_for_delivery",
+      "days_ago": 0,
+      "time": "8:05 am",
+      "text": "On the van with today's deliveries"
+     }
+    ],
+    "delivery": {
+     "slot": "d0-afternoon",
+     "stops_before": 4
+    },
+    "slots": [
+     {
+      "id": "d0-afternoon",
+      "days_from_now": 0,
+      "window": "afternoon",
+      "hours": "12 pm to 5 pm"
+     }
+    ],
+    "can_reschedule": false,
+    "why_not": "It is on the van for today's delivery, so the day can no longer be changed; you can ask for an earlier delivery."
+   },
+   "delivery_fee": 0
+  },
+  {
+   "number": "FH-31042",
+   "name": "Sam Rivera",
+   "placed_days_ago": 9,
+   "delivered_days_ago": 3,
+   "status": "delivered",
+   "lines": [
+    {
+     "product_id": "matte-ceramic-vase-porcelain-cream",
+     "variant_id": "30893",
+     "title": "Matte Ceramic Vase Porcelain Cream",
+     "variant": "Large",
+     "qty": 1,
+     "unit_price": 56.0
+    },
+    {
+     "product_id": "minimalist-ceramic-table-lamp",
+     "variant_id": "30308",
+     "title": "Minimalist ceramic table lamp",
+     "variant": "Brushed Brass",
+     "qty": 1,
+     "unit_price": 96.0
+    }
+   ],
+   "total": 201.0,
+   "tracking": {
+    "stage": "delivered",
+    "events": [
+     {
+      "stage": "ordered",
+      "days_ago": 9,
+      "time": "1:47 pm",
+      "text": "Order placed"
+     },
+     {
+      "stage": "packed",
+      "days_ago": 6,
+      "time": "10:20 am",
+      "text": "Packed at the Fernhollow warehouse"
+     },
+     {
+      "stage": "out_for_delivery",
+      "days_ago": 3,
+      "time": "7:55 am",
+      "text": "On the van with the day's deliveries"
+     },
+     {
+      "stage": "delivered",
+      "days_ago": 3,
+      "time": "11:32 am",
+      "text": "Delivered and signed for at the front door"
+     }
+    ],
+    "delivery": {
+     "days_from_now": -3,
+     "window": "morning",
+     "hours": "8 am to 12 pm"
+    },
+    "slots": [],
+    "can_reschedule": false,
+    "why_not": "It has already been delivered."
+   },
+   "delivery_fee": 49
+  },
+  {
    "number": "FH-20418",
-   "email": "sam.rivera@example.com",
    "name": "Sam Rivera",
    "placed_days_ago": 12,
    "delivered_days_ago": 6,
@@ -35,12 +305,47 @@
      "unit_price": 179.0
     }
    ],
-   "note": "Home office order: the main demo return (well inside 30 days).",
-   "total": 967.99
+   "total": 967.99,
+   "tracking": {
+    "stage": "delivered",
+    "events": [
+     {
+      "stage": "ordered",
+      "days_ago": 12,
+      "time": "10:26 am",
+      "text": "Order placed"
+     },
+     {
+      "stage": "packed",
+      "days_ago": 10,
+      "time": "2:10 pm",
+      "text": "Packed at the Fernhollow warehouse"
+     },
+     {
+      "stage": "out_for_delivery",
+      "days_ago": 6,
+      "time": "8:01 am",
+      "text": "On the van with the day's deliveries"
+     },
+     {
+      "stage": "delivered",
+      "days_ago": 6,
+      "time": "1:18 pm",
+      "text": "Delivered and signed for at the front door"
+     }
+    ],
+    "delivery": {
+     "days_from_now": -6,
+     "window": "afternoon",
+     "hours": "12 pm to 5 pm"
+    },
+    "slots": [],
+    "can_reschedule": false,
+    "why_not": "It has already been delivered."
+   }
   },
   {
    "number": "FH-20377",
-   "email": "sam.rivera@example.com",
    "name": "Sam Rivera",
    "placed_days_ago": 26,
    "delivered_days_ago": 19,
@@ -63,13 +368,48 @@
      "unit_price": 54.0
     }
    ],
-   "note": "Living room order: inside 30 days.",
-   "total": 287.0
+   "total": 287.0,
+   "tracking": {
+    "stage": "delivered",
+    "events": [
+     {
+      "stage": "ordered",
+      "days_ago": 26,
+      "time": "10:26 am",
+      "text": "Order placed"
+     },
+     {
+      "stage": "packed",
+      "days_ago": 24,
+      "time": "2:10 pm",
+      "text": "Packed at the Fernhollow warehouse"
+     },
+     {
+      "stage": "out_for_delivery",
+      "days_ago": 19,
+      "time": "8:01 am",
+      "text": "On the van with the day's deliveries"
+     },
+     {
+      "stage": "delivered",
+      "days_ago": 19,
+      "time": "1:18 pm",
+      "text": "Delivered and signed for at the front door"
+     }
+    ],
+    "delivery": {
+     "days_from_now": -19,
+     "window": "afternoon",
+     "hours": "12 pm to 5 pm"
+    },
+    "slots": [],
+    "can_reschedule": false,
+    "why_not": "It has already been delivered."
+   }
   },
   {
    "number": "FH-20155",
-   "email": "jo.chen@example.com",
-   "name": "Jo Chen",
+   "name": "Sam Rivera",
    "placed_days_ago": 48,
    "delivered_days_ago": 41,
    "status": "delivered",
@@ -83,36 +423,73 @@
      "unit_price": 395.0
     }
    ],
-   "note": "Outside the 30-day window: Emily must say so honestly and offer the care guide / contact page.",
-   "total": 1580.0
-  },
-  {
-   "number": "FH-20502",
-   "email": "jo.chen@example.com",
-   "name": "Jo Chen",
-   "placed_days_ago": 2,
-   "delivered_days_ago": null,
-   "status": "on_its_way",
-   "lines": [
-    {
-     "product_id": "ivory-linen-king-sheet-set",
-     "variant_id": "30098",
-     "title": "Ivory Linen king sheet set",
-     "variant": "Linen",
-     "qty": 1,
-     "unit_price": 198.0
+   "total": 1580.0,
+   "tracking": {
+    "stage": "delivered",
+    "events": [
+     {
+      "stage": "ordered",
+      "days_ago": 48,
+      "time": "10:26 am",
+      "text": "Order placed"
+     },
+     {
+      "stage": "packed",
+      "days_ago": 46,
+      "time": "2:10 pm",
+      "text": "Packed at the Fernhollow warehouse"
+     },
+     {
+      "stage": "out_for_delivery",
+      "days_ago": 41,
+      "time": "8:01 am",
+      "text": "On the van with the day's deliveries"
+     },
+     {
+      "stage": "delivered",
+      "days_ago": 41,
+      "time": "1:18 pm",
+      "text": "Delivered and signed for at the front door"
+     }
+    ],
+    "delivery": {
+     "days_from_now": -41,
+     "window": "afternoon",
+     "hours": "12 pm to 5 pm"
     },
-    {
-     "product_id": "matte-ceramic-vase-porcelain-cream",
-     "variant_id": "30892",
-     "title": "Matte Ceramic Vase Porcelain Cream",
-     "variant": "Small",
-     "qty": 1,
-     "unit_price": 56.0
-    }
-   ],
-   "note": "Not delivered yet: a return can start once it arrives.",
-   "total": 254.0
+    "slots": [],
+    "can_reschedule": false,
+    "why_not": "It has already been delivered."
+   }
   }
- ]
+ ],
+ "placed_order": {
+  "booked": "d4-morning",
+  "slots": [
+   {
+    "id": "d3-afternoon",
+    "days_from_now": 3,
+    "window": "afternoon",
+    "hours": "12 pm to 5 pm"
+   },
+   {
+    "id": "d4-morning",
+    "days_from_now": 4,
+    "window": "morning",
+    "hours": "8 am to 12 pm"
+   },
+   {
+    "id": "d4-evening",
+    "days_from_now": 4,
+    "window": "evening",
+    "hours": "5 pm to 9 pm"
+   },
+   {
+    "id": "d5-morning",
+    "days_from_now": 5,
+    "window": "morning",
+    "hours": "8 am to 12 pm"
+   }
+  ]
+ }
 }

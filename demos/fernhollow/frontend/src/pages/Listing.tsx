@@ -306,7 +306,7 @@ function FilterRail({
   const bands = priceBands(scoped);
   const saleCount = scoped.filter((p) => p.onSale).length;
   const group = (g: (typeof groups)[number]) => (
-    <fieldset key={g.name} className="filter-group" data-spot={`facet:${g.name.toLowerCase()}`}>
+    <fieldset key={g.name} className="filter-group" data-spot={`facet:${g.name.toLowerCase()}`} data-reveal-group>
       <legend className="filter-title">{g.name}</legend>
       <ul className="filter-list">
         {g.values.map((v) => {
@@ -369,7 +369,7 @@ function FilterRail({
         {/* What Emily asks about, high in the rail: it is ringed as she ticks it. */}
         {groups.filter((g) => isTasteGroup(g.name)).map(group)}
 
-        <fieldset className="filter-group" data-spot="facet:price">
+        <fieldset className="filter-group" data-spot="facet:price" data-reveal-group>
           <legend className="filter-title">Price</legend>
           {bands.length ? (
             <div className="band-chips">
