@@ -136,7 +136,7 @@ export function PayrollRun() {
               ))}
             </ul>
             {run.status === "draft" ? (
-              <button type="button" className="btn btn-primary btn-block" onClick={() => setConfirm(true)} {...thing("Approve run")}>
+              <button type="button" className="btn btn-primary btn-block" onClick={() => setConfirm(true)} data-dock-avoid {...thing("Approve run")}>
                 Approve run
               </button>
             ) : (

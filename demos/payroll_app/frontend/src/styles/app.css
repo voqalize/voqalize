@@ -82,7 +82,8 @@ h1,
 h2,
 h3 {
   margin: 0;
-  text-wrap: balance;
+  /* Wrap by the width there is (balance forced short, early breaks); pretty only avoids an orphan word. */
+  text-wrap: pretty;
 }
 p {
   margin: 0;
@@ -424,10 +425,15 @@ p {
   font-variation-settings: "opsz" 72;
   outline: none;
 }
+/* Text wraps by the width there is: no ch caps on subtitles, ledes or notes
+   (only Help's article bodies keep a reading measure). */
+.pagehead-text {
+  flex: 1 1 320px;
+  min-width: 0;
+}
 .pagehead-sub {
   margin-top: 6px;
   color: var(--ink-muted);
-  max-width: 75ch;
 }
 .pagehead-actions {
   display: flex;
@@ -718,7 +724,21 @@ tbody th {
 }
 
 /* dialog, drawer, notices */
+/* The confirm dialog is drawn in the page (not the top layer) so the raised agent can sit above it. */
+.dialog-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgba(19, 33, 43, 0.4);
+}
 .dialog {
+  background: #fff;
+  outline: none;
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
   border: 0;
   border-radius: var(--r-lg);
   padding: 20px 22px;
@@ -782,6 +802,13 @@ tbody th {
 }
 .drawer-head h2 {
   font-size: 16px;
+}
+.drawer-title {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
 }
 .drawer-body {
   padding: 18px 20px;
@@ -1333,7 +1360,6 @@ tr.is-draft {
   flex-wrap: wrap;
 }
 .difference-head {
-  max-width: 46ch;
 }
 .difference-parts {
   list-style: none;
@@ -1410,7 +1436,6 @@ tr.is-draft {
   font-size: 12.5px;
   font-weight: 400;
   color: var(--ink-muted);
-  max-width: 72ch;
   padding-left: 16px;
 }
 .row-total th,
@@ -1590,7 +1615,6 @@ tr.is-flag {
 .regime-basis {
   font-size: 12.5px;
   color: var(--ink-muted);
-  max-width: 70ch;
 }
 .verdict-line {
   font-family: var(--display);
@@ -1717,7 +1741,6 @@ tr.is-flag {
   border-top: 1px solid var(--line);
 }
 .switch .policy {
-  max-width: 80ch;
   color: var(--ink-muted);
   margin-bottom: 14px;
 }
@@ -1755,7 +1778,6 @@ tr.is-flag {
 /* ------------------------------------------------------------ settings, help */
 .lede {
   font-size: 15px;
-  max-width: 75ch;
   margin-bottom: 12px;
 }
 .plans {
@@ -1868,21 +1890,37 @@ tr.is-flag {
   gap: 10px;
   align-items: center;
 }
-.handoff {
+/* Help's hand-off card: opens the hand-off drawer (A4). */
+.handoff-card {
   position: sticky;
   top: calc(var(--top-h) + 16px);
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
-.handoff h2 {
+.handoff-card h2 {
   font-family: var(--display);
   font-weight: 560;
   font-size: 19px;
 }
-.handoff.has-draft {
-  border-color: rgba(11, 110, 95, 0.4);
-  box-shadow: 0 0 0 3px var(--primary-soft);
+.handoff-open {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.draft-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 10px 12px;
+  border: 1px solid rgba(11, 110, 95, 0.4);
+  border-radius: var(--r);
+  background: var(--primary-soft);
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  color: var(--ink);
 }
 .handoff-actions {
   display: flex;
@@ -1970,8 +2008,9 @@ tr.is-flag {
   font-size: 22px;
   margin-bottom: 4px;
 }
-.step-head p {
-  max-width: 70ch;
+.step-head > div {
+  flex: 1 1 320px;
+  min-width: 0;
 }
 .fields {
   display: grid;
@@ -2002,6 +2041,32 @@ tr.is-flag {
 .input-unit:has(.post) input {
   padding-right: 96px;
 }
+/* ── Setup: the import step's example of the expected file (round 1, A1) ── */
+.import-example {
+  display: grid;
+  gap: 10px;
+  padding: 16px 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface, #fff);
+}
+.import-example-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.import-example-head h3 {
+  font-size: 15px;
+  font-weight: 650;
+}
+.import-example code {
+  font-family: var(--mono, ui-monospace, monospace);
+  font-size: 11.5px;
+  font-weight: 500;
+}
+/* ── end setup import example ── */
 .dropzone {
   display: flex;
   align-items: center;
@@ -2273,7 +2338,10 @@ tr.is-flag {
   line-height: 1;
 }
 
-/* ------------------------------------------------------------ voice dock */
+/* ------------------------------------------------------------ voice dock and call tile (A0, X2) */
+/* Idle: a pill at the bottom right with the face slot, name, the job on this
+   page, EN / हिंदी and Talk. In a call the pill fades out and the face (one
+   fixed `.call-tile` for the page's life) becomes a floating call card. */
 .dock {
   position: fixed;
   right: 20px;
@@ -2282,36 +2350,44 @@ tr.is-flag {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 8px 8px 8px 8px;
+  padding: 7px 7px 7px 7px;
   background: var(--ink);
   color: #fff;
   border-radius: 999px;
   box-shadow: 0 18px 40px -16px rgba(19, 33, 43, 0.6);
   max-width: calc(100vw - 32px);
+  transition: opacity 0.25s ease, translate 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+/* A primary action under the pill's place: bottom left, just past the sidebar. */
+.dock.is-left {
+  right: auto;
+  left: calc(var(--side-w) + 20px);
+}
+.dock.is-hidden,
+.dock.is-calling {
+  opacity: 0;
+  translate: 0 24px;
+  pointer-events: none;
+}
+/* A drawer or dialog is open: the pill moves to a top corner, above it. */
+.dock.is-raised {
+  top: 14px;
+  bottom: auto;
+  z-index: 72;
+}
+.dock.is-raised-tl {
+  left: 16px;
+  right: auto;
+}
+.dock.is-raised-tr {
+  right: 16px;
+  left: auto;
 }
 .dock-face {
   width: 44px;
   height: 44px;
   border-radius: 50%;
-  overflow: hidden;
-  background: #2b3b45;
   flex: none;
-  display: grid;
-  place-items: center;
-}
-.dock.is-live .dock-face {
-  width: 56px;
-  height: 56px;
-  box-shadow: 0 0 0 2px var(--accent);
-}
-.dock-avatar {
-  width: 100%;
-  height: 100%;
-}
-.face-initial {
-  font-family: var(--display);
-  font-size: 20px;
-  color: var(--accent);
 }
 .dock-text {
   display: flex;
@@ -2331,8 +2407,13 @@ tr.is-flag {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.dock.is-error .dock-status {
+  color: #f3b7b3;
+  white-space: normal;
+}
 .lang {
   display: flex;
+  flex: none;
   padding: 2px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.08);
@@ -2364,31 +2445,354 @@ tr.is-flag {
   font-weight: 700;
   cursor: pointer;
   white-space: nowrap;
+  flex: none;
 }
 .dock-cta:disabled {
   opacity: 0.55;
   cursor: not-allowed;
 }
-.dock-btn {
-  width: 40px;
-  height: 40px;
+
+/* The face: one element, docked on the pill's slot, a tile in a call, or a bubble. */
+.call-tile {
+  position: fixed;
+  z-index: 51;
+  display: flex;
+  flex-direction: column;
+  border-radius: 50%;
+  overflow: hidden;
+  background: #2b3b45;
+  transition:
+    left 0.45s cubic-bezier(0.16, 1, 0.3, 1),
+    top 0.45s cubic-bezier(0.16, 1, 0.3, 1),
+    width 0.45s cubic-bezier(0.16, 1, 0.3, 1),
+    height 0.45s cubic-bezier(0.16, 1, 0.3, 1),
+    border-radius 0.45s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 0.25s ease;
+  touch-action: none;
+  outline: none;
+}
+.call-tile.is-docked {
+  pointer-events: none;
+}
+.call-tile.is-parked {
+  opacity: 0;
+}
+.call-tile.is-snap {
+  transition: none;
+}
+/* Raised above an open drawer or dialog (their scrims are z-index 60). */
+.call-tile.is-raised {
+  z-index: 73;
+}
+.call-tile.is-tile {
+  border-radius: 14px;
+  background: var(--ink);
+  color: #fff;
+  box-shadow:
+    0 0 0 4px var(--ink),
+    0 0 0 5px rgba(255, 255, 255, 0.16),
+    0 26px 50px -18px rgba(19, 33, 43, 0.65);
+  cursor: grab;
+}
+.call-tile.is-speaking.is-tile {
+  box-shadow:
+    0 0 0 4px var(--ink),
+    0 0 0 6px var(--accent),
+    0 26px 50px -18px rgba(19, 33, 43, 0.65);
+}
+.call-tile.is-mini {
+  border-radius: 50%;
+  cursor: grab;
+  box-shadow: 0 16px 34px -12px rgba(19, 33, 43, 0.5), 0 0 0 2px #fff, 0 0 0 4px var(--accent);
+}
+.call-tile.is-dragging {
+  cursor: grabbing;
+  transition: width 0.45s, height 0.45s, border-radius 0.45s;
+}
+.call-tile:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+.call-face {
+  position: relative;
+  flex: none;
+  width: 100%;
+  overflow: hidden;
+  background: linear-gradient(180deg, #2f4250 0%, #1d2d37 100%);
+  transition: height 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.call-tile.is-tile .call-face {
+  border-radius: 10px;
+}
+.call-tile.is-docked .call-face,
+.call-tile.is-mini .call-face {
+  height: 100% !important;
+}
+.call-face > .dock-avatar,
+.call-face > .face-placeholder {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.dock-avatar {
+  display: block;
+}
+.face-placeholder {
+  display: grid;
+  place-items: center;
+  background: radial-gradient(circle at 50% 36%, #3c5361 0%, #2b3b45 60%, #1f2d36 100%);
+}
+.face-placeholder span {
+  font-family: var(--display);
+  color: var(--accent);
+  line-height: 1;
+  font-size: 20px;
+}
+.call-tile.is-tile .face-placeholder span {
+  font-size: 64px;
+}
+.call-tile.is-mini .face-placeholder span {
+  font-size: 26px;
+}
+.call-tag {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(19, 33, 43, 0.72);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+}
+.call-state {
+  position: absolute;
+  left: 6px;
+  bottom: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 22px;
+  padding: 0 9px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.94);
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+.call-state::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ink-muted);
+}
+.call-state.is-listening::before {
+  background: var(--primary);
+  animation: dock-blink 1.4s ease-in-out infinite;
+}
+.call-state.is-speaking::before {
+  background: var(--accent);
+  animation: dock-blink 0.7s ease-in-out infinite;
+}
+.call-state.is-muted::before {
+  background: var(--negative);
+}
+@keyframes dock-blink {
+  50% {
+    opacity: 0.3;
+  }
+}
+.call-bar {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 4px 4px;
+  min-height: 0;
+}
+.call-controls {
+  display: flex;
+  gap: 8px;
+}
+.call-btn {
+  width: 30px;
+  height: 30px;
   border-radius: 50%;
   border: 0;
   display: grid;
   place-items: center;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.14);
   color: #fff;
   cursor: pointer;
 }
-.dock-end {
+.call-btn:hover {
+  background: rgba(255, 255, 255, 0.26);
+}
+.call-btn[aria-pressed="true"] {
+  background: #fff;
+  color: var(--ink);
+}
+.call-end,
+.call-end:hover {
   background: var(--negative);
 }
+.call-expand {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: end center;
+  padding-bottom: 6px;
+  border: 0;
+  background: transparent;
+  color: #fff;
+  opacity: 0;
+  cursor: pointer;
+}
+.call-tile.is-mini:hover .call-expand,
+.call-expand:focus-visible {
+  opacity: 1;
+}
+/* A side drawer on a phone is the whole width: its content starts below the
+   raised face, so the face covers none of it. */
+@media (max-width: 640px) {
+  body:has(.call-tile.is-raised.is-tile) .drawer-head,
+  body:has(.dock.is-raised) .drawer-head {
+    padding-top: 12px;
+  }
+  body:has(.call-tile.is-raised.is-tile) .drawer {
+    padding-top: 232px;
+  }
+  body:has(.call-tile.is-raised.is-mini) .drawer,
+  body:has(.dock.is-raised) .drawer {
+    padding-top: 76px;
+  }
+  .dock {
+    left: 12px;
+    right: 12px;
+    bottom: calc(12px + env(safe-area-inset-bottom));
+    gap: 8px;
+    padding: 5px;
+    max-width: none;
+  }
+  .dock.is-left {
+    left: 12px;
+  }
+  .dock-text {
+    flex: 1;
+    max-width: none;
+  }
+  .dock-face {
+    width: 40px;
+    height: 40px;
+  }
+  .dock-cta {
+    height: 40px;
+    padding: 0 12px;
+    font-size: 13px;
+  }
+  .lang-btn {
+    padding: 4px 7px;
+  }
+  .call-controls {
+    gap: 6px;
+  }
+  .call-btn {
+    width: 28px;
+    height: 28px;
+  }
+  .call-tile.is-tile .face-placeholder span {
+    font-size: 48px;
+  }
+}
+/* ------------------------------------------------------------ end voice dock and call tile */
+
+/* ------------------------------------------------------------ hand-off drawer and claim drawer (A4, task 5) */
+.kind-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 700;
+  background: var(--info-soft);
+  color: var(--info);
+}
+.kind-chip.kind-feature {
+  background: var(--accent-soft);
+  color: #7a4c0c;
+}
+.kind-pick {
+  display: inline-flex;
+  align-self: flex-start;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+}
+.kind-opt {
+  border: 0;
+  background: none;
+  padding: 5px 12px;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-muted);
+  cursor: pointer;
+}
+.kind-opt.is-on {
+  background: #fff;
+  color: var(--ink);
+  box-shadow: 0 1px 3px rgba(19, 33, 43, 0.15);
+}
+.drawer.handoff {
+  width: min(480px, 100vw);
+}
+.drawer.handoff textarea {
+  min-height: 180px;
+}
+.claim-amounts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.claim-amounts > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+}
+.claim-amounts .num {
+  font-size: 17px;
+}
+.claim-amounts.is-mismatch [data-claim-part="claimed"] {
+  border-color: rgba(194, 65, 58, 0.45);
+  background: var(--negative-soft);
+}
+.claim-amounts .mismatch {
+  grid-column: 1 / -1;
+}
+.drawer-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+/* ------------------------------------------------------------ end hand-off and claim drawers */
 
 /* ------------------------------------------------------------ debug console */
 .debug-fab {
+  /* Debug only: top right under the top bar, clear of the dock and the call tile. */
   position: fixed;
-  left: calc(var(--side-w) + 16px);
-  bottom: 16px;
+  right: 16px;
+  top: calc(var(--top-h) + 12px);
   z-index: 55;
   width: 40px;
   height: 40px;
@@ -2414,6 +2818,20 @@ tr.is-flag {
   border-radius: var(--r-lg);
   box-shadow: 0 24px 60px -20px rgba(19, 33, 43, 0.45);
   font-size: 12px;
+}
+.debug-fake {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--line-soft);
+}
+.debug-fake label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
 }
 .debug-head {
   display: flex;
@@ -2577,7 +2995,7 @@ tr.is-flag {
     grid-template-columns: minmax(0, 1fr);
   }
   .preview,
-  .handoff {
+  .handoff-card {
     position: static;
   }
   .plans,
@@ -2736,27 +3154,6 @@ tr.is-flag {
   .testrun,
   .dropzone {
     flex-wrap: wrap;
-  }
-  .dock {
-    right: 12px;
-    bottom: 12px;
-    gap: 6px;
-    padding: 5px;
-  }
-  .dock-text {
-    display: none;
-  }
-  .dock-face {
-    width: 38px;
-    height: 38px;
-  }
-  .dock-cta {
-    height: 38px;
-    padding: 0 12px;
-    font-size: 13px;
-  }
-  .lang-btn {
-    padding: 4px 7px;
   }
   .notices {
     right: 12px;

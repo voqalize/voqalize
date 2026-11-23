@@ -188,3 +188,42 @@ describe("regime comparison for everyone", () => {
     }
   });
 });
+
+describe("the hand-off request (A4)", () => {
+  it("a draft carries its kind, opens the drawer, and sends without leaving the screen", () => {
+    expect(S.useTk.getState().handoffOpen).toBe(false);
+    const r = S.draftTicket({ kind: "feature", subject: "Bulk regime switch", summary: "Asked: switch ten people at once.", employee_id: null });
+    expect(r.ok).toBe(true);
+    expect(r.ok && r.detail).toContain("feature request");
+    expect(S.useTk.getState()).toMatchObject({ handoffOpen: true, ticketDraft: { kind: "feature", subject: "Bulk regime switch" } });
+    const sent = S.submitTicket();
+    expect(sent.ok && sent.detail).toMatch(/^feature request TK-\d+ sent/);
+    const st = S.useTk.getState();
+    expect(st.handoffOpen).toBe(false);
+    expect(st.ticketDraft).toBeNull();
+    expect(st.tickets[0]).toMatchObject({ kind: "feature", subject: "Bulk regime switch", status: "open" });
+    expect(lastEvent()).toMatchObject({ name: "ticket.created" });
+  });
+
+  it("a draft with no kind is a support request; closing keeps the draft, discarding drops it", () => {
+    S.draftTicket({ subject: "Ravi's TDS", summary: "Needed: a check.", employee_id: "BB-1030" });
+    expect(S.useTk.getState().ticketDraft?.kind).toBe("support");
+    S.closeHandoff();
+    expect(S.useTk.getState()).toMatchObject({ handoffOpen: false, ticketDraft: { subject: "Ravi's TDS" } });
+    S.openHandoff("feature");
+    expect(S.useTk.getState().ticketDraft?.kind).toBe("support");
+    S.discardTicketDraft();
+    expect(S.useTk.getState()).toMatchObject({ handoffOpen: false, ticketDraft: null });
+    S.openHandoff("feature");
+    expect(S.useTk.getState().ticketDraft).toMatchObject({ kind: "feature", subject: "" });
+  });
+});
+
+describe("the claim drawer", () => {
+  it("opens and closes from the store, so a move opens the same drawer a click does", () => {
+    S.openClaimDrawer("RB-3109");
+    expect(S.useTk.getState().openClaim).toBe("RB-3109");
+    S.closeClaimDrawer();
+    expect(S.useTk.getState().openClaim).toBeNull();
+  });
+});

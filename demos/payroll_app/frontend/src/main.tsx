@@ -15,6 +15,11 @@ registerMoves(moves);
 if (debugMode()) {
   let n = 0;
   (window as unknown as { __tkRun: (id: string, args: unknown) => unknown }).__tkRun = (id, args) => moves.run(id, args, `debug-${++n}`);
+  // `__tkFakeCall("speaking")` shows the call tile without a client; `__tkFakeCall(false)` ends it.
+  void import("./voice/fake").then(({ useFakeCall }) => {
+    (window as unknown as { __tkFakeCall: (state: string | false) => void }).__tkFakeCall = (state) =>
+      useFakeCall.setState(state === false ? { on: false } : { on: true, state: (state || "listening") as "listening" });
+  });
 }
 
 createRoot(document.getElementById("root")!).render(

@@ -3,6 +3,7 @@
   "id": "priya",
   "display_name": "Priya",
   "role": "Paynora's in-app payroll guide",
+  "roles": { "onboarding": "Setup guide", "support": "Payroll support", "coach": "Feature guide" },
   "avatar_character": "priya",
   "voices": { "en": "omnivoice/priya", "hi": "omnivoice/priya" },
   "languages": [

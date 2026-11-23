@@ -1,20 +1,22 @@
-import { useState } from "react";
+import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import { AlertTriangle, Check, FileText, Wrench, X } from "lucide-react";
 import { COMPANY } from "../lib/data";
 import { date, monthShort, rupees } from "../lib/format";
-import { decideClaim, fixClaim, nameOf, useTk } from "../state/store";
+import { closeClaimDrawer, decideClaim, fixClaim, nameOf, openClaimDrawer, useTk } from "../state/store";
 import { Drawer, PageHead, Panel, Status, TableWrap, thing } from "../components/ui";
 
 export function ReimbursementsPage() {
   const st = useTk();
-  const [open, setOpen] = useState<string | null>(null);
+  // The open claim lives in the store, so the agent's `claim.open` opens the same drawer a click does.
+  const open = st.openClaim;
+  useEffect(() => () => closeClaimDrawer(), []);
   const review = st.claims.filter((c) => c.status === "pending" || c.status === "needs_fix");
   const rest = st.claims.filter((c) => !review.includes(c)).sort((a, b) => b.date.localeCompare(a.date));
   const claim = st.claims.find((c) => c.id === open) ?? null;
   const policy = (cat: string) => COMPANY.reimbursements.policy.find((p) => p.category === cat);
   return (
-    <div className="page">
+    <div className="page" data-claims-page>
       <PageHead title="Reimbursements" sub="Approved claims are paid with that month's salary, untaxed. Every claim needs a bill." />
       <Panel title="Claims to review" {...thing("Claims to review")} actions={<span className="small muted">{review.length} open, for February</span>}>
         {review.length ? (
@@ -36,9 +38,9 @@ export function ReimbursementsPage() {
                   const mismatch = c.amount !== c.bill_amount;
                   const limit = policy(c.category)?.monthly_limit;
                   return (
-                    <tr key={c.id} data-claim={c.id} className={mismatch ? "is-mismatch" : ""}>
+                    <tr key={c.id} data-claim={c.id} data-stage-group className={mismatch ? "is-mismatch" : ""}>
                       <td>
-                        <button type="button" className="linkbtn num" onClick={() => setOpen(c.id)}>
+                        <button type="button" className="linkbtn num" onClick={() => openClaimDrawer(c.id)}>
                           {c.id}
                         </button>
                         <small className="block muted">{date(c.date)}</small>
@@ -107,7 +109,7 @@ export function ReimbursementsPage() {
               {rest.map((c) => (
                 <tr key={c.id}>
                   <td>
-                    <button type="button" className="linkbtn num" onClick={() => setOpen(c.id)}>
+                    <button type="button" className="linkbtn num" onClick={() => openClaimDrawer(c.id)}>
                       {c.id}
                     </button>
                   </td>
@@ -146,38 +148,74 @@ export function ReimbursementsPage() {
           </table>
         </TableWrap>
       </Panel>
-      <Drawer open={!!claim} title={claim ? `${claim.id}, ${claim.category}` : ""} onClose={() => setOpen(null)}>
-        {claim ? (
-          <>
-            <dl className="kv">
-              <dt>Employee</dt>
-              <dd>{nameOf(claim.employee_id, st)}</dd>
-              <dt>Description</dt>
-              <dd>{claim.description}</dd>
-              <dt>Date</dt>
-              <dd>{date(claim.date)}</dd>
-              <dt>Claimed</dt>
-              <dd className="num">{rupees(claim.amount)}</dd>
-              <dt>Bill</dt>
-              <dd className="num">{rupees(claim.bill_amount)}</dd>
-              <dt>Paid with</dt>
-              <dd>{monthShort(claim.payroll_month)} salary</dd>
-              <dt>Status</dt>
-              <dd>
-                <Status value={claim.status} />
-              </dd>
-            </dl>
-            {claim.note ? <p className="note">{claim.note}</p> : null}
-            <div className="bill">
-              <FileText size={28} aria-hidden />
-              <span>
-                {claim.bill_file}
-                <small className="block muted">Bill total {rupees(claim.bill_amount)}</small>
-              </span>
-            </div>
-          </>
-        ) : null}
+      <Drawer open={!!claim} title={claim ? `${claim.id}, ${claim.category}` : ""} onClose={closeClaimDrawer} data-claim-drawer={claim?.id}>
+        {claim ? <ClaimDetail id={claim.id} /> : null}
       </Drawer>
     </div>
+  );
+}
+
+/** One claim's detail, in the drawer: what was claimed beside the bill, and its actions. */
+function ClaimDetail({ id }: { id: string }) {
+  const st = useTk();
+  const claim = st.claims.find((c) => c.id === id)!;
+  const mismatch = claim.amount !== claim.bill_amount;
+  const open = claim.status === "pending" || claim.status === "needs_fix";
+  return (
+    <>
+      <dl className="kv">
+        <dt>Employee</dt>
+        <dd>{nameOf(claim.employee_id, st)}</dd>
+        <dt>Description</dt>
+        <dd>{claim.description}</dd>
+        <dt>Date</dt>
+        <dd>{date(claim.date)}</dd>
+        <dt>Paid with</dt>
+        <dd>{monthShort(claim.payroll_month)} salary</dd>
+        <dt>Status</dt>
+        <dd>
+          <Status value={claim.status} />
+        </dd>
+      </dl>
+      <div className={`claim-amounts${mismatch ? " is-mismatch" : ""}`} data-claim-amounts data-stage-group>
+        <div data-claim-part="claimed">
+          <span className="small muted">Claimed</span>
+          <span className={`num strong${mismatch ? " neg" : ""}`}>{rupees(claim.amount)}</span>
+        </div>
+        <div data-claim-part="bill">
+          <span className="small muted">Bill amount</span>
+          <span className="num strong">{rupees(claim.bill_amount)}</span>
+        </div>
+        {mismatch ? (
+          <p className="small mismatch">
+            <AlertTriangle size={12} aria-hidden /> Off by {rupees(Math.abs(claim.amount - claim.bill_amount))}
+          </p>
+        ) : null}
+      </div>
+      {claim.note ? <p className="note">{claim.note}</p> : null}
+      <div className="bill">
+        <FileText size={28} aria-hidden />
+        <span>
+          {claim.bill_file}
+          <small className="block muted">Bill total {rupees(claim.bill_amount)}</small>
+        </span>
+      </div>
+      {open ? (
+        <div className="drawer-actions" data-stage-group>
+          {mismatch ? (
+            <button type="button" className="btn btn-primary" data-fix={claim.id} onClick={() => fixClaim(claim.id)}>
+              <Wrench size={15} aria-hidden /> Fix to {rupees(claim.bill_amount)}
+            </button>
+          ) : (
+            <button type="button" className="btn btn-primary" data-decide="approve" onClick={() => decideClaim(claim.id, "approve")}>
+              <Check size={15} aria-hidden /> Approve
+            </button>
+          )}
+          <button type="button" className="btn btn-ghost" data-decide="reject" onClick={() => decideClaim(claim.id, "reject")}>
+            <X size={15} aria-hidden /> Reject
+          </button>
+        </div>
+      ) : null}
+    </>
   );
 }

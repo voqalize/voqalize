@@ -1,10 +1,18 @@
-/** First sign-in: the setup wizard. Fields start empty; the guide or the admin fills them. */
+/**
+ * First sign-in: the setup wizard. Fields start empty. The company details
+ * can come from signup; the pay structure and leave policy are the admin's
+ * choice (or the common defaults, which she can edit); the employee file is
+ * imported by the admin herself (owner, round 1, A1).
+ */
+import { useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { Check, CircleAlert, FileSpreadsheet, Play, Sparkles } from "lucide-react";
+import { Check, CircleAlert, Download, FileSpreadsheet, ListChecks, Play, Sparkles, Upload } from "lucide-react";
+import sampleUrl from "../../../data/employees_import.csv?url";
 import { COMPANY } from "../lib/data";
 import { rupees } from "../lib/format";
-import { fieldsOf, SETUP_STEPS, type SetupField, type SetupStep, STEP_TITLES } from "../lib/setup";
-import { fillFromSignup, finishSetup, importEmployees, runTestPayroll, setSetupField, setSetupStep, useTk } from "../state/store";
+import { parseCsv } from "../lib/payroll";
+import { fieldsOf, PRESET_SOURCE, SETUP_STEPS, type SetupField, type SetupStep, STEP_TITLES } from "../lib/setup";
+import { fillPresets, finishSetup, importEmployees, runTestPayroll, SAMPLE_IMPORT, setSetupField, setSetupStep, useTk } from "../state/store";
 import { PageHead, TableWrap, thing } from "../components/ui";
 
 const DRAFT = COMPANY.payroll_runs.find((r) => r.id === "PR-2026-02")!;
@@ -49,8 +57,9 @@ function FieldsStep({ step, intro }: { step: SetupStep; intro: string }) {
           <h2>{STEP_TITLES[step]}</h2>
           <p className="muted">{intro}</p>
         </div>
-        <button type="button" className="btn btn-ghost" onClick={() => fillFromSignup(step, fields)}>
-          <Sparkles size={15} aria-hidden /> Use details from signup
+        <button type="button" className="btn btn-ghost" data-presets={step} onClick={() => fillPresets(step, fields)} {...thing(PRESET_SOURCE[step] === "signup" ? "Use details from signup" : "Use common defaults")}>
+          {PRESET_SOURCE[step] === "signup" ? <Sparkles size={15} aria-hidden /> : <ListChecks size={15} aria-hidden />}
+          {PRESET_SOURCE[step] === "signup" ? "Use details from signup" : "Use common defaults"}
         </button>
       </div>
       <div className="fields">
@@ -65,24 +74,70 @@ function FieldsStep({ step, intro }: { step: SetupStep; intro: string }) {
   );
 }
 
+/** The sample file's header and first rows, as the example of what the import expects. */
+const SAMPLE = parseCsv(SAMPLE_IMPORT);
+const EXAMPLE_COLS = ["employee_id", "name", "department", "designation", "location", "date_of_joining", "annual_ctc", "pan", "tax_regime", "manager_id"];
+
 function ImportStep() {
   const imp = useTk((s) => s.setup.imported);
+  const input = useRef<HTMLInputElement>(null);
+  const choose = async (file: File | undefined) => {
+    if (!file) return;
+    importEmployees(await file.text(), file.name);
+    if (input.current) input.current.value = "";
+  };
   return (
     <section className="step-body">
       <div className="step-head">
         <div>
           <h2>Import employees</h2>
-          <p className="muted">One row per person from your spreadsheet: job, CTC, PAN, UAN, regime and manager. Paynora checks every row before anything is saved.</p>
+          <p className="muted">One row per person, exported from your previous payroll or a spreadsheet. Paynora checks every row before anything is saved.</p>
         </div>
+      </div>
+      <div className="import-example" {...thing("Expected data", "import-example")}>
+        <div className="import-example-head">
+          <h3>What the file looks like</h3>
+          <a className="btn btn-ghost" href={sampleUrl} download="employees_import.csv" data-sample-download {...thing("Download sample file", "sample-download")}>
+            <Download size={15} aria-hidden /> Download sample file
+          </a>
+        </div>
+        <p className="small muted">
+          A CSV with these {SAMPLE.header.length} columns, in any order: {SAMPLE.header.join(", ")}. Dates as YYYY-MM-DD, CTC in rupees a year, regime new or old. The sample is {COMPANY.company.name}'s own file, {SAMPLE.rows.length} rows.
+        </p>
+        <TableWrap label="Example rows" className="import-table">
+          <table className="grid dense">
+            <thead>
+              <tr>
+                {EXAMPLE_COLS.map((c) => (
+                  <th key={c} scope="col" className={c === "annual_ctc" ? "r" : undefined}>
+                    <code>{c}</code>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {SAMPLE.rows.slice(0, 3).map((r) => (
+                <tr key={r.employee_id}>
+                  {EXAMPLE_COLS.map((c) => (
+                    <td key={c} className={`${c === "annual_ctc" ? "r " : ""}num nowrap`}>
+                      {r[c] || "—"}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </TableWrap>
       </div>
       <div className={`dropzone${imp ? " is-done" : ""}`} {...thing("Import employees", "step-import")}>
         <FileSpreadsheet size={28} aria-hidden />
         <div>
-          <strong>employees_import.csv</strong>
-          <span className="small muted">{imp ? `${imp.rows.length} rows read` : "Exported from your previous payroll, 14 columns"}</span>
+          <strong>{imp ? imp.file : "Your employee file"}</strong>
+          <span className="small muted">{imp ? `${imp.rows.length} rows read` : "Choose the CSV on your computer: the sample above works"}</span>
         </div>
-        <button type="button" className="btn btn-primary" data-import onClick={() => importEmployees()}>
-          {imp ? "Import again" : "Import file"}
+        <input ref={input} type="file" accept=".csv,text/csv" hidden data-import-input onChange={(e) => void choose(e.target.files?.[0])} />
+        <button type="button" className="btn btn-primary" data-import onClick={() => input.current?.click()} {...thing("Import file", "import-file")}>
+          <Upload size={15} aria-hidden /> {imp ? "Import another file" : "Import file"}
         </button>
       </div>
       {imp ? (

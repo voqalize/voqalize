@@ -1,12 +1,13 @@
-import { Suspense, lazy, useEffect, useRef } from "react";
+import { Suspense, lazy, useEffect, useLayoutEffect, useRef } from "react";
 import { BrowserRouter, Link, Outlet, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { screenOf } from "./lib/routes";
-import { bindRouter } from "./state/nav";
+import { bindRouter, withSlash } from "./state/nav";
 import { useTk } from "./state/store";
 import { emit, hello } from "./stage/runtime";
 import { debugMode } from "./voice/debug";
 import { VoiceDock } from "./voice/VoiceDock";
 import { Shell } from "./components/Shell";
+import { HandoffDrawer } from "./components/Handoff";
 import { PageHead } from "./components/ui";
 import { Dashboard } from "./pages/Dashboard";
 import { EmployeeDetail, EmployeeNew, EmployeesList } from "./pages/Employees";
@@ -28,6 +29,10 @@ function Frame() {
   const loc = useLocation();
   const here = useRef(loc.pathname + loc.search);
   here.current = loc.pathname + loc.search;
+  useLayoutEffect(() => {
+    const fixed = withSlash(window.location.pathname);
+    if (fixed) window.history.replaceState(window.history.state, "", fixed + window.location.search + window.location.hash);
+  }, [loc.pathname, loc.search, loc.hash]);
   useEffect(() => bindRouter((to, o) => navigate(to, o), () => here.current), [navigate]);
 
   // Every route change: the tab title, `screen.viewed` (silent) and a fresh hello.
@@ -47,6 +52,7 @@ function Frame() {
       </a>
       {me ? <Outlet /> : <Shell>{<Outlet />}</Shell>}
       <Notices />
+      <HandoffDrawer />
       <VoiceDock />
       {debugMode() ? (
         <Suspense fallback={null}>

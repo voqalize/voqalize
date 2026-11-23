@@ -13,11 +13,19 @@ import { Moves, Spotlight, type StageClient, type StagePage, stagePage } from "@
 import type { EventData, EventId } from "@voqalize/stage";
 import { PRODUCT } from "../lib/data";
 import { scene } from "./scene.gen";
+import { showWhole } from "./view";
 
 type Spec = typeof scene.spec;
 
 export const moves = new Moves(new Spotlight({ color: PRODUCT.brand.palette.primary, radius: 8 }), {
-  fixed: [".topbar"],
+  fixed: [".topbar", ".viewas-banner"],
+  // X1: every scroll a move makes shows the target's whole group, inner
+  // scroll areas (tables, sidebar, drawers) included, then the window with
+  // Stage's own scroll and timing.
+  extend: (c) => {
+    const windowScroll = c.scrollTo;
+    return { scrollTo: (el: Element) => showWhole(el, windowScroll) };
+  },
 });
 
 let page: StagePage | null = null;

@@ -72,7 +72,8 @@ language, the languages offered (with their toggle labels) and the default. The 
 `backend/persona.py`, the page in `frontend/src/persona.ts`; prompts, greetings, "Talk to …", alt
 text and tests all take it from there. To change the character, edit `persona.json` (pick an avatar
 character and a voice that speaks every listed language; see the catalog at
-`/api/v1/catalog.get`).
+`/api/v1/catalog.get`). `roles` holds the dock's label per job (onboarding, support, coach), picked
+by the page in front, as the brain picks the job.
 
 To add a language: add it to `languages` and `voices` in `persona.json`, then give it a greeting per
 job in `backend/prompt.py` (`GREETINGS`), its toggle line (`TOGGLE_CONFIRM`) and its held line

@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { BookOpen, ChevronDown, Send } from "lucide-react";
+import { BookOpen, ChevronDown, LifeBuoy, Lightbulb } from "lucide-react";
 import { date } from "../lib/format";
-import { discardTicketDraft, editTicketDraft, nameOf, submitTicket, useTk } from "../state/store";
+import { TICKET_KINDS, nameOf, openHandoff, useTk } from "../state/store";
 import { PageHead, Panel, Status, thing } from "../components/ui";
 
 /** Short articles about Paynora's own features. No legal advice. */
@@ -44,7 +44,7 @@ export function HelpPage() {
   const d = st.ticketDraft;
   return (
     <div className="page">
-      <PageHead title="Help" sub="Guides to Paynora, your tickets with our payroll team, and a hand-off when something needs a person." />
+      <PageHead title="Help" sub="Guides to Paynora, your requests to our payroll team, and a hand-off when something needs a person." />
       <div className="help-grid">
         <div className="help-main">
           <Panel title="Guides">
@@ -70,13 +70,14 @@ export function HelpPage() {
               ))}
             </ul>
           </Panel>
-          <Panel title="Your tickets">
+          <Panel title="Your tickets" data-stage-group>
             <ul className="tickets">
               {st.tickets.map((t) => (
                 <li key={t.id} data-ticket={t.id}>
                   <div className="ticket-head">
                     <span className="num strong">{t.id}</span>
                     <Status value={t.status} />
+                    {t.kind ? <span className={`kind-chip kind-${t.kind}`}>{TICKET_KINDS[t.kind]}</span> : null}
                     <span className="small muted">Opened {date(t.opened)}</span>
                   </div>
                   <p className="strong">{t.subject}</p>
@@ -87,42 +88,21 @@ export function HelpPage() {
             </ul>
           </Panel>
         </div>
-        <aside className={`panel handoff${d ? " has-draft" : ""}`} {...thing("Hand-off ticket")}>
+        <aside className="panel handoff-card" data-stage-group {...thing("Hand-off")}>
           <h2>Hand off to Paynora's payroll team</h2>
-          <p className="small muted">A payroll specialist reads the summary and replies by email. Nothing is sent until you press Send ticket.</p>
-          <label className="field">
-            <span>Subject</span>
-            <input name="ticket_subject" value={d?.subject ?? ""} placeholder="What needs a person" onChange={(e) => editTicketDraft({ subject: e.target.value })} />
-          </label>
-          <label className="field">
-            <span>Summary</span>
-            <textarea
-              name="ticket_summary"
-              rows={9}
-              value={d?.summary ?? ""}
-              placeholder="What was asked, what you found, what you need"
-              onChange={(e) => editTicketDraft({ summary: e.target.value })}
-            />
-          </label>
-          <label className="field">
-            <span>Employee, if it is about one</span>
-            <select name="ticket_employee" value={d?.employee_id ?? ""} onChange={(e) => editTicketDraft({ employee_id: e.target.value || null })}>
-              <option value="">Not about one person</option>
-              {st.employees.map((e) => (
-                <option key={e.id} value={e.id}>
-                  {e.name}, {e.id}
-                </option>
-              ))}
-            </select>
-          </label>
-          <div className="handoff-actions">
-            {d ? (
-              <button type="button" className="btn btn-ghost" onClick={discardTicketDraft}>
-                Discard
-              </button>
-            ) : null}
-            <button type="button" className="btn btn-primary" data-send-ticket disabled={!d?.subject?.trim() || !d?.summary?.trim()} onClick={() => submitTicket()} {...thing("Send ticket")}>
-              <Send size={15} aria-hidden /> Send ticket
+          <p className="small muted">When something needs a person, write it up here: a payroll specialist reads it and replies by email. The request opens beside the screen you are on.</p>
+          {d ? (
+            <button type="button" className="draft-chip" onClick={() => openHandoff()}>
+              <span className="small muted">{TICKET_KINDS[d.kind]}, not sent</span>
+              <strong>{d.subject || "Untitled"}</strong>
+            </button>
+          ) : null}
+          <div className="handoff-open">
+            <button type="button" className="btn btn-primary" onClick={() => openHandoff("support")}>
+              <LifeBuoy size={15} aria-hidden /> Support request
+            </button>
+            <button type="button" className="btn btn-ghost" onClick={() => openHandoff("feature")}>
+              <Lightbulb size={15} aria-hidden /> Feature request
             </button>
           </div>
         </aside>

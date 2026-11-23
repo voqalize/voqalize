@@ -383,7 +383,7 @@ export function EmployeeNew() {
             <Link to="/employees" className="btn btn-ghost">
               Cancel
             </Link>
-            <button type="submit" className="btn btn-primary" data-save-employee disabled={locked(st)} {...thing("Save", "save-employee")}>
+            <button type="submit" className="btn btn-primary" data-save-employee data-dock-avoid disabled={locked(st)} {...thing("Save", "save-employee")}>
               Save and add to February
             </button>
           </div>

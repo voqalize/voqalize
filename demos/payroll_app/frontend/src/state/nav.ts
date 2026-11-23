@@ -22,3 +22,14 @@ export function go(to: string, replace = false) {
 
 /** The app path in front, without the base, with its query. */
 export const currentPath = (): string => where();
+
+/**
+ * The app's home is always `/demos/payroll_app/`, with its slash. The router
+ * writes the index as the bare base (`navigate("/")`, `<Link to="/">`), and
+ * that address without the slash is not a file on static hosting, so a reload
+ * there failed. The router frame calls this on every location change and puts
+ * the slash back in place (a `replaceState`: no navigation, no history entry).
+ */
+export function withSlash(pathname: string, base = import.meta.env.BASE_URL.replace(/\/$/, "")): string | null {
+  return base && pathname === base ? `${base}/` : null;
+}

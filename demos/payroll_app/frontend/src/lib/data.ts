@@ -124,6 +124,8 @@ export interface Ticket {
   opened: string;
   summary: string;
   employee_id?: string | null;
+  /** A support request or a feature request (raised in this session; the sample tickets have none). */
+  kind?: "support" | "feature";
 }
 
 export interface Company {

@@ -16,10 +16,25 @@ export interface Persona {
   id: string;
   display_name: string;
   role: string;
+  /** The dock's label per job (the brain's `mode_for`: /welcome onboarding, / and /help support, else coach). */
+  roles: Record<Job, string>;
   avatar_character: string;
   voices: Record<string, string>;
   languages: Language[];
   default_language: Language["code"];
 }
 
+export type Job = "onboarding" | "support" | "coach";
+
 export const PERSONA = persona as Persona;
+
+/** The guide's job on an app path, by the same rule as the brain's `mode_for`. */
+export function jobFor(path: string): Job {
+  const p = `/${path.split("?")[0]!.replace(/^\/+|\/+$/g, "")}`;
+  if (p.startsWith("/welcome")) return "onboarding";
+  if (p === "/" || p === "/help" || p.startsWith("/help/")) return "support";
+  return "coach";
+}
+
+/** The label under the name in the dock and the call tile, for the page in front. */
+export const roleFor = (path: string): string => PERSONA.roles?.[jobFor(path)] ?? PERSONA.role;

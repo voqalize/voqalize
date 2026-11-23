@@ -35,7 +35,7 @@ export function LeavePage() {
                   const impact = leaveImpact(r.id, st);
                   const e = st.employees.find((x) => x.id === r.employee_id)!;
                   return (
-                    <li key={r.id} className={`request${impact?.lop && impact.inFebruary ? " has-lop" : ""}`} data-request={r.id}>
+                    <li key={r.id} className={`request${impact?.lop && impact.inFebruary ? " has-lop" : ""}`} data-request={r.id} data-stage-group>
                       <div className="request-who">
                         <Avatar name={e.name} size={34} />
                         <div>

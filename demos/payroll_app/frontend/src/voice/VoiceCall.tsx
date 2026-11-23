@@ -13,14 +13,15 @@ import { Avatar } from "@voqalize/avatar/react";
 import { createVoqalizeTransport } from "@voqalize/client-transport";
 import { type VoqalizeMedia, useVoqalizeMedia } from "@voqalize/demo-kit";
 import type { StageClient } from "@voqalize/stage";
-import { Mic, MicOff, PhoneOff } from "lucide-react";
 import { connectRequest, withRealHeaders } from "../config";
 import { PERSONA } from "../persona";
 import { currentPath } from "../state/nav";
 import { attach, hello } from "../stage/runtime";
 import { languageChanged, useLang } from "./lang";
-import { LangToggle } from "./LangToggle";
 import { debugMode } from "./debug";
+import { CallTile } from "./CallTile";
+import { type CallState, useFakeCall } from "./fake";
+import { DockBar } from "./VoiceDock";
 
 type Activity = "idle" | "connecting" | "listening" | "thinking" | "speaking" | "error";
 
@@ -90,8 +91,8 @@ export default function VoiceCall() {
 function Dock({ call }: { call: ReturnType<typeof useCall> }) {
   const [state, setActivity] = useState<Activity>(call.live ? "connecting" : "idle");
   const activity: Activity = call.error ? "error" : state;
-  const [heard, setHeard] = useState("");
   const [muted, setMuted] = useState(false);
+  const fake = useFakeCall();
 
   useRTVIClientEvent(
     RTVIEvent.BotReady,
@@ -106,7 +107,7 @@ function Dock({ call }: { call: ReturnType<typeof useCall> }) {
     RTVIEvent.Disconnected,
     useCallback(() => {
       setActivity("idle");
-      setHeard("");
+      setMuted(false);
       useLang.setState({ send: null });
     }, []),
   );
@@ -114,60 +115,39 @@ function Dock({ call }: { call: ReturnType<typeof useCall> }) {
   useRTVIClientEvent(RTVIEvent.BotLlmStarted, useCallback(() => setActivity("thinking"), []));
   useRTVIClientEvent(RTVIEvent.BotStartedSpeaking, useCallback(() => setActivity("speaking"), []));
   useRTVIClientEvent(RTVIEvent.BotStoppedSpeaking, useCallback(() => setActivity("listening"), []));
-  useRTVIClientEvent(
-    RTVIEvent.UserTranscript,
-    useCallback((d: { text: string }) => {
-      if (d.text) setHeard(d.text);
-    }, []),
-  );
   useEffect(() => () => useLang.setState({ send: null }), []);
 
   const on = activity !== "idle" && activity !== "error";
-  const STATUS: Record<Activity, string> = {
-    idle: PERSONA.role,
-    connecting: "Connecting…",
-    listening: muted ? "Microphone off" : "Listening",
-    thinking: "Thinking",
-    speaking: "Speaking",
-    error: "Could not connect",
-  };
+  // `?debug=1` can fake a call over the real dock, to see and screenshot the tile.
+  const live = on || fake.on;
   const toggleMute = () => {
+    if (fake.on && !on) {
+      useFakeCall.setState({ muted: !fake.muted });
+      return;
+    }
     call.client.enableMic(muted);
     setMuted(!muted);
   };
   return (
-    <div className={`dock${on ? " is-live" : ""} is-${activity}`} role="region" aria-label={`Talk to ${PERSONA.display_name}`}>
-      <div className="dock-face">
+    <>
+      <CallTile
+        live={live}
+        state={on ? (activity as CallState) : fake.on ? fake.state : "connecting"}
+        muted={on ? muted : fake.muted}
+        onMute={toggleMute}
+        onEnd={() => (on ? void call.end() : useFakeCall.setState({ on: false }))}
+      >
         <Avatar className="dock-avatar" client={call.client} character={PERSONA.avatar_character} aria-label={PERSONA.display_name} />
-      </div>
-      <div className="dock-text">
-        <p className="dock-name">{PERSONA.display_name}</p>
-        <p className="dock-status" aria-live="polite">
-          {call.error ?? (on && heard ? `“${heard}”` : STATUS[activity])}
-        </p>
-      </div>
-      <LangToggle />
-      {on ? (
-        <>
-          <button type="button" className="dock-btn" aria-pressed={muted} aria-label={muted ? "Turn microphone on" : "Turn microphone off"} onClick={toggleMute}>
-            {muted ? <MicOff size={18} /> : <Mic size={18} />}
-          </button>
-          <button type="button" className="dock-btn dock-end" aria-label="End conversation" onClick={() => void call.end()}>
-            <PhoneOff size={18} />
-          </button>
-        </>
-      ) : (
-        <button
-          type="button"
-          className="dock-cta"
-          onClick={() => {
-            setActivity("connecting");
-            void call.begin();
-          }}
-        >
-          <Mic size={16} aria-hidden /> <span className="dock-cta-label">Talk to {PERSONA.display_name}</span>
-        </button>
-      )}
-    </div>
+      </CallTile>
+      <DockBar
+        calling={live}
+        activity={activity}
+        status={call.error}
+        onTalk={() => {
+          setActivity("connecting");
+          void call.begin();
+        }}
+      />
+    </>
   );
 }

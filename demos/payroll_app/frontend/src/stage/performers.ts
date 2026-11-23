@@ -17,6 +17,9 @@ import { SETUP_FIELDS, SETUP_STEPS, type SetupStep, STEP_TITLES, setupField } fr
 import { currentPath, go } from "../state/nav";
 import * as S from "../state/store";
 import { scene } from "./scene.gen";
+import { ringWhole } from "./view";
+
+export { groupOf, ringWhole, showWhole } from "./view";
 
 type Spec = typeof scene.spec;
 
@@ -44,9 +47,37 @@ async function ringHeading(c: MoveContext) {
   }
 }
 
+/** Show the target's whole group (inner scroll areas too, see `view.ts`), then ring it. */
 async function ringEl(c: MoveContext, el: Element, label: string) {
-  await c.scrollTo(el);
-  await c.ring(el, label);
+  await ringWhole(c, el, label);
+}
+
+/** On screen now: a phone's closed menu has its links translated off the left edge. */
+const onScreen = (el: Element | null): el is HTMLElement => {
+  if (!visible(el)) return false;
+  const r = el.getBoundingClientRect();
+  return r.right > 0 && r.left < window.innerWidth && r.bottom > 0 && r.top < window.innerHeight + 2000;
+};
+
+// ------------------------------------------------------------ claim helpers
+
+/** The claim drawer open on `id`, if it is. */
+const claimDrawer = (id: string) => $(`[data-claim-drawer="${id}"]`);
+
+/**
+ * Where to act on a claim: in its open drawer if that is in front (the table
+ * is under the drawer's scrim), else in its row on Reimbursements. A drawer
+ * open on another claim is closed first.
+ */
+async function claimTarget(id: string, sel: string, c: MoveContext): Promise<{ btn: Element; bill: Element | null }> {
+  const other = S.useTk.getState().openClaim;
+  if (other && other !== id) S.closeClaimDrawer();
+  if (claimDrawer(id)) {
+    const btn = (await waitFor(() => $(`[data-claim-drawer="${id}"] ${sel}`), WAIT_MS)) ?? c.refuse("claim_id", `claim ${id} has no such button open`);
+    return { btn, bill: $(`[data-claim-drawer="${id}"] [data-claim-part="bill"]`) };
+  }
+  const btn = await open("/reimbursements", `[data-claim="${id}"] ${sel}`, c, `claim ${id}`);
+  return { btn, bill: $(`[data-claim="${id}"] [data-stage-label="Bill amount"]`) };
 }
 
 /** A controller result as the move's detail, or its refusal. */
@@ -169,7 +200,7 @@ export function performers(): Performers<Spec> {
       const want = fold(String(page ?? "").trim());
       const name = names.find((n) => fold(n) === want) ?? names.find((n) => fold(n).startsWith(want) && want.length > 2) ?? c.refuse("page", `there is no page "${page}"`, names);
       const link = $(`[data-nav="${name}"]`);
-      if (link && visible(link)) await ringEl(c, link, name);
+      if (onScreen(link)) await ringEl(c, link, name);
       await open(PAGES[name], "[data-stage-heading]", c, name);
       c.done(`opened ${name}`);
       c.after(() => ringHeading(c));
@@ -276,9 +307,8 @@ export function performers(): Performers<Spec> {
       if (claim.status !== "needs_fix" && claim.status !== "pending") c.refuse("claim_id", `${id} is already ${claim.status}`, open_);
       const n = Number(amount);
       if (n !== claim.bill_amount) c.refuse("amount", `the bill for ${id} is ${rupees(claim.bill_amount)}; a fix sets the claim to the bill`, [String(claim.bill_amount)]);
-      const sel = claim.amount !== claim.bill_amount ? `[data-fix="${id}"]` : `[data-claim="${id}"] [data-decide="approve"]`;
-      const btn = await open("/reimbursements", sel, c, `claim ${id}`);
-      const bill = $(`[data-claim="${id}"] [data-stage-label="Bill amount"]`);
+      const sel = claim.amount !== claim.bill_amount ? `[data-fix="${id}"]` : `[data-decide="approve"]`;
+      const { btn, bill } = await claimTarget(id, sel, c);
       await ringEl(c, bill ?? btn, `Bill ${rupees(claim.bill_amount)}`);
       await ringEl(c, btn, "Fix amount");
       const r = S.fixClaim(id, n);
@@ -295,12 +325,29 @@ export function performers(): Performers<Spec> {
       if (decision === "approve" && claim.status === "needs_fix") {
         c.refuse("decision", `${id} claims ${rupees(claim.amount)} against a bill of ${rupees(claim.bill_amount)}; fix the amount first`, [String(claim.bill_amount)]);
       }
-      const btn = await open("/reimbursements", `[data-claim="${id}"] [data-decide="${decision}"]`, c, `claim ${id}`);
+      const { btn } = await claimTarget(id, `[data-decide="${decision}"]`, c);
       await ringEl(c, btn, `${decision === "approve" ? "Approve" : "Reject"} ${id}`);
       await c.beat(300);
       const r = S.decideClaim(id, decision);
       const detail = landed(r, c, "claim_id");
       return detail;
+    },
+
+    "claim.open": async ({ claim_id }, c) => {
+      const id = String(claim_id ?? "").trim().toUpperCase();
+      const open_ = S.claimsToReview().map((x) => x.id);
+      const claim = S.useTk.getState().claims.find((x) => x.id === id) ?? c.refuse("claim_id", `there is no claim ${claim_id}`, open_);
+      await open("/reimbursements", "[data-claims-page]", c, "Reimbursements");
+      // A claim still to review has a row up top: ring it, then open it, as a click would.
+      const row = $(`[data-claim="${id}"] .linkbtn`);
+      if (row && !claimDrawer(id)) await ringEl(c, row, id);
+      S.openClaimDrawer(id);
+      const amounts = (await waitFor(() => $(`[data-claim-drawer="${id}"] [data-claim-amounts]`), WAIT_MS)) ?? c.refuse("claim_id", `claim ${id} did not open`);
+      const parts = [...amounts.querySelectorAll("[data-claim-part]")];
+      await c.scrollTo(amounts);
+      await c.ring(parts.length ? parts : amounts, { label: `Claimed ${rupees(claim.amount)} · Bill ${rupees(claim.bill_amount)}`, separate: true });
+      const off = claim.amount !== claim.bill_amount ? `, off by ${rupees(Math.abs(claim.amount - claim.bill_amount))}` : "";
+      return `${id} open: claimed ${rupees(claim.amount)}, bill ${rupees(claim.bill_amount)}${off}; ${claim.status.replace("_", " ")}`;
     },
 
     "employee.fill": async ({ field, value }, c) => {
@@ -348,23 +395,32 @@ export function performers(): Performers<Spec> {
       return detail;
     },
 
-    "ticket.draft": async ({ subject, summary, employee_id }, c) => {
+    "ticket.draft": async ({ kind, subject, summary, employee_id }, c) => {
+      if (kind !== "support" && kind !== "feature") c.refuse("kind", "a support request or a feature request", ["support", "feature"]);
       if (!String(subject ?? "").trim()) c.refuse("subject", "a ticket needs a subject");
       if (!String(summary ?? "").trim()) c.refuse("summary", "a ticket needs the written summary");
       let who: string | null = null;
       if (employee_id) who = employeeOr(c, employee_id).id;
-      const panel = await open("/help", ".handoff", c, "the help centre");
-      await ringEl(c, panel, "Hand-off ticket");
-      const r = S.draftTicket({ subject: String(subject), summary: String(summary), employee_id: who });
+      // The hand-off opens as a drawer over the screen in front; the page under it stays where it is.
+      S.openHandoff(kind);
+      const panel = (await waitFor(() => $("[data-handoff]"), WAIT_MS)) ?? c.refuse("kind", "the hand-off panel did not open");
+      await c.ring(panel, S.TICKET_KINDS[kind]);
+      const r = S.draftTicket({ kind, subject: String(subject), summary: String(summary), employee_id: who });
       const detail = landed(r, c, "summary");
+      c.done(detail);
+      c.after(async () => {
+        const text = await waitFor(() => $<HTMLTextAreaElement>('[data-handoff] textarea[name="ticket_summary"]'), WAIT_MS);
+        if (text) await ringEl(c, text.closest("label") ?? text, "The request");
+      });
       return detail;
     },
 
     "ticket.submit": async (_a, c) => {
       const d = S.useTk.getState().ticketDraft;
-      if (!d?.subject.trim() || !d.summary.trim()) c.refuse("ticket", "there is no ticket draft on screen; draft one first");
-      const btn = await open("/help", "[data-send-ticket]", c, "the hand-off panel");
-      await ringEl(c, btn, "Send ticket");
+      if (!d?.subject.trim() || !d.summary.trim()) c.refuse("ticket", "there is no request written out on screen; draft one first");
+      if (!S.useTk.getState().handoffOpen) S.openHandoff();
+      const btn = (await waitFor(() => $("[data-handoff] [data-send-ticket]"), WAIT_MS)) ?? c.refuse("ticket", "the hand-off panel did not open");
+      await ringEl(c, btn, "Send");
       await c.beat(300);
       const r = S.submitTicket();
       const detail = landed(r, c, "ticket");
@@ -391,22 +447,8 @@ export function performers(): Performers<Spec> {
       return detail;
     },
 
-    "setup.import": async (_a, c) => {
-      await openSetupStep("import", c);
-      const btn = (await waitFor(() => $("[data-import]"), WAIT_MS)) ?? c.refuse("step", "the import step is not on screen");
-      await ringEl(c, btn.closest(".dropzone") ?? btn, "Import employees");
-      const r = S.importEmployees();
-      const detail = landed(r, c, "step");
-      c.done(detail);
-      c.after(async () => {
-        const v = await waitFor(() => $(".validation"), WAIT_MS);
-        if (v) await ringEl(c, v, "Validation summary");
-      });
-      return detail;
-    },
-
     "setup.test_run": async (_a, c) => {
-      if (!S.useTk.getState().setup.imported) c.refuse("step", "import employees first, on the import step", ["setup.import"]);
+      if (!S.useTk.getState().setup.imported) c.refuse("step", "the admin imports her employee file first, with Import file on the import step");
       await openSetupStep("test_run", c);
       const btn = (await waitFor(() => $("[data-test-run]"), WAIT_MS)) ?? c.refuse("step", "the test payroll step is not on screen");
       await ringEl(c, btn, "Run test payroll");

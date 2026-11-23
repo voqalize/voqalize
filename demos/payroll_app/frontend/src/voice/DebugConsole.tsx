@@ -11,6 +11,7 @@ import { SETUP_FIELDS } from "../lib/setup";
 import { resetSession, useTk } from "../state/store";
 import { eventLog, logResult, moves, onEventLog } from "../stage/runtime";
 import { scene } from "../stage/scene.gen";
+import { FAKE_STATES, useFakeCall } from "./fake";
 
 const NEW_SAMPLE: Record<string, string> = {
   name: "Nandini Iyer",
@@ -44,6 +45,8 @@ export function sample(id: string): unknown {
       return { request_id: "LV-2412", decision: "approve" };
     case "claim.fix":
       return { claim_id: "RB-3108", amount: 4580 };
+    case "claim.open":
+      return { claim_id: "RB-3109" };
     case "claim.decide":
       return { claim_id: "RB-3109", decision: "approve" };
     case "employee.fill": {
@@ -54,6 +57,7 @@ export function sample(id: string): unknown {
       return { employee_id: "BB-1007", regime: "old" };
     case "ticket.draft":
       return {
+        kind: "support",
         subject: "Ravi Kumar: January net pay dropped by ₹14,415",
         summary:
           "Asked: why Ravi Kumar's (BB-1030) January net pay fell from ₹1,26,374 to ₹1,11,959.\nFound: 2 days of leave without pay (₹8,916), and TDS up ₹10,699 after proofs were verified on 21 Jan 2026 without ELSS and NPS; ₹5,200 of claims were paid.\nNeeded: confirm he can still submit the ELSS and NPS proofs before 28 Feb so March TDS comes down.",
@@ -63,7 +67,7 @@ export function sample(id: string): unknown {
       return { step: st.setup.step === "company" ? "structure" : "company" };
     case "setup.fill": {
       const f = SETUP_FIELDS.find((x) => x.step === st.setup.step && !st.setup.fields[x.name]) ?? SETUP_FIELDS.find((x) => !st.setup.fields[x.name]) ?? SETUP_FIELDS[0]!;
-      return { field: f.name, value: f.signup };
+      return { field: f.name, value: f.preset };
     }
     case "me.view":
       return { employee_id: "BB-1030", tab: "payslips" };
@@ -113,6 +117,7 @@ export function DebugConsole() {
           <X size={16} />
         </button>
       </div>
+      <FakeCall />
       <ol className="debug-moves">
         {ids.map((id) => {
           const r = results[id];
@@ -157,5 +162,24 @@ export function DebugConsole() {
         </ol>
       </details>
     </aside>
+  );
+}
+
+/** Fake a call (no client): the dock goes away and the face becomes the call tile, in any state. */
+function FakeCall() {
+  const fake = useFakeCall();
+  return (
+    <div className="debug-fake">
+      <label>
+        <input type="checkbox" checked={fake.on} onChange={(e) => useFakeCall.setState({ on: e.target.checked })} data-fake-call /> Fake a call
+      </label>
+      <select value={fake.state} onChange={(e) => useFakeCall.setState({ state: e.target.value as (typeof FAKE_STATES)[number] })} aria-label="Fake call state" disabled={!fake.on}>
+        {FAKE_STATES.map((s) => (
+          <option key={s} value={s}>
+            {s}
+          </option>
+        ))}
+      </select>
+    </div>
   );
 }

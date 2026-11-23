@@ -132,7 +132,7 @@ export function RegimeView({ employeeId, mode = "admin" }: { employeeId: string;
         </p>
       </div>
 
-      <div className="regime-cards">
+      <div className="regime-cards" data-stage-group>
         {(["new", "old"] as Regime[]).map((r) => {
           const t = cmp[r];
           return (

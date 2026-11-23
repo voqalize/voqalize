@@ -16,7 +16,7 @@ import {
 import { delta, monthLabel, rupees } from "../lib/format";
 import {
   type ImportResult, type NewEmployeeForm, type NewField, type RunTotals, declOf, emptyForm, employeeFromForm, febSlip, formProblems, joiningLop,
-  leaveOutcome, parseCsv, reimbursementsFor, testPayroll, totalsOf, validateImport,
+  leaveOutcome, parseCsv, REQUIRED_COLUMNS, reimbursementsFor, testPayroll, totalsOf, validateImport,
 } from "../lib/payroll";
 import { emptySetupFields, type SetupStep, setupField } from "../lib/setup";
 import { emit } from "../stage/runtime";
@@ -26,7 +26,11 @@ export type Result = { ok: true; detail: string } | { ok: false; why: string; op
 const ok = (detail: string): Result => ({ ok: true, detail });
 const no = (why: string, options?: string[]): Result => ({ ok: false, why, ...(options?.length ? { options } : {}) });
 
+export type TicketKind = "support" | "feature";
+export const TICKET_KINDS: Record<TicketKind, string> = { support: "Support request", feature: "Feature request" };
+
 export interface TicketDraft {
+  kind: TicketKind;
   subject: string;
   summary: string;
   employee_id: string | null;
@@ -35,7 +39,7 @@ export interface TicketDraft {
 export interface SetupState {
   step: SetupStep;
   fields: Record<string, string>;
-  imported: ImportResult | null;
+  imported: (ImportResult & { file: string }) | null;
   test: { totals: RunTotals; matched: number } | null;
   finished: boolean;
 }
@@ -57,6 +61,10 @@ export interface TkState {
   declarations: Declaration[];
   tickets: Ticket[];
   ticketDraft: TicketDraft | null;
+  /** The hand-off drawer is open over the screen in front. */
+  handoffOpen: boolean;
+  /** The claim whose detail drawer is open on Reimbursements. */
+  openClaim: string | null;
   newForm: NewEmployeeForm;
   setup: SetupState;
   notices: Notice[];
@@ -78,6 +86,8 @@ export function initialState(): TkState {
     declarations: clone(COMPANY.declarations),
     tickets: clone(COMPANY.tickets),
     ticketDraft: null,
+    handoffOpen: false,
+    openClaim: null,
     newForm: emptyForm(),
     setup: { step: "company", fields: emptySetupFields(), imported: null, test: null, finished: false },
     notices: [],
@@ -295,14 +305,27 @@ export function saveEmployee(): Result {
   return ok(detail);
 }
 
-export function draftTicket(d: TicketDraft): Result {
+export function draftTicket(d: Omit<TicketDraft, "kind"> & { kind?: TicketKind | null }): Result {
   if (!d.subject.trim() || !d.summary.trim()) return no("a ticket needs a subject and a summary");
-  set({ ticketDraft: { subject: d.subject.trim(), summary: d.summary.trim(), employee_id: d.employee_id || null } });
-  return ok(`ticket draft on screen: "${d.subject.trim()}"; nothing sent yet`);
+  const kind: TicketKind = d.kind === "feature" ? "feature" : "support";
+  set({ ticketDraft: { kind, subject: d.subject.trim(), summary: d.summary.trim(), employee_id: d.employee_id || null }, handoffOpen: true });
+  return ok(`${TICKET_KINDS[kind].toLowerCase()} written out on screen: "${d.subject.trim()}"; nothing sent yet`);
 }
 export const editTicketDraft = (patch: Partial<TicketDraft>) =>
-  set((s) => ({ ticketDraft: { subject: "", summary: "", employee_id: null, ...s.ticketDraft, ...patch } }));
-export const discardTicketDraft = () => set({ ticketDraft: null });
+  set((s) => ({ ticketDraft: { kind: "support", subject: "", summary: "", employee_id: null, ...s.ticketDraft, ...patch } }));
+export const discardTicketDraft = () => set({ ticketDraft: null, handoffOpen: false });
+/** Open the hand-off drawer over the screen in front (a fresh draft of `kind`, or the one kept). */
+export const openHandoff = (kind?: TicketKind) =>
+  set((s) => ({
+    handoffOpen: true,
+    ticketDraft: kind && (!s.ticketDraft || (!s.ticketDraft.subject && !s.ticketDraft.summary)) ? { kind, subject: "", summary: "", employee_id: null } : s.ticketDraft,
+  }));
+/** Close the drawer; the draft is kept until it is sent or discarded. */
+export const closeHandoff = () => set({ handoffOpen: false });
+
+/** The claim detail drawer on Reimbursements (a click on a claim id, or `claim.open`). */
+export const openClaimDrawer = (id: string) => set({ openClaim: id });
+export const closeClaimDrawer = () => set({ openClaim: null });
 
 export function submitTicket(): Result {
   const s = get();
@@ -310,9 +333,9 @@ export function submitTicket(): Result {
   if (!d || !d.subject.trim() || !d.summary.trim()) return no("there is no ticket draft on screen; draft one first");
   const n = Math.max(...s.tickets.map((t) => Number(t.id.slice(3)))) + 1;
   const id = `TK-${n}`;
-  set({ tickets: [{ id, subject: d.subject, summary: d.summary, status: "open", opened: TODAY, employee_id: d.employee_id }, ...s.tickets], ticketDraft: null });
+  set({ tickets: [{ id, subject: d.subject, summary: d.summary, status: "open", opened: TODAY, employee_id: d.employee_id, kind: d.kind }, ...s.tickets], ticketDraft: null, handoffOpen: false });
   emit("ticket.created", { ticket_id: id, subject: d.subject });
-  const detail = `ticket ${id} sent to Paynora's payroll team`;
+  const detail = `${TICKET_KINDS[d.kind ?? "support"].toLowerCase()} ${id} sent to Paynora's payroll team`;
   notify(detail);
   return ok(detail);
 }
@@ -388,20 +411,38 @@ export function setSetupField(name: string, value: string, quiet = false): Resul
   return ok(`${f.label} set to ${f.unit === "₹" ? rupees(Number(v)) : `${v}${f.unit === "%" ? "%" : f.unit ? ` ${f.unit}` : ""}`}`);
 }
 
-/** "Use details from signup": every empty field of a step from company.json. */
-export function fillFromSignup(step: SetupStep, fields: { name: string; signup: string }[]) {
+/**
+ * "Use details from signup" (company) or "Use common defaults" (structure,
+ * leave): every empty field of the step from its preset. The admin edits any
+ * of them afterwards.
+ */
+export function fillPresets(step: SetupStep, fields: { name: string; preset: string }[]) {
   const cur = get().setup.fields;
-  for (const f of fields) if (!cur[f.name]) setSetupField(f.name, f.signup, true);
+  for (const f of fields) if (!cur[f.name]) setSetupField(f.name, f.preset, true);
   setupEvent();
-  return ok(`${step} filled from signup`);
+  return ok(`${step} filled from ${step === "company" ? "signup" : "the common defaults"}`);
 }
 
-export function importEmployees(): Result {
-  const { rows } = parseCsv(importCsv);
+/** The sample employee file this demo ships (data/employees_import.csv), for the download link and tests. */
+export const SAMPLE_IMPORT = importCsv;
+
+/**
+ * Import the file the admin chose with "Import file". Only she imports: the
+ * guide has no move for it (owner, round 1, A1). Every row is checked before
+ * anything is kept; a file without the expected columns is refused whole.
+ */
+export function importEmployees(text: string = importCsv, file = "employees_import.csv"): Result {
+  const { header, rows } = parseCsv(text);
+  const missing = REQUIRED_COLUMNS.filter((c) => !header.includes(c));
+  if (!rows.length || missing.length) {
+    const why = !rows.length ? `${file} has no rows` : `${file} is missing the columns ${missing.join(", ")}`;
+    notify(why, "warning");
+    return no(why);
+  }
   const result = validateImport(rows);
-  patchSetup({ imported: result, step: "import", test: null });
+  patchSetup({ imported: { ...result, file }, step: "import", test: null });
   setupEvent();
-  return ok(`employees_import.csv: ${rows.length} rows, ${result.valid} valid, ${result.issues.length} ${result.issues.length === 1 ? "error" : "errors"}`);
+  return ok(`${file}: ${rows.length} rows, ${result.valid} valid, ${result.issues.length} ${result.issues.length === 1 ? "error" : "errors"}`);
 }
 
 export function runTestPayroll(): Result {

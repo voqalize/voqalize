@@ -28,8 +28,49 @@ const LANDINGS = [
   ["reimbursements", "/reimbursements"],
   ["employees", "/employees"],
   ["run-feb", "/payroll/PR-2026-02"],
+  ["run-jan", "/payroll/PR-2026-01"],
+  ["payroll-runs", "/payroll"],
+  ["payslips", "/payslips"],
+  ["tax", "/tax"],
+  ["settings", "/settings"],
+  ["employee-ravi", "/employees/BB-1030"],
+  ["employee-new", "/employees/new"],
   ["me-ravi", "/me/BB-1030/payslips"],
 ];
+
+const SAMPLE = join(here, "..", "..", "data", "employees_import.csv");
+/** The wizard up to a step, the way the admin does it: presets by button, the file by Import file. */
+async function wizardTo(page, step) {
+  const order = ["company", "structure", "import", "leave", "test_run", "done"];
+  const upto = order.indexOf(step);
+  await page.click('[data-presets="company"]');
+  if (upto >= 1) {
+    await run(page, "setup.step", { step: "structure" });
+    if (upto >= 2) await page.click('[data-presets="structure"]');
+  }
+  if (upto >= 2) {
+    await run(page, "setup.step", { step: "import" });
+    if (upto >= 3) await page.setInputFiles("[data-import-input]", SAMPLE);
+  }
+  if (upto >= 3) {
+    await run(page, "setup.step", { step: "leave" });
+    if (upto >= 4) await page.click('[data-presets="leave"]');
+  }
+  if (upto >= 4) await run(page, "setup.test_run", {});
+  if (upto >= 5) await run(page, "setup.step", { step: "done" });
+  await page.waitForTimeout(500);
+}
+const wizardFlow = (name, step, extra) => ({
+  name,
+  path: "/welcome?debug=1",
+  run: async (page) => {
+    await closeDebug(page);
+    await wizardTo(page, step);
+    if (extra) await extra(page);
+    await page.evaluate(() => window.scrollTo({ top: 0 }));
+    await page.waitForTimeout(300);
+  },
+});
 
 const run = (page, id, args) => page.evaluate(([i, a]) => window.__tkRun(i, a), [id, args]).catch(() => null);
 const closeDebug = (page) => page.click('[aria-label="Close move console"]').catch(() => {});
@@ -53,24 +94,63 @@ const FLOWS = [
       await page.waitForTimeout(900);
     },
   },
+  wizardFlow("setup-1-company", "company"),
+  wizardFlow("setup-2-structure-empty", "structure"),
   {
-    name: "flow-setup-import",
+    name: "setup-2-structure-asked",
     path: "/welcome?debug=1",
     run: async (page) => {
       await closeDebug(page);
-      await run(page, "setup.step", { step: "company" });
-      for (const [field, value] of [
-        ["company_name", "Banyan & Bay Foods"],
-        ["legal_name", "Banyan & Bay Foods Pvt. Ltd."],
-        ["pan", "AAKCB7713Q"],
-        ["tan", "BLRB09412E"],
-        ["basic_pct", "40"],
-        ["hra_metro_pct", "50"],
-      ]) {
-        await run(page, "setup.fill", { field, value });
-      }
-      await run(page, "setup.import", {});
-      await page.waitForTimeout(1200);
+      await page.click('[data-presets="company"]');
+      await run(page, "setup.step", { step: "structure" });
+      await page.evaluate(() => window.__tkFakeCall?.("speaking"));
+      await page.waitForTimeout(600);
+    },
+  },
+  wizardFlow("setup-2-structure-defaults", "import", async (page) => run(page, "setup.step", { step: "structure" })),
+  {
+    name: "setup-3-import-example",
+    path: "/welcome?debug=1",
+    run: async (page) => {
+      await closeDebug(page);
+      await page.click('[data-presets="company"]');
+      await run(page, "setup.step", { step: "import" });
+      await page.evaluate(() => window.__tkFakeCall?.("speaking"));
+      void run(page, "app.show", { thing: "Import file" });
+      await page.waitForTimeout(900);
+    },
+  },
+  wizardFlow("setup-3-import-done", "leave", async (page) => run(page, "setup.step", { step: "import" })),
+  {
+    name: "setup-4-leave-asked",
+    path: "/welcome?debug=1",
+    run: async (page) => {
+      await closeDebug(page);
+      await run(page, "setup.step", { step: "leave" });
+      await page.waitForTimeout(400);
+    },
+  },
+  wizardFlow("setup-4-leave-defaults", "test_run", async (page) => run(page, "setup.step", { step: "leave" })),
+  wizardFlow("setup-5-test-run", "test_run"),
+  wizardFlow("setup-6-done", "done"),
+  {
+    name: "approval-question",
+    path: "/leave?tab=requests&debug=1",
+    run: async (page) => {
+      await closeDebug(page);
+      await page.evaluate(() => window.__tkFakeCall?.("speaking"));
+      void run(page, "app.show", { thing: "Pending requests" });
+      await page.waitForTimeout(900);
+    },
+  },
+  {
+    name: "approval-claim-question",
+    path: "/reimbursements?debug=1",
+    run: async (page) => {
+      await closeDebug(page);
+      await page.evaluate(() => window.__tkFakeCall?.("speaking"));
+      await run(page, "claim.open", { claim_id: "RB-3108" });
+      await page.waitForTimeout(600);
     },
   },
   {

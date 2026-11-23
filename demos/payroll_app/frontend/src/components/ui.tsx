@@ -92,28 +92,54 @@ export function Panel({ title, actions, children, className = "", ...rest }: { t
   );
 }
 
+/**
+ * A modal confirm. Drawn in the page (a scrim and a centred card, not the
+ * browser's top layer) so the agent's face can sit above it in a top corner
+ * while it is open (`data-overlay`, read by `voice/useDockMode`).
+ */
 export function Dialog({ open, title, children, onClose }: { open: boolean; title: string; children: ReactNode; onClose: () => void }) {
-  const ref = useRef<HTMLDialogElement>(null);
+  const ref = useRef<HTMLDivElement>(null);
+  const close = useRef(onClose);
+  close.current = onClose;
   useEffect(() => {
-    const d = ref.current;
-    if (!d) return;
-    if (open && !d.open) d.showModal();
-    if (!open && d.open) d.close();
+    if (!open) return;
+    const back = document.activeElement as HTMLElement | null;
+    const k = (e: KeyboardEvent) => e.key === "Escape" && close.current();
+    window.addEventListener("keydown", k);
+    // Focus the dialog's last action (its confirm), as showModal did.
+    const btns = ref.current?.querySelectorAll<HTMLElement>(".dialog-actions button");
+    (btns?.[btns.length - 1] ?? ref.current)?.focus();
+    return () => {
+      window.removeEventListener("keydown", k);
+      back?.focus?.();
+    };
   }, [open]);
+  if (!open) return null;
   return (
-    <dialog ref={ref} className="dialog" onClose={onClose} aria-label={title}>
-      <div className="dialog-head">
-        <h2>{title}</h2>
-        <button type="button" className="iconbtn" aria-label="Close" onClick={onClose}>
-          <X size={18} />
-        </button>
+    <div className="dialog-scrim" data-overlay="center" onClick={onClose}>
+      <div ref={ref} className="dialog" role="dialog" aria-modal="true" aria-label={title} tabIndex={-1} onClick={(e) => e.stopPropagation()}>
+        <div className="dialog-head">
+          <h2>{title}</h2>
+          <button type="button" className="iconbtn" aria-label="Close" onClick={onClose}>
+            <X size={18} />
+          </button>
+        </div>
+        {children}
       </div>
-      {children}
-    </dialog>
+    </div>
   );
 }
 
-export function Drawer({ open, title, children, onClose }: { open: boolean; title: ReactNode; children: ReactNode; onClose: () => void }) {
+/** A side drawer over the page (`data-overlay="right"`: the agent moves to the top left while it is open). */
+export function Drawer({
+  open,
+  title,
+  children,
+  onClose,
+  className = "",
+  head,
+  ...rest
+}: { open: boolean; title: ReactNode; children: ReactNode; onClose: () => void; className?: string; head?: ReactNode } & Record<string, unknown>) {
   useEffect(() => {
     if (!open) return;
     const k = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -122,10 +148,13 @@ export function Drawer({ open, title, children, onClose }: { open: boolean; titl
   }, [open, onClose]);
   if (!open) return null;
   return (
-    <div className="drawer-scrim" onClick={onClose}>
-      <aside className="drawer" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+    <div className="drawer-scrim" data-overlay="right" onClick={onClose}>
+      <aside className={`drawer ${className}`} role="dialog" aria-modal="true" aria-label={typeof title === "string" ? title : undefined} onClick={(e) => e.stopPropagation()} {...rest}>
         <div className="drawer-head">
-          <h2>{title}</h2>
+          <div className="drawer-title">
+            {head}
+            <h2>{title}</h2>
+          </div>
           <button type="button" className="iconbtn" aria-label="Close" onClick={onClose}>
             <X size={18} />
           </button>

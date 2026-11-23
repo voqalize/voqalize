@@ -1,7 +1,13 @@
 /**
  * The setup wizard's steps and fields, named exactly as `setup.fill` names
- * them in scene.json. Every field starts empty; "Use details from signup"
- * fills each from company.json (`signup`).
+ * them in scene.json. Every field starts empty.
+ *
+ * Only the company details come from signup ("Use details from signup",
+ * company.json). The pay structure and the leave policy are the admin's own
+ * choice: she types them, tells the guide, or takes "Use common defaults",
+ * what most Indian companies of this size use, and edits from there
+ * (owner, round 1, A1). Each field's `preset` is that signup value or that
+ * common default, by its step's `PRESET_SOURCE`.
  */
 import { COMPANY } from "./data";
 
@@ -26,7 +32,8 @@ export interface SetupField {
   options?: string[];
   /** Rupees, a percentage or days: shown beside the input. */
   unit?: string;
-  signup: string;
+  /** The signup value (company step) or the common default (structure, leave). */
+  preset: string;
   /** Checks a value; returns why it is wrong, or null. */
   check?: (v: string) => string | null;
 }
@@ -38,14 +45,14 @@ const pct = (v: string) => (/^\d{1,2}(\.\d+)?$/.test(v) && Number(v) <= 100 ? nu
 const whole = (v: string) => (/^\d+$/.test(v) ? null : "a whole number");
 
 export const SETUP_FIELDS: SetupField[] = [
-  { name: "company_name", step: "company", label: "Company name", kind: "text", signup: c.name },
-  { name: "legal_name", step: "company", label: "Legal name", hint: "As on the certificate of incorporation", kind: "text", signup: c.legal_name },
+  { name: "company_name", step: "company", label: "Company name", kind: "text", preset: c.name },
+  { name: "legal_name", step: "company", label: "Legal name", hint: "As on the certificate of incorporation", kind: "text", preset: c.legal_name },
   {
     name: "pan",
     step: "company",
     label: "Company PAN",
     kind: "text",
-    signup: c.pan,
+    preset: c.pan,
     check: (v) => (/^[A-Z]{5}\d{4}[A-Z]$/.test(v.toUpperCase()) ? null : "ten characters, like AAKCB7713Q"),
   },
   {
@@ -54,36 +61,43 @@ export const SETUP_FIELDS: SetupField[] = [
     label: "TAN",
     hint: "For TDS returns",
     kind: "text",
-    signup: c.tan,
+    preset: c.tan,
     check: (v) => (/^[A-Z]{4}\d{5}[A-Z]$/.test(v.toUpperCase()) ? null : "ten characters, like BLRB09412E"),
   },
-  { name: "registered_office", step: "company", label: "Registered office", kind: "textarea", signup: c.registered_office },
-  { name: "pf_code", step: "company", label: "PF establishment code", kind: "text", signup: c.pf_code },
-  { name: "esi_code", step: "company", label: "ESI code", kind: "text", signup: c.esi_code },
-  { name: "pt_karnataka", step: "company", label: "PT registration, Karnataka", kind: "text", signup: c.pt_registrations.Karnataka ?? "" },
-  { name: "pt_maharashtra", step: "company", label: "PT registration, Maharashtra", kind: "text", signup: c.pt_registrations.Maharashtra ?? "" },
+  { name: "registered_office", step: "company", label: "Registered office", kind: "textarea", preset: c.registered_office },
+  { name: "pf_code", step: "company", label: "PF establishment code", kind: "text", preset: c.pf_code },
+  { name: "esi_code", step: "company", label: "ESI code", kind: "text", preset: c.esi_code },
+  { name: "pt_karnataka", step: "company", label: "PT registration, Karnataka", kind: "text", preset: c.pt_registrations.Karnataka ?? "" },
+  { name: "pt_maharashtra", step: "company", label: "PT registration, Maharashtra", kind: "text", preset: c.pt_registrations.Maharashtra ?? "" },
   {
     name: "pay_cycle",
     step: "company",
     label: "Pay cycle",
     kind: "select",
     options: ["Calendar month; salary paid on the last working day", "Calendar month; salary paid on the 1st of the next month", "26th to 25th; salary paid on the last working day"],
-    signup: c.pay_cycle,
+    preset: c.pay_cycle,
   },
-  { name: "basic_pct", step: "structure", label: "Basic", hint: "Of monthly CTC", kind: "number", unit: "%", signup: "40", check: pct },
-  { name: "hra_metro_pct", step: "structure", label: "HRA in Mumbai and New Delhi", hint: "Of basic", kind: "number", unit: "%", signup: "50", check: pct },
-  { name: "hra_non_metro_pct", step: "structure", label: "HRA elsewhere", hint: "Of basic", kind: "number", unit: "%", signup: "40", check: pct },
-  { name: "lta_g5", step: "structure", label: "LTA for grade G5", hint: "A month", kind: "number", unit: "₹", signup: "3000", check: whole },
-  { name: "lta_g6_up", step: "structure", label: "LTA for G6 and up", hint: "A month", kind: "number", unit: "₹", signup: "5000", check: whole },
-  { name: "pf_rule", step: "structure", label: "Provident fund", kind: "text", signup: "12% of basic up to ₹15,000" },
-  { name: "esi_rule", step: "structure", label: "ESI", kind: "text", signup: "Employer 3.25% when gross is up to ₹21,000" },
-  { name: "el_per_year", step: "leave", label: "Earned leave a year", kind: "number", unit: "days", signup: String(type("EL").per_year), check: whole },
-  { name: "cl_per_year", step: "leave", label: "Casual leave a year", kind: "number", unit: "days", signup: String(type("CL").per_year), check: whole },
-  { name: "sl_per_year", step: "leave", label: "Sick leave a year", kind: "number", unit: "days", signup: String(type("SL").per_year), check: whole },
-  { name: "el_carry_forward", step: "leave", label: "Earned leave carried forward, at most", kind: "number", unit: "days", signup: String(type("EL").carry_forward_max), check: whole },
-  { name: "attendance_cutoff", step: "leave", label: "Attendance cut-off", hint: "When an approved leave counts in payroll", kind: "textarea", signup: policy.attendance_cutoff },
-  { name: "lop_rule", step: "leave", label: "Loss of pay", kind: "textarea", signup: policy.lop_rule },
+  { name: "basic_pct", step: "structure", label: "Basic", hint: "Of monthly CTC", kind: "number", unit: "%", preset: "40", check: pct },
+  { name: "hra_metro_pct", step: "structure", label: "HRA in Mumbai and New Delhi", hint: "Of basic", kind: "number", unit: "%", preset: "50", check: pct },
+  { name: "hra_non_metro_pct", step: "structure", label: "HRA elsewhere", hint: "Of basic", kind: "number", unit: "%", preset: "40", check: pct },
+  { name: "lta_g5", step: "structure", label: "LTA for grade G5", hint: "A month", kind: "number", unit: "₹", preset: "3000", check: whole },
+  { name: "lta_g6_up", step: "structure", label: "LTA for G6 and up", hint: "A month", kind: "number", unit: "₹", preset: "5000", check: whole },
+  { name: "pf_rule", step: "structure", label: "Provident fund", kind: "text", preset: "12% of basic up to ₹15,000" },
+  { name: "esi_rule", step: "structure", label: "ESI", kind: "text", preset: "Employer 3.25% when gross is up to ₹21,000" },
+  { name: "el_per_year", step: "leave", label: "Earned leave a year", kind: "number", unit: "days", preset: String(type("EL").per_year), check: whole },
+  { name: "cl_per_year", step: "leave", label: "Casual leave a year", kind: "number", unit: "days", preset: String(type("CL").per_year), check: whole },
+  { name: "sl_per_year", step: "leave", label: "Sick leave a year", kind: "number", unit: "days", preset: String(type("SL").per_year), check: whole },
+  { name: "el_carry_forward", step: "leave", label: "Earned leave carried forward, at most", kind: "number", unit: "days", preset: String(type("EL").carry_forward_max), check: whole },
+  { name: "attendance_cutoff", step: "leave", label: "Attendance cut-off", hint: "When an approved leave counts in payroll", kind: "textarea", preset: policy.attendance_cutoff },
+  { name: "lop_rule", step: "leave", label: "Loss of pay", kind: "textarea", preset: policy.lop_rule },
 ];
+
+/** Where a step's presets come from: signup for the company, common practice otherwise. */
+export const PRESET_SOURCE: Partial<Record<SetupStep, "signup" | "common">> = {
+  company: "signup",
+  structure: "common",
+  leave: "common",
+};
 
 export const fieldsOf = (step: SetupStep) => SETUP_FIELDS.filter((f) => f.step === step);
 export const setupField = (name: string) => SETUP_FIELDS.find((f) => f.name === name) ?? null;
