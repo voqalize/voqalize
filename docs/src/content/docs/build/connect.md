@@ -18,7 +18,7 @@ POST sessions.connect  ──▶  connect params
 ## The request
 
 ```http
-POST https://app.voqalize.com/api/v1/sessions.connect
+POST https://signal.prod.voqalize.com/api/v1/sessions.connect
 Authorization: Bearer <your key>
 Content-Type: application/json
 
@@ -93,7 +93,7 @@ native mobile apps, which send no `Origin` header.
 ```ts
 // your server: the only place the sk_ key exists
 app.post("/api/voice/start", requireLogin, async (req, res) => {
-  const r = await fetch("https://app.voqalize.com/api/v1/sessions.connect", {
+  const r = await fetch("https://signal.prod.voqalize.com/api/v1/sessions.connect", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${process.env.VOQALIZE_SECRET_KEY}`,

@@ -6,7 +6,7 @@ description: The one route that takes an API key, sessions.connect, which starts
 One route accepts an API key, and it starts a session:
 
 ```
-POST https://app.voqalize.com/api/v1/sessions.connect
+POST https://signal.prod.voqalize.com/api/v1/sessions.connect
 Authorization: Bearer sk_…
 Content-Type: application/json
 ```
