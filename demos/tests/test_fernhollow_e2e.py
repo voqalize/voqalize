@@ -22,6 +22,7 @@ from __future__ import annotations
 import asyncio
 import json
 import re
+from collections.abc import Iterator
 from typing import Any
 
 import pytest
@@ -29,7 +30,9 @@ from google.genai import types
 from voqalize_demos.discovery import discover
 from voqalize_demos.testing import Reply, ScriptedGemini, call, reply, reply_and_call
 
+from voqalize.conformance import VoqalizeDriver
 from voqalize.sdk.gemini import _needs_result_now
+from voqalize.sdk.wire import ConfigureFrame
 
 from ._harness import DemoRig, check_greeting, check_turn, check_voice_pair, demo
 
@@ -45,6 +48,19 @@ from voqalize_demos._loaded.fernhollow.prompt import GREETING, GREETINGS  # noqa
 # The character lives in persona.json; the test reads it like the brain does.
 LANGUAGE = PERSONA.default_language
 VOICE = PERSONA.voice(LANGUAGE)
+
+
+@pytest.fixture(autouse=True)
+def _no_call_carried_between_tests() -> Iterator[None]:
+    """Every test here opens the same session id, and a dropped call is held for
+    a redial to rejoin (CONTRACT.md, v7): clear the store around each test, so
+    no test rejoins the one before it. Real session ids never repeat."""
+    from voqalize_demos._loaded.fernhollow.brain import REJOIN
+
+    REJOIN.clear()
+    yield
+    REJOIN.clear()
+
 
 # ── The storyline's brief, and what the engines make of it ───────────────────
 
@@ -2164,3 +2180,154 @@ async def test_gifts_ask_who_and_why_together_then_the_budget() -> None:
 
         check_turn(rig, await rig.driver.user_says("Add the second one."))
         assert rig.command("cart_updated")["lines"][0]["product_id"] == picks[1]
+
+
+# ─── A call outlives a dropped brain socket (F11; CONTRACT.md, v7) ────────────
+
+
+def _f11_llm() -> ScriptedGemini:
+    """The /gifts call of 23 Nov, as said: a friend's birthday, then "no limit"."""
+    return ScriptedGemini(
+        {
+            "I'm looking for a gift for my friend's birthday.": [
+                reply_and_call(
+                    "A birthday gift for a friend.",
+                    "gift_edit",
+                    request={"recipient": "friend", "occasion": "birthday"},
+                ),
+                reply("Do you have a budget in mind, or shall I not worry about it?"),
+            ],
+            "Don't worry about it.": [
+                reply_and_call("No limit, then.", "gift_edit", request={"no_budget": True}),
+                reply("Here's a short list for your friend."),
+            ],
+            "Add the second one.": reply_and_call(
+                "Adding it.", "add_to_cart", request={"product": "the second one"}
+            ),
+        }
+    )
+
+
+def _redials(driver: VoqalizeDriver) -> list[bool | None]:
+    return [
+        r.config.redial.enabled
+        for r in driver.requests
+        if isinstance(r, ConfigureFrame) and r.config.redial is not None
+    ]
+
+
+async def test_a_dropped_socket_rejoins_the_call_where_it_was() -> None:
+    """F11: the /gifts call — a friend's birthday, "no limit" — then the brain's
+    socket drops without a hang-up. Emily turns redial on; Voqalize dials again
+    for the same session; the new socket's brain adopts the call (job, gift
+    edit, screen, the model's history) and the next turn carries on from it."""
+    from voqalize_demos._loaded.fernhollow.brain import REJOIN
+    from voqalize_demos.discovery import build_for
+
+    from voqalize.conformance import (
+        BrainServer,
+        DirectConnection,
+        generate_keypair,
+        mint_voqalize_token,
+    )
+
+    llm = _f11_llm()
+    build = build_for("fernhollow")
+    built: list[FernhollowBrain] = []
+
+    def _build() -> Any:
+        brain = build(llm)  # type: ignore[arg-type]
+        built.append(brain)
+        return brain
+
+    keypair = generate_keypair()
+    server = BrainServer(_build, host="127.0.0.1", port=0, public_keys=keypair.public_pem)
+    port = await server.start()
+    sid = "fernhollow-redial-e2e"
+
+    def driver() -> VoqalizeDriver:
+        token = mint_voqalize_token(
+            private_key_pem=keypair.private_pem,
+            session_id=sid,
+            agent_id="fernhollow",
+            tenant_id="demo",
+        )
+        return VoqalizeDriver(
+            DirectConnection(f"ws://127.0.0.1:{port}", sid, token=token),
+            session_id=sid,
+            default_timeout=10.0,
+        )
+
+    first, second = driver(), driver()
+    try:
+        await first.open()
+        await first.start_session(init={"landing": "/gifts"})
+        assert _redials(first) == [True], "redial is turned on with the voice, before the greeting"
+        await first.user_says("I'm looking for a gift for my friend's birthday.")
+        await first.user_says("Don't worry about it.")
+        before = built[-1]
+        assert before.gift == ("friend", "birthday", 0)
+
+        # The socket drops: no End, no close code a hang-up would send.
+        await first.aclose()
+        for _ in range(50):
+            if len(REJOIN) and before.screen.listing:
+                break
+            await asyncio.sleep(0.02)
+        await asyncio.sleep(0.1)
+
+        # Voqalize redials: the same session id, the same init.
+        await second.open()
+        await second.start_session(init={"landing": "/gifts"})
+        after = built[-1]
+        assert after is not before
+        assert after.job == "gifts" and after.gift == ("friend", "birthday", 0)
+        assert after.screen.listing == before.screen.listing, "the short list on screen is kept"
+        assert _redials(second) == [True]
+
+        turn = await second.user_says("Add the second one.")
+        assert turn.units, "the call carried on after the drop"
+        picks = [x["product_id"] for x in stored_edits()["gifts"]["friend|birthday|0"]]
+        lines = [
+            c["payload"]["lines"] for c in second.ui_commands if c.get("command") == "cart_updated"
+        ]
+        assert lines and lines[-1][0]["product_id"] == picks[1], "the second pick of the list"
+        last = json.dumps([str(c) for c in llm.captured_contents[-1]])
+        assert "my friend's birthday" in last, "the model's history came across"
+    finally:
+        await second.aclose()
+        await server.aclose()
+
+
+async def test_a_redial_that_finds_nothing_starts_fresh_and_a_hang_up_is_let_go() -> None:
+    """A redial reaching a process that never held the call (a deploy) carries
+    on as a new conversation; held calls are let go two minutes after a drop."""
+    from voqalize_demos._loaded.fernhollow.rejoin import KEEP_AFTER_DROP_S, Rejoin
+
+    now = [0.0]
+    store: Rejoin[object] = Rejoin(clock=lambda: now[0])
+    a, b = object(), object()
+    store.hold("s1", a)
+    store.dropped("s1", b)  # not the brain held: nothing changes
+    now[0] = KEEP_AFTER_DROP_S + 1
+    assert store.take("s1") is a, "a live call is kept however long it runs"
+    store.hold("s1", a)
+    store.dropped("s1", a)
+    now[0] += KEEP_AFTER_DROP_S - 1
+    assert len(store) == 1
+    now[0] += 2
+    assert store.take("s1") is None and len(store) == 0
+    assert store.take("never-held") is None
+
+
+async def test_no_redial_is_asked_of_a_voqalize_that_does_not_offer_it() -> None:
+    """``configure`` raises for redial without the capability: Emily asks only
+    where it is offered, and the call starts the same either way."""
+    from voqalize.sdk.wire import Capability
+
+    async with demo("fernhollow", ScriptedGemini({})) as rig:
+        rig.driver.capabilities.discard(Capability.REDIAL)
+        greeting = await rig.driver.start_session(init={"landing": "/gifts"})
+        check_greeting(rig, greeting)
+        assert _redials(rig.driver) == []
+        check_voice_pair(rig, voice=VOICE, language=LANGUAGE)

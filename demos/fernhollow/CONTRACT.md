@@ -370,8 +370,8 @@ puts down each answer the moment it is said (`returns.select_item`, `returns.fil
 later step until the steps before it are complete, moves the form on (`returns.next_step`), and returns the
 one next question; an item ordered more than once asks how many first. Every change by hand reaches the
 brain with its value (`returns.field_filled{order_number, field, value, filled}`, `qty_<id>` for items);
-the brain folds it in and carries on. When complete, "Shall I submit the return?" and the yes submits
-(`returns.submit`, confirmed). All `orders.*` and `returns.*` moves are registered once in the app shell.
+the brain folds it in and carries on. When complete, the shopper presses Submit return themselves
+(v7: Emily never submits). All `orders.*` and `returns.*` moves are registered once in the app shell.
 
 **The page follows (F2, F3, F4, F7, F9).** A drawer or sheet open over the page moves the dock and the live
 tile to a top corner above it (away from a side drawer, top right over a bottom sheet). Every ring first
@@ -384,9 +384,39 @@ the occasion, then asks "Do you have a budget in mind, or shall I not worry abou
 question 1 (the page on going live, and `kiosk.start` from the greeting).
 
 Stage spec (`frontend/src/stage/scene.json`): moves `returns.select_item`, `returns.fill`,
-`returns.open_step`, `returns.next_step`, `returns.submit`, `orders.open`, `orders.show_slots`,
+`returns.open_step`, `returns.next_step`, `orders.open`, `orders.show_slots`,
 `orders.reschedule`, `orders.cancel`, `orders.request_earlier`, `orders.start_return`, `gifts.set`,
 `kiosk.start`, `kiosk.answer`, `kiosk.restart`; events `returns.field_filled`, `returns.step_reached`,
 `returns.return_submitted`, `orders.opened`, `orders.delivery_changed`, `orders.cancelled`,
 `orders.earlier_requested`, `orders.return_started`, `gifts.changed`, `kiosk.screen`, `kiosk.answered`.
+
+## v7 — round 2: only the shopper submits a return; a call outlives a dropped brain socket (owner, 2026-11-23)
+
+**Only the shopper's own press sends a return (F10).** Emily fills every step of the return form, but
+she cannot submit it. This narrows v2 for returns only (placing and cancelling an order still act on a
+spoken yes):
+
+- **No tool and no move submits.** The `submit_return` tool and the `returns.submit` move are gone
+  (`scene.json` regenerated); `returns.next_step` on review is refused with "only the shopper can press
+  Submit return".
+- **The page refuses any other hand.** The form notes each trusted pointer or key press on it; a submit
+  without one just before it (a script's `click()`, as any agent's would be) is refused and logged, and
+  the store's `submit(by)` refuses every `by` but `visitor`.
+- **She asks them to press it.** Once the form is complete `fill_return` says so, and Emily asks the
+  shopper to check it and press Submit return. Asked to send it ("yes", "submit it", "can you send
+  it?"), she says her own line, with no model turn: "I can't send it for you — please press Submit
+  return on screen when you're ready."
+- **She hears the press.** `returns.return_submitted{reference}` by the visitor closes the form in the
+  brain and Emily says the outcome once, in her own line ("Done — your return is in, reference
+  RT-20418-1. We'll be in touch about the pickup."), in place of the page's `speak` reaction. The same
+  event marked as the agent's is ignored.
+
+**A dropped brain socket no longer ends the call (F11, SDK 0.15.0 `Config.redial`).** On a voice
+runtime that offers redial (`session.can_redial`), `on_session_start` turns it on with the persona's
+voice and languages. Each live brain is kept in this process by session id (`backend/rejoin.py`) while
+its socket is up and for two minutes after it drops; a redial that reaches the same process (a Cortex
+restart, a network blip) adopts the call as it was — the brief, the screen mirror, the form, the cart,
+the model's history and the Stage director — and the greeting is not spoken again. A redial that
+reaches a fresh process (a deploy of the brain) finds nothing and carries on as a new conversation on
+the same page, which still beats a dead call. `Config.late` stays at Voqalize's default.
 

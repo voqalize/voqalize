@@ -68,7 +68,7 @@ from voqalize.sdk import (
 from voqalize.sdk.stage import Mirror, Stage
 from voqalize.sdk.stage.wire import StageEvent, StageHello, StageProgress, StageResult
 from voqalize.sdk.voice import ToolChoice
-from voqalize.sdk.wire import Config, IdleConfig, SttConfig, TtsConfig
+from voqalize.sdk.wire import Config, IdleConfig, RedialConfig, SttConfig, TtsConfig
 
 from . import engine as eng
 from .app_events import (
@@ -109,6 +109,7 @@ from .persona import PERSONA
 from .policies import Topic, policy_page, policy_text
 from .prompt import GREETINGS, Job, job_for, system_instruction
 from .recipes import FINISHING, RECIPES
+from .rejoin import Rejoin
 from .resolve import SELECTED, Layout, Resolution
 from .resolve import resolve as resolve_reference
 from .returns import WINDOW_DAYS, Order, exchange_options, order_from
@@ -784,6 +785,12 @@ MODEL = "gemini-3.6-flash"
 THINKING = types.ThinkingConfig(thinking_level=types.ThinkingLevel.LOW)
 
 
+#: What a brain holds for one socket only: the session object and the speech
+#: units waiting for the runtime to say what was heard. Everything else a call
+#: built is carried to the brain a redial starts (rejoin.py).
+_PER_SOCKET = frozenset({"_session", "_awaiting"})
+
+
 class FernhollowBrain(GeminiBrain):
     """One per session: the brief, the screen mirror, the shortlist and the cart."""
 
@@ -876,17 +883,43 @@ class FernhollowBrain(GeminiBrain):
     async def on_session_start(self, session: Session) -> None:
         """The persona's voice for the language the page asked for (English
         is the only one offered today), on both legs before the greeting; and
-        the job, from the page the call started on (CONTRACT.md, v5)."""
-        init = session.init or {}
-        self.language = PERSONA.language(init.get("lang"))
-        self.job = job_for(str(init.get("landing") or "/")) or "shop"
+        the job, from the page the call started on (CONTRACT.md, v5).
+
+        A call outlives a dropped socket (CONTRACT.md, v7; SDK 0.15.0): redial
+        is on wherever Voqalize offers it, and a brain started by a redial on
+        a session this process still holds adopts that call as it was — the
+        language and job it had moved to included — instead of starting over."""
+        prior = REJOIN.take(session.id)
+        if prior is not None and prior is not self:
+            self._adopt(prior)
+            logger.info("fernhollow: rejoined call {} after its socket dropped", session.id)
+        else:
+            init = session.init or {}
+            self.language = PERSONA.language(init.get("lang"))
+            self.job = job_for(str(init.get("landing") or "/")) or "shop"
+        REJOIN.hold(session.id, self)
         await session.configure(
             Config(
                 tts=TtsConfig(voice=PERSONA.voice(self.language), language=self.language),
                 stt=SttConfig(language=self.language, patience=PATIENCE),
                 idle=IdleConfig(timeout_ms=_IDLE_MS),
+                redial=RedialConfig(enabled=True) if session.can_redial else None,
             )
         )
+
+    async def on_session_end(self, session: Session) -> None:
+        """The socket closed: a hang-up, or a drop Voqalize may redial. Kept a
+        short while for the redial; runs at least once, and a second run (or
+        one on a brain a redial already replaced) changes nothing."""
+        REJOIN.dropped(session.id, self)
+
+    def _adopt(self, prior: FernhollowBrain) -> None:
+        """Take over ``prior``'s call: every piece of state but its socket's.
+        ``prior`` then shares this brain's state, so whatever still points at
+        it — the Stage director's dispatch, a confirmation's act, a line queued
+        for the next quiet spell — acts on this call and this socket."""
+        self.__dict__.update({k: v for k, v in prior.__dict__.items() if k not in _PER_SOCKET})
+        prior.__dict__ = self.__dict__
 
     async def greet(self, session: Session) -> str:
         """Fixed — no model call — so the agent speaks the instant the call
@@ -3801,3 +3834,7 @@ def _valid_page(page: str) -> bool:
         or (kind == "journal" and rest in _JOURNAL)
         or (kind == "policy" and rest in ("returns", "delivery", "assembly", "care"))
     )
+
+
+#: Live calls by session id, for a redial to rejoin (rejoin.py).
+REJOIN: Rejoin[FernhollowBrain] = Rejoin()
