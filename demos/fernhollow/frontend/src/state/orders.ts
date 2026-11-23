@@ -1,9 +1,11 @@
 /**
  * Orders the shopper placed in this browser (CONTRACT.md v4), kept in
- * localStorage `fernhollow-orders` in the contract's shape. This is a demo
- * with no delivery, so an order counts as delivered the moment it is placed.
- * The returns desk lists these first, and the brain hears them as
- * `orders_known` on connect and whenever the list changes.
+ * localStorage `fernhollow-orders`. The shopper is signed in, so an order
+ * carries the account's name and never an email. A new order is packed at the
+ * warehouse, booked into `placed_order`'s slot (src/orders/tracking.ts reads
+ * it so), and can still be moved or cancelled. The orders page lists these
+ * first, and the brain hears them as `orders_known` on connect and whenever
+ * the list changes.
  */
 import { create } from "zustand";
 import { getProduct, getVariant } from "../data/catalog";
@@ -11,12 +13,11 @@ import { emit, onSenderReady } from "../voice/events";
 
 export interface PlacedOrder {
   number: string;
-  email: string;
   name: string;
   placed_at: string;
   lines: { product_id: string; variant_id: string; title: string; variant: string; qty: number; unit_price: number }[];
   total: number;
-  status: "delivered";
+  status: "packed";
 }
 
 const KEY = "fernhollow-orders";
@@ -27,8 +28,9 @@ const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : 0
 
 /** One stored order in the contract shape, whatever build wrote it. Orders saved
  *  before v4 carry `placedAt`, cart-style lines and the address instead of
- *  `email`/`name`/`total`; they are upgraded here rather than dropped, so a
- *  shopper's earlier orders stay returnable and never break the returns desk. */
+ *  `name`/`total`; they are upgraded here rather than dropped, so a shopper's
+ *  earlier orders never break the orders page. An email, if one was stored,
+ *  is dropped: the account is signed in and nothing needs it. */
 export function normalizeOrder(raw: unknown): PlacedOrder | null {
   if (!raw || typeof raw !== "object") return null;
   const o = raw as Raw;
@@ -54,12 +56,11 @@ export function normalizeOrder(raw: unknown): PlacedOrder | null {
     num(o.total) || num(o.subtotal) + num(o.delivery) || lines.reduce((t, l) => t + l.qty * l.unit_price, 0);
   return {
     number: o.number,
-    email: str(o.email) || str(address.email),
     name,
     placed_at: placed && !Number.isNaN(Date.parse(placed)) ? placed : new Date(0).toISOString(),
     lines,
     total: Math.round(total * 100) / 100,
-    status: "delivered",
+    status: "packed",
   };
 }
 
@@ -82,14 +83,14 @@ export const daysSince = (iso: string, now = Date.now()) => Math.max(0, Math.flo
 
 export function savePlacedOrder(o: {
   number: string;
-  email: string;
+  /** Accepted from checkout and never kept. */
+  email?: string;
   name: string;
   lines: { product_id: string; variant_id: string; qty: number }[];
   total: number;
 }): PlacedOrder {
   const placed: PlacedOrder = {
     number: o.number,
-    email: o.email,
     name: o.name,
     placed_at: new Date().toISOString(),
     lines: o.lines.map((l) => {
@@ -105,7 +106,7 @@ export function savePlacedOrder(o: {
       };
     }),
     total: o.total,
-    status: "delivered",
+    status: "packed",
   };
   const orders = [...useOrders.getState().orders.filter((x) => x.number !== placed.number), placed];
   try {
@@ -117,11 +118,21 @@ export function savePlacedOrder(o: {
   return placed;
 }
 
-/** What `orders_known` carries: each order, newest first, with its age in days. */
+/**
+ * What `orders_known` carries: each order, newest first, with its age in days.
+ * Packed, so not delivered (`delivered_days_ago: null`); `email` is sent empty
+ * only because the event's type still names it — nothing reads it.
+ */
 export function ordersKnown(orders = useOrders.getState().orders) {
   return [...orders]
     .sort((a, b) => (b.placed_at ?? "").localeCompare(a.placed_at ?? ""))
-    .map((o) => ({ ...o, placed_days_ago: daysSince(o.placed_at), delivered_days_ago: daysSince(o.placed_at) }));
+    .map((o) => ({
+      ...o,
+      email: "",
+      placed_days_ago: daysSince(o.placed_at),
+      // The event's type (voice/events.ts) still says number; the brain's OrderIn takes null.
+      delivered_days_ago: null as unknown as number,
+    }));
 }
 
 const report = () => emit("orders_known", { orders: ordersKnown() });

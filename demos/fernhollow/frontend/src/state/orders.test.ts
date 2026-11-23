@@ -1,4 +1,4 @@
-/** Orders saved by an earlier build must be upgraded, never crash the returns desk. */
+/** Orders saved by an earlier build must be upgraded, never crash the orders page. */
 import { describe, expect, it } from "vitest";
 import { ordersKnown, normalizeOrder } from "./orders";
 
@@ -13,16 +13,16 @@ const legacy = (number: string, placedAt: string) => ({
 });
 
 describe("orders saved before v4", () => {
-  it("are upgraded to the contract shape", () => {
+  it("are upgraded to the contract shape: packed, and no email kept", () => {
     const o = normalizeOrder(legacy("FH-879106", "2026-11-02T18:24:00.000Z"));
     expect(o).toMatchObject({
       number: "FH-879106",
-      email: "sam.rivera@example.com",
       name: "Sam Rivera",
       placed_at: "2026-11-02T18:24:00.000Z",
       total: 1395,
-      status: "delivered",
+      status: "packed",
     });
+    expect(o).not.toHaveProperty("email");
     expect(o?.lines[0]).toMatchObject({ product_id: "sand-linen-sofa-with-deep-seat", qty: 1 });
     expect(o?.lines[0]?.title).toBeTruthy();
   });
@@ -33,6 +33,11 @@ describe("orders saved before v4", () => {
       .filter((o) => o !== null);
     expect(() => ordersKnown(orders)).not.toThrow();
     expect(ordersKnown(orders).map((o) => o.number)).toEqual(["FH-2", "FH-1"]);
+  });
+
+  it("orders_known never needs an email, and a packed order is not delivered", () => {
+    const known = ordersKnown([normalizeOrder(legacy("FH-4", "2026-11-03T10:00:00.000Z"))!]);
+    expect(known[0]).toMatchObject({ number: "FH-4", email: "", status: "packed", delivered_days_ago: null });
   });
 
   it("junk is dropped, a missing date does not throw", () => {

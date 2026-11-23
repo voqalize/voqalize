@@ -148,6 +148,18 @@ export interface UpdateShortlist {
   product_ids: string[];
 }
 
+/**
+ * The shopper's saved picks, together on one page (`/saved`): how they
+ * look side by side, not a feature table and not the cart.
+ */
+export interface ShowSaved {
+  product_ids: string[];
+
+  title: string;
+
+  note: string;
+}
+
 /** The confirm prompt on the Add button. */
 export interface ConfirmAdd {
   lines: ConfirmLine[];
@@ -662,6 +674,7 @@ export type UiAction =
   | { command: 'show_more_like'; payload: ShowMoreLike }
   | { command: 'show_savings'; payload: ShowSavings }
   | { command: 'update_shortlist'; payload: UpdateShortlist }
+  | { command: 'show_saved'; payload: ShowSaved }
   | { command: 'confirm_add'; payload: ConfirmAdd }
   | { command: 'cart_updated'; payload: CartUpdated }
   | { command: 'suggest_finish'; payload: SuggestFinish }
@@ -694,6 +707,7 @@ export const UI_ACTION_COMMANDS: readonly UiActionCommand[] = [
   'show_more_like',
   'show_savings',
   'update_shortlist',
+  'show_saved',
   'confirm_add',
   'cart_updated',
   'suggest_finish',

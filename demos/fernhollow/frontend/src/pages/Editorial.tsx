@@ -219,12 +219,12 @@ export function InfoPage({ slug: fixed }: { slug?: string }) {
 
 function ReturnsDeskLink() {
   return (
-    <Link to="/returns" className="returns-link">
+    <Link to="/orders" className="returns-link">
       <span>
         <span className="returns-link-title">Start a return online</span>
-        <span className="small">Find your order and send it back in six short steps.</span>
+        <span className="small">Choose the delivered order and send it back in a few short steps.</span>
       </span>
-      <span className="btn btn-primary btn-sm">Returns desk</span>
+      <span className="btn btn-primary btn-sm">Your orders</span>
     </Link>
   );
 }
@@ -400,7 +400,7 @@ export function ConfirmationPage() {
           </Link>
           <p className="small">
             Need to send something back later?{" "}
-            <Link className="link" to="/returns">
+            <Link className="link" to="/orders">
               Start a return
             </Link>
             .

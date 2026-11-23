@@ -39,7 +39,6 @@ __all__ = [
     "find_order",
     "normalise_number",
     "order_from",
-    "plan_return",
 ]
 
 ORDERS_PATH = DEMO / "data" / "demo_orders.json"
@@ -68,9 +67,6 @@ class Order:
     delivered_days_ago: int | None
     lines: tuple[Line, ...]
     total: float
-    # The order's own email: what the form's step 1 checks. Sent to the page in
-    # a Stage move, never put in a tool result the model reads.
-    email: str = ""
     placed_days_ago: int = 0
     source: Literal["placed", "known", "demo"] = "demo"
 
@@ -118,7 +114,6 @@ def order_from(o: dict[str, Any], source: Literal["placed", "known", "demo"] = "
         delivered_days_ago=o.get("delivered_days_ago"),
         lines=lines,
         total=float(o.get("total", 0)),
-        email=str(o.get("email", "")),
         placed_days_ago=int(o.get("placed_days_ago") or 0),
         source=source,
     )
@@ -163,91 +158,13 @@ def find_order(
     return ORDERS.get(number)
 
 
-# ─── The form, as one deterministic sequence ──────────────────────────────────
+# ─── The return form's values (the contract's names) ──────────────────────────
 
 REASONS = ("changed_mind", "doesnt_suit_room", "arrived_damaged", "wrong_item", "not_as_expected")
 CONDITIONS = ("unused_in_packaging", "unused_unpacked", "damaged_on_arrival")
 RESOLUTIONS = ("refund", "exchange", "store_credit")
 COLLECTIONS = ("pickup", "drop_off")
 WINDOWS = ("weekday_morning", "weekday_afternoon", "saturday")
-
-#: (move id, arguments, the step it belongs to)
-Step = tuple[str, dict[str, str | int], str]
-
-
-def plan_return(
-    order: Order,
-    items: Sequence[tuple[str, int]],
-    *,
-    reason: str,
-    condition: str,
-    resolution: str,
-    collection: str,
-    pickup_window: str | None = None,
-    exchange_variant: str | None = None,
-) -> list[Step] | str:
-    """The returns form's moves, in order, for these answers — or why not.
-
-    find (step 1, with the order's own email) → each item (step 2) → next →
-    reason and condition (step 3) → next → resolution, and the exchange variant
-    (step 4) → next → collection, and the pickup window (step 5) → next → the
-    review (step 6). Every value is checked here first, so a move the page would
-    refuse for a reason the brain can see is never sent."""
-    by_id = {line.product_id: line for line in order.lines}
-    if not items:
-        return "no item is chosen to return"
-    for pid, qty in items:
-        line = by_id.get(pid)
-        if line is None:
-            return f"{pid} is not on order {order.number}"
-        if line.status != "eligible":
-            return f"{line.title} cannot be returned ({line.status.replace('_', ' ')})"
-        if not 1 <= qty <= line.qty:
-            return f"{line.title}: between 1 and {line.qty} can go back"
-    for value, allowed, name in (
-        (reason, REASONS, "reason"),
-        (condition, CONDITIONS, "condition"),
-        (resolution, RESOLUTIONS, "resolution"),
-        (collection, COLLECTIONS, "collection"),
-    ):
-        if value not in allowed:
-            return f"{name} must be one of {', '.join(allowed)}"
-    if collection == "pickup" and pickup_window not in WINDOWS:
-        return f"a pickup needs a window: {', '.join(WINDOWS)}"
-    if resolution == "exchange":
-        if len(items) != 1:
-            return "an exchange is for one item at a time"
-        pid = items[0][0]
-        options = {vid for vid, _ in exchange_options(pid, by_id[pid].variant_id)}
-        if exchange_variant not in options:
-            return "an exchange needs one of the item's other option values (check_exchange)"
-    steps: list[Step] = [
-        ("returns.find", {"order_number": order.number, "email": order.email}, "1 find your order")
-    ]
-    steps += [
-        ("returns.select_item", {"product_id": pid, "qty": qty}, "2 items") for pid, qty in items
-    ]
-    steps.append(("returns.next_step", {}, "2 items"))
-    steps.append(("returns.fill", {"field": "reason", "value": reason}, "3 reason"))
-    steps.append(("returns.fill", {"field": "condition", "value": condition}, "3 reason"))
-    steps.append(("returns.next_step", {}, "3 reason"))
-    steps.append(("returns.fill", {"field": "resolution", "value": resolution}, "4 resolution"))
-    if resolution == "exchange" and exchange_variant:
-        steps.append(
-            (
-                "returns.fill",
-                {"field": f"exchange_variant_{items[0][0]}", "value": exchange_variant},
-                "4 resolution",
-            )
-        )
-    steps.append(("returns.next_step", {}, "4 resolution"))
-    steps.append(("returns.fill", {"field": "collection", "value": collection}, "5 collection"))
-    if collection == "pickup" and pickup_window:
-        steps.append(
-            ("returns.fill", {"field": "pickup_window", "value": pickup_window}, "5 collection")
-        )
-    steps.append(("returns.next_step", {}, "5 collection"))
-    return steps
 
 
 def exchange_options(product_id: str, current_variant: str | None = None) -> list[tuple[str, str]]:

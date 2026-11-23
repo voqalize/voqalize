@@ -2,6 +2,7 @@ import { ChevronRight } from "lucide-react";
 import { Link } from "react-router-dom";
 import { type Product, bestSaving, imgUrl, money } from "../data/catalog";
 import { useMarked } from "../voice/controller";
+import { persona } from "../persona";
 
 /** A product photo from our own origin: 400w in grids, 1000w on the product page. */
 export function Photo({
@@ -35,9 +36,9 @@ export function Photo({
   );
 }
 
-export function EmilyTag({ label = "Emily" }: { label?: string }) {
+export function EmilyTag({ label = persona.name }: { label?: string }) {
   return (
-    <span className="emily-tag" title="Emily, our design adviser, made this change">
+    <span className="emily-tag" title={`${persona.name}, our ${persona.role}, made this change`}>
       {label}
     </span>
   );

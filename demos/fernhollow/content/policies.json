@@ -1,11 +1,12 @@
 {
   "returns": {
     "window": "30 days from delivery",
+    "cancellation": "An order can be cancelled while it is packed at our warehouse; once it is on its way it can no longer be cancelled, and once it is delivered it can be returned instead.",
     "condition": "Items must be unused, undamaged, complete and in original condition; original packaging wherever possible.",
     "refund": "Refunded to the original payment method once the item is received and checked.",
     "notReturnable": "Used, washed, altered or damaged items, and furniture that has been assembled and taken apart, unless faulty.",
     "damagedOrFaulty": "Tell us as soon as possible, ideally with a photo; we arrange a repair, replacement or refund.",
-    "howToStart": "Contact us or ask Emily with the order and item; we confirm the return and agree how it comes back.",
+    "howToStart": "Choose the delivered order on your orders page and press Start a return, or ask {{agent}}; we confirm the return and agree how it comes back.",
     "exchanges": "Return the original item and place a new order for the one you want.",
     "page": "policy/returns"
   },
@@ -16,6 +17,7 @@
     "summary": "Free standard delivery on orders over $500; otherwise a flat $49 per order.",
     "perOrder": "The charge is per order, not per item.",
     "timing": "No specific delivery dates are promised; we get in touch once the order is on its way and agree a day for large furniture.",
+    "changes": "While an order is packed you can move its delivery to another of the days offered; once it is on its way you can ask for an earlier delivery, which we pass to the driver as a request, not a promise.",
     "stock": "Stock levels are not shown; if a piece is unavailable after ordering we contact you first.",
     "page": "policy/delivery"
   },
