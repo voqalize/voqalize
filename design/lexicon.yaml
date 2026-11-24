@@ -75,9 +75,31 @@ terms:
     word: the avatar
     retired: [video agent, digital human]
 
+  # Inverted on 2026-11-24 with the workspace/project rename (platform#438):
+  # "tenant" was the word on every surface until then, and is retired with it.
   - concept: The account that owns agents, keys and sessions
-    word: tenant
-    retired: [workspace]
+    word: workspace
+    retired: [tenant]
+
+  # A website the customer runs plus the managed agent Voqalize builds for it
+  # (the Site Agent, until the same rename). "site" stays right wherever it
+  # means the customer's website — "your site's pages", origins, robots.txt,
+  # `site.js`, "site tools" — so only the entity sense is retired, and a
+  # person reads the sweep's hits.
+  - concept: A website plus the managed agent Voqalize builds and runs for it
+    word: project
+    retired: [site]
+
+  # The two kinds of agent a workspace holds since the same rename. Labels, not
+  # stored fields: an agent is managed when it is a project's live or preview
+  # agent, and custom otherwise.
+  - concept: A project's agent, which Voqalize builds and runs
+    word: managed agent
+    retired: [Site Agent]
+
+  - concept: An agent the customer builds, with their own brain
+    word: custom agent
+    retired: []
 
   - concept: The person on the call
     word: user
@@ -225,6 +247,14 @@ vendor_names:
         heading: Mobile apps
       - file: docs/src/content/docs/overview/status.md
         heading: Mobile apps
+
+# Words never used in customer text, checked every time (not under `--sweep`).
+# "Site Agent" was the hosted agent's product name until the workspace/project
+# rename of 2026-11-24; a project's agent is the managed agent now, and the
+# section that explains it is Projects (`build/projects/`). Internal package
+# names (`sitekit`, `sitebrain`, `site.js`) are code and never match.
+prohibited:
+  - word: Site Agent
 
 # Retired vocabulary. Not synonyms for anything — words that assert an outcome
 # the reader has not been shown.

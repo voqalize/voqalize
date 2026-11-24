@@ -1,16 +1,16 @@
 ---
-title: Site Agent previews and invites
-description: Trying an unpublished Site Agent version on your live site before visitors get it, and letting others try it. Client and member invites, the Voqalize Preview extension, minutes, revoking, and the console's Try it live.
+title: Project previews and invites
+description: Trying an unpublished version of a project on your live site before visitors get it, and letting others try it. Client and member invites, the Voqalize Preview extension, minutes, revoking, and the console's Try it live.
 ---
 
 Every version so far reached visitors only once it was published
-([Refreshes and review](/build/site-agent/refresh/)). A **preview** lets a
+([Refreshes and review](/build/projects/refresh/)). A **preview** lets a
 person try a version on your live site first: before it is published, and
 before the snippet is on any page. There is no sign-in.
 
-A preview always shows the site's `preview_version`: the newest version that
+A preview always shows the project's `preview_version`: the newest version that
 is waiting for review, approved or published
-([Published, preview and latest](/build/site-agent/refresh/#published-preview-and-latest)).
+([Published, preview and latest](/build/projects/refresh/#published-preview-and-latest)).
 
 ```text
   owner or admin                     the person invited               your live site
@@ -25,19 +25,19 @@ is waiting for review, approved or published
 ## Share a preview
 
 An owner or admin creates a **client invite**, in the console or with
-`create_site_invite` over [MCP](/reference/mcp/#site-agent-tools):
+`create_project_invite` over [MCP](/reference/mcp/#project-tools):
 
 - a label saying who it is for;
 - how many days it works;
 - how many voice minutes it may use.
 
-The answer carries the link, `…/p/<code>`. It is shown once. The site must have
-a version to preview. `list_site_invites` lists a site's invites and
-`revoke_site_invite` ends one.
+The answer carries the link, `…/p/<code>`. It is shown once. The project must have
+a version to preview. `list_project_invites` lists a project's invites and
+`revoke_project_invite` ends one.
 
 ## Preview it yourself
 
-Any member of the tenant can use **Preview in my browser** in the console. That
+Any member of the workspace can use **Preview in my browser** in the console. That
 **member invite** lasts 30 days and has no minute budget. It is console-only.
 
 ## Opening the link
@@ -51,7 +51,7 @@ then opens the site.
 - **It asks Chrome for access to the site's own origins only.**
 - **On the page** the button carries a **Voqalize Preview** badge and follows
   the same rules as the installed snippet
-  ([where the button shows](/build/site-agent/settings/#where-the-button-shows)).
+  ([where the button shows](/build/projects/settings/#where-the-button-shows)).
   A page that already runs the snippet is left alone.
 
 ## Minutes, keys and revoking
@@ -62,8 +62,8 @@ then opens the site.
   the invite ends.
 - **Revoking an invite also revokes every key made from it**, so the next call
   from that browser is refused.
-- **A paused site still previews.** Pausing stops the live key, not previews
-  ([Pause](/build/site-agent/settings/#pause-the-assistant)).
+- **A paused project still previews.** Pausing stops the live key, not previews
+  ([Pause](/build/projects/settings/#pause-the-assistant)).
 
 ## Try a site tool live
 

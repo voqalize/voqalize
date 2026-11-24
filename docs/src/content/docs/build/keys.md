@@ -4,7 +4,7 @@ description: The secret key (sk_) for your backend and the brain's Cortex connec
 ---
 
 Every key names exactly one agent and starts sessions for that agent only. There
-is no tenant-wide key. Keys never expire; you revoke them.
+is no workspace-wide key. Keys never expire; you revoke them.
 
 | Kind | Prefix | Held by | Used for |
 |---|---|---|---|
@@ -64,16 +64,16 @@ anything decides who may have a session.
 Over the [MCP server](/reference/mcp/):
 
 ```text
-create_api_key(tenant="acme", agent_id="06a2…", label="web", kind="secret")
-create_api_key(tenant="acme", agent_id="06a2…", label="site", kind="publishable",
+create_api_key(workspace="acme", agent_id="06a2…", label="web", kind="secret")
+create_api_key(workspace="acme", agent_id="06a2…", label="site", kind="publishable",
                allowed_origins=["https://app.example.com", "https://*.example.com"])
-update_api_key_origins(tenant="acme", key_id="…",
+update_api_key_origins(workspace="acme", key_id="…",
                        allowed_origins=["https://app.example.com", "https://staging.example.com"])
-list_api_keys(tenant="acme", agent_id="06a2…")
-revoke_api_key(tenant="acme", key_id="…")
+list_api_keys(workspace="acme", agent_id="06a2…")
+revoke_api_key(workspace="acme", key_id="…")
 ```
 
-- `create_agent` returns the agent's first `sk_` as `session_key`. A tenant's
+- `create_agent` returns the agent's first `sk_` as `session_key`. A workspace's
   starter agent has no key you were shown, so mint one with `create_api_key`.
 - `update_api_key_origins` **replaces** the whole list. Read the current list from
   `list_api_keys`, change it, and send all of it back; an origin you leave out is

@@ -877,11 +877,12 @@ facts:
     reproduce: >-
       grep -rn 'MCP_TOOL_RPM' ../platform/backend/controlplane/app/
     note: >-
-      Per tenant, per minute, on the MCP surface's own key namespace —
+      Per workspace, per minute, on the MCP surface's own key namespace —
       charged at the membership check, so it lands only after membership is
       proven and an agent looping over sessions cannot spend the budget a page
-      needs to start a call. The three unscoped tools (`whoami`, `list_tenants`,
-      `create_tenant`) take no `tenant` and are not metered here. 120, down
+      needs to start a call. The three unscoped tools (`whoami`, `list_workspaces`,
+      `create_workspace`) take no `workspace` and are not metered here
+      (`list_tenants`, `create_tenant` and `tenant` until 2026-11-24). 120, down
       from 300 on 2026-08-29: an agent driving tools in a loop is serial by
       construction, and reference/mcp.md said 300 until 2026-09-10.
     forbid:
@@ -1263,9 +1264,10 @@ facts:
     except:
       - design/facts.yaml
 
-  # ---- the Site Agent (docs/src/content/docs/build/site-agent/) -------------
+  # ---- projects (docs/src/content/docs/build/projects/) ---------------------
   #
-  # Every number the Site Agent pages state. The sources are in the platform
+  # Every number the Projects pages state (the Site Agent section until the
+  # workspace/project rename of 2026-11-24). The sources are in the platform
   # repo, so each fact carries `reproduce:` (run from this repo's root, with
   # platform checked out beside it). Paths are relative to platform/.
 
@@ -1311,10 +1313,10 @@ facts:
 
   site.try_it_live.token_ttl:
     value: 10 minutes
-    source: platform/backend/controlplane/app/domains/sites/try_links.py:84 TRY_TOKEN_TTL_SECONDS
+    source: platform/backend/controlplane/app/domains/projects/try_links.py:84 TRY_TOKEN_TTL_SECONDS
     verified: 2026-11-04
     reproduce: >-
-      grep -n 'TRY_TOKEN_TTL_SECONDS: Final' ../platform/backend/controlplane/app/domains/sites/try_links.py
+      grep -n 'TRY_TOKEN_TTL_SECONDS: Final' ../platform/backend/controlplane/app/domains/projects/try_links.py
     note: >-
       Single use. Only a tool with a passing proof can be tried; a form send
       or an irreversible tool never can.
@@ -1328,30 +1330,30 @@ facts:
 
   site.live_key.rotation_overlap:
     value: 24 hours
-    source: platform/backend/controlplane/app/domains/sites/service_dtos.py:521 RotatedLiveKey
+    source: platform/backend/controlplane/app/domains/projects/service_dtos.py:553 RotatedLiveKey
     verified: 2026-11-04
     reproduce: >-
-      grep -n 'previous_key_expires_at' ../platform/backend/controlplane/app/domains/sites/service_dtos.py
+      grep -n 'previous_key_expires_at' ../platform/backend/controlplane/app/domains/projects/service_dtos.py
     note: >-
       After Rotate key, the previous live key keeps working this long so pages
       can be updated. Rotation is a console action; no MCP tool rotates a key.
 
   site.starter.pages:
     value: about 15
-    source: platform/backend/controlplane/app/domains/sites/starter.py:13 STARTER_KEY_PAGES_MAX
+    source: platform/backend/controlplane/app/domains/projects/starter.py:13 STARTER_KEY_PAGES_MAX
     verified: 2026-11-04
     reproduce: >-
-      sed -n '10,16p' ../platform/backend/controlplane/app/domains/sites/starter.py
+      sed -n '10,16p' ../platform/backend/controlplane/app/domains/projects/starter.py
     note: >-
       The quick first read, published within minutes of adding a site; its
       whole pass is capped at site.starter.runtime_cap.
 
   site.starter.runtime_cap:
     value: 4 minutes
-    source: platform/backend/controlplane/app/domains/sites/starter.py:62 STARTER_RUNTIME_CAP_S
+    source: platform/backend/controlplane/app/domains/projects/starter.py:123 STARTER_RUNTIME_CAP_S
     verified: 2026-11-04
     reproduce: >-
-      grep -n 'STARTER_RUNTIME_CAP_S' ../platform/backend/controlplane/app/domains/sites/starter.py
+      grep -n 'STARTER_RUNTIME_CAP_S' ../platform/backend/controlplane/app/domains/projects/starter.py
     note: >-
       Pages say "within minutes"; this is the ceiling behind that phrase.
 
@@ -1368,18 +1370,18 @@ facts:
 
   site.targeted_refresh.minutes:
     value: about 10 minutes
-    source: platform/backend/controlplane/app/domains/sites/run_service.py:226 FOCUS_MINUTES
+    source: platform/backend/controlplane/app/domains/projects/run_service.py:256 FOCUS_MINUTES
     verified: 2026-11-04
     reproduce: >-
-      grep -n 'FOCUS_MINUTES' ../platform/backend/controlplane/app/domains/sites/run_service.py
+      grep -n 'FOCUS_MINUTES' ../platform/backend/controlplane/app/domains/projects/run_service.py
     note: What the console tells a customer a re-check of chosen actions takes.
 
   site.self_study.ttl:
     value: 24 hours
-    source: platform/backend/controlplane/app/domains/sites/run_service.py:192 SELF_RUN_TTL
+    source: platform/backend/controlplane/app/domains/projects/run_service.py:219 SELF_RUN_TTL
     verified: 2026-11-04
     reproduce: >-
-      grep -n 'SELF_RUN_TTL =' ../platform/backend/controlplane/app/domains/sites/run_service.py
+      grep -n 'SELF_RUN_TTL =' ../platform/backend/controlplane/app/domains/projects/run_service.py
 
   site.bundle.max_bytes:
     value: 50 MiB
@@ -1417,47 +1419,47 @@ facts:
 
   site.kit.link_ttl:
     value: 1 hour
-    source: platform/backend/controlplane/app/domains/sites/kit_registry.py:40 KIT_URL_TTL_SECONDS
+    source: platform/backend/controlplane/app/domains/projects/kit_registry.py:40 KIT_URL_TTL_SECONDS
     verified: 2026-11-04
     reproduce: >-
-      grep -n 'KIT_URL_TTL_SECONDS' ../platform/backend/controlplane/app/domains/sites/kit_registry.py
+      grep -n 'KIT_URL_TTL_SECONDS' ../platform/backend/controlplane/app/domains/projects/kit_registry.py
 
   site.draft.ttl:
     value: 7 days
-    source: platform/backend/controlplane/app/domains/sites/knowledge_edit/documents.py:31 DRAFT_TTL
+    source: platform/backend/controlplane/app/domains/projects/knowledge_edit/documents.py:31 DRAFT_TTL
     verified: 2026-11-04
     reproduce: >-
-      grep -n 'DRAFT_TTL' ../platform/backend/controlplane/app/domains/sites/knowledge_edit/documents.py
+      grep -n 'DRAFT_TTL' ../platform/backend/controlplane/app/domains/projects/knowledge_edit/documents.py
     note: Counted from when the draft was started, not from its last edit.
 
   site.draft.ops_per_edit:
     value: 50
-    source: platform/backend/controlplane/app/domains/sites/knowledge_edit/ops.py:90 MAX_OPS_PER_EDIT
+    source: platform/backend/controlplane/app/domains/projects/knowledge_edit/ops.py:117 MAX_OPS_PER_EDIT
     verified: 2026-11-04
     reproduce: >-
-      grep -n 'MAX_OPS_PER_EDIT' ../platform/backend/controlplane/app/domains/sites/knowledge_edit/ops.py
+      grep -n 'MAX_OPS_PER_EDIT' ../platform/backend/controlplane/app/domains/projects/knowledge_edit/ops.py
 
   site.draft.fact_reads_per_call:
     value: 20
-    source: platform/backend/controlplane/app/domains/sites/knowledge_edit/checks.py:124 MAX_FACT_FETCHES
+    source: platform/backend/controlplane/app/domains/projects/knowledge_edit/checks.py:146 MAX_FACT_FETCHES
     verified: 2026-11-04
     reproduce: >-
-      grep -n 'MAX_FACT_FETCHES' ../platform/backend/controlplane/app/domains/sites/knowledge_edit/checks.py
+      grep -n 'MAX_FACT_FETCHES' ../platform/backend/controlplane/app/domains/projects/knowledge_edit/checks.py
     note: Facts past it are `unchecked` until the submit, which reads every one.
 
   site.draft.bundle_link_ttl:
     value: 10 minutes
-    source: platform/backend/controlplane/app/domains/sites/knowledge_edit/service.py:106 BUNDLE_URL_TTL_SECONDS
+    source: platform/backend/controlplane/app/domains/projects/knowledge_edit/service.py:130 BUNDLE_URL_TTL_SECONDS
     verified: 2026-11-04
     reproduce: >-
-      grep -n 'BUNDLE_URL_TTL_SECONDS' ../platform/backend/controlplane/app/domains/sites/knowledge_edit/service.py
+      grep -n 'BUNDLE_URL_TTL_SECONDS' ../platform/backend/controlplane/app/domains/projects/knowledge_edit/service.py
 
   site.knowledge.read_page_chars:
     value: 12,000 by default, 1,000 to 40,000
-    source: platform/backend/controlplane/app/domains/sites/knowledge_read.py:59 DEFAULT_PAGE_CHARS
+    source: platform/backend/controlplane/app/domains/projects/knowledge_read.py:60 DEFAULT_PAGE_CHARS
     verified: 2026-11-04
     reproduce: >-
-      grep -n 'PAGE_CHARS' ../platform/backend/controlplane/app/domains/sites/knowledge_read.py
+      grep -n 'PAGE_CHARS' ../platform/backend/controlplane/app/domains/projects/knowledge_read.py
 
   site.knowledge.l1_max_tokens:
     value: 5,500
@@ -1485,58 +1487,58 @@ facts:
 
   site.invite.client:
     value: label 1 to 80 characters; 1 to 90 days (default 14); 1 to 1000 voice minutes (default 60)
-    source: platform/backend/controlplane/app/domains/sites/invites.py:37 MAX_INVITE_DAYS
+    source: platform/backend/controlplane/app/domains/projects/invites.py:37 MAX_INVITE_DAYS
     verified: 2026-11-04
     reproduce: >-
-      grep -n 'INVITE_' ../platform/backend/controlplane/app/domains/sites/invites.py
+      grep -n 'INVITE_' ../platform/backend/controlplane/app/domains/projects/invites.py
     note: >-
       Minutes are checked when a call connects; a call that crosses the budget
       is not cut.
 
   site.invite.member_days:
     value: 30
-    source: platform/backend/controlplane/app/domains/sites/invites.py:43 MEMBER_INVITE_DAYS
+    source: platform/backend/controlplane/app/domains/projects/invites.py:43 MEMBER_INVITE_DAYS
     verified: 2026-11-04
     reproduce: >-
-      grep -n 'MEMBER_INVITE_DAYS' ../platform/backend/controlplane/app/domains/sites/invites.py
+      grep -n 'MEMBER_INVITE_DAYS' ../platform/backend/controlplane/app/domains/projects/invites.py
     note: No minute budget. Made from the console's Preview in my browser only.
 
   site.invite.preview_key_hours:
     value: 24
-    source: platform/backend/controlplane/app/domains/sites/invites.py:46 INVITE_KEY_HOURS
+    source: platform/backend/controlplane/app/domains/projects/invites.py:46 INVITE_KEY_HOURS
     verified: 2026-11-04
     reproduce: >-
-      grep -n 'INVITE_KEY_HOURS' ../platform/backend/controlplane/app/domains/sites/invites.py
+      grep -n 'INVITE_KEY_HOURS' ../platform/backend/controlplane/app/domains/projects/invites.py
     note: The extension refreshes it from the invite until the invite ends.
 
   site.notes:
     value: at most 50 notes of at most 300 characters
-    source: platform/backend/controlplane/app/domains/sites/documents.py:443 MAX_SITE_NOTES
+    source: platform/backend/controlplane/app/domains/projects/documents.py:603 MAX_PROJECT_NOTES
     verified: 2026-11-04
     reproduce: >-
-      grep -n 'MAX_SITE_NOTES' ../platform/backend/controlplane/app/domains/sites/documents.py;
+      grep -n 'MAX_PROJECT_NOTES' ../platform/backend/controlplane/app/domains/projects/documents.py;
       grep -n 'CUSTOMER_NOTE_MAX_CHARS' ../platform/backend/sitekit/sitekit/limits.py
 
-  site.mcp.list_sites_limit_max:
+  site.mcp.list_projects_limit_max:
     value: 100
-    source: platform/backend/controlplane/app/entrypoints/mcp/site_tools.py:121 _MAX_PAGE
+    source: platform/backend/controlplane/app/entrypoints/mcp/project_tools.py:128 _MAX_PAGE
     verified: 2026-11-04
     reproduce: >-
-      grep -n '_MAX_PAGE =\|_SITE_VERSIONS =' ../platform/backend/controlplane/app/entrypoints/mcp/site_tools.py
+      grep -n '_MAX_PAGE =\|_PROJECT_VERSIONS =' ../platform/backend/controlplane/app/entrypoints/mcp/project_tools.py
 
-  site.mcp.get_site_versions_page:
+  site.mcp.get_project_versions_page:
     value: 10
-    source: platform/backend/controlplane/app/entrypoints/mcp/site_tools.py:123 _SITE_VERSIONS
+    source: platform/backend/controlplane/app/entrypoints/mcp/project_tools.py:130 _PROJECT_VERSIONS
     verified: 2026-11-04
     reproduce: >-
-      grep -n '_SITE_VERSIONS =' ../platform/backend/controlplane/app/entrypoints/mcp/site_tools.py
+      grep -n '_PROJECT_VERSIONS =' ../platform/backend/controlplane/app/entrypoints/mcp/project_tools.py
 
   site.robots_acknowledgement.version:
     value: 2026-10-15-default
-    source: platform/backend/controlplane/app/domains/sites/robots_override.py:64 ROBOTS_ACKNOWLEDGEMENT_VERSION
+    source: platform/backend/controlplane/app/domains/projects/robots_override.py:64 ROBOTS_ACKNOWLEDGEMENT_VERSION
     verified: 2026-11-04
     reproduce: >-
-      sed -n '64,70p' ../platform/backend/controlplane/app/domains/sites/robots_override.py
+      sed -n '64,70p' ../platform/backend/controlplane/app/domains/projects/robots_override.py
     note: >-
       A new wording is a new version, and an older one is refused with
       `robots_acknowledgement_outdated`; the page quoting the words must change
@@ -1633,7 +1635,7 @@ facts:
       grep -n 'concurrency' ../marketing-website/src/data/pricing.ts
     note: >-
       Docs describe the product as sold and point at the pricing page for each
-      plan's concurrent sessions, minutes and storage. The per-tenant API rate
+      plan's concurrent sessions, minutes and storage. The per-workspace API rate
       limit is a `429` with `Retry-After`. Until 2026-09-21 this entry said
       session limits were not enforced during developer preview.
     forbid:

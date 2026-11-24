@@ -86,4 +86,17 @@ export const redirects = {
   // for the library under it. `/start/pipecat` above points straight here
   // rather than chaining through this hop.
   "/build/pipecat": "/build/client",
+
+  // The Site Agent section became Projects on the workspace/project rename: a
+  // project is a website plus its managed agent, and "Site Agent" is no longer
+  // a name customers read. Same pages, same slugs under the new namespace.
+  "/build/site-agent": "/build/projects",
+  "/build/site-agent/refresh": "/build/projects/refresh",
+  "/build/site-agent/knowledge": "/build/projects/knowledge",
+  "/build/site-agent/self-study": "/build/projects/self-study",
+  "/build/site-agent/preview": "/build/projects/preview",
+  "/build/site-agent/settings": "/build/projects/settings",
+  "/build/site-agent/security": "/build/projects/security",
+  "/build/site-agent/manage": "/build/projects/manage",
+  "/build/site-agent/limits": "/build/projects/limits",
 };

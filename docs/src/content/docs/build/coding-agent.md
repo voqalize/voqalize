@@ -46,27 +46,27 @@ the console. There is no API key or client secret to configure.
   a message saying why. [MCP server](/reference/mcp/) lists every tool and its
   arguments.
 
-Every tool but `whoami`, `list_tenants` and `create_tenant` takes a `tenant`
-slug. Calls are limited to 120 a minute per tenant.
+Every tool but `whoami`, `list_workspaces` and `create_workspace` takes a `workspace`
+slug. Calls are limited to 120 a minute per workspace.
 
 ## The flow, end to end
 
 This is the order an agent with these tools takes a project from empty to a
 running voice agent:
 
-1. **Find the tenant.** `whoami`, then `list_tenants`. Choose the tenant by its
-   `name` and pass its `slug` as `tenant` to every other tool. An empty list means
-   there is no tenant yet: call `create_tenant`.
+1. **Find the workspace.** `whoami`, then `list_workspaces`. Choose the workspace by its
+   `name` and pass its `slug` as `workspace` to every other tool. An empty list means
+   there is no workspace yet: call `create_workspace`.
 2. **Write the brain.** A `Brain` subclass with `greet` and `on_user_message`,
    then the callbacks it needs. See [Build the brain](/build/brain/).
 3. **Test it unattended.** The [conformance harness](/build/testing/) drives the
    brain over the real wire, with no audio, no model and no person.
-4. **Create the agent.** `create_agent(tenant, name)` returns the agent (with its
+4. **Create the agent.** `create_agent(workspace, name)` returns the agent (with its
    `test_url`) and a `session_key`: an `sk_` key, shown once, for your server.
 5. **Say how Voqalize reaches the brain.** Locally,
-   `create_agent_credentials(tenant, agent_id)` puts the agent on the Cortex relay
+   `create_agent_credentials(workspace, agent_id)` puts the agent on the Cortex relay
    and returns `agent_secret` and `cortex_url` for `serve(...)`; no tunnel. In
-   production, `update_agent(tenant, agent_id, brain_url="wss://…")` points it at
+   production, `update_agent(workspace, agent_id, brain_url="wss://…")` points it at
    an inbound route. Until one of these is done, every session is refused with
    `agent_not_configured`. See [Deploy the brain](/build/hosting/).
 6. **Talk to it.** Run the brain and open the agent's `test_url`, the console
@@ -74,7 +74,7 @@ running voice agent:
 7. **Put it in the app.** A server route that calls `sessions.connect` with the
    `sk_` key, and your client on `@voqalize/client-transport` in the page. For
    a public page with no login, mint a browser key with
-   `create_api_key(tenant, agent_id, label, kind="publishable", allowed_origins=[…])`.
+   `create_api_key(workspace, agent_id, label, kind="publishable", allowed_origins=[…])`.
    See [Connect your app](/build/connect/).
 8. **Read sessions back.** `list_sessions`, then `get_call_record` for what was
    said and heard, and `get_session_logs` for Voqalize's side. See

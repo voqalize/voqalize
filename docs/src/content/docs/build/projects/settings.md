@@ -1,29 +1,29 @@
 ---
-title: Site Agent settings
+title: Project settings
 description: The assistant's name and greeting, its avatar, languages and per-language instructions, the button's look, where and when it shows, per-page options on the tag, how visitors reach a person, what the assistant may do, and pausing. Every key, its default, and how a change goes live.
 ---
 
 Everything so far changed what the assistant knows, through versions. How it
-looks and behaves on your pages is set separately, in the site's **settings**,
+looks and behaves on your pages is set separately, in the project's **settings**,
 which the first studied publish filled in for you
-([The Site Agent](/build/site-agent/#review-and-publish-the-first-version)).
+([Projects](/build/projects/#review-and-publish-the-first-version)).
 
-Settings belong to the site, not to a version: a save is live on the next
+Settings belong to the project, not to a version: a save is live on the next
 page load, with no new version and no review. An owner or admin changes them
-in the console or with `update_site_settings` over
-[MCP](/reference/mcp/#site-agent-tools).
+in the console or with `update_project_settings` over
+[MCP](/reference/mcp/#project-tools).
 
 ## Change settings over MCP
 
-`update_site_settings(tenant, site_id, settings, expected_updated_at="")`.
+`update_project_settings(workspace, project_id, settings, expected_updated_at="")`.
 
-- **`settings` is a JSON merge patch** over `site.settings` as `get_site` shows
+- **`settings` is a JSON merge patch** over `project.settings` as `get_project` shows
   it. Name only what changes: an object merges key by key, `null` puts a key
   back to its default, and a list (such as `voice.languages` or
   `assist.tools_off`) is replaced whole.
-- **Pass the `site.updated_at` you read** as `expected_updated_at`. If the site
-  changed since, nothing is saved and the call is refused with `site_changed`;
-  read the site and send the patch again.
+- **Pass the `project.updated_at` you read** as `expected_updated_at`. If the project
+  changed since, nothing is saved and the call is refused with `project_changed`;
+  read the project and send the patch again.
 
 ## Keys
 
@@ -57,11 +57,11 @@ folder itself.
 
 Each character speaks in its own voice, so the voice is not a setting: it is
 set from `avatar.character`, whatever the patch says. With the avatar off the
-site keeps the voice it had. A character none of whose voices speaks every
-site language is refused.
+project keeps the voice it had. A character none of whose voices speaks every
+project language is refused.
 
 Javier is the character who speaks Spanish and Brazilian Portuguese, each
-beside English, so a site with either language starts with him.
+beside English, so a project with either language starts with him.
 
 ### What the assistant may do: `assist`
 
@@ -90,10 +90,10 @@ Nothing is saved when a patch is refused:
 | Code | Means |
 |---|---|
 | `language_unsupported` | A language the assistant cannot speak. |
-| `character_language_unsupported` | No voice of that character speaks every site language. |
+| `character_language_unsupported` | No voice of that character speaks every project language. |
 | `accent_low_contrast` | The accent colour is hidden by the background; the message names one to use. |
-| `site_archived` | The site is archived. |
-| `site_changed` | The site changed since `expected_updated_at`. |
+| `project_archived` | The project is archived. |
+| `project_changed` | The project changed since `expected_updated_at`. |
 
 ## Options on the tag
 
@@ -101,7 +101,7 @@ A page can set a few options for itself on the snippet's tag:
 
 | Attribute | Does |
 |---|---|
-| `data-language="hindi"` | The language a call on this page starts in, as a language name, not a code. It must be one of the site's languages, in any case; any other value is ignored. |
+| `data-language="hindi"` | The language a call on this page starts in, as a language name, not a code. It must be one of the project's languages, in any case; any other value is ignored. |
 | `data-greeting="…"` | The assistant's first words on this page. Plain text of at most 280 characters; tags and invisible characters are removed, and a longer value is ignored. |
 | `data-hide="1"` | Hide the button on this page. `true`, `yes` and an empty value also count. |
 
@@ -122,7 +122,7 @@ The keys are `hide`, `greeting`, `language` and `pageType`. `pageType` names
 one of the site's page types (letters, digits, `_` and `-`) when the address
 alone does not say which kind of page this is. A value set in code beats the
 tag, a later value beats an earlier one, and an invalid value falls through to
-the tag and then to the site's settings. Reassigning `window.VoqalizeSite` and
+the tag and then to the project's settings. Reassigning `window.VoqalizeSite` and
 calling `configure` both take effect at once.
 
 ## Where the button shows
@@ -142,9 +142,9 @@ Your own `show_on` exclusions always win.
 
 ## Pause the assistant
 
-**Pause** in the console turns the site's live key off: the button no longer
+**Pause** in the console turns the project's live key off: the button no longer
 shows on your pages and no visitor call starts, while the snippet stays where
-it is. [Previews](/build/site-agent/preview/) still work, and studies still
+it is. [Previews](/build/projects/preview/) still work, and studies still
 run. **Resume** turns it back on. There is no MCP tool for either.
 
 ## In the console only
@@ -152,7 +152,7 @@ run. **Resume** turns it back on. There is no MCP tool for either.
 - **Goals:** what the assistant leads visitors towards. A patch over MCP never
   changes them.
 - **Notes:** one-line corrections to what the assistant knows; see
-  [Notes in the console](/build/site-agent/knowledge/#notes-in-the-console).
+  [Notes in the console](/build/projects/knowledge/#notes-in-the-console).
 - **The robots agreement:** whether the reader may read pages `robots.txt`
-  asks crawlers to skip ([robots.txt](/build/site-agent/security/#robotstxt)).
-- **Pause and resume**, above, and renaming the site.
+  asks crawlers to skip ([robots.txt](/build/projects/security/#robotstxt)).
+- **Pause and resume**, above, and renaming the project.

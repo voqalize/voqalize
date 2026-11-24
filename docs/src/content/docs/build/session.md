@@ -139,8 +139,9 @@ None of these is needed for a first session, and each is a change to one side:
 | Term | Meaning |
 |---|---|
 | **Brain** | Your code: one WebSocket endpoint that receives user turns as text and returns speech and actions. In Python, a `Brain` subclass. [Build the brain](/build/brain/). |
-| **Agent** | The Voqalize record that names how to reach a brain (`mode` and `brain_url`) and its recording default. Configuration, not intelligence. Your own "agent" is the brain. |
-| **Tenant** | The account that owns your agents, keys, sessions and members. |
+| **Agent** | The Voqalize record that names how to reach a brain (`mode` and `brain_url`) and its recording default. Configuration, not intelligence. Your own "agent" is the brain. An agent you build is a **custom** agent; a project's agent, which Voqalize builds and runs, is a **managed** agent. |
+| **Workspace** | The account that owns your agents, keys, sessions and members. |
+| **Project** | A website you run plus the managed agent Voqalize builds for it from the site's pages. [Projects](/build/projects/). |
 | **Session** | One conversation: one connect, one WebSocket to the brain, one record. It lasts at most one hour. |
 | **Turn** | One finished utterance from the user, delivered as `UserMessage` text, and the brain's reply to it. |
 | **Speech unit** | One `SpeechStart` … `SpeechEnd` span of the brain's reply. Speaking starts on its first chunk, and it is the piece a user can be interrupted out of. [Speaking](/build/brain/speaking/). |

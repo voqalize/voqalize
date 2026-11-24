@@ -1,10 +1,10 @@
 ---
-title: Site Agent CSP, bot protection and data
-description: What your site must allow for the Site Agent to work, and what crosses when Voqalize reads your site and when a visitor calls. The Content-Security-Policy sources, letting the reader past bot protection, the robots.txt agreement, and exactly what is sent.
+title: Project CSP, bot protection and data
+description: What your site must allow for a project's managed agent to work, and what crosses when Voqalize reads your site and when a visitor calls. The Content-Security-Policy sources, letting the reader past bot protection, the robots.txt agreement, and exactly what is sent.
 ---
 
 The earlier pages assumed the snippet loads on your pages and the reader can
-reach them ([The Site Agent](/build/site-agent/)). This page covers sites
+reach them ([Projects](/build/projects/)). This page covers sites
 where one of those needs a change on your side, then lists exactly what is
 sent: when Voqalize reads your site, and when a visitor calls.
 
@@ -20,7 +20,7 @@ img-src      https://cdn.voqalize.com
 
 - `cdn.voqalize.com` serves `site.js`, the call code it loads on the first
   click, and the avatar and its pictures.
-- `app.voqalize.com` is the API: the script reads the site's settings from it.
+- `app.voqalize.com` is the API: the script reads the project's settings from it.
 - `signal.voqalize.com` is where a call starts: the script asks it for the
   call's voice connection.
 - `*.prod.voqalize.com` is where that voice connection is set up; the
@@ -74,7 +74,7 @@ means nothing on the site is read.
 
 ## robots.txt
 
-Adding a site in the console shows this notice, and adding the site is the
+Adding a project in the console shows this notice, and adding the project is the
 agreement:
 
 > Adding your site lets Voqalize read all its public pages, including ones
@@ -84,20 +84,20 @@ With that agreement the reader may read pages your `robots.txt` asks crawlers
 to skip. Without it, studies obey `robots.txt`, and the reader matches
 `robots.txt` groups by its product token, `VoqalizeSiteReader`.
 
-- **Only a tenant owner or admin can agree.** A site added by anyone else
+- **Only a workspace owner or admin can agree.** A project added by anyone else
   obeys `robots.txt` until an owner or admin turns reading on in Settings.
-- **Over MCP the agreement is opt-in.** `create_site` takes it as
+- **Over MCP the agreement is opt-in.** `create_project` takes it as
   `robots_acknowledgement_version`, the version of the wording agreed to; the
-  current wording is `2026-10-15-default`. Leave it empty and the site obeys
+  current wording is `2026-10-15-default`. Leave it empty and the project obeys
   `robots.txt`. The answer's `robots_acknowledgement_recorded` says which.
 - **An agreement to an older wording counts as none.** Over MCP, an older
   version is refused with `robots_acknowledgement_outdated`.
 - **Turning it off and on** is a switch in the console's Settings; there is
-  no MCP tool for it. Anyone who may change the site can turn it off; only an
+  no MCP tool for it. Anyone who may change the project can turn it off; only an
   owner or admin can turn it back on.
 - **Turned off while a study runs**, the study's version must be approved by a
   person, even where it would otherwise have published itself
-  ([Which refreshes publish themselves](/build/site-agent/refresh/#which-refreshes-publish-themselves)).
+  ([Which refreshes publish themselves](/build/projects/refresh/#which-refreshes-publish-themselves)).
 
 ## What is sent
 
@@ -109,7 +109,7 @@ to skip. Without it, studies obey `robots.txt`, and the reader matches
 
 ### When a visitor starts a call
 
-The call's start carries the site, the published version, the page's path with
+The call's start carries the project, the published version, the page's path with
 no query string, the page type, whether it is a preview, and the page's own
 language and greeting if it set them. No name, email, account or cookie. The
 visitor's voice goes to Voqalize so the assistant can hear it.
@@ -136,7 +136,7 @@ title, no text, and the path cut at the private segment.
 ### What the assistant can do on the page
 
 It can open pages, search, sort and filter, show a section, open and close a
-dialog, choose an option, and point at things. With the site's `assist`
+dialog, choose an option, and point at things. With the project's `assist`
 switches on (the default), and only through site tools a check has proven, it
 can also add to the cart, change or remove a cart line, apply a code the
 visitor says, switch language, region or currency, type into the site's search
@@ -148,7 +148,7 @@ assistant's judgment.
 
 ### What is kept
 
-Each call is a session in your tenant, kept for 30 days like any other: its
-events, its transcript and Voqalize's logs. Site Agent calls are not recorded by
-default: the site's agents are created with recording off, and the snippet does
+Each call is a session in your workspace, kept for 30 days like any other: its
+events, its transcript and Voqalize's logs. A project's calls are not recorded by
+default: its managed agents are created with recording off, and the snippet does
 not ask for it.

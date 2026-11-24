@@ -1,21 +1,21 @@
 ---
-title: Edit Site Agent knowledge
-description: Change what a site's assistant knows and may do yourself. What a version holds, notes in the console, and knowledge edits over MCP with the draft lifecycle, every edit operation, the checks, and how to prove a changed site tool.
+title: Edit a project's knowledge
+description: Change what a project's managed agent knows and may do yourself. What a version holds, notes in the console, and knowledge edits over MCP with the draft lifecycle, every edit operation, the checks, and how to prove a changed site tool.
 ---
 
 Every version so far was written by a study
-([Refreshes and review](/build/site-agent/refresh/)). When the assistant has
+([Refreshes and review](/build/projects/refresh/)). When the assistant has
 something wrong, or you want it to know or do something the study missed, you
 can change it yourself, with a **note** in the
 console, which corrects the assistant at once, or with a **knowledge edit**, a
 checked draft that becomes a new version.
 
-The site's look, avatar and languages are [settings](/build/site-agent/settings/),
+The project's look, avatar and languages are [settings](/build/projects/settings/),
 not knowledge.
 
 ## What a version holds
 
-A version's knowledge is read part by part with `read_site_knowledge`:
+A version's knowledge is read part by part with `read_project_knowledge`:
 
 | Part | Holds | Who may read |
 |---|---|---|
@@ -26,7 +26,7 @@ A version's knowledge is read part by part with `read_site_knowledge`:
 | `facts` | Each fact, with the page it came from and the quote on that page. | Owner or admin |
 | `page_map` | The kinds of page on the site and how to reach them. | Owner or admin |
 | `questions` | The questions the study tested the knowledge against. | Owner or admin |
-| `stage` | The site's Stage moves: what the assistant can show on screen. | Owner or admin |
+| `stage` | The project's Stage moves: what the assistant can show on screen. | Owner or admin |
 
 Beside the knowledge, a version holds its site tools: the actions the
 assistant may run on your pages, each with its proof.
@@ -40,7 +40,7 @@ assistant always knows, marked as the business's own words with its date, in
 the published and the preview version at once, and it is live on the next
 call. Every later version carries it too.
 
-- **A site keeps at most 50 notes of at most 300 characters each.**
+- **A project keeps at most 50 notes of at most 300 characters each.**
 - **A note may not state a price, stock or reviews.** Those are read live from
   the page during a call, never kept.
 - **The next study checks it.** Where a page now says otherwise, that study
@@ -52,36 +52,36 @@ call. Every later version carries it too.
 A knowledge edit changes a stored version through a draft: open it, apply
 operations, read the checks, prove any changed site tool, submit. The submit
 makes a new version that waits for
-[review](/build/site-agent/refresh/#review-in-full). Edits run over
-[MCP](/reference/mcp/#site-agent-tools), by an owner or admin; nothing a draft
+[review](/build/projects/refresh/#review-in-full). Edits run over
+[MCP](/reference/mcp/#project-tools), by an owner or admin; nothing a draft
 holds reaches visitors.
 
 ### Read before you edit
 
-`read_site_knowledge(tenant, site_id, part)` returns one
+`read_project_knowledge(workspace, project_id, part)` returns one
 [part](#what-a-version-holds) a page at a time: 12,000 characters by
 default, `limit` from 1,000 to 40,000, and `cursor` for the next page.
 `version` defaults to the published version, else the newest.
 
 ### The draft lifecycle
 
-- **`start_knowledge_edit(tenant, site_id, base_version=None)`** opens a draft
+- **`start_knowledge_edit(workspace, project_id, base_version=None)`** opens a draft
   from a stored version, the published one by default. A `starter` version
-  cannot be edited: run a study first. A site has one open draft; a second is
+  cannot be edited: run a study first. A project has one open draft; a second is
   refused with `draft_exists`, naming it. The answer has the `draft` (its
   `revision` starts at 0), its first `check`, and `kit`, a signed link to the
   study kit.
-- **`edit_knowledge(tenant, site_id, ops, expected_revision)`** applies a list
+- **`edit_knowledge(workspace, project_id, ops, expected_revision)`** applies a list
   of operations in order, all or none, and returns the draft and its checks.
   `expected_revision` is the `revision` you last saw; another edit since is
   refused with `draft_changed`. A draft that fails its checks is still saved:
   the errors are the answer.
-- **`check_knowledge_edit(tenant, site_id)`** returns the draft and runs its
+- **`check_knowledge_edit(workspace, project_id)`** returns the draft and runs its
   checks again.
-- **`submit_knowledge_edit(tenant, site_id, owner_tested=False)`** turns the
+- **`submit_knowledge_edit(workspace, project_id, owner_tested=False)`** turns the
   draft into version `latest + 1` with `origin` `knowledge_edit`, makes it the
-  site's preview, and closes the draft. It is never published on its own.
-- **`discard_knowledge_edit(tenant, site_id)`** throws the draft away. Stored
+  project's preview, and closes the draft. It is never published on its own.
+- **`discard_knowledge_edit(workspace, project_id)`** throws the draft away. Stored
   versions are untouched.
 
 A draft expires 7 days after it was started, and an expired draft is gone.
@@ -104,10 +104,10 @@ would make the draft larger than a version may be is refused with
 | `set_page_type_reads` | `{page_type, reads}` | What is read on a page type. |
 | `set_navigation` | `{navigation}` | How a page move goes, whole: `{router, router_global, settle_ms}`, `router` one of `full_load`, `history_push`, `next`, `react_router`. |
 | `attach_test_results` | `{adapter_test, background_requests, kit_version}` | What your study kit's run wrote. |
-| `replace_stage_spec` | `{spec}` | The site's Stage Spec (`stage.json`), whole; `null` removes it. |
+| `replace_stage_spec` | `{spec}` | The project's Stage Spec (`stage.json`), whole; `null` removes it. |
 | `put_stage_move` / `remove_stage_move` | `{move}` / `{id}` | One Stage move, in the shape `part="stage"` shows. |
 
-A Stage move edited here keeps the `class` and `args` the site's tools and page
+A Stage move edited here keeps the `class` and `args` the project's site tools and page
 map imply, and changes only its `claims`, `objects`, `verb`, `say`, `doc` and
 `notes`. Removing a `site.*` move drops only those changes.
 
@@ -139,7 +139,7 @@ Every edit returns `check`:
 A new or changed site tool, or a changed navigation, needs a passing run of the
 study kit on the draft:
 
-- Call `get_draft_bundle(tenant, site_id)`. Its `url` downloads the draft as a
+- Call `get_draft_bundle(workspace, project_id)`. Its `url` downloads the draft as a
   `tar.gz`, for the current `revision` only, and expires ten minutes after it
   is made; fetch a new one after each edit. Treat it as a secret.
 - Unpack it and run the kit's `run_adapter_checks.mjs` against it.
@@ -158,5 +158,5 @@ version's `review_flags` for the reviewer to confirm.
 |---|---|
 | `draft_not_ready` | A check failed; the errors are in `details`. Every new or changed fact is read from its page at submit. |
 | `owner_tested_required` | A site tool proven by your own kit is new or changed, and `owner_tested` was false. |
-| `site_run_active` | A study of the site is running; submit when it ends. |
+| `project_run_active` | A study of the project is running; submit when it ends. |
 | `concurrent_update` | An edit landed during the submit; check the draft and submit again. |

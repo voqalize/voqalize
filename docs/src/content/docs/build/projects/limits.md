@@ -1,27 +1,27 @@
 ---
-title: Site Agent limits
-description: Every bound on Site Agent sites, studies, uploads, drafts, knowledge, settings and preview invites, with what happens past it.
+title: Project limits
+description: Every bound on projects, studies, uploads, drafts, knowledge, settings and preview invites, with what happens past it.
 ---
 
 The last page of the section gathers every bound the earlier pages mention:
 each limit, where it applies, and what happens at it. The page that explains
 the feature is linked from each group.
 
-## Sites and keys
+## Projects and keys
 
 | Limit | Value | Past it |
 |---|---|---|
-| Sites per primary origin, per tenant | One | `site_origin_exists`, naming the site that has it. |
+| Projects per primary origin, per workspace | One | `project_origin_exists`, naming the project that has it. |
 | Previous live key after **Rotate key** | Works for 24 hours | Refused. |
 
-See [Roll back, roles and the console](/build/site-agent/manage/#replace-the-key).
+See [Roll back, roles and the console](/build/projects/manage/#replace-the-key).
 
 ## Studies
 
 | Limit | Value | Past it |
 |---|---|---|
-| Studies running at once, per site | One, managed or self | `run_in_progress` |
-| Managed studies per site per calendar month | 4, refreshes and re-checks included | `run_limit_reached` |
+| Studies running at once, per project | One, managed or self | `run_in_progress` |
+| Managed studies per project per calendar month | 4, refreshes and re-checks included | `run_limit_reached` |
 | Quick first read | The home page and up to 10 key pages, within minutes | |
 | Self study lifetime | 24 hours from its start | `canceled`, `detail` `expired` |
 | Upload size | 50 MiB | Refused |
@@ -31,13 +31,13 @@ See [Roll back, roles and the console](/build/site-agent/manage/#replace-the-key
 | Grader revision rounds | 3 | Recorded only, never a gate. |
 | Study kit link | One hour | Fetch a new one. |
 
-See [Refreshes and review](/build/site-agent/refresh/#refresh) and [Self studies](/build/site-agent/self-study/).
+See [Refreshes and review](/build/projects/refresh/#refresh) and [Self studies](/build/projects/self-study/).
 
 ## Drafts and knowledge
 
 | Limit | Value | Past it |
 |---|---|---|
-| Open drafts per site | One | `draft_exists` |
+| Open drafts per project | One | `draft_exists` |
 | Draft lifetime | 7 days from its start | The draft is gone. |
 | Operations per `edit_knowledge` call | 50 | Refused |
 | Draft size | What a version may hold | `draft_too_large` |
@@ -45,10 +45,10 @@ See [Refreshes and review](/build/site-agent/refresh/#refresh) and [Self studies
 | Draft bundle link | Ten minutes, current revision only | Fetch a new one. |
 | What the assistant always knows (`l1`) | 5,500 tokens, estimated as characters ÷ 4 | Refused |
 | Deeper topics (`l2`) | 30 | Refused |
-| Site tools per site | 48 | Refused |
-| `read_site_knowledge` page | 12,000 characters by default, 1,000 to 40,000 | Smaller asks are raised to the floor. |
+| Site tools per project | 48 | Refused |
+| `read_project_knowledge` page | 12,000 characters by default, 1,000 to 40,000 | Smaller asks are raised to the floor. |
 
-See [Edit the knowledge](/build/site-agent/knowledge/).
+See [Edit the knowledge](/build/projects/knowledge/).
 
 ## Settings and notes
 
@@ -60,7 +60,7 @@ See [Edit the knowledge](/build/site-agent/knowledge/).
 | `voice.instructions`, per language | 500 characters |
 | Notes | 50, of at most 300 characters each |
 
-See [Settings](/build/site-agent/settings/) and [Notes in the console](/build/site-agent/knowledge/#notes-in-the-console).
+See [Settings](/build/projects/settings/) and [Notes in the console](/build/projects/knowledge/#notes-in-the-console).
 
 ## Previews
 
@@ -73,14 +73,14 @@ See [Settings](/build/site-agent/settings/) and [Notes in the console](/build/si
 | Preview key | 24 hours, refreshed from the invite until it ends |
 | **Try it live** token | 10 minutes, one use |
 
-See [Previews and invites](/build/site-agent/preview/).
+See [Previews and invites](/build/projects/preview/).
 
 ## MCP reads
 
 | Limit | Value |
 |---|---|
-| `list_sites` `limit` | At most 100 |
-| Versions per `get_site` page | 10 |
+| `list_projects` `limit` | At most 100 |
+| Versions per `get_project` page | 10 |
 
-Calls count towards the MCP server's per-tenant rate limit; see
-[MCP server](/reference/mcp/#auth-tenancy-and-limits).
+Calls count towards the MCP server's per-workspace rate limit; see
+[MCP server](/reference/mcp/#auth-workspaces-and-limits).

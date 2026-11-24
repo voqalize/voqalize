@@ -49,6 +49,6 @@ and why it fails in a call. `design/stage.md` is the contract.
 
 ## Prose (this repo is public)
 
-- [ ] No internal service names, tenant or agent ids, secrets or node addresses.
+- [ ] No internal service names, workspace or agent ids, secrets or node addresses.
 - [ ] A new term is in `design/lexicon.yaml` before it appears in docs.
 - [ ] The agent is called "the agent", not a persona's name, in docs.

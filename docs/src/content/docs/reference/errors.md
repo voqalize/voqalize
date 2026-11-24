@@ -177,7 +177,7 @@ Look at the response to `sessions.connect`; its envelope is in
 | `409` | `agent_not_configured` | The agent has no `brain_url` and no Cortex credentials. | Set a `brain_url` for an [inbound route](/build/hosting/#a-route-voqalize-dials), or mint credentials to [dial out over Cortex](/build/hosting/#a-brain-that-dials-out). |
 | `409` | `agent_archived` | The agent is archived. Sessions in progress continue. | Unarchive it; its existing credentials work again. |
 | `422` | `validation_error` | The body has an undeclared key or a wrong type. The message names the field. | Fix the body. |
-| `429` | `rate_limited` | Your tenant sent too many requests. | Wait for the `Retry-After` header's seconds, then retry. |
+| `429` | `rate_limited` | Your workspace sent too many requests. | Wait for the `Retry-After` header's seconds, then retry. |
 | `500` | | A Voqalize error. | Retry; quote `correlation_id` if it persists. |
 
 A language on one leg only passes `sessions.connect` and is refused at the

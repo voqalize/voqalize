@@ -1,16 +1,16 @@
 ---
-title: Site Agent self studies
-description: Running a Site Agent study with your own coding agent over MCP. What the machine needs, the run step by step, the upload and its limits, what the checks refuse, and the states a self study passes through.
+title: Project self studies
+description: Running a project's study with your own coding agent over MCP. What the machine needs, the run step by step, the upload and its limits, what the checks refuse, and the states a self study passes through.
 ---
 
 So far Voqalize has run every study on its servers
-([Refreshes and review](/build/site-agent/refresh/)), and you have edited the
-knowledge by hand ([Edit the knowledge](/build/site-agent/knowledge/)). A
+([Refreshes and review](/build/projects/refresh/)), and you have edited the
+knowledge by hand ([Edit the knowledge](/build/projects/knowledge/)). A
 **self study** is the third way to write a version: your own coding agent runs
 the study on your machine, with your own model account, using Voqalize's study
 kit. Voqalize checks the result and stores it as a `self_study` version that
 waits for review like any other. A self study is never published on its own,
-and it does not count towards a site's monthly allowance of studies Voqalize
+and it does not count towards a project's monthly allowance of studies Voqalize
 runs.
 
 ```text
@@ -33,11 +33,11 @@ Windows, use WSL2. The kit's preflight says in plain words what is missing.
 ## The run, over MCP
 
 An owner or admin's coding agent, connected to the
-[MCP server](/reference/mcp/#site-agent-tools):
+[MCP server](/reference/mcp/#project-tools):
 
-- **Calls `start_self_study(tenant, site_id)`.** It is refused with
-  `run_in_progress` while any other study of the site runs. The study is
-  `refresh` when the site has a study version to start from, else `initial`,
+- **Calls `start_self_study(workspace, project_id)`.** It is refused with
+  `run_in_progress` while any other study of the project runs. The study is
+  `refresh` when the project has a study version to start from, else `initial`,
   and it expires 24 hours after it starts.
 - **Saves the whole answer as `start.json`** in a new working directory. It
   holds `run_id`; `kit` (a signed link and its `version`); `input`, the
@@ -99,7 +99,7 @@ next upload URL. Fix, upload again, and submit again.
 | `stored` | `result_version` is the new version, waiting for review. |
 | `canceled` | Canceled, or `expired`; `detail` says which. |
 
-`cancel_self_study` frees the site for another study. Versions already stored
+`cancel_self_study` frees the project for another study. Versions already stored
 stay; the upload URL stops taking uploads.
 
 ## What the reviewer sees
@@ -107,4 +107,4 @@ stay; the upload URL stops taking uploads.
 The version records the grader's rounds, and each site tool your kit proved is
 listed in its `review_flags`: its requests were reported by your run, not
 watched by Voqalize's, so the reviewer confirms them before
-[approving](/build/site-agent/refresh/#review-in-full).
+[approving](/build/projects/refresh/#review-in-full).

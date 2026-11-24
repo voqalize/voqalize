@@ -9,7 +9,7 @@ You need the session id, the environment (dev or prod) and, for a local brain, i
 
 ## 1. Get the record
 
-- Voqalize MCP: `whoami`, `list_tenants`, then `get_call_record(tenant, session_id,
+- Voqalize MCP: `whoami`, `list_workspaces`, then `get_call_record(workspace, session_id,
   include_events=true)`: the transcript, every RTVI message with its time, and the
   runtime's log lines. `get_session_logs` for more lines.
 - The brain's own log (a local brain prints it; a hosted one is in its service logs).

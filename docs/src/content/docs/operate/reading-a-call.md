@@ -6,7 +6,7 @@ description: Read a finished session back by session_id. The call record says wh
 A call is over and something was wrong with it. The reads below are different
 kinds of thing, and the order matters.
 
-**`get_call_record` is the contract.** Versioned, additive-only, tenant-scoped,
+**`get_call_record` is the contract.** Versioned, additive-only, workspace-scoped,
 safe to assert on in a test. It answers *what happened*: what was said, what the
 user actually heard, and where the wire was quiet.
 

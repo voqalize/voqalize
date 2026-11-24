@@ -1,6 +1,6 @@
 ---
 name: stage-explorer
-description: Study a live website and write its Stage Spec (moves, spoken labels, kits, claims) so the voice agent can drive it; read what a hosted site already knows through the Voqalize sites MCP tools. Use when onboarding a site we do not control to Stage, or when a site's moves or labels no longer match the live page.
+description: Study a live website and write its Stage Spec (moves, spoken labels, kits, claims) so the voice agent can drive it; read what a project already knows through the Voqalize project MCP tools. Use when onboarding a site we do not control to Stage, or when a site's moves or labels no longer match the live page.
 ---
 
 # Exploring a site for Stage
@@ -12,12 +12,12 @@ the agent needs at call time runs on the page.
 
 ## 1. Read what is already known
 
-For a site already onboarded as a hosted site, read its knowledge before crawling:
+For a site already onboarded as a Voqalize project, read its knowledge before crawling:
 
-- `list_sites(tenant)` → the site's `id`, its published and latest versions.
-- `get_site_version(tenant, site_id, version)` → its topics, parts and tools.
-- `read_site_knowledge(tenant, site_id, part, version?)` with `l1` (the brief),
-  `l2:<topic>`, and, for the tenant's owner or admin only, `page_map` (the pages and
+- `list_projects(workspace)` → the project's `id`, its published and latest versions.
+- `get_project_version(workspace, project_id, version)` → its topics, parts and tools.
+- `read_project_knowledge(workspace, project_id, part, version?)` with `l1` (the brief),
+  `l2:<topic>`, and, for the workspace's owner or admin only, `page_map` (the pages and
   listings) and `questions`. Long parts come in pages: pass `next_cursor` back as `cursor`.
 
 The page map and the tools say which pages matter and what the site can do today. Change
@@ -25,7 +25,7 @@ knowledge only through `start_knowledge_edit` → `edit_knowledge` → `check_kn
 `submit_knowledge_edit`, never by hand; a submitted version is reviewed and published by a
 person.
 
-Publishing a Stage Spec inside a hosted site's pack is not built yet (it waits for the next
+Publishing a Stage Spec inside a project's pack is not built yet (it waits for the next
 pack format): until then the spec lives beside the site's own brain or extension, as
 `demos/<site>/scene.json` does.
 
