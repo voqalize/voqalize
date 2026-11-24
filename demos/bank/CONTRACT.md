@@ -69,7 +69,7 @@ This file is the agreement between `frontend/` and `backend/`. Change it only in
 | screen | path | notes |
 |---|---|---|
 | home | `/` | public home |
-| login | `/login` | mock sign-in: customer id prefilled, any 6-digit PIN; "Sign in" lands on `/app` |
+| login | `/login` | sign-in: a 10-digit mobile number and a 4-digit PIN, both typed by the customer, nothing pre-filled; "Sign in" lands on `/app` (or `?from=`) |
 | dashboard | `/app` | balances, cards, dues, offers (cross-sell cards appear naturally here) |
 | account | `/app/accounts/:id` | `sb` or `ca`: details + its transactions |
 | transactions | `/app/transactions` | search, filters (account, category, date range, amount, direction), detail panel |
@@ -92,8 +92,11 @@ This file is the agreement between `frontend/` and `backend/`. Change it only in
 | loan | `/loans/:type` | one loan: calculator with working, eligibility, documents |
 | loan_apply | `/loans/apply?type=<type>` | application → qualified lead card |
 
-Signed-in screens (`/app/*`) on a signed-out session show the login screen first; the mock sign-in is a
-single tap (and `nav.open` to an app screen signs in on the way, as a demo convenience, saying so).
+Signed-in screens (`/app/*`) on a signed-out session show the sign-in form in their place. Only the
+customer signs in: any valid 10-digit mobile number and any 4-digit PIN, typed and submitted by their own
+click, tap or Enter. A submit no hand made (a script, an agent's move) is refused; no move types into or
+submits the form. Signed out, `nav.open` to an app screen (or `login`) shows that form and rings it, and
+the brain's reads of her data open it instead of answering (FEEDBACK B7, X9).
 
 ## Brain → page: Stage moves (`frontend/src/stage/scene.json`, generated into `backend/stage_gen.py` and `frontend/src/stage/scene.gen.ts`)
 
@@ -159,7 +162,8 @@ Plain action (not a Stage move): `language_changed {language}` — the dock's to
 
 ## Page → brain events (`client.sendUIEvent`, each with `by: "visitor" | "agent"`)
 
-`page_viewed {path, screen, signed_in}`, `signed_in {customer_id}`, `signed_out {}`,
+`page_viewed {path, screen, signed_in}`, `signed_in {name, first_name}` (her own press; never the number
+or PIN), `sign_in_failed {problem: mobile|pin}` (the wrong length; never the digits), `signed_out {}`,
 `txn_opened {txn_id}`, `card_control_changed {card, control, value}`,
 `action_done {action_id, kind, outcome: done|cancelled, reference?, summary}` (a confirmation sheet was
 answered, by tap or by `confirm.answer`; a sheet the visitor opened by hand gets an `action_id` starting

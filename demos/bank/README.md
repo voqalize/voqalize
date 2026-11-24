@@ -20,7 +20,13 @@ On the public pages Arjun sells (few right questions, then a two or three senten
 the one number that matters, one nudge to apply; more only when asked; never pushy). The pitch tools
 return a SAY line (exactly that pitch) above a DETAIL block kept for follow-up questions; in the signed-in app and in account opening he stays a support assistant.
 
-Sign-in is a mock: one tap, no real authentication.
+Sign-in has no real authentication, but the customer does it: they type a 10-digit mobile number
+(starting 6 to 9) and a 4-digit PIN and press Sign in themselves; any such pair opens the sample
+customer, Aditi Sharma. Nothing is pre-filled, and Arjun never asks for, hears, fills or reads back
+either: signed out, a request for her own data opens the sign-in screen and he asks her to sign in;
+digits said aloud are taken out before the model hears them (`backend/credentials.py`); a submit no
+hand made is refused (`frontend/src/state/session.ts`). Once she signs in, he says "Hi Aditi, you're
+signed in" and does what she asked.
 
 ## How it is built
 

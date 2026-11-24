@@ -48,12 +48,9 @@ function visibleThings(): { name: string; label: string; el: HTMLElement }[] {
     .filter((t) => t.name && !t.name.startsWith("screen:"));
 }
 
-/** Sign in on the way to a signed-in screen (a demo convenience the agent says aloud). */
-function signInIfNeeded(path: string): boolean {
-  if (!isAppPath(path) || useSession.getState().signedIn) return false;
-  asAgent(() => useSession.getState().signIn());
-  return true;
-}
+/** A signed-in screen asked for while signed out: the page shows its sign-in form
+ *  there. The agent never signs in (FEEDBACK B7, X9); the customer types and presses. */
+const needsSignIn = (path: string) => isAppPath(path) && !useSession.getState().signedIn;
 
 /** The visible nav link that goes to `path`, to ring before navigating. */
 function navLinkTo(path: string): HTMLElement | null {
@@ -70,7 +67,6 @@ function navLinkTo(path: string): HTMLElement | null {
 async function ensure(screen: Screen, path: string, c: MoveContext, opts: { exact?: boolean } = {}): Promise<HTMLElement> {
   const onIt = thing(`screen:${screen}`) && (!opts.exact || here() === path);
   if (!onIt) {
-    signInIfNeeded(path);
     navigateTo(path, screenOf(currentPath()) === screen);
   }
   const root = await appear(() => thing(`screen:${screen}`), 2500);
@@ -115,7 +111,9 @@ export function usePublicPerformers(stage: AppStage): void {
     if ((s === "card_detail" || s === "cards_apply") && id && !creditCardProduct(id))
       c.refuse("id", `there is no card ${id}`, products.credit_cards.map((x) => x.id));
     if ((s === "loan" || s === "loan_apply") && id && !loanProduct(id)) c.refuse("id", `there is no loan ${id}`, LOAN_TYPES);
-    const path = screenPath(s, id ?? null);
+    // The sign-in screen remembers where she was, to go back there once she signs in.
+    const back = currentPath();
+    const path = s === "login" && back !== "/" && back !== "/login" && !isAppPath(back) ? `/login?from=${encodeURIComponent(back)}` : screenPath(s, id ?? null);
     if (here() === path && thing(`screen:${s}`)) {
       const root = thing(`screen:${s}`)!;
       await c.scrollTo(root);
@@ -126,11 +124,19 @@ export function usePublicPerformers(stage: AppStage): void {
       await c.scrollTo(link);
       await c.ring(link, link.textContent?.trim() || s);
     }
-    const signed = signInIfNeeded(path);
+    const locked = needsSignIn(path);
     navigateTo(path);
+    if (locked || s === "login") {
+      const form = await appear(() => thing("sign-in-form"), 3000);
+      if (!form) return c.refuse("screen", "the sign-in screen did not open");
+      await c.ring(form, { label: "Sign in" });
+      return locked
+        ? `the sign-in screen is showing in place of ${s.replace(/_/g, " ")}: she is signed out, and only she signs in, by typing her mobile number and PIN`
+        : "the sign-in screen is open: she types her mobile number and PIN and presses Sign in herself";
+    }
     const root = await appear(() => thing(`screen:${s}`), 3000);
     if (!root) return c.refuse("screen", `the ${s.replace(/_/g, " ")} screen did not open`);
-    return `opened ${s.replace(/_/g, " ")}${signed ? " (signed in with the demo customer on the way)" : ""}`;
+    return `opened ${s.replace(/_/g, " ")}`;
   });
 
   // ── form.fill ────────────────────────────────────────────────────────────
@@ -284,8 +290,8 @@ export function usePublicPerformers(stage: AppStage): void {
         return c.refuse("txn_id", t ? `${t.merchant} (${t.id}) cannot be converted to EMI` : `there is no transaction ${txn_id}`, emiTxns().map((x) => `${x.id} ${x.merchant} ${inr(x.amount)}`));
       }
       principal = t.amount;
+      if (!useSession.getState().signedIn) return c.refuse("txn_id", "she is not signed in: her own card spends show once she signs in herself");
       path = `/cards/emi?txn=${t.id}`;
-      signInIfNeeded("/app");
     } else if (amount != null) {
       principal = Math.round(Number(amount));
       if (!Number.isFinite(principal) || principal < products.emi.min_amount)

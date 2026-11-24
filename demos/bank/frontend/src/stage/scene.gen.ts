@@ -423,4 +423,4 @@ export const scene = defineScene({
   ]
 });
 
-export const SPEC_SHA256 = "85f59443fd9ee99ebe6d59103c23a9a7b4f5ae382f465081580423df37127d3b";
+export const SPEC_SHA256 = "3dd166b5fa4d1e22defc8c213925e104f4482123ca1dbe8286f687ce23261962";

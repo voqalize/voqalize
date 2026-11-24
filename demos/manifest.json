@@ -97,6 +97,21 @@
       "tagline": "A bilingual insurance guide for a fictional Indian insurer: quotes built from a few sentences with a live premium breakdown, the exact clause that answers \"am I covered if…\", and a long claim form filled in as the customer talks."
     },
     {
+      "name": "dental",
+      "title": "Dantika Dental Front Desk",
+      "tagline": "A dental clinic's front desk that books check-ups, root canals and scans on each dentist's real calendar, moves or cancels appointments under the clinic's policy, and sends clinical questions to a dentist, in English or Hindi."
+    },
+    {
+      "name": "university",
+      "title": "Varenya University Admissions",
+      "tagline": "A university course advisor and admissions counsellor, in English or Hindi: it narrows 54 programmes to the two or three that fit, compares them side by side, and fills the application as the family talks."
+    },
+    {
+      "name": "holidays",
+      "title": "Wanderloom Holidays",
+      "tagline": "An Indian holiday-package site where a trip planner builds your whole holiday by voice: flights, hotels per city, activities day by day and a priced package you edit item by item."
+    },
+    {
       "name": "property",
       "title": "Kosha Homes",
       "tagline": "A residential property site where Karthik, a property guide, narrows homes by budget, BHK and commute as the filters and map move, compares them, works out the EMI and books a site visit, in English or Hindi."

@@ -1,7 +1,8 @@
 // OWNER: banking-app agent. txn.find, txn.open, insights.show, confirm.ask, confirm.answer.
 /**
  * The banking app's Stage performers. Each opens the screen its answer lives on
- * (signing in on the way, as a demo convenience), rings what it touches before
+ * (never signing in: signed out, the page shows its sign-in form there and the
+ * move is refused, FEEDBACK B7), rings what it touches before
  * changing it, refuses with what the page offers instead of guessing, and
  * returns one short line the agent can repeat. Store writes are wrapped in
  * `asAgent`, so the events they raise say `by: "agent"`.
@@ -19,11 +20,16 @@ import { type Screen, appear, currentPath, navigateTo, screenPath, thing } from 
 
 const SHORT = { beatMs: 380 };
 
-/** Open `screen` (signing in first when needed) and wait for it to be on the page. */
+/** Open `screen` and wait for it to be on the page. Signed out, the page shows
+ *  its sign-in form there instead and the move is refused: only the customer signs in. */
 async function openScreen(screen: Screen, c: MoveContext, id?: string): Promise<HTMLElement> {
-  if (!useSession.getState().signedIn) asAgent(() => useSession.getState().signIn());
   const path = screenPath(screen, id);
   if (currentPath().replace(/\/+$/, "") !== path) navigateTo(path);
+  if (!useSession.getState().signedIn) {
+    const form = await appear(() => thing("sign-in-form"), 2000);
+    if (form) await c.ring(form, { label: "Sign in" });
+    return c.refuse("screen", "she is not signed in: the sign-in screen is showing, and only she signs in, by typing her mobile number and PIN");
+  }
   const el = await appear(() => thing(`screen:${screen}`), 3000);
   return el ?? c.refuse("screen", `the ${screen.replace("_", " ")} screen did not open`);
 }

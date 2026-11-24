@@ -52,6 +52,9 @@ const DEMOS = [
   'payroll_app',
   'bank',
   'insurance',
+  'dental',
+  'university',
+  'holidays',
   'property',
 ];
 
