@@ -1,0 +1,716 @@
+{
+  "cases": [
+    {
+      "product": "car",
+      "answers": {
+        "vehicle_class": "suv",
+        "fuel": "diesel",
+        "registration_year": "2022",
+        "ex_showroom": "1450000",
+        "city": "pune",
+        "claim_free_years": "2"
+      },
+      "addons": [
+        "pa_owner",
+        "zero_dep",
+        "engine_protect",
+        "rsa"
+      ],
+      "expected": {
+        "complete": true,
+        "missing": [],
+        "lines": [
+          {
+            "id": "od",
+            "label": "Own damage (IDV ₹8,70,000)",
+            "amount": 31424
+          },
+          {
+            "id": "ncb",
+            "label": "No Claim Bonus (25%)",
+            "amount": -7856
+          },
+          {
+            "id": "tp",
+            "label": "Third-party cover",
+            "amount": 7950
+          },
+          {
+            "id": "addon:pa_owner",
+            "label": "Owner-driver personal accident cover (₹15,00,000)",
+            "amount": 399
+          },
+          {
+            "id": "addon:zero_dep",
+            "label": "Zero depreciation",
+            "amount": 4785
+          },
+          {
+            "id": "addon:engine_protect",
+            "label": "Engine protection",
+            "amount": 1044
+          },
+          {
+            "id": "addon:rsa",
+            "label": "24x7 roadside assistance",
+            "amount": 199
+          }
+        ],
+        "net": 37945,
+        "gst_percent": 18,
+        "gst": 6830,
+        "total": 44775,
+        "idv": 870000,
+        "unavailable": {
+          "return_to_invoice": "only for vehicles up to 3 years old"
+        }
+      }
+    },
+    {
+      "product": "car",
+      "answers": {
+        "vehicle_class": "hatchback",
+        "fuel": "petrol",
+        "make_model": "Tarang Vega VX",
+        "registration_year": "2023",
+        "ex_showroom": "700000",
+        "city": "pune",
+        "claim_free_years": "1",
+        "voluntary_deductible": "5000"
+      },
+      "addons": null,
+      "expected": {
+        "complete": true,
+        "missing": [],
+        "lines": [
+          {
+            "id": "od",
+            "label": "Own damage (IDV ₹4,90,000)",
+            "amount": 15337
+          },
+          {
+            "id": "ncb",
+            "label": "No Claim Bonus (20%)",
+            "amount": -3067
+          },
+          {
+            "id": "vd",
+            "label": "Voluntary deductible discount (15%)",
+            "amount": -1840
+          },
+          {
+            "id": "tp",
+            "label": "Third-party cover",
+            "amount": 2150
+          },
+          {
+            "id": "addon:pa_owner",
+            "label": "Owner-driver personal accident cover (₹15,00,000)",
+            "amount": 399
+          }
+        ],
+        "net": 12979,
+        "gst_percent": 18,
+        "gst": 2336,
+        "total": 15315,
+        "idv": 490000
+      }
+    },
+    {
+      "product": "car",
+      "answers": {
+        "vehicle_class": "sedan",
+        "fuel": "electric",
+        "registration_year": "2016",
+        "ex_showroom": "1800000",
+        "city": "jaipur",
+        "claim_free_years": "5"
+      },
+      "addons": [
+        "pa_owner",
+        "zero_dep",
+        "ncb_protect",
+        "key_replacement"
+      ],
+      "expected": {
+        "complete": true,
+        "missing": [],
+        "lines": [
+          {
+            "id": "od",
+            "label": "Own damage (IDV ₹9,00,000)",
+            "amount": 27783
+          },
+          {
+            "id": "ncb",
+            "label": "No Claim Bonus (50%)",
+            "amount": -13892
+          },
+          {
+            "id": "tp",
+            "label": "Third-party cover",
+            "amount": 2958
+          },
+          {
+            "id": "addon:pa_owner",
+            "label": "Owner-driver personal accident cover (₹15,00,000)",
+            "amount": 399
+          },
+          {
+            "id": "addon:key_replacement",
+            "label": "Key replacement",
+            "amount": 299
+          },
+          {
+            "id": "addon:ncb_protect",
+            "label": "NCB protection",
+            "amount": 720
+          }
+        ],
+        "net": 18267,
+        "gst_percent": 18,
+        "gst": 3288,
+        "total": 21555,
+        "idv": 900000,
+        "unavailable": {
+          "zero_dep": "only for vehicles up to 5 years old",
+          "return_to_invoice": "only for vehicles up to 3 years old"
+        }
+      }
+    },
+    {
+      "product": "car",
+      "answers": {
+        "vehicle_class": "suv",
+        "fuel": "petrol",
+        "city": "delhi"
+      },
+      "addons": null,
+      "expected": {
+        "complete": false,
+        "missing": [
+          "registration_year",
+          "ex_showroom",
+          "claim_free_years"
+        ],
+        "lines": [],
+        "net": 0,
+        "gst_percent": 18,
+        "gst": 0,
+        "total": 0
+      }
+    },
+    {
+      "product": "bike",
+      "answers": {
+        "bike_type": "scooter",
+        "engine_cc": "upto_150",
+        "registration_year": "2026",
+        "ex_showroom": "95000",
+        "city": "pune",
+        "claim_free_years": "0"
+      },
+      "addons": [
+        "pa_owner",
+        "zero_dep",
+        "rsa"
+      ],
+      "expected": {
+        "complete": true,
+        "missing": [],
+        "lines": [
+          {
+            "id": "od",
+            "label": "Own damage (IDV ₹90,300)",
+            "amount": 1542
+          },
+          {
+            "id": "tp",
+            "label": "Third-party cover",
+            "amount": 720
+          },
+          {
+            "id": "addon:pa_owner",
+            "label": "Owner-driver personal accident cover (₹15,00,000)",
+            "amount": 399
+          },
+          {
+            "id": "addon:zero_dep",
+            "label": "Zero depreciation",
+            "amount": 316
+          },
+          {
+            "id": "addon:rsa",
+            "label": "24x7 roadside assistance",
+            "amount": 99
+          }
+        ],
+        "net": 3076,
+        "gst_percent": 18,
+        "gst": 554,
+        "total": 3630,
+        "idv": 90300
+      }
+    },
+    {
+      "product": "bike",
+      "answers": {
+        "bike_type": "motorcycle",
+        "engine_cc": "above_350",
+        "fuel": "petrol",
+        "registration_year": "2019",
+        "ex_showroom": "320000",
+        "city": "kochi",
+        "claim_free_years": "3"
+      },
+      "addons": null,
+      "expected": {
+        "complete": true,
+        "missing": [],
+        "lines": [
+          {
+            "id": "od",
+            "label": "Own damage (IDV ₹1,60,000)",
+            "amount": 2950
+          },
+          {
+            "id": "ncb",
+            "label": "No Claim Bonus (35%)",
+            "amount": -1033
+          },
+          {
+            "id": "tp",
+            "label": "Third-party cover",
+            "amount": 2820
+          },
+          {
+            "id": "addon:pa_owner",
+            "label": "Owner-driver personal accident cover (₹15,00,000)",
+            "amount": 399
+          }
+        ],
+        "net": 5136,
+        "gst_percent": 18,
+        "gst": 924,
+        "total": 6060,
+        "idv": 160000,
+        "unavailable": {
+          "zero_dep": "only for vehicles up to 5 years old"
+        }
+      }
+    },
+    {
+      "product": "health",
+      "answers": {
+        "cover_type": "family_floater",
+        "adults": "2",
+        "children": "1",
+        "eldest_age": "38",
+        "sum_insured": "1000000",
+        "city": "pune",
+        "pre_existing": "yes"
+      },
+      "addons": [
+        "room_rent_waiver"
+      ],
+      "expected": {
+        "complete": true,
+        "missing": [],
+        "lines": [
+          {
+            "id": "base",
+            "label": "Base premium",
+            "amount": 21060
+          },
+          {
+            "id": "ped",
+            "label": "Pre-existing illness loading (10%)",
+            "amount": 2106
+          },
+          {
+            "id": "addon:room_rent_waiver",
+            "label": "Room rent limit waiver",
+            "amount": 1264
+          }
+        ],
+        "net": 24430,
+        "gst_percent": 0,
+        "gst": 0,
+        "total": 24430
+      }
+    },
+    {
+      "product": "health",
+      "answers": {
+        "cover_type": "individual",
+        "adults": "1",
+        "children": "0",
+        "eldest_age": "52",
+        "sum_insured": "2500000",
+        "city": "lucknow",
+        "pre_existing": "no",
+        "voluntary_copay": "20"
+      },
+      "addons": [
+        "opd_cover",
+        "critical_illness",
+        "maternity"
+      ],
+      "expected": {
+        "complete": true,
+        "missing": [],
+        "lines": [
+          {
+            "id": "base",
+            "label": "Base premium",
+            "amount": 27990
+          },
+          {
+            "id": "copay",
+            "label": "Voluntary co-pay discount (15%)",
+            "amount": -4199
+          },
+          {
+            "id": "addon:opd_cover",
+            "label": "OPD cover (₹10,000 a year)",
+            "amount": 3500
+          },
+          {
+            "id": "addon:critical_illness",
+            "label": "Critical illness (₹5,00,000 lump sum per adult)",
+            "amount": 2400
+          }
+        ],
+        "net": 29691,
+        "gst_percent": 0,
+        "gst": 0,
+        "total": 29691,
+        "unavailable": {
+          "maternity": "only on a family floater with two adults, the eldest 45 or younger"
+        }
+      }
+    },
+    {
+      "product": "health",
+      "answers": {
+        "cover_type": "individual",
+        "adults": "2",
+        "eldest_age": "30",
+        "sum_insured": "500000",
+        "city": "pune",
+        "pre_existing": "no"
+      },
+      "addons": null,
+      "expected": {
+        "complete": false,
+        "missing": [],
+        "lines": [],
+        "net": 0,
+        "gst_percent": 0,
+        "gst": 0,
+        "total": 0,
+        "error": "an individual policy covers one adult and no children; choose a family floater"
+      }
+    },
+    {
+      "product": "term",
+      "answers": {
+        "age": "38",
+        "gender": "male",
+        "smoker": "no",
+        "cover_amount": "15000000",
+        "cover_till_age": "65"
+      },
+      "addons": [
+        "accidental_death"
+      ],
+      "expected": {
+        "complete": true,
+        "missing": [],
+        "lines": [
+          {
+            "id": "base",
+            "label": "Base premium",
+            "amount": 15300
+          },
+          {
+            "id": "high_cover",
+            "label": "High-cover discount (7%)",
+            "amount": -1071
+          },
+          {
+            "id": "addon:accidental_death",
+            "label": "Accidental death benefit (₹25,00,000 extra)",
+            "amount": 1500
+          }
+        ],
+        "net": 15729,
+        "gst_percent": 0,
+        "gst": 0,
+        "total": 15729
+      }
+    },
+    {
+      "product": "term",
+      "answers": {
+        "age": "29",
+        "gender": "female",
+        "smoker": "yes",
+        "cover_amount": "10000000",
+        "cover_till_age": "70"
+      },
+      "addons": [
+        "critical_illness_rider",
+        "waiver_of_premium"
+      ],
+      "expected": {
+        "complete": true,
+        "missing": [],
+        "lines": [
+          {
+            "id": "base",
+            "label": "Base premium",
+            "amount": 9275
+          },
+          {
+            "id": "high_cover",
+            "label": "High-cover discount (5%)",
+            "amount": -464
+          },
+          {
+            "id": "addon:critical_illness_rider",
+            "label": "Critical illness rider (₹10,00,000)",
+            "amount": 2800
+          },
+          {
+            "id": "addon:waiver_of_premium",
+            "label": "Waiver of premium on disability",
+            "amount": 278
+          }
+        ],
+        "net": 11889,
+        "gst_percent": 0,
+        "gst": 0,
+        "total": 11889
+      }
+    },
+    {
+      "product": "term",
+      "answers": {
+        "age": "58",
+        "gender": "male",
+        "smoker": "no",
+        "cover_amount": "5000000",
+        "cover_till_age": "65"
+      },
+      "addons": null,
+      "expected": {
+        "complete": false,
+        "missing": [],
+        "lines": [],
+        "net": 0,
+        "gst_percent": 0,
+        "gst": 0,
+        "total": 0,
+        "error": "cover must run at least 10 years; choose a later end age"
+      }
+    },
+    {
+      "product": "home",
+      "answers": {
+        "ownership": "owner",
+        "property_type": "apartment",
+        "building_value": "6500000",
+        "contents_value": "800000",
+        "building_age": "8",
+        "city": "pune",
+        "security_system": "yes"
+      },
+      "addons": [
+        "earthquake",
+        "electronics"
+      ],
+      "expected": {
+        "complete": true,
+        "missing": [],
+        "lines": [
+          {
+            "id": "building",
+            "label": "Building",
+            "amount": 1706
+          },
+          {
+            "id": "contents",
+            "label": "Contents",
+            "amount": 672
+          },
+          {
+            "id": "security",
+            "label": "Security discount (5%)",
+            "amount": -119
+          },
+          {
+            "id": "addon:earthquake",
+            "label": "Earthquake cover for the structure",
+            "amount": 650
+          },
+          {
+            "id": "addon:electronics",
+            "label": "Portable electronics (up to ₹1,50,000)",
+            "amount": 1250
+          }
+        ],
+        "net": 4159,
+        "gst_percent": 18,
+        "gst": 749,
+        "total": 4908
+      }
+    },
+    {
+      "product": "home",
+      "answers": {
+        "ownership": "tenant",
+        "property_type": "independent_house",
+        "building_value": "0",
+        "contents_value": "450000",
+        "building_age": "30",
+        "city": "indore"
+      },
+      "addons": [
+        "rent_loss",
+        "valuables",
+        "earthquake"
+      ],
+      "expected": {
+        "complete": true,
+        "missing": [],
+        "lines": [
+          {
+            "id": "building",
+            "label": "Building",
+            "amount": 0
+          },
+          {
+            "id": "contents",
+            "label": "Contents",
+            "amount": 360
+          },
+          {
+            "id": "addon:valuables",
+            "label": "Jewellery and valuables (up to ₹2,00,000)",
+            "amount": 1600
+          }
+        ],
+        "net": 1960,
+        "gst_percent": 18,
+        "gst": 353,
+        "total": 2313,
+        "unavailable": {
+          "earthquake": "needs a building value",
+          "rent_loss": "only for owners"
+        }
+      }
+    },
+    {
+      "product": "travel",
+      "answers": {
+        "region": "asia",
+        "trip_days": "9",
+        "travellers": "3",
+        "eldest_age": "38",
+        "plan": "plus"
+      },
+      "addons": [
+        "trip_cancellation"
+      ],
+      "expected": {
+        "complete": true,
+        "missing": [],
+        "lines": [
+          {
+            "id": "base",
+            "label": "Base premium",
+            "amount": 1485
+          },
+          {
+            "id": "group",
+            "label": "Group discount (10%)",
+            "amount": -149
+          },
+          {
+            "id": "addon:trip_cancellation",
+            "label": "Trip cancellation",
+            "amount": 1050
+          }
+        ],
+        "net": 2386,
+        "gst_percent": 18,
+        "gst": 429,
+        "total": 2815
+      }
+    },
+    {
+      "product": "travel",
+      "answers": {
+        "region": "usa_canada",
+        "trip_days": "21",
+        "travellers": "2",
+        "eldest_age": "64"
+      },
+      "addons": [
+        "baggage_plus",
+        "adventure_sports"
+      ],
+      "expected": {
+        "complete": true,
+        "missing": [],
+        "lines": [
+          {
+            "id": "base",
+            "label": "Base premium",
+            "amount": 9576
+          },
+          {
+            "id": "addon:baggage_plus",
+            "label": "Baggage plus",
+            "amount": 300
+          },
+          {
+            "id": "addon:adventure_sports",
+            "label": "Adventure sports",
+            "amount": 1915
+          }
+        ],
+        "net": 11791,
+        "gst_percent": 18,
+        "gst": 2122,
+        "total": 13913
+      }
+    },
+    {
+      "product": "travel",
+      "answers": {
+        "region": "schengen",
+        "trip_days": "4",
+        "travellers": "1",
+        "eldest_age": "25"
+      },
+      "addons": null,
+      "expected": {
+        "complete": true,
+        "missing": [],
+        "lines": [
+          {
+            "id": "base",
+            "label": "Base premium",
+            "amount": 450
+          }
+        ],
+        "net": 450,
+        "gst_percent": 18,
+        "gst": 81,
+        "total": 531
+      }
+    }
+  ]
+}

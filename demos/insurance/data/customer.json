@@ -1,0 +1,63 @@
+{
+  "id": "CHH-C-104582",
+  "name": "Rohan Kulkarni",
+  "first_name": "Rohan",
+  "dob": "1988-03-14",
+  "phone": "98220 14521",
+  "email": "rohan.kulkarni@example.com",
+  "address": "B-602, Sahyadri Heights, Baner, Pune 411045",
+  "city": "pune",
+  "family": [
+    {
+      "id": "rohan",
+      "name": "Rohan Kulkarni",
+      "relation": "self",
+      "dob": "1988-03-14"
+    },
+    {
+      "id": "meera",
+      "name": "Meera Kulkarni",
+      "relation": "spouse",
+      "dob": "1990-07-02"
+    },
+    {
+      "id": "aarav",
+      "name": "Aarav Kulkarni",
+      "relation": "son",
+      "dob": "2017-11-20"
+    }
+  ],
+  "bank_on_file": {
+    "account_holder": "Rohan Kulkarni",
+    "bank_name": "Meridian Bank",
+    "account_number": "50100417234821",
+    "masked": "•••• 4821",
+    "ifsc": "MRDN0000417"
+  },
+  "policies": [
+    "car-2026",
+    "bike-2026",
+    "health-2026",
+    "home-2026",
+    "term-2025",
+    "travel-2026"
+  ],
+  "past_claims": [
+    {
+      "reference": "CLM-H-251107",
+      "policy_id": "health-2026",
+      "summary": "Aarav Kulkarni, hospitalised 3 nights for dengue at Kadamb Multispeciality Hospital, Baner. Cashless, settled directly with the hospital; ₹1,850 of non-medical items paid by the family. (Policy year 2025-26.)",
+      "status": "settled",
+      "amount": 48250,
+      "date": "2025-08-19"
+    },
+    {
+      "reference": "CLM-M-251024",
+      "policy_id": "car-2026",
+      "summary": "Windscreen of the Tarang Vega VX cracked by a stone thrown up on the expressway. Replaced cashless at Baner AutoCare Works; ₹1,000 compulsory deductible paid by Rohan. Glass-only claim, so the No Claim Bonus was not affected. (Policy year 2025-26.)",
+      "status": "settled",
+      "amount": 18600,
+      "date": "2025-10-24"
+    }
+  ]
+}

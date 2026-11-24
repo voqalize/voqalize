@@ -13,20 +13,22 @@ import { Moves, Spotlight, type StageClient, type StagePage, stagePage } from "@
 import type { EventData, EventId } from "@voqalize/stage";
 import { PRODUCT } from "../lib/data";
 import { scene } from "./scene.gen";
-import { showWhole } from "./view";
+import { auditRing, installAudit } from "./audit";
+import { wholeMoves } from "./view";
+import { debugMode } from "../voice/debug";
+import { useFakeCall } from "../voice/fake";
 
 type Spec = typeof scene.spec;
 
 export const moves = new Moves(new Spotlight({ color: PRODUCT.brand.palette.primary, radius: 8 }), {
   fixed: [".topbar", ".viewas-banner"],
-  // X1: every scroll a move makes shows the target's whole group, inner
-  // scroll areas (tables, sidebar, drawers) included, then the window with
-  // Stage's own scroll and timing.
-  extend: (c) => {
-    const windowScroll = c.scrollTo;
-    return { scrollTo: (el: Element) => showWhole(el, windowScroll) };
-  },
+  // X1: every scroll a move makes, and every ring, first shows the target's
+  // whole group, inner scroll areas (tables, sidebar, drawers) included, then
+  // the window, clear of the top bars, the dock and the call tile (`view.ts`).
+  extend: (c) => wholeMoves(c, debugMode() ? auditRing : undefined),
 });
+
+if (debugMode()) installAudit(moves, (on) => useFakeCall.setState({ on }));
 
 let page: StagePage | null = null;
 

@@ -1,0 +1,172 @@
+{
+  "$schema": "../../../../../sdk/js/stage/stage.schema.json",
+  "stage": 1,
+  "id": "chhatri_insurance",
+  "languages": ["en", "hi"],
+  "moves": [
+    {
+      "id": "site.go",
+      "class": "navigate",
+      "args": [{ "name": "page", "doc": "home, quote, quote/<product>, insurance/<product>, my-policies, my-policies/<policy_id>, claim. Products: car, bike, health, term, home, travel." }],
+      "claims": ["taking you to", "opening the", "le chalti hoon"],
+      "objects": ["page", "quote", "policy", "policies", "claim", "home"],
+      "doc": "Go to one page of the site, ringing the nav item or the card that leads there first."
+    },
+    {
+      "id": "site.language",
+      "class": "reversible",
+      "args": [{ "name": "language", "doc": "A language code from persona.json." }],
+      "claims": ["switching to"],
+      "objects": ["language", "hindi", "english"],
+      "doc": "Move the EN / हिंदी toggle by the call button to the language the call is now in. The brain has already moved both speech legs."
+    },
+    {
+      "id": "quote.open",
+      "class": "navigate",
+      "args": [{ "name": "product", "enum": ["car", "bike", "health", "term", "home", "travel"] }],
+      "claims": ["opening the quote", "starting a quote"],
+      "objects": ["quote", "form"],
+      "doc": "Put that product's quote builder on screen: stays on /insurance/<product> or /quote/<product> when that product's builder is already showing, else goes to /quote/<product>. Rings the product tab."
+    },
+    {
+      "id": "quote.fill",
+      "class": "reversible",
+      "args": [
+        { "name": "field", "doc": "A quote field id of the product on screen (data/products.json)." },
+        { "name": "value", "doc": "The value as the form stores it: an option value (suv, pune, 1000000) or a number (1400000)." }
+      ],
+      "claims": ["filling in", "putting in"],
+      "objects": ["quote", "field", "form"],
+      "doc": "Ring the quote field, set it, and let the premium recompute. Refused with the options when the value is not one of them, or when no quote builder is on screen."
+    },
+    {
+      "id": "quote.addon",
+      "class": "reversible",
+      "args": [
+        { "name": "addon", "doc": "An add-on id of the product on screen." },
+        { "name": "on", "type": "boolean" }
+      ],
+      "claims": ["adding the", "removing the"],
+      "objects": ["add-on", "addon", "cover"],
+      "doc": "Ring the add-on's toggle and switch it on or off; its line appears or leaves the breakdown. Refused, with why, when the add-on is unavailable for these answers."
+    },
+    {
+      "id": "quote.show",
+      "class": "look",
+      "args": [],
+      "claims": ["here's the breakdown"],
+      "objects": ["premium", "breakdown"],
+      "doc": "Scroll to and ring the premium breakdown panel."
+    },
+    {
+      "id": "policy.open",
+      "class": "navigate",
+      "args": [
+        { "name": "policy_id", "doc": "A policy id of the signed-in customer (data/customer.json)." },
+        { "name": "section", "optional": true, "doc": "A section id of that document, to scroll to." }
+      ],
+      "claims": ["opening your", "pulling up your"],
+      "objects": ["policy", "document", "wording"],
+      "doc": "Open the customer's policy document at /my-policies/<policy_id> (and scroll to a section)."
+    },
+    {
+      "id": "policy.mark",
+      "class": "look",
+      "args": [
+        { "name": "policy_id" },
+        { "name": "clause_id", "doc": "A clause id in that document, e.g. 3.4." },
+        { "name": "verdict", "enum": ["covered", "not_covered", "covered_with_limits", "depends"] }
+      ],
+      "claims": ["marking the clause", "highlighting the clause"],
+      "objects": ["clause", "policy", "wording"],
+      "doc": "Open the document if it is not open, scroll to the clause, ring it, highlight it and pin a verdict chip on it (Covered, Not covered, Covered with limits, Depends). Earlier marks are cleared."
+    },
+    {
+      "id": "claim.start",
+      "class": "reversible",
+      "args": [
+        { "name": "claim_type", "enum": ["motor", "health"] },
+        { "name": "policy_id", "optional": true }
+      ],
+      "claims": ["starting the claim", "opening the claim form"],
+      "objects": ["claim", "form"],
+      "doc": "Go to /claim, choose the claim type (and the policy), and open the form at its first section. Keeps what is already filled when the type is the same."
+    },
+    {
+      "id": "claim.fill",
+      "class": "reversible",
+      "args": [
+        { "name": "field", "doc": "A claim form field id (data/claim_form.json)." },
+        { "name": "value", "doc": "Option value, date YYYY-MM-DD, time HH:MM, number, or text." }
+      ],
+      "claims": ["filling in", "putting down"],
+      "objects": ["claim", "form", "field"],
+      "doc": "Open the field's section, ring the field and set it. Refused with the options for a value the field does not take, or for a field hidden by the answers so far."
+    },
+    {
+      "id": "claim.section",
+      "class": "look",
+      "args": [{ "name": "section", "doc": "A section id: policy, incident, driver, other_party, police, garage, patient, treatment, bank, documents, review." }],
+      "claims": ["showing the"],
+      "objects": ["section", "documents", "claim"],
+      "doc": "Open a section of the claim form, scroll to it and ring it (documents: rings the uploads still missing)."
+    },
+    {
+      "id": "claim.review",
+      "class": "reversible",
+      "args": [],
+      "claims": ["taking you to the review"],
+      "objects": ["review", "claim"],
+      "doc": "Check every section like the Review button and open the review step. Refused naming the fields still missing. Never submits: the customer ticks the declaration and presses Submit claim."
+    }
+  ],
+  "slices": [
+    {
+      "id": "quote",
+      "doc": "the quote builder on screen: product, answers, add-ons on, and the total",
+      "fields": [
+        { "name": "product", "optional": true },
+        { "name": "field", "optional": true, "doc": "The field or add-on that just changed." },
+        { "name": "answers", "type": "array", "fields": [{ "name": "field" }, { "name": "value" }] },
+        { "name": "addons", "type": "array", "doc": "Ids of the add-ons switched on." },
+        { "name": "missing", "type": "array", "doc": "Field ids still empty." },
+        { "name": "total", "type": "integer", "optional": true, "doc": "Total payable, rupees, once complete." }
+      ]
+    },
+    {
+      "id": "policy_view",
+      "doc": "the policy document on screen",
+      "fields": [
+        { "name": "policy_id", "optional": true },
+        { "name": "section", "optional": true }
+      ]
+    },
+    {
+      "id": "claim_form",
+      "doc": "the claim form: type, section in front, which fields hold something (names only) and which documents are uploaded",
+      "fields": [
+        { "name": "claim_type", "optional": true },
+        { "name": "policy_id", "optional": true },
+        { "name": "section", "optional": true },
+        { "name": "field", "optional": true, "doc": "The field or document that just changed." },
+        { "name": "filled", "type": "array" },
+        { "name": "missing", "type": "array" },
+        { "name": "documents", "type": "array", "doc": "Ids of the documents uploaded." },
+        { "name": "reference", "optional": true }
+      ]
+    },
+    {
+      "id": "site",
+      "doc": "the language the visitor chose on the toggle",
+      "fields": [{ "name": "language", "optional": true }]
+    }
+  ],
+  "events": [
+    { "id": "quote.changed", "slice": "quote", "op": "set", "note": "{by} changed {field} on the {product} quote", "react": "note", "doc": "A quote field or add-on changed." },
+    { "id": "policy.viewed", "slice": "policy_view", "op": "set", "note": "{by} opened policy {policy_id}", "react": "note", "doc": "A policy document was opened." },
+    { "id": "claim.changed", "slice": "claim_form", "op": "merge", "note": "{by} changed {field} on the claim form", "react": "note", "doc": "A claim field changed, or the type or section did." },
+    { "id": "claim.document_uploaded", "slice": "claim_form", "op": "merge", "note": "{by} uploaded {field}", "react": "note", "doc": "A document was uploaded (mock)." },
+    { "id": "claim.submitted", "slice": "claim_form", "op": "merge", "note": "{by} submitted the claim {reference}", "react": "speak", "ask": "thank them, give the claim reference and say what happens next from the claims guide, in two short sentences", "doc": "The customer pressed Submit claim." },
+    { "id": "site.language_chosen", "slice": "site", "op": "set", "note": "{by} switched the language toggle to {language}", "react": "note", "doc": "The EN / हिंदी toggle moved." }
+  ]
+}

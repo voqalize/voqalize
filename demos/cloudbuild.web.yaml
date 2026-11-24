@@ -80,6 +80,10 @@ substitutions:
   _PAYROLL_SITE_PK: ''
   _PAYROLL_APP_AGENT: ''
   _PAYROLL_APP_PK: ''
+  _BANK_AGENT: ''
+  _BANK_PK: ''
+  _INSURANCE_AGENT: ''
+  _INSURANCE_PK: ''
   _UNIVERSITY_AGENT: ''
   _UNIVERSITY_PK: ''
   # Empty in prod, so every prod page loads the runtime its npm release pins.
@@ -139,6 +143,10 @@ steps:
       - 'VITE_PAYROLL_SITE_PK=${_PAYROLL_SITE_PK}'
       - 'VITE_PAYROLL_APP_AGENT=${_PAYROLL_APP_AGENT}'
       - 'VITE_PAYROLL_APP_PK=${_PAYROLL_APP_PK}'
+      - 'VITE_BANK_AGENT=${_BANK_AGENT}'
+      - 'VITE_BANK_PK=${_BANK_PK}'
+      - 'VITE_INSURANCE_AGENT=${_INSURANCE_AGENT}'
+      - 'VITE_INSURANCE_PK=${_INSURANCE_PK}'
       - 'VITE_UNIVERSITY_AGENT=${_UNIVERSITY_AGENT}'
       - 'VITE_UNIVERSITY_PK=${_UNIVERSITY_PK}'
 
