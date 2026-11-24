@@ -254,13 +254,13 @@ class Session:
         #: than this set.
         self.capabilities = capabilities
         identity = verified_identity.get()
-        #: The workspace this session was signed for, from the connection's
+        #: The organization this session was signed for, from the connection's
         #: verified token. ``None`` when nothing verified one: a brain behind the
         #: Cortex relay (the relay already admits only your agent's sessions) or
         #: a ``run_session(..., allow_unverified=True)`` in local development.
-        self.workspace_id: str | None = identity.workspace_id if identity else None
+        self.organization_id: str | None = identity.organization_id if identity else None
         #: The agent this session was signed for, on the same terms as
-        #: :attr:`workspace_id`. Branch on it when one brain serves several agents;
+        #: :attr:`organization_id`. Branch on it when one brain serves several agents;
         #: to refuse every other agent, pass ``expect_agent=`` to ``run_session``.
         self.agent_id: str | None = identity.agent_id if identity else None
         # One id per speech unit, session-monotonic. Voqalize never reads it — it
@@ -286,13 +286,13 @@ class Session:
         # When each recent turn's stimulus arrived, on the monotonic clock.
         self._turn_began: OrderedDict[int, float] = OrderedDict()
 
+    # RENAME-CLEANUP: drop the Session.tenant_id alias
     @property
     def tenant_id(self) -> str | None:
-        """Deprecated alias for :attr:`workspace_id` (the tenant is now called a
-        workspace). Warns; removed in the first minor release on or after
-        2027-02-15."""
+        """Deprecated alias for :attr:`organization_id` (the tenant is now called
+        an organization). Warns; removed in 0.17.0."""
         warn_tenant_alias("Session.tenant_id")
-        return self.workspace_id
+        return self.organization_id
 
     # ─── The app ────────────────────────────────────────────────────────
 

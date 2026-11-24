@@ -13,6 +13,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import uuid
+import warnings
 from datetime import UTC, datetime, timedelta
 
 import jwt
@@ -231,10 +232,10 @@ def _token(
     sid: str,
     *,
     agent_id: str,
-    workspace: dict[str, str] | None = None,
+    organization: dict[str, str] | None = None,
     **headers,
 ) -> str:
-    """``workspace`` is the workspace claim(s) to sign: ``workspace_id`` alone by
+    """``organization`` is the organization claim(s) to sign: ``organization_id`` alone by
     default, or ``tenant_id`` (a token from before the rename), or both."""
     now = datetime.now(UTC)
     return jwt.encode(
@@ -244,7 +245,7 @@ def _token(
             "sub": sid,
             "kind": "pygato",
             "agent_id": agent_id,
-            **(workspace if workspace is not None else {"workspace_id": "t-1"}),
+            **(organization if organization is not None else {"organization_id": "t-1"}),
             "iat": now,
             "exp": now + timedelta(seconds=60),
         },
@@ -258,7 +259,7 @@ class _IdentityBrain(Brain):
     """Greets with what its session says it was signed for."""
 
     async def greet(self, session) -> str:
-        return f"for {session.workspace_id}/{session.agent_id}"
+        return f"for {session.organization_id}/{session.agent_id}"
 
     async def on_user_message(self, session, msg):
         yield SpeechStart()
@@ -288,7 +289,9 @@ async def test_expect_agent_refuses_a_token_for_another_agent():
     """The attack this exists for: a genuine token, for someone else's agent."""
     priv, pub = _keypair()
     sid = str(uuid.uuid4())
-    stranger = _token(priv, sid, agent_id="agent-stranger", workspace={"workspace_id": "t-other"})
+    stranger = _token(
+        priv, sid, agent_id="agent-stranger", organization={"organization_id": "t-other"}
+    )
     server_ch, _client_ch = _pipe()
     with pytest.raises(SessionRejected, match="another agent"):
         await run_session(
@@ -357,24 +360,26 @@ async def test_unverified_sessions_carry_no_identity():
     assert text == "for None/None"
 
 
-# ─── tenant → workspace: the claim and its deprecated twin ──────────────────
+# ─── tenant → organization: the claim and its deprecated twin ──────────────────
+# RENAME-CLEANUP: this whole section covers the tenant_id fallback and aliases;
+# 0.17.0 keeps only the organization_id-only case.
 
 
 @pytest.mark.parametrize(
     ("claims", "expected"),
     [
-        ({"workspace_id": "w-1"}, "w-1"),  # a token minted after the rename
-        ({"tenant_id": "w-1"}, "w-1"),  # a token minted before it
-        ({"workspace_id": "w-1", "tenant_id": "w-1"}, "w-1"),  # the brain token, until 2027-02-15
-        ({"workspace_id": "w-new", "tenant_id": "w-old"}, "w-new"),  # workspace_id wins
+        ({"organization_id": "o-1"}, "o-1"),  # a token minted after the rename
+        ({"tenant_id": "o-1"}, "o-1"),  # a token from a platform before the rename
+        ({"organization_id": "o-1", "tenant_id": "o-1"}, "o-1"),  # the brain token, in the grace
+        ({"organization_id": "o-new", "tenant_id": "o-old"}, "o-new"),  # organization_id wins
     ],
 )
-async def test_the_workspace_is_read_from_workspace_id_then_tenant_id(claims, expected):
+async def test_the_organization_is_read_from_organization_id_then_tenant_id(claims, expected):
     priv, pub = _keypair()
     sid = str(uuid.uuid4())
     text = await _greeting(
         session_id=sid,
-        token=f"Bearer {_token(priv, sid, agent_id='agent-mine', workspace=claims)}",
+        token=f"Bearer {_token(priv, sid, agent_id='agent-mine', organization=claims)}",
         public_keys=pub,
         expect_agent="agent-mine",
     )
@@ -382,16 +387,30 @@ async def test_the_workspace_is_read_from_workspace_id_then_tenant_id(claims, ex
 
 
 class _TenantAliasBrain(_IdentityBrain):
+    """A brain written against 0.15: it reads ``session.tenant_id``."""
+
     async def greet(self, session) -> str:
         return f"for {session.tenant_id}/{session.agent_id}"
 
 
-async def test_session_tenant_id_is_a_deprecated_alias_for_workspace_id():
+@pytest.mark.parametrize(
+    "claims",
+    [
+        {"organization_id": "o-1", "tenant_id": "o-1"},  # the brain token, in the grace
+        {"organization_id": "o-1"},  # a platform that dropped tenant_id
+        {"tenant_id": "o-1"},  # a platform from before the rename
+    ],
+    ids=["both-claims", "organization-only", "tenant-only"],
+)
+async def test_a_015_brain_reading_session_tenant_id_gets_the_id_and_one_warning(claims):
+    """The customer guarantee: brain code written for 0.15 runs unchanged on 0.16,
+    whatever the token carries, and is told once that the name is going."""
     priv, pub = _keypair()
     sid = str(uuid.uuid4())
     server_ch, client_ch = _pipe()
-    token = _token(priv, sid, agent_id="agent-mine", workspace={"workspace_id": "w-1"})
-    with pytest.warns(DeprecationWarning, match="Session.tenant_id.*workspace_id"):
+    token = _token(priv, sid, agent_id="agent-mine", organization=claims)
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
         task = asyncio.create_task(
             run_session(
                 server_ch,
@@ -410,15 +429,20 @@ async def test_session_tenant_id_is_a_deprecated_alias_for_workspace_id():
             await client_ch.close()
             with contextlib.suppress(*_TEARDOWN_ERRORS):
                 await asyncio.wait_for(task, timeout=2.0)
-    assert any(isinstance(f, SpeechChunkFrame) and f.text == "for w-1/agent-mine" for f in frames)
+    assert any(isinstance(f, SpeechChunkFrame) and f.text == "for o-1/agent-mine" for f in frames)
+    deprecations = [w for w in caught if issubclass(w.category, DeprecationWarning)]
+    assert len(deprecations) == 1, [str(w.message) for w in deprecations]
+    assert "Session.tenant_id" in str(deprecations[0].message)
+    assert "organization_id" in str(deprecations[0].message)
+    assert "removed in 0.17.0" in str(deprecations[0].message)
 
 
 def test_verified_identity_tenant_id_is_a_deprecated_alias():
     from voqalize.sdk._identity import VerifiedIdentity
 
-    identity = VerifiedIdentity(workspace_id="w-1", agent_id="a-1")
-    with pytest.warns(DeprecationWarning, match="2027-02-15"):
-        assert identity.tenant_id == "w-1"
+    identity = VerifiedIdentity(organization_id="o-1", agent_id="a-1")
+    with pytest.warns(DeprecationWarning, match="removed in 0.17.0"):
+        assert identity.tenant_id == "o-1"
 
 
 # ─── kid: the token names its key; old tokens without one still verify ──────

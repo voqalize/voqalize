@@ -716,7 +716,7 @@ async def _redial_rig(
             private_key_pem=keypair.private_pem,
             session_id=sid,
             agent_id="payroll_app",
-            workspace_id="demo",
+            organization_id="demo",
         )
         driver = VoqalizeDriver(
             DirectConnection(f"ws://127.0.0.1:{port}", sid, token=token),

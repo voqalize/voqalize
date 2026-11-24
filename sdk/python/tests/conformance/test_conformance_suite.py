@@ -178,7 +178,7 @@ async def test_wrong_key_is_rejected_directly() -> None:
         private_key_pem=wrong_kp.private_pem,
         session_id=session_id,
         agent_id="a",
-        workspace_id="t",
+        organization_id="t",
     )
     driver = VoqalizeDriver(
         DirectConnection(f"ws://127.0.0.1:{port}", session_id, token=token),
@@ -193,8 +193,9 @@ async def test_wrong_key_is_rejected_directly() -> None:
     assert code == 4000
 
 
-def test_minted_tokens_carry_workspace_id_and_its_deprecated_twin():
-    """Voqalize's brain token carries both claims until 2027-02-15, so the kit's
+# RENAME-CLEANUP: 0.17.0 asserts tenant_id is absent and drops the tenant_id= keyword cases.
+def test_minted_tokens_carry_organization_id_and_its_deprecated_twin():
+    """Voqalize's brain token carries both claims during the two-week grace, so the kit's
     does too: a brain on an SDK older than 0.16.0 reads ``tenant_id``."""
     import jwt
 
@@ -207,22 +208,25 @@ def test_minted_tokens_carry_workspace_id_and_its_deprecated_twin():
         return jwt.decode(token, options={"verify_signature": False})
 
     token = mint_voqalize_token(
-        private_key_pem=kp.private_pem, session_id="s", agent_id="a", workspace_id="w"
+        private_key_pem=kp.private_pem, session_id="s", agent_id="a", organization_id="o"
     )
-    assert claims(token)["workspace_id"] == "w"
-    assert claims(token)["tenant_id"] == "w"
+    assert claims(token)["organization_id"] == "o"
+    assert claims(token)["tenant_id"] == "o"
 
     default = mint_voqalize_token(private_key_pem=kp.private_pem, session_id="s", agent_id="a")
-    assert claims(default)["workspace_id"] == "workspace_conformance"
-    assert ScenarioContext("ws://x", private_key_pem=None).workspace_id == "workspace_conformance"
+    assert claims(default)["organization_id"] == "organization_conformance"
+    assert (
+        ScenarioContext("ws://x", private_key_pem=None).organization_id
+        == "organization_conformance"
+    )
 
     with pytest.warns(DeprecationWarning, match="mint_voqalize_token"):
         legacy = mint_voqalize_token(
             private_key_pem=kp.private_pem, session_id="s", agent_id="a", tenant_id="old"
         )
-    assert claims(legacy)["workspace_id"] == "old"
+    assert claims(legacy)["organization_id"] == "old"
     assert claims(legacy)["tenant_id"] == "old"
 
     with pytest.warns(DeprecationWarning, match="ScenarioContext"):
         ctx = ScenarioContext("ws://x", private_key_pem=None, tenant_id="old")
-    assert ctx.workspace_id == "old"
+    assert ctx.organization_id == "old"

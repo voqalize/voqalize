@@ -72,7 +72,7 @@ demos/
     frontend/             # the demo UI — a standalone Vite app, built at base /demos/<name>/
       package.json         #   stock @pipecat-ai/client-react + @voqalize/demo-kit: "file:../../shared"
       vite.config.ts       #   base: "/demos/<name>/", dev proxy /api → control plane
-      src/config.ts        #   this demo's wiring: tenant + agent id + pk (NO voice/language)
+      src/config.ts        #   this demo's wiring: organization + agent id + pk (NO voice/language)
       src/…                #   the app
     backend/
       brain.py             # the demo's Brain (an OpenAIBrain for a new demo; GeminiBrain for the rest)

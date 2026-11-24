@@ -17,46 +17,67 @@ kept for the history, and nothing installable was ever cut from them.
 
 ## 0.16.0
 
-The tenant is now called a **workspace**, in the SDK as everywhere else in
+The tenant is now called an **organization**, in the SDK as everywhere else in
 Voqalize. This is a rename and nothing more: no behaviour changes, nothing on
 the wire changes, and every brain written for 0.15.0 runs unchanged — it only
-starts seeing `DeprecationWarning`s where it says `tenant_id`.
+starts seeing a `DeprecationWarning` where it says `tenant_id`.
+
+**Migrate within two weeks of the organization switch.** For two weeks after
+Voqalize switches to organizations, the token it signs on every brain
+connection carries both the `organization_id` and the `tenant_id` claim with
+the same value, and this release keeps every `tenant_id` name below as a
+deprecated alias. Both go in 0.17.0, two weeks after the switch. Before then,
+upgrade to 0.16.0 and rename what your brain reads:
+
+```python
+# before (0.15.0)
+org = session.tenant_id
+with session_context(session_id, tenant_id=org):
+    ...
+
+# after (0.16.0)
+org = session.organization_id
+with session_context(session_id, organization_id=org):
+    ...
+```
+
+A brain still on 0.15.0 or older keeps working through those two weeks (it
+reads `tenant_id` from the token); after them its `session.tenant_id` is empty.
 
 ### Changed
 
-- **`Session.workspace_id`** replaces `Session.tenant_id`: the workspace the
-  connection's verified token names. `None` on the same terms as before.
-- **`VerifiedIdentity.workspace_id`** replaces `VerifiedIdentity.tenant_id`.
-- **`session_context(session_id, *, workspace_id=..., agent_id=...)`** replaces
-  the `tenant_id=` keyword, and the log field every session line carries is now
-  `workspace_id` (`configure_logging(json_logs=True)` promotes it to the top
-  level, as it did `tenant_id`). A log query or dashboard that filters on
-  `tenant_id` needs the new name.
-- **Token verification reads the `workspace_id` claim**, and falls back to
-  `tenant_id` when a token has none, so a token minted before the rename still
-  names its workspace.
-- **`voqalize.conformance`**: `run_suite(workspace_id=...)`,
-  `ScenarioContext(workspace_id=...)` and `mint_voqalize_token(workspace_id=...)`,
-  defaulting to `"workspace_conformance"`. A minted token carries **both**
-  `workspace_id` and `tenant_id`, the same shape Voqalize signs during the
-  deprecation window.
+- **`Session.organization_id`** replaces `Session.tenant_id`: the organization
+  the connection's verified token names. `None` on the same terms as before.
+- **`VerifiedIdentity.organization_id`** replaces `VerifiedIdentity.tenant_id`.
+- **`session_context(session_id, *, organization_id=..., agent_id=...)`**
+  replaces the `tenant_id=` keyword, and every session log line carries
+  `organization_id` (`configure_logging(json_logs=True)` promotes it to the top
+  level, as it did `tenant_id`). During the two weeks each line also carries
+  `tenant_id` with the same value, so a log query or dashboard that filters on
+  `tenant_id` keeps matching; move it to `organization_id` before 0.17.0.
+- **Token verification reads the `organization_id` claim**, and falls back to
+  `tenant_id` when a token has none, so a token signed before the rename still
+  names its organization.
+- **`voqalize.conformance`**: `run_suite(organization_id=...)`,
+  `ScenarioContext(organization_id=...)` and
+  `mint_voqalize_token(organization_id=...)`, defaulting to
+  `"organization_conformance"`. A minted token carries **both**
+  `organization_id` and `tenant_id`, the same shape Voqalize signs during the
+  two weeks.
 
 ### Deprecated
 
-Every `tenant_id` above still works for about 90 days, and **is removed in the
-first minor release on or after 2027-02-15**:
+Every `tenant_id` below still works, and **is removed in 0.17.0, two weeks
+after the organization switch**:
 
 - `Session.tenant_id` and `VerifiedIdentity.tenant_id` are read-only aliases
-  for `workspace_id` that warn on every read.
+  for `organization_id` that warn on every read.
 - `session_context(tenant_id=...)`, `run_suite(tenant_id=...)`,
   `ScenarioContext(tenant_id=...)` and `mint_voqalize_token(tenant_id=...)`
-  warn and map to `workspace_id`. Passing both keywords with different values
-  raises `TypeError`.
-
-For the same window, the token Voqalize signs on every brain connection carries
-both the `workspace_id` and the `tenant_id` claim with the same value, so a
-brain still on 0.15.0 or older keeps reading its workspace from `tenant_id`.
-Upgrade before 2027-02-15; after that, the token carries `workspace_id` only.
+  warn and map to `organization_id`. Passing both keywords with different
+  values raises `TypeError`.
+- The `tenant_id` log field, the `tenant_id` claim fallback, and the
+  `tenant_id` claim in tokens the conformance kit mints.
 
 ## 0.15.0
 

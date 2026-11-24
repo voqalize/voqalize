@@ -113,7 +113,7 @@ has the whole contract.
 
 Beyond its tools, most of what a real agent needs is carried by
 `system_instruction` and `append_to_context()`. `system_instruction` is settable, so facts known only once the session opens — who
-called, which workspace — go in from `on_session_start`. And `append_to_context()`
+called, which organization — go in from `on_session_start`. And `append_to_context()`
 adds to the conversation the model sees, for context the app knows and the
 conversation does not — typically what the person just did on screen, arriving at
 `on_rtvi` as a typed `AppEvent`, which takes no floor and starts no turn:

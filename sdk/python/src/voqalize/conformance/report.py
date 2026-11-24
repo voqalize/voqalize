@@ -25,7 +25,7 @@ import time
 import traceback
 from dataclasses import dataclass, field
 
-from voqalize.sdk._identity import resolve_workspace_kwarg
+from voqalize.sdk._identity import resolve_organization_kwarg
 
 from .scenarios import CATALOG, Scenario, ScenarioContext
 
@@ -181,8 +181,8 @@ async def run_suite(
     only: list[str] | None = None,
     default_timeout: float = 5.0,
     agent_id: str = "agent_conformance",
-    workspace_id: str | None = None,
-    tenant_id: str | None = None,
+    organization_id: str | None = None,
+    tenant_id: str | None = None,  # RENAME-CLEANUP: drop the deprecated tenant_id= keyword
 ) -> Report:
     """Run the catalog against ``brain_url`` and return a :class:`Report`.
 
@@ -201,11 +201,11 @@ async def run_suite(
     runs unverified — they can't pass without token enforcement); ``only``
     restricts to named scenarios.
 
-    ``workspace_id`` names the workspace the minted tokens carry (default
-    ``"workspace_conformance"``); ``tenant_id=`` is its deprecated alias.
+    ``organization_id`` names the organization the minted tokens carry (default
+    ``"organization_conformance"``); ``tenant_id=`` is its deprecated alias.
     """
-    workspace = resolve_workspace_kwarg(
-        "run_suite", workspace_id, tenant_id, "workspace_conformance"
+    organization = resolve_organization_kwarg(
+        "run_suite", organization_id, tenant_id, "organization_conformance"
     )
 
     def _ctx() -> ScenarioContext:
@@ -213,7 +213,7 @@ async def run_suite(
             brain_url,
             private_key_pem=private_key_pem,
             agent_id=agent_id,
-            workspace_id=workspace,
+            organization_id=organization,
             default_timeout=default_timeout,
         )
 

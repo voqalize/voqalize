@@ -55,14 +55,14 @@ class _Capture:
 async def test_context_reaches_tasks_spawned_inside_it():
     """A task created inside the block inherits the identity; one outside doesn't."""
     with _Capture() as cap:
-        with session_context("sid-1", workspace_id="t1", agent_id="a1"):
+        with session_context("sid-1", organization_id="t1", agent_id="a1"):
             await asyncio.create_task(_log_from_a_task())
         logger.info("outside")
 
     inside, outside = cap.records[0], cap.records[1]
     assert inside["session_id"] == "sid-1"
-    assert inside["workspace_id"] == "t1"
-    assert "tenant_id" not in inside
+    assert inside["organization_id"] == "t1"
+    assert inside["tenant_id"] == "t1"  # RENAME-CLEANUP: the grace-period log field
     assert inside["agent_id"] == "a1"
     assert inside["service"] == "brain"
     assert "session_id" not in outside
@@ -73,7 +73,7 @@ async def _log_from_a_task() -> None:
 
 
 async def test_empty_identity_fields_are_omitted_not_blank():
-    """A brain with no workspace claim logs no ``workspace_id`` key at all.
+    """A brain with no organization claim logs no ``organization_id`` key at all.
 
     An empty string is worse than an absent field: it indexes, and it matches
     other calls that also have nothing.
@@ -83,7 +83,8 @@ async def test_empty_identity_fields_are_omitted_not_blank():
             logger.info("hello")
 
     assert cap.records[0]["session_id"] == "sid-2"
-    assert "workspace_id" not in cap.records[0]
+    assert "organization_id" not in cap.records[0]
+    assert "tenant_id" not in cap.records[0]
     assert "agent_id" not in cap.records[0]
 
 
@@ -149,7 +150,7 @@ def _signed(session_id: str, **claims) -> tuple[str, str]:
 async def test_brain_lines_carry_the_identity_from_the_verified_token():
     """The customer's own ``logger.info`` inside a callback is tagged for free."""
     sid = str(uuid.uuid4())
-    token, pub = _signed(sid, workspace_id="tenant-7", tenant_id="tenant-7", agent_id="agent-9")
+    token, pub = _signed(sid, organization_id="org-7", tenant_id="org-7", agent_id="agent-9")
     server_ch, client_ch = _pipe()
 
     with _Capture() as cap:
@@ -180,8 +181,9 @@ async def test_brain_lines_carry_the_identity_from_the_verified_token():
 
     tagged = [r for r in cap.records if r.get("session_id") == sid]
     assert tagged, "the brain's own log lines were not tagged with the session"
-    assert all(r["workspace_id"] == "tenant-7" for r in tagged)
-    assert not any("tenant_id" in r for r in tagged), "the log field is workspace_id only"
+    assert all(r["organization_id"] == "org-7" for r in tagged)
+    # RENAME-CLEANUP: the grace-period tenant_id log field; assert it is absent after.
+    assert all(r["tenant_id"] == "org-7" for r in tagged), "log shippers still index tenant_id"
     assert all(r["agent_id"] == "agent-9" for r in tagged)
 
 
@@ -189,14 +191,16 @@ def test_json_sink_promotes_identity_and_keeps_custom_fields(capsys):
     """The shape a log shipper indexes: ids at top level, the rest under ``fields``."""
     try:
         configure_logging(json_logs=True)
-        with session_context("sid-3", workspace_id="t3"):
+        with session_context("sid-3", organization_id="t3"):
             logger.bind(candidate="c-1").info("scored")
         line = json.loads(capsys.readouterr().err.strip().splitlines()[-1])
     finally:
         logger.remove()
 
     assert line["session_id"] == "sid-3"
-    assert line["workspace_id"] == "t3"
+    assert line["organization_id"] == "t3"
+    assert line["tenant_id"] == "t3"  # RENAME-CLEANUP: the grace-period log field
+    assert "fields" not in line or "tenant_id" not in line["fields"]
     assert line["service"] == "brain"
     assert line["message"] == "scored"
     assert line["fields"] == {"candidate": "c-1"}
@@ -215,17 +219,18 @@ def test_console_sink_renders_a_line_logged_outside_any_session(capsys):
     assert "no session here" in out
 
 
+# RENAME-CLEANUP: covers only the tenant_id= alias.
 def test_session_context_tenant_id_keyword_is_a_deprecated_alias():
     with _Capture() as cap:
-        with pytest.warns(DeprecationWarning, match="session_context.*workspace_id") as rec:
+        with pytest.warns(DeprecationWarning, match="session_context.*organization_id") as rec:
             ctx = session_context("sid-4", tenant_id="t4")
         assert rec[0].filename == __file__, "the warning points at the caller"
         with ctx:
             logger.info("hello")
-    assert cap.records[0]["workspace_id"] == "t4"
-    assert "tenant_id" not in cap.records[0]
+    assert cap.records[0]["organization_id"] == "t4"
 
 
-def test_session_context_refuses_two_different_workspaces():
+# RENAME-CLEANUP: covers only the tenant_id= alias.
+def test_session_context_refuses_two_different_organizations():
     with pytest.warns(DeprecationWarning), pytest.raises(TypeError, match="not two different"):
-        session_context("sid-5", workspace_id="a", tenant_id="b")
+        session_context("sid-5", organization_id="a", tenant_id="b")

@@ -29,8 +29,10 @@ mode — binding fields onto a handler whose format never prints them looks exac
 like working, and every one of those fields is computed and thrown away.
 
 Field names match what Voqalize writes — ``service``, ``session_id``,
-``workspace_id``, ``agent_id`` — because being joinable across the whole call is
-the entire point. (``workspace_id`` was ``tenant_id`` before 0.16.0.)
+``organization_id``, ``agent_id`` — because being joinable across the whole call is
+the entire point. (``organization_id`` was ``tenant_id`` before 0.16.0. Log
+shippers index on these names, so for the two-week grace after the organization
+switch every line also carries ``tenant_id`` with the same value.)
 """
 
 from __future__ import annotations
@@ -44,22 +46,27 @@ from typing import Any
 
 from loguru import logger
 
-from ._identity import resolve_workspace_kwarg
+from ._identity import resolve_organization_kwarg
 
 SERVICE_NAME = "brain"
 
 # The identity fields that make a line joinable to the same call elsewhere. Kept
 # as an explicit tuple so the JSON sink promotes exactly these and leaves your
 # own bound fields in `extra`.
-IDENTITY_FIELDS = ("session_id", "workspace_id", "agent_id")
+IDENTITY_FIELDS = (
+    "session_id",
+    "organization_id",
+    "tenant_id",  # RENAME-CLEANUP: drop the tenant_id log field
+    "agent_id",
+)
 
 
 def session_context(
     session_id: str,
     *,
-    workspace_id: str | None = None,
+    organization_id: str | None = None,
     agent_id: str = "",
-    tenant_id: str | None = None,
+    tenant_id: str | None = None,  # RENAME-CLEANUP: drop the deprecated tenant_id= keyword
 ) -> AbstractContextManager[None]:
     """Tag every log line emitted inside this block — and inside any task it
     spawns — with the call's identity.
@@ -68,18 +75,19 @@ def session_context(
     useless as a join key: Voqalize and the session's own records carry the full
     UUID, so a prefix matches nothing on the other side of the query.
 
-    ``tenant_id=`` is a deprecated alias for ``workspace_id=`` (it warns, and is
-    removed in the first minor release on or after 2027-02-15).
+    ``tenant_id=`` is a deprecated alias for ``organization_id=`` (it warns, and is
+    removed in 0.17.0).
     """
-    workspace = resolve_workspace_kwarg("session_context", workspace_id, tenant_id, "")
-    return _session_context(session_id, workspace_id=workspace, agent_id=agent_id)
+    organization = resolve_organization_kwarg("session_context", organization_id, tenant_id, "")
+    return _session_context(session_id, organization_id=organization, agent_id=agent_id)
 
 
 @contextmanager
-def _session_context(session_id: str, *, workspace_id: str, agent_id: str) -> Generator[None]:
+def _session_context(session_id: str, *, organization_id: str, agent_id: str) -> Generator[None]:
     fields: dict[str, str] = {"service": SERVICE_NAME, "session_id": session_id}
-    if workspace_id:
-        fields["workspace_id"] = workspace_id
+    if organization_id:
+        fields["organization_id"] = organization_id
+        fields["tenant_id"] = organization_id  # RENAME-CLEANUP: drop the tenant_id log field
     if agent_id:
         fields["agent_id"] = agent_id
     with logger.contextualize(**fields):

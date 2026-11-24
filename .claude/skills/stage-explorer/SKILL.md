@@ -14,10 +14,10 @@ the agent needs at call time runs on the page.
 
 For a site already onboarded as a hosted site, read its knowledge before crawling:
 
-- `list_sites(tenant)` → the site's `id`, its published and latest versions.
-- `get_site_version(tenant, site_id, version)` → its topics, parts and tools.
-- `read_site_knowledge(tenant, site_id, part, version?)` with `l1` (the brief),
-  `l2:<topic>`, and, for the tenant's owner or admin only, `page_map` (the pages and
+- `list_sites(organization)` → the site's `id`, its published and latest versions.
+- `get_site_version(organization, site_id, version)` → its topics, parts and tools.
+- `read_site_knowledge(organization, site_id, part, version?)` with `l1` (the brief),
+  `l2:<topic>`, and, for the organization's owner or admin only, `page_map` (the pages and
   listings) and `questions`. Long parts come in pages: pass `next_cursor` back as `cursor`.
 
 The page map and the tools say which pages matter and what the site can do today. Change

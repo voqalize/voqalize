@@ -808,7 +808,7 @@ async def test_a_dropped_socket_rejoins_the_claim_where_it_was() -> None:
             private_key_pem=keypair.private_pem,
             session_id=sid,
             agent_id="insurance",
-            tenant_id="demo",
+            organization_id="demo",
         )
         return VoqalizeDriver(
             DirectConnection(f"ws://127.0.0.1:{port}", sid, token=token),

@@ -174,11 +174,11 @@ facts:
       file: sdk/python/pyproject.toml
       pattern: '^version = "(.+)"$'
     note: >-
-      Bumped to 0.16.0 on 2026-11-24: the tenant is renamed workspace —
-      Session.workspace_id, VerifiedIdentity.workspace_id, session_context(
-      workspace_id=), the workspace_id log field and token claim; every
-      tenant_id is a deprecated alias until the first minor on or after
-      2027-02-15. The wire is unchanged.
+      Bumped to 0.16.0 on 2026-11-24: the tenant is renamed organization —
+      Session.organization_id, VerifiedIdentity.organization_id,
+      session_context(organization_id=), the organization_id log field and
+      token claim; every tenant_id is a deprecated alias, removed in 0.17.0
+      two weeks after the organization switch. The wire is unchanged.
       Bumped to 0.15.0 on 2026-11-17: Config.redial (a call outlives the
       brain's socket) and Config.late (the slow-turn line off, later, or in the
       brain's words), each behind a capability. Additive; the wire stays 3.
