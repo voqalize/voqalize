@@ -7,11 +7,13 @@
  * - refuses, with what the page offers, an id the inventory does not have or a
  *   change the trip cannot take (a day without that slot, a city with no
  *   nights) — never a guess;
- * - rings what it touches before changing it, then calls the same controller
- *   function a click calls (`state/trip.ts`);
+ * - brings what it rings fully into view first, with its whole group, inner
+ *   scroll areas included (X1: `inView`, `stage/view.ts`), then rings it before
+ *   changing it, then calls the same controller function a click calls
+ *   (`state/trip.ts`);
  * - returns one short line the agent can repeat.
  */
-import { type MoveContext, type PerformResult, type Performers, showThing, waitFor } from "@voqalize/stage";
+import { type MoveContext, type PerformResult, type Performer, type Performers, showThing, waitFor } from "@voqalize/stage";
 import { DESTINATIONS, ORIGINS, RULES, flightsFor, getActivity, getCity, getDestination, getFlight, getHotel } from "../data";
 import { cannotPlace, days, missing, price, splitOf, stays, validSplit } from "../engine";
 import { money } from "../format";
@@ -31,6 +33,7 @@ import {
 } from "../state/trip";
 import { currentPath, navigate } from "./nav";
 import type { scene } from "./scene.gen";
+import { ringWhole, showWhole } from "./view";
 
 type Spec = typeof scene.spec;
 
@@ -45,7 +48,7 @@ async function toPage(page: keyof typeof PAGE_PATH, c: MoveContext): Promise<voi
   const path = PAGE_PATH[page];
   if (currentPath() === path) return;
   const link = thing(`nav-${page}`);
-  if (link) await c.ring(link, { label: page === "plan" ? "Plan a trip" : page === "home" ? "Destinations" : "Checkout", beatMs: 300 });
+  if (link) await ringWhole(c, link, { label: page === "plan" ? "Plan a trip" : page === "home" ? "Destinations" : "Checkout", beatMs: 300 });
   navigate(path);
   await appear(() => $(`[data-stage-place="${page}"]`));
 }
@@ -62,7 +65,7 @@ async function toStep(step: Step, c: MoveContext, ring = true): Promise<void> {
   await toPage("plan", c);
   if (useTrip.getState().step === step) return;
   const tab = await appear(() => thing(`step-${step}`));
-  if (tab && ring) await c.ring(tab, { label: tab.getAttribute("data-stage-label") ?? step, beatMs: 300 });
+  if (tab && ring) await ringWhole(c, tab, { label: tab.getAttribute("data-stage-label") ?? step, beatMs: 300 });
   setStep(step);
   await appear(() => $(`[data-step-panel="${step}"]`));
 }
@@ -70,8 +73,7 @@ async function toStep(step: Step, c: MoveContext, ring = true): Promise<void> {
 async function ringThen(sel: () => Element | null, label: string, c: MoveContext, beatMs?: number): Promise<void> {
   const el = await appear(sel);
   if (!el) return;
-  await c.scrollTo(el);
-  await c.ring(el, beatMs ? { label, beatMs } : label);
+  await ringWhole(c, el, beatMs ? { label, beatMs } : label);
 }
 
 function checkFlight(id: string, c: MoveContext) {
@@ -101,7 +103,21 @@ export const hotelMatches = (want: string | null, h: { tags: string[]; stars: nu
   return h.tags.includes(want);
 };
 
-export const performers: Performers<Spec> = {
+/**
+ * X1: the move's `scrollTo` becomes `showWhole` (the target and its whole
+ * `data-stage-group`, inner scroll areas first, then the window under the
+ * header and clear of the dock), so every scroll a performer makes, Stage's
+ * own `showThing` included, shows the whole thing it is about to ring.
+ */
+export function inView(c: MoveContext): MoveContext {
+  return { ...c, scrollTo: (el: Element) => showWhole(el) };
+}
+const whole =
+  <A>(p: Performer<A>): Performer<A> =>
+  (args, c) =>
+    p(args, inView(c));
+
+const raw: Performers<Spec> = {
   "trip.go": async ({ page }, c) => {
     if (page === "checkout") {
       const t = useTrip.getState().trip;
@@ -157,7 +173,7 @@ export const performers: Performers<Spec> = {
     await toPage("plan", c);
     if (useTrip.getState().step !== "brief") {
       const tab = thing("step-brief");
-      if (tab) await c.ring(tab, { label: "Trip", beatMs: 250 });
+      if (tab) await ringWhole(c, tab, { label: "Trip", beatMs: 250 });
       setStep("brief");
     }
     for (const f of fields) {
@@ -174,7 +190,7 @@ export const performers: Performers<Spec> = {
       setFlightSort(sort);
     }
     const list = await appear(() => thing("flight-list"));
-    if (list) c.after(() => c.ring(list, "Flight options"));
+    if (list) c.after(() => ringWhole(c, list, "Flight options"));
     const n = document.querySelectorAll("[data-flight]").length;
     return `${n} flight options on screen`;
   },
@@ -303,8 +319,7 @@ export const performers: Performers<Spec> = {
     for (const a of acts) {
       const day = thing(`day-${a.day}`);
       if (day) {
-        await c.scrollTo(day);
-        await c.ring(day, { label: `Day ${a.day}: ${getActivity(a.id)!.name}`, beatMs: 220 });
+        await ringWhole(c, day, { label: `Day ${a.day}: ${getActivity(a.id)!.name}`, beatMs: 220 });
       }
       const err = addActivity(a.id, a.day);
       if (err) skipped.push(`${getActivity(a.id)!.name} (${err})`);
@@ -318,11 +333,13 @@ export const performers: Performers<Spec> = {
     c.done(result);
     c.after(async () => {
       const el = thing("total");
-      if (el) await c.ring(el, "Total price");
+      if (el) await ringWhole(c, el, "Total price");
     });
     return result;
   },
 };
+
+export const performers = Object.fromEntries(Object.entries(raw).map(([id, p]) => [id, whole(p as Performer<unknown>)])) as unknown as Performers<Spec>;
 
 const BRIEF_LABEL: Record<string, string> = {
   from_city: "Flying from",

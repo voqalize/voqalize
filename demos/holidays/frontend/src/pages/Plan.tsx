@@ -80,7 +80,7 @@ export function Plan() {
             <p className="eyebrow">Build your package</p>
             <h1>{d ? `${d.name}, your way` : "Plan a holiday"}</h1>
           </div>
-          <nav className="steps" aria-label="Steps">
+          <nav className="steps" data-stage-group aria-label="Steps">
             {STEPS.map((s, i) => {
               const locked = s.id !== "brief" && !ready;
               return (
@@ -379,7 +379,7 @@ function FlightsStep() {
           {b.start_date && Number(RULES.season[String(Number(b.start_date.slice(5, 7)))] ?? 100) > 100 ? "; peak-season fares apply in this month" : ""}.
         </p>
       </header>
-      <div className="sort-row" role="group" aria-label="Sort flights">
+      <div className="sort-row" data-stage-group role="group" aria-label="Sort flights">
         {SORTS.map(([id, label]) => (
           <button key={id} type="button" className={`chip${sort === id ? " is-on" : ""}`} data-stage-part={`sort:${id}`} onClick={() => setFlightSort(id)}>
             {label}
@@ -520,7 +520,7 @@ function HotelsStep() {
         </p>
       </header>
       <NightsEditor />
-      <div className="city-tabs" role="tablist">
+      <div className="city-tabs" data-stage-group role="tablist">
         {st.map((s) => {
           const pick = trip.hotels[s.city.id];
           return (
@@ -545,7 +545,7 @@ function HotelsStep() {
         {stay.city.blurb}
         {stay.city.inland ? " · inland, no beach" : ""}
       </p>
-      <div className="sort-row" role="group" aria-label="Filter hotels">
+      <div className="sort-row" data-stage-group role="group" aria-label="Filter hotels">
         <button type="button" className={`chip${!want ? " is-on" : ""}`} onClick={() => setHotelWant(null)}>
           All {stay.city.hotels.length}
         </button>
@@ -559,7 +559,7 @@ function HotelsStep() {
         {shown.map((h) => {
           const pick = trip.hotels[stay.city.id];
           return (
-            <article key={h.id} className={`hotel${pick?.hotel_id === h.id ? " is-on" : ""}`} data-stage-thing={h.id} data-stage-label={h.name}>
+            <article key={h.id} className={`hotel${pick?.hotel_id === h.id ? " is-on" : ""}`} data-stage-group data-stage-thing={h.id} data-stage-label={h.name}>
               <div className="hotel-art">
                 <DestinationArt id={d.id} hue={d.hue} />
                 {h.id === suggested && (
@@ -666,7 +666,7 @@ function DaysStep() {
           const planned = trip.activities.filter((p) => p.day === d.day);
           const options = d.city.activities;
           return (
-            <li key={d.day} className={`day kind-${d.kind}`} data-stage-thing={`day-${d.day}`} data-stage-label={`Day ${d.day}`}>
+            <li key={d.day} className={`day kind-${d.kind}`} data-stage-group data-stage-thing={`day-${d.day}`} data-stage-label={`Day ${d.day}`}>
               <div className="day-head">
                 <span className="day-n">Day {d.day}</span>
                 <span className="day-date">{d.date ? shortDate(d.date) : ""}</span>

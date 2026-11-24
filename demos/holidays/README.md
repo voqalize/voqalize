@@ -44,7 +44,9 @@ The one place the character lives, read by the brain (`backend/persona.py`) and 
 (`frontend/src/persona.ts`).
 
 - **To change the character**, edit `character` (an avatar character id), `name`, and each language's
-  `voice` in `persona.json`. Nothing else names her.
+  `voice` in `persona.json`, and add the character's still photo as
+  `frontend/src/characters/<character>.webp` (from the cast). Nothing else names her. `roles` is the
+  dock's label per page (`role` for a page without one).
 - **To add a language**, add an entry under `languages` (its BCP-47 tag) with a label, name, voice,
   the two greetings and the switch line, and add the tag to `scene.json`'s `languages`. The voice must
   speak that language (`https://app.voqalize.com/api/v1/catalog.get`).
@@ -52,6 +54,19 @@ The one place the character lives, read by the brain (`backend/persona.py`) and 
   configures both legs in `on_session_start`, and switches both mid-call from the toggle or when asked.
   **Aaliyah's voice speaks English only**, so Hindi is read by Ananya's voice (`languages.hi.voice`)
   until an Aaliyah Hindi clip exists; the face stays Aaliyah's.
+- The language is remembered in the browser across reloads; the next call and a redial start in it.
+  Mid-call the toggle only asks the brain (`language_chosen`); the brain's `language_changed` moves
+  the toggle, also when the visitor switched by voice.
+
+## The agent widget (Paynora's)
+
+One entry point, no transcript anywhere (`frontend/src/voice/`). Idle: a bar at the bottom right with
+her still photo, her name, the page's role, EN / हिंदी and Talk. In a call the bar goes away and her face
+becomes a draggable tile with the live avatar (`@voqalize/avatar` 0.6.3, mounted only in a call), the
+language toggle, mute, minimise and end. The tile starts bottom right on a desktop and bottom left on a
+phone, steps aside for a primary action (`data-dock-avoid`: Review & pay, Pay), and moves to a top
+corner while the phone's trip-summary sheet is open (`data-overlay`). Whatever the planner rings is
+first brought fully into view with its group, inner scroll areas included (`frontend/src/stage/view.ts`).
 
 ## Run it
 
