@@ -2,6 +2,7 @@
  * Where the guide's dock and call tile sit, read from the page itself so every
  * overlay counts, whoever opened it (a click, or one of the agent's moves).
  */
+import { shownNow } from "../stage/view";
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 
@@ -36,10 +37,11 @@ export function raisedCorner(): "tl" | "tr" | null {
   return o === "right" ? "tl" : "tr";
 }
 
-/** The visible boxes of the page's primary actions (`data-dock-avoid`). */
+/** The visible boxes of the page's primary actions (`data-dock-avoid`), and what the agent is showing right now (`shownNow`, stage/view.ts). */
 export function avoidRects(): DOMRect[] {
   return [...document.querySelectorAll<HTMLElement>("[data-dock-avoid]")]
     .map((el) => el.getBoundingClientRect())
+    .concat(shownNow())
     .filter((r) => r.width > 0 && r.bottom > 0 && r.top < window.innerHeight);
 }
 
