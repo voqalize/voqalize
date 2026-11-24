@@ -20,7 +20,7 @@ function Controls({ card }: { card: CardId }) {
   const c = useBank((s) => s.cards[card].controls);
   const ask = (control: string, on: boolean) => askConfirm({ kind: "card_control", card, control: control as "online", value: on ? "on" : "off" });
   return (
-    <Panel title="Card controls" thing={`controls:${card}`} label="Card controls">
+    <Panel title="Card controls" thing={`controls:${card}`} label="Card controls" group>
       <div className={`ax-blockrow${c.blocked ? " is-blocked" : ""}`} data-stage-thing={`control:${card}:blocked`} data-stage-label="Block card">
         {c.blocked ? <Lock size={20} /> : <ShieldAlert size={20} />}
         <div>
@@ -105,7 +105,7 @@ function LimitRow({ card, k }: { card: CardId; k: string }) {
 function Limits({ card }: { card: CardId }) {
   const keys = ["online_daily", "pos_daily", "atm_daily"];
   return (
-    <Panel title="Daily limits" thing={`limits:${card}`} label="Daily limits">
+    <Panel title="Daily limits" thing={`limits:${card}`} label="Daily limits" group>
       {keys.map((k) => (
         <LimitRow key={k} card={card} k={k} />
       ))}
@@ -315,7 +315,7 @@ export function CreditCardPage() {
             <p className="ax-k">
               Generated {fmtDate(daysAgo(stmt.generated_days_ago))}
             </p>
-            <div className="ax-stmtbox">
+            <div className="ax-stmtbox" data-stage-group="">
               <div data-stage-thing="total-due" data-stage-label="Total due">
                 <span className="ax-k">Total due</span>
                 <strong className="ax-fig">{inr(stmt.total_due)}</strong>

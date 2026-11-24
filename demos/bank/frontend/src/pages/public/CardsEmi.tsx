@@ -107,7 +107,7 @@ export function CardsEmi() {
           <section className="card emi-table-wrap" aria-label="EMI options">
             {rows.length ? (
               <>
-                <div className="table-scroll">
+                <div className="table-scroll" data-stage-group="">
                   <table className="data-table emi-table">
                     <thead>
                       <tr>

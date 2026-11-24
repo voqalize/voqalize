@@ -29,7 +29,7 @@ export function EmiCalculator({ type, compact = false }: { type: LoanType; compa
   const fy = a.first_year;
   const fyTotal = fy.interest + fy.principal || 1;
   return (
-    <section className="card calc" aria-labelledby={`calc-h-${type}`} data-stage-thing="loan:calculator" data-stage-label="EMI calculator">
+    <section className="card calc" aria-labelledby={`calc-h-${type}`} data-stage-thing="loan:calculator" data-stage-group="" data-stage-label="EMI calculator">
       <h2 id={`calc-h-${type}`} className="side-h">
         EMI calculator{compact ? `, ${loan.short.toLowerCase()}` : ""}
       </h2>
@@ -201,7 +201,7 @@ export function EligibilityPanel({ type }: { type: LoanType }) {
     </div>
   );
   return (
-    <section className="card elig" aria-labelledby={`elig-h-${type}`} data-stage-thing="loan:eligibility-check" data-stage-label="Eligibility check">
+    <section className="card elig" aria-labelledby={`elig-h-${type}`} data-stage-thing="loan:eligibility-check" data-stage-group="" data-stage-label="Eligibility check">
       <h2 id={`elig-h-${type}`} className="side-h">
         How much can you borrow?
       </h2>

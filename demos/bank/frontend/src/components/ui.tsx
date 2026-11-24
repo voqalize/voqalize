@@ -92,7 +92,7 @@ export function FormField({ form, name, wide = false, autoFocus = false }: { for
   if (choices) {
     const many = choices.length > 4;
     return (
-      <div className={`field${wide || many ? " field-wide" : ""}${err ? " has-error" : ""}`} data-stage-part={name} data-stage-thing={`field:${form}:${name}`} data-stage-label={def.label}>
+      <div className={`field${wide || many ? " field-wide" : ""}${err ? " has-error" : ""}`} data-stage-part={name} data-stage-thing={`field:${form}:${name}`} data-stage-group="" data-stage-label={def.label}>
         <span className="field-label" id={`${id}-label`}>
           {def.label}
         </span>
@@ -120,7 +120,7 @@ export function FormField({ form, name, wide = false, autoFocus = false }: { for
   const type = def.kind === "date" ? "date" : name === "email" ? "email" : "text";
   const inputMode = def.kind === "number" || def.kind === "digits" ? "numeric" : name === "email" ? "email" : undefined;
   return (
-    <div className={`field${wide ? " field-wide" : ""}${err ? " has-error" : ""}`} data-stage-part={name} data-stage-thing={`field:${form}:${name}`} data-stage-label={def.label}>
+    <div className={`field${wide ? " field-wide" : ""}${err ? " has-error" : ""}`} data-stage-part={name} data-stage-thing={`field:${form}:${name}`} data-stage-group="" data-stage-label={def.label}>
       <label className="field-label" htmlFor={id}>
         {def.label}
       </label>

@@ -10,8 +10,17 @@ import { stageHooks } from "@voqalize/stage/react";
 import { create } from "zustand";
 import { useVoiceClient } from "./client";
 import { scene } from "./scene.gen";
+import { withWhole } from "./view";
 
-export const { useStage, useMove, useSlice, useNavigated } = stageHooks(React);
+const hooks = stageHooks(React);
+export const { useStage, useSlice, useNavigated } = hooks;
+
+/**
+ * Stage's `useMove`, with every performer's `c.scrollTo` and `c.ring` showing
+ * the target's whole group first, inner scroll areas included (X1, `view.ts`).
+ */
+export const useMove: typeof hooks.useMove = (stage, id, performer) =>
+  hooks.useMove(stage, id, (args, c) => performer(args, withWhole(c)));
 
 export type AppStage = ReturnType<typeof useStage<typeof scene.spec>>;
 export const useAppStage = create<{ stage: AppStage }>(() => ({ stage: null }));

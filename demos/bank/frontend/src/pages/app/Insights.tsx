@@ -81,7 +81,7 @@ export function Insights() {
     <div className="ax-page" data-stage-thing="screen:insights" data-stage-label="Insights">
       <PageHead title="Spending insights" sub="Savings account and credit card spends by category. Transfers, investments, income and refunds are left out." />
 
-      <div className="ax-months" role="tablist" aria-label="Month" data-stage-thing="insights-month" data-stage-label="Month">
+      <div className="ax-months" role="tablist" aria-label="Month" data-stage-thing="insights-month" data-stage-group="" data-stage-label="Month">
         {months.map((k) => (
           <button key={k} type="button" role="tab" aria-selected={k === m} className={k === m ? "is-on" : ""} onClick={() => setMonth(k)} data-stage-thing={`month:${k}`} data-stage-label={monthName(k)}>
             {monthName(k)}

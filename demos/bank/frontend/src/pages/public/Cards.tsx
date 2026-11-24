@@ -199,7 +199,7 @@ export function CardsPage() {
             {ranked.map((v, i) => {
               const c = creditCardProduct(v.card_id)!;
               return (
-                <li key={c.id} className={`card-row${i === 0 && !v.below_income ? " is-best" : ""}${v.below_income ? " is-ineligible" : ""}`} data-stage-thing={`card:${c.id}`} data-stage-label={c.name}>
+                <li key={c.id} className={`card-row${i === 0 && !v.below_income ? " is-best" : ""}${v.below_income ? " is-ineligible" : ""}`} data-stage-thing={`card:${c.id}`} data-stage-label={c.name} data-stage-group="">
                   <div className="cr-face">
                     <span className="cr-rank num" aria-label={`Rank ${i + 1}`}>
                       {i + 1}
@@ -466,7 +466,7 @@ export function CardsCompare() {
             </p>
           </div>
         </header>
-        <div className="compare-scroll" role="region" aria-label="Card comparison" tabIndex={0}>
+        <div className="compare-scroll" data-stage-group="" role="region" aria-label="Card comparison" tabIndex={0}>
           <table className="compare-table" style={{ ["--cols" as string]: cards.length }}>
             <thead>
               <tr>

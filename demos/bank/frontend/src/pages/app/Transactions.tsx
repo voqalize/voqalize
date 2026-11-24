@@ -86,7 +86,7 @@ export function Transactions() {
     <div className={`ax-page ax-txns${sel ? " has-detail" : ""}`} data-stage-thing="screen:transactions" data-stage-label="Transactions">
       <PageHead title="Transactions" sub="Savings, current account and credit card, newest first." />
 
-      <div className="ax-filters" data-stage-thing="txn-filters" data-stage-label="Filters">
+      <div className="ax-filters" data-stage-thing="txn-filters" data-stage-group="" data-stage-label="Filters">
         <div className="ax-filters__row">
           <label className="ax-search" data-stage-thing="filter:query" data-stage-label="Search">
             <Search size={17} />

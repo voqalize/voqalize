@@ -4,11 +4,14 @@
  * (`stage.moves.run`), so it rings, refuses and answers exactly as on a call,
  * and resolves to the StageResult. Stage exists only with a client; in debug
  * mode without voice the dock puts a stand-in client in the seam
- * (VoiceDock.tsx), so it is there either way.
+ * (VoiceDock.tsx), so it is there either way. `window.__bankInView(thing)`
+ * says whether that thing's whole group is on screen (X1, `stage/view.ts`).
  */
 import { useEffect } from "react";
 import type { StageResult } from "@voqalize/stage";
 import { useAppStage } from "../stage/host";
+import { thing } from "../stage/nav";
+import { groupInView } from "../stage/view";
 import { debugMode } from "./events";
 
 let n = 0;
@@ -33,10 +36,18 @@ async function waitForStage(ms = 3000) {
 export function useDebugHarness() {
   useEffect(() => {
     if (!debugMode()) return;
-    const w = window as unknown as { __bankMove?: typeof runMove };
+    const w = window as unknown as { __bankMove?: typeof runMove; __bankInView?: (name: string) => boolean | null; __bankRings?: unknown[] };
     w.__bankMove = runMove;
+    w.__bankRings = [];
+    // X1 probe: is the marked thing's whole group on screen (window and inner scroll areas)?
+    w.__bankInView = (name: string) => {
+      const el = thing(name);
+      return el ? groupInView(el) : null;
+    };
     return () => {
       delete w.__bankMove;
+      delete w.__bankInView;
+      delete w.__bankRings;
     };
   }, []);
 }

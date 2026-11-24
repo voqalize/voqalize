@@ -103,6 +103,7 @@ export function Panel({
   label,
   className,
   pad = true,
+  group = false,
 }: {
   title?: ReactNode;
   action?: ReactNode;
@@ -111,9 +112,11 @@ export function Panel({
   label?: string;
   className?: string;
   pad?: boolean;
+  /** X1: the panel is the group a ring inside it shows whole (`stage/view.ts`). */
+  group?: boolean;
 }) {
   return (
-    <section className={`ax-panel ${pad ? "" : "ax-panel--flush"} ${className ?? ""}`} data-stage-thing={thing} data-stage-label={label}>
+    <section className={`ax-panel ${pad ? "" : "ax-panel--flush"} ${className ?? ""}`} data-stage-thing={thing} data-stage-label={label} data-stage-group={group ? "" : undefined}>
       {(title || action) && (
         <div className="ax-panel__head">
           {title && <h2>{title}</h2>}

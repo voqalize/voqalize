@@ -104,6 +104,16 @@ Every move rings its target before it changes anything, refuses with the options
 instead of guessing, and returns one short line. Every move also works by click alone (the page is a
 complete bank without voice). `?debug=1` adds a console that fires any move by hand.
 
+Before any ring, the target's whole group is scrolled fully into view (X1, `frontend/src/stage/view.ts`,
+applied to every performer by `useMove` in `stage/host.ts`): every inner scroll area on the way (the
+compare table, the EMI table, the transaction detail panel, the confirmation sheet, the stepper) on
+both axes, then the window, under the sticky header, above the phone tab bar and clear of the
+assistant's dock when there is room. A group is the closest `data-stage-group` around the target (both
+accounts, the transaction filters, a form field with its choices, the loan calculator, the eligibility
+check, the card controls, the statement figures); a group taller than the screen shows from its top
+with the target still in view. With `?debug=1`, `window.__bankInView(thing)` says whether a thing's
+group is fully in view, and `window.__bankRings` logs each ring with that answer at the moment it rang.
+
 - `ui.show {thing}` — the one cue (`{show: Reward points}`): ring a `data-stage-thing` on screen.
 - `nav.open {screen, id?}` — open a screen. The brain's `open_screen` reads back what that screen
   shows from her data, so the agent answers from it even when the page says it is already open.

@@ -119,7 +119,7 @@ export function ConfirmSheet() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="ax-sheet-title"
-            data-stage-thing="confirm-sheet"
+            data-stage-thing="confirm-sheet" data-stage-group=""
             data-stage-label="Confirmation"
             data-action-id={sheet.args.action_id}
           >

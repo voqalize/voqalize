@@ -111,7 +111,7 @@ function LeadCard() {
   const lead = sub.lead!;
   const v = sub.values;
   return (
-    <section className="lead card" data-stage-thing="lead-card" data-stage-label="Lead card" aria-live="polite">
+    <section className="lead card" data-stage-thing="lead-card" data-stage-group="" data-stage-label="Lead card" aria-live="polite">
       <div className="lead-top">
         <div>
           <p className="lead-kicker">Lead</p>

@@ -1,4 +1,5 @@
 import { Check, CircleCheck, Info, Video } from "lucide-react";
+import { useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { Crumbs, FormField } from "../../components/ui";
 import { inr, products } from "../../data/bank";
@@ -14,6 +15,19 @@ export function OpenAccount() {
   const values = useForms((s) => s.values[FORM]);
   const submitted = useForms((s) => s.submitted[FORM]);
   const missing = useForms((s) => s.missing);
+  const stepper = useRef<HTMLOListElement>(null);
+
+  // On a phone the stepper scrolls sideways and the current step widens to show
+  // its title: keep that step whole in the strip after every change (X1).
+  useEffect(() => {
+    const box = stepper.current;
+    const cur = box?.querySelector<HTMLElement>(".stepper-item.is-current");
+    if (!box || !cur || box.scrollWidth <= box.clientWidth) return;
+    const b = box.getBoundingClientRect();
+    const r = cur.getBoundingClientRect();
+    if (r.left < b.left) box.scrollBy({ left: r.left - b.left - 8 });
+    else if (r.right > b.right) box.scrollBy({ left: r.right - b.right + 8 });
+  }, [step]);
 
   return (
     <main className="page oa" data-stage-thing="screen:open_account" data-stage-label="Open an account">
@@ -30,7 +44,7 @@ export function OpenAccount() {
           <OaDone />
         ) : (
           <div className="oa-grid">
-            <ol className="stepper" aria-label="Application steps">
+            <ol ref={stepper} className="stepper" aria-label="Application steps" data-stage-group="">
               {OA_STEPS.map((s) => {
                 const done = s.n < step || (s.n < reached && missing(FORM, s.n).length === 0 && s.n !== step);
                 const can = s.n <= reached;
@@ -143,7 +157,7 @@ function VariantPicker() {
   const error = useForms((s) => s.errors[FORM].variant);
   const setField = useForms((s) => s.setField);
   return (
-    <div className="variant-pick" data-stage-part="variant" data-stage-thing={`field:${FORM}:variant`} data-stage-label="Savings account" role="radiogroup" aria-label="Savings account">
+    <div className="variant-pick" data-stage-part="variant" data-stage-thing={`field:${FORM}:variant`} data-stage-group="" data-stage-label="Savings account" role="radiogroup" aria-label="Savings account">
       {products.savings_variants.map((v) => {
         const top = Math.max(...v.rates.map((r) => r.rate));
         return (
