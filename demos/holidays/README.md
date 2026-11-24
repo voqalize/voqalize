@@ -33,44 +33,53 @@ opens a console that fires every Stage move by hand.
   `uv run voqalize stage gen holidays/frontend/src/stage/scene.json --py holidays/backend/stage_gen.py --ts holidays/frontend/src/stage/scene.gen.ts`
 - `backend/brain.py` — `HolidaysBrain`, an `OpenAIBrain` (GPT-6.1 Terra, medium reasoning). Tools read
   the engine and send Stage moves; the model's words carry `{go:}`, `{step:}` and `{show:}` cues.
-- `backend/lead.py` — Aaliyah leads (H1): brief, flights, a hotel per city, activities, package,
+- `backend/lead.py` — the planner leads (H1): brief, flights, a hotel per city, activities, package,
   checkout. Choosing a flight opens the first city's hotels, choosing a hotel opens the next city or
-  the days with activities that fit, and each tool returns those options with a `NEXT:` for the model.
-  Nothing is chosen for the visitor; they pick by voice or click (a click is followed by a spoken
-  offer of the next step, moving nothing). Each step also owes a written line with the next choice
-  (`owe` in `brain.py`), said when the model says nothing after the tool ran, so a step never ends
-  silent. English and Hindi.
+  the days with activities that fit. Nothing is chosen for the visitor; they pick by voice or click (a
+  click is followed by a spoken offer of the next step, moving nothing).
+- **A pick does not wait (H3).** The reads (flights, hotels, activities, summary, package) are
+  `needs_result_now`; the picks (`choose_flight`, `choose_hotel`, `add_activity`, `set_nights`,
+  `remove_activity`) are actions and cost no second model request. The model is told *before* the
+  pick what opens after it (`AFTER THEIR PICK`, from `HolidaysBrain.ahead()`, in the reads' results and
+  the trip note) and says the pick and the next choice in the response that calls the tool. The floor
+  (`owe` in `brain.py`): if its words named none of the next options, the brain says the next choice
+  itself straight away (the whole step line if the model said nothing), and a pick that could not
+  happen is said at once ("Sorry, I couldn't match that to a flight…").
 - `backend/rejoin.py` — redial (SDK 0.15.0): when the brain's socket drops without a hang-up and
   Voqalize dials again for the same session, the new brain adopts the call held in this process for two
   minutes (trip, page, language, the model's history, the Stage director) and does not greet again.
   See `CONTRACT.md`, "Redial".
 
-## The character and languages: `persona.json`
+## The character and language: `persona.json`
 
 The one place the character lives, read by the brain (`backend/persona.py`) and the page
 (`frontend/src/persona.ts`).
 
+- **The planner is Kasia** (H2, 25 Nov): avatar character `kasia` (in the runtime `@voqalize/avatar`
+  0.6.3 pins), voice `omnivoice/kasia`, **English only**. Her idle still
+  (`frontend/src/characters/kasia.webp`) is the runtime's own still for her (`listCharacters()`), as
+  the cast folder has none.
 - **To change the character**, edit `character` (an avatar character id), `name`, and each language's
   `voice` in `persona.json`, and add the character's still photo as
   `frontend/src/characters/<character>.webp` (from the cast). Nothing else names her. `roles` is the
   dock's label per page (`role` for a page without one).
+- **One language, no toggle.** With one language in `persona.json` the page shows no language toggle,
+  a remembered language that is no longer offered falls back to the default, and the brain has no
+  `set_language` tool and tells the model to stay in that language.
 - **To add a language**, add an entry under `languages` (its BCP-47 tag) with a label, name, voice,
-  the two greetings and the switch line, and add the tag to `scene.json`'s `languages`. The voice must
-  speak that language (`https://app.voqalize.com/api/v1/catalog.get`).
-- English and Hindi today. The visitor picks on the toggle by the call button (`init.lang`); the brain
-  configures both legs in `on_session_start`, and switches both mid-call from the toggle or when asked.
-  **Aaliyah's voice speaks English only**, so Hindi is read by Ananya's voice (`languages.hi.voice`)
-  until an Aaliyah Hindi clip exists; the face stays Aaliyah's.
-- The language is remembered in the browser across reloads; the next call and a redial start in it.
-  Mid-call the toggle only asks the brain (`language_chosen`); the brain's `language_changed` moves
-  the toggle, also when the visitor switched by voice.
+  the two greetings and the switch line, add the tag to `scene.json`'s `languages`, and give the brain
+  its written lines (`_ASK` / `_LINES` in `backend/lead.py`, `_LINES` in `backend/brain.py`; Hindi's
+  were removed with H2 and are in git history). The voice must speak that language
+  (`https://app.voqalize.com/api/v1/catalog.get`). The toggle then appears by the call button; the
+  visitor's pick rides `init.lang`, is remembered across reloads, and switches both legs mid-call.
 
 ## The agent widget (Paynora's)
 
 One entry point, no transcript anywhere (`frontend/src/voice/`). Idle: a bar at the bottom right with
-her still photo, her name, the page's role, EN / हिंदी and Talk. In a call the bar goes away and her face
+her still photo, her name, the page's role, a language toggle (only when more than one language is
+offered) and Talk. In a call the bar goes away and her face
 becomes a draggable tile with the live avatar (`@voqalize/avatar` 0.6.3, mounted only in a call), the
-language toggle, mute, minimise and end. The tile starts bottom right on a desktop and bottom left on a
+language toggle (with more than one language), mute, minimise and end. The tile starts bottom right on a desktop and bottom left on a
 phone, steps aside for a primary action (`data-dock-avoid`: Review & pay, Pay), and moves to a top
 corner while the phone's trip-summary sheet is open (`data-overlay`). Whatever the planner rings is
 first brought fully into view with its group, inner scroll areas included (`frontend/src/stage/view.ts`).

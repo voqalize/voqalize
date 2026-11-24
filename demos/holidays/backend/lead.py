@@ -12,7 +12,16 @@ skipped ahead by hand, or changed something, is led from where they are.
 
 The lines are what the brain says when the model said nothing after a tool ran.
 They carry one concrete detail from the inventory (a hotel's blurb, an
-activity's), never an invented one. English and Hindi.
+activity's), never an invented one. English only (H2, 25 Nov): the planner
+speaks the languages ``persona.json`` lists, and each one needs its lines here
+(``_ASK``, ``_LINES`` and the f-strings below take ``lang`` for that); a
+language with none is said in English.
+
+H3 (25 Nov): a pick (flight, hotel, nights, activity) no longer waits for a
+second model request. The model is told before the pick what opens after it
+(:meth:`HolidaysBrain.ahead`), says it in the same response as the call, and the
+line here is the floor when it did not: the whole line if it said nothing, the
+next choice alone if it only acknowledged the pick.
 """
 
 from __future__ import annotations
@@ -50,8 +59,6 @@ def _blurb(s: str) -> str:
 def who(t: Trip, lang: str) -> str:
     """The group, as said: "both of you", "the four of you"."""
     n = t.pax
-    if lang == "hi":
-        return "आपके लिए" if n == 1 else ("आप दोनों के लिए" if n == 2 else f"आप {n} लोगों के लिए")
     if n == 1:
         return "you"
     if n == 2:
@@ -67,19 +74,11 @@ _ASK = {
         "start_date": "when you'd like to travel",
         "nights": "how many nights",
     },
-    "hi": {
-        "from_city": "किस शहर से उड़ान लेंगे",
-        "destination": "कहाँ जाना चाहेंगे",
-        "start_date": "कब जाना है",
-        "nights": "कितनी रातें",
-    },
 }
 
 
 def ask_missing(t: Trip, lang: str) -> str:
-    items = [_ASK[lang][m] for m in t.missing()]
-    if lang == "hi":
-        return "बस इतना बताइए, " + ", ".join(items) + "?"
+    items = [_ASK.get(lang, _ASK["en"])[m] for m in t.missing()]
     said = items[0] if len(items) == 1 else ", ".join(items[:-1]) + " and " + items[-1]
     return f"Just tell me {said}."
 
@@ -91,8 +90,6 @@ def flight_line(t: Trip, lang: str) -> str:
         return ""
     _, total = eng.flight_price(t, f)
     time = f["out"]["legs"][0]["depart"]
-    if lang == "hi":
-        return f"मेरी पसंद {f['airline_name']} है, {time} बजे, {who(t, lang)} {eng.money(total)}।"
     stops = "nonstop" if not f["stops"] else f"{f['stops']} stop"
     return (
         f"My pick is {f['airline_name']}, {stops}, leaving at {time}, "
@@ -106,10 +103,6 @@ def hotels_line(city: str, hotels: list[dict[str, Any]], lang: str) -> str:
     top = hotels[:2]
     if not top:
         return ""
-    if lang == "hi":
-        if len(top) == 1:
-            return f"अब {name} में रुकने के लिए {top[0]['name']} है। जोड़ दूँ?"
-        return f"अब {name} में रुकने की जगह: {top[0]['name']} या {top[1]['name']}। कौन सा पसंद आया?"
     if len(top) == 1:
         return (
             f"Now the fun part, where you'll stay in {name}: {top[0]['name']}, "
@@ -125,8 +118,6 @@ def hotels_line(city: str, hotels: list[dict[str, Any]], lang: str) -> str:
 def activity_line(t: Trip, day: int, a: dict[str, Any], lang: str) -> str:
     """One activity that fits, with its detail and price, and the question."""
     price = eng.money(eng.activity_price(t, a["id"]))
-    if lang == "hi":
-        return f"दिन {day} पर {a['name']}, {who(t, lang)} {price}। जोड़ दूँ, या कोई और आइडिया सुनेंगे?"
     return (
         f"On day {day} there's the {a['name']}, {_blurb(a['blurb'])}, {price} for "
         f"{who(t, lang)}. Shall I add it, or hear another idea?"
@@ -152,29 +143,11 @@ _LINES: dict[str, dict[str, str]] = {
         "offer_days": "Shall I line up a few things to do?",
         "offer_package": "Shall I show you the whole package, or are you ready to book?",
     },
-    "hi": {
-        "brief_done": "वाह, {dest}! पहले {origin} से फ़्लाइट्स दिखाऊँ, या पूरा पैकेज एक साथ बना दूँ?",
-        "brief_more": "बढ़िया, यह जुड़ गया। {ask}",
-        "flights": "ये रहीं {origin} से फ़्लाइट्स। {pick} कौन सी जोड़ूँ?",
-        "flight_in": "बढ़िया, {airline} जुड़ गई।",
-        "hotel_in": "{hotel} जुड़ गया, शानदार चुनाव।",
-        "nights_in": "हो गया, अब रातें: {split}।",
-        "activity_in": "{activity} दिन {day} पर जुड़ गया।",
-        "removed": "{activity} प्लान से हटा दिया।",
-        "days": "अब दिनों की प्लानिंग करते हैं।",
-        "days_none": "आपके दिन पूरे भर गए हैं।",
-        "package": "आपकी छुट्टी सब मिलाकर {total} की है। पूरा पैकेज दिखाऊँ, या रिव्यू करके बुक करें?",
-        "built": "यह रहा आपका पूरा हॉलिडे, सब मिलाकर {total}, साथ में {highlight}। पसंद आया, या बुक करने से पहले कुछ बदलें?",
-        "offer_flights": "फ़्लाइट्स दिखाऊँ?",
-        "offer_hotels": "{city} में रुकने की जगहें दिखाऊँ?",
-        "offer_days": "कुछ घूमने-फिरने के आइडिया दिखाऊँ?",
-        "offer_package": "पूरा पैकेज दिखाऊँ, या बुक करने चलें?",
-    },
 }
 
 
 def line(lang: str, key: str, **kw: str) -> str:
-    return _LINES["hi" if lang == "hi" else "en"][key].format(**kw)
+    return _LINES.get(lang, _LINES["en"])[key].format(**kw)
 
 
 def split_words(t: Trip) -> str:

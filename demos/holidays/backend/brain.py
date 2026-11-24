@@ -22,18 +22,28 @@ the same way (``data/engine_cases.json`` holds the two to one answer).
 
 **What is marked ``@needs_result_now``.** The reads the model must speak from:
 the destinations' prices, the brief as it stands, the flight and hotel options,
-the activities that fit, the package and the summary — and every step that
-moves the plan on (choosing a flight, a hotel, an activity, moving nights),
-because each one opens the next step on screen and returns its options (H1:
-the owner's call stalled on "I'll add Banyan Air to your trip." twice, the pick
-fire-and-forget and its result never spoken). Each such tool also ``owe``s the
-brain's own line for the step and the next choice, said when the model says
-nothing after the tool ran, so a step never ends silent (:mod:`.lead`). Going
-to checkout and switching language stay actions.
+the activities that fit, the package and the summary. Each read ``owe``s the
+brain's own line for it, said when the model says nothing after the tool ran.
 
-**Language.** The visitor picks English or Hindi on the page before the call
-(``init.lang``), and may switch mid-call by the toggle or by asking. Both legs
-move together, with the voice ``persona.json`` names for that language.
+**A pick does not wait (H3).** Choosing a flight, a hotel, an activity, moving
+nights or taking an activity out are actions: each opens the next step on
+screen and returns at once, with no second model request. Since H1 they had
+waited for their result so the model could present what opened next, which
+cost about two seconds on every pick. Instead the model is told *before* the
+pick what opens after it (:meth:`HolidaysBrain.ahead`, in the reads' results
+and the trip note), and says the pick and the next choice in the response that
+calls the tool. The floor under it (``owe`` with ``then`` and ``cover``): when
+the model's words named none of the next options, the brain says the next
+choice itself (the whole step line if the model said nothing), straight away
+(:mod:`.lead`). So a step still never ends on a bare confirmation (H1: the
+owner's call stalled on "I'll add Banyan Air to your trip." twice). Going to
+checkout and switching language stay actions too.
+
+**Language.** The planner speaks the languages ``persona.json`` lists (English
+only since H2, 25 Nov). With more than one, the visitor picks on the page
+before the call (``init.lang``) and may switch mid-call by the toggle or by
+asking; both legs move together, with the voice ``persona.json`` names for that
+language. With one, there is no toggle and no ``set_language`` tool.
 """
 
 from __future__ import annotations
@@ -57,6 +67,7 @@ from voqalize.sdk import (
     RTVIMessage,
     Session,
     Speech,
+    SpeechChunk,
     SpeechStart,
     UserIdle,
     UserMessage,
@@ -86,7 +97,8 @@ _IDLE_MS = 30_000
 #: said as soon as the voice is free.
 _SAY_NOW_MS = 400
 
-Lang = Literal["en", "hi"]
+#: A language tag persona.json offers ("en").
+Lang = str
 
 #: What a brain holds for one socket only: the session object and the speech
 #: units waiting for the runtime to say what was heard. Everything else a call
@@ -109,22 +121,58 @@ class LanguageChanged(Action):
 
 @dataclass
 class _Owed:
-    """One turn's record: how many units of the model's speech went out, and the
-    written line a step owes if nothing is said after its tool ran."""
+    """One turn's record: how many units of the model's speech went out and what
+    they said, and the written line a step owes if nothing is said after its
+    tool ran.
+
+    A pick (H3) owes differently, since its tool runs after the model's words:
+    ``cover`` names the next step's options, and when the turn's words name none
+    of them the brain says ``then`` (the next choice) after the model's own, or
+    the whole ``line`` when the model said nothing at all. ``always`` is a line
+    said whatever the model said: a pick that did not happen."""
 
     starts: int = 0
+    text: str = ""
     line: str | None = None
     at: int = 0
+    then: str | None = None
+    cover: tuple[str, ...] = ()
+    always: bool = False
+
+    def floor(self) -> str | None:
+        """What the brain says after the model's turn, if anything."""
+        if self.line is None:
+            return None
+        if self.always:
+            return self.line
+        if self.then is None:
+            return self.line if self.starts == self.at else None
+        if not self.text.strip():
+            return self.line
+        said = _fold(self.text)
+        if any(_named(name) in said for name in self.cover):
+            return None
+        return self.then
+
+
+def _named(name: str) -> str:
+    """How a name is said in passing: its first two words ("Sayan Ridge" for
+    Sayan Ridge Villas, "Azure Atoll" for Azure Atoll Resort & Spa)."""
+    words = [w for w in _fold(name).split() if w not in ("the", "&")]
+    return " ".join(words[:2])
 
 
 async def _counted(
     turn: AsyncGenerator[Speech, None], record: _Owed
 ) -> AsyncGenerator[Speech, None]:
-    """The model's turn, each unit of its speech counted (not the brain's own lines)."""
+    """The model's turn, each unit of its speech counted and its words kept (not
+    the brain's own lines)."""
     try:
         async for s in turn:
             if isinstance(s, SpeechStart):
                 record.starts += 1
+            elif isinstance(s, SpeechChunk):
+                record.text += s.text
             yield s
     finally:
         await turn.aclose()
@@ -134,15 +182,26 @@ async def _counted(
 _OWED: ContextVar[_Owed | None] = ContextVar("holidays_owed", default=None)
 
 
-def owe(line: str) -> None:
+def owe(
+    line: str, *, then: str | None = None, cover: tuple[str, ...] = (), always: bool = False
+) -> None:
     """Beside a step that landed: the brain's own line for it and the next
-    choice, said if the model's turn says nothing after the tool ran (its
-    preamble alone does not count). The floor under "I'll add Banyan Air to your
-    trip." followed by nothing, which is where the owner's call stalled (H1)."""
+    choice. For a read, said if the model's turn says nothing after the tool
+    ran (its preamble alone does not count). For a pick, which runs after the
+    model's words (H3): ``then``, said when those words named none of ``cover``
+    (the whole ``line`` when there were none). The floor under "I'll add Banyan
+    Air to your trip." followed by nothing, which is where the owner's call
+    stalled (H1)."""
     if (record := _OWED.get()) is not None:
         record.line = line
         record.at = record.starts
+        record.then = then
+        record.cover = cover
+        record.always = always
 
+
+#: Words any offer of the package step says.
+_PACKAGE_WORDS = ("package", "book", "checkout", "total")
 
 _EVENTS = AppEvents(LanguageChosen, StageResult, StageHello, StageProgress, StageEvent)
 
@@ -161,20 +220,6 @@ _LINES: dict[str, dict[str, str]] = {
         "checkout": "Here's the review page. Check the details and press Pay when you're ready.",
         "summary": "Here's where your trip stands.",
         "paid": "Congratulations, you're booked! Your reference is {reference}.",
-    },
-    "hi": {
-        "brief": "मैंने यह आपकी ट्रिप में डाल दिया है।",
-        "flights": "ये रहीं फ़्लाइट्स।",
-        "flight": "हो गया, यह फ़्लाइट जुड़ गई। अब कुल {total} है।",
-        "hotels": "ये रहे {city} के होटल।",
-        "hotel": "हो गया, {hotel} जुड़ गया। अब कुल {total} है।",
-        "nights": "हो गया, रातें बदल दीं। अब कुल {total} है।",
-        "add": "जोड़ दिया। अब कुल {total} है।",
-        "remove": "हटा दिया। अब कुल {total} है।",
-        "build": "यह रहा आपका पूरा पैकेज, सब मिलाकर {total}।",
-        "checkout": "यह रहा रिव्यू पेज। डिटेल्स देख लीजिए और तैयार हों तो Pay दबाइए।",
-        "summary": "आपकी ट्रिप अभी ऐसी है।",
-        "paid": "बधाई हो, आपकी बुकिंग हो गई! आपका रेफ़रेंस {reference} है।",
     },
 }
 
@@ -283,7 +328,10 @@ class ActivityChoice(BaseModel):
 
 
 class LanguageRequest(BaseModel):
-    language: Literal["en", "hi"]
+    language: str = Field(
+        description="The language tag: "
+        + ", ".join(f"{t} ({s.name})" for t, s in LANGUAGES.items())
+    )
 
 
 # ─── Words ────────────────────────────────────────────────────────────────────
@@ -349,6 +397,21 @@ def resolve_month(said: str, today: date) -> date | None:
         return None
 
 
+def _included(activity: str, inclusions: list[str]) -> bool:
+    """The hotel already gives it ("Sunset dolphin cruise once" at Azure Atoll):
+    the real call offered the dolphin cruise for ₹7,600 and then said the resort
+    includes one."""
+    words = set(_fold(activity).split())
+    return any(words <= set(_fold(i).split()) for i in inclusions)
+
+
+def _or(names: list[str], word: str = "or") -> str:
+    """ "A", "A or B", "A, B or C"."""
+    if len(names) <= 1:
+        return "".join(names)
+    return f"{', '.join(names[:-1])} {word} {names[-1]}"
+
+
 # ─── The brain ────────────────────────────────────────────────────────────────
 
 
@@ -411,7 +474,7 @@ class HolidaysBrain(OpenAIBrain):
             init: dict[str, Any] = dict(session.init or {})
             self.page = "home" if init.get("page") == "home" else "plan"
             s = speaking(str(init.get("lang") or ""))
-            self.lang = "hi" if s.tag == "hi" else "en"
+            self.lang = s.tag
             raw = init.get("trip")
             if isinstance(raw, dict):
                 self.trip = Trip.from_json(raw)  # pyright: ignore[reportUnknownArgumentType]
@@ -453,7 +516,7 @@ class HolidaysBrain(OpenAIBrain):
         return speak_text(s.greeting_home if self.page == "home" else s.greeting_plan, self.lang)
 
     def _line(self, key: str, **kw: str) -> str:
-        return _LINES[self.lang][key].format(**kw)
+        return _LINES.get(self.lang, _LINES["en"])[key].format(**kw)
 
     def on_user_message(self, session: Session, msg: UserMessage) -> AsyncGenerator[Speech, None]:
         return self._spoken.wrap(self._answer(session, msg))
@@ -465,7 +528,10 @@ class HolidaysBrain(OpenAIBrain):
         self._settle_expired()
         state = self.state_line()
         if state != self._said_state:
-            self.append_note(f"[Trip now: {state} {self.next_note()}]")
+            ahead = self.ahead()
+            self.append_note(
+                f"[Trip now: {state} {self.next_note()}]" + (f"\n{ahead}" if ahead else "")
+            )
             self._said_state = state
         self.append_note(msg.text)
         if (said := amounts_note(msg.text)) is not None:
@@ -484,9 +550,9 @@ class HolidaysBrain(OpenAIBrain):
             turn = _counted(self.stage.cued(super().respond(session)), record)
             async for event in self._fallback.speak_if_silent(self, turn):
                 yield event
-            if record.line is not None and record.starts == record.at:
-                logger.warning("holidays: a step went unanswered; the brain says {!r}", record.line)
-                async for event in self.say_line(record.line, remember=True):
+            if (floor := record.floor()) is not None:
+                logger.info("holidays: the step's next choice, in the brain's words: {!r}", floor)
+                async for event in self.say_line(floor, remember=True):
                     yield event
         finally:
             with contextlib.suppress(ValueError):
@@ -842,60 +908,117 @@ class HolidaysBrain(OpenAIBrain):
                 return fit, None
         return every, None
 
+    def _opens(self, t: Trip) -> tuple[str, tuple[str, ...], str, str]:
+        """What the trip's next unfilled step puts in front of the visitor: the
+        brain's line for it (the next choice), the names any presentation of it
+        would say, the step for the model with its options, and the Stage move
+        that opens it ("" for none). Read off ``t``, so it previews a pick not
+        yet made as well as it describes one just made (H3)."""
+        kind, city = lead.next_step(t)
+        total = eng.money(eng.price(t).total)
+        if kind == "hotels" and city:
+            found, _ = self._hotel_options(city)
+            nights = dict(eng.stops(t)).get(city, 0)
+            return (
+                lead.hotels_line(city, found, self.lang),
+                tuple(h["name"] for h in found),
+                f"the hotels step opens on {eng.CITIES[city]['name']} ({nights} nights). Present the "
+                "two that suit them best, each with one vivid detail and its price for their nights, "
+                "and ask which:\n" + "\n".join(self._hotel_line(city, h) for h in found),
+                "hotels",
+            )
+        if kind == "days":
+            fits = self._fits(None, None, t)
+            if not fits:
+                return (
+                    lead.line(self.lang, "package", total=total),
+                    _PACKAGE_WORDS,
+                    "nothing more fits their days: say the total and offer the package or checkout.",
+                    "days",
+                )
+            day, first = fits[0]
+            return (
+                f"{lead.line(self.lang, 'days')} "
+                f"{lead.activity_line(t, day, eng.ACTIVITIES[first['id']], self.lang)}",
+                tuple(a["name"] for _, a in fits[:6]),
+                "the days step opens. Suggest one or two of these that suit them, with one vivid "
+                "detail and the price, and ask whether to add one:\n"
+                + self._activity_lines(fits, 5, t),
+                "days",
+            )
+        if kind == "package":
+            return (
+                lead.line(self.lang, "package", total=total),
+                _PACKAGE_WORDS,
+                "every step has something in it: say the total and offer another activity, a look "
+                "at the whole package, or review and book.",
+                "",
+            )
+        return lead.offer(t, self.lang), (), f"{self.next_note()}", ""
+
+    def ahead(self, hotel_city: str | None = None) -> str:
+        """What opens after the visitor's next pick, for the model to say in the
+        same response as the pick's call (H3): the pick tools do not wait for a
+        result, so this is the only time the model can know it. Empty when the
+        step in front is not a pick."""
+        t = self.trip
+        kind, city = lead.next_step(t)
+        if hotel_city is not None and t.flight_id:
+            kind, city = "hotels", hotel_city
+        if kind == "flights":
+            best = eng.recommended_flight(t)
+            if best is None:
+                return ""
+            trial, thing, tool = replace(t, flight_id=best["id"]), "a flight", "choose_flight"
+        elif kind == "hotels" and city:
+            trial = replace(t, hotels={**t.hotels, city: eng.recommended_hotel(t, city)})
+            thing, tool = f"a hotel in {eng.CITIES[city]['name']}", "choose_hotel"
+        elif kind in ("days", "package") and self._fits(None, None, t):
+            return (
+                "AFTER THEIR PICK: when they choose an activity, call add_activity and, in the same "
+                "response, say it is in with a happy word and offer one more that fits (or the whole "
+                "package and booking). The tool gives you nothing more to say."
+            )
+        else:
+            return ""
+        _, _, step, _ = self._opens(trial)
+        return (
+            f"AFTER THEIR PICK: when they choose {thing}, call {tool} and, in the same response as "
+            f"the call, say it is in with a happy word, then {step}\nThe tool gives you nothing "
+            "more to say: everything for that reply is here."
+        )
+
     def _advance(self, lead_in: str) -> str:
-        """After a step landed: open the next unfilled step on screen (a city's
+        """After a pick landed: open the next unfilled step on screen (a city's
         hotels, the days with activities that fit), owe the brain's own line —
-        ``lead_in`` and the next choice — and return the model's NEXT.
+        ``lead_in`` and the next choice, or the next choice alone when the
+        model's words named none of it (H3) — and return what is on screen now,
+        for the model's next request.
 
         Nothing is chosen for the visitor here: the next step's options are put
         in front of them, and they pick by voice or by click."""
         t = self.trip
-        kind, city = lead.next_step(t)
-        total = f"{self.total_line()}"
-        if kind == "hotels" and city:
-            found, want = self._hotel_options(city)
+        _, city = lead.next_step(t)
+        then, cover, step, move = self._opens(t)
+        if move == "hotels" and city:
+            _, want = self._hotel_options(city)
             args: dict[str, Any] = {"city": city}
             if want:
                 args["want"] = want
             self._send("trip.hotels", args)
-            owe(f"{lead_in} {lead.hotels_line(city, found, self.lang)}")
-            nights = dict(eng.stops(t)).get(city, 0)
-            return (
-                f"{total}\nNEXT, in this same reply: the hotels step is now open on {eng.CITIES[city]['name']} "
-                f"({nights} nights). Say the pick is in in a few happy words, then present the two that suit "
-                "them best, each with one vivid detail from below and its price for their nights, and ask "
-                "which. Do not wait to be asked.\n"
-                + "\n".join(self._hotel_line(city, h) for h in found)
-            )
-        if kind == "days":
-            fits = self._fits(None, None)
+        elif move == "days":
             self._send("trip.step", {"step": "days"})
-            if not fits:
-                owe(
-                    f"{lead_in} {lead.line(self.lang, 'package', total=eng.money(eng.price(t).total))}"
-                )
-                return f"{total}\nNEXT: nothing more fits their days. Say the total and offer the package or checkout."
-            day, first = fits[0]
-            owe(
-                f"{lead_in} {lead.line(self.lang, 'days')} "
-                f"{lead.activity_line(t, day, eng.ACTIVITIES[first['id']], self.lang)}"
-            )
-            return (
-                f"{total}\nNEXT, in this same reply: the days step is open. Say the pick is in in a few "
-                "happy words, then suggest one or two activities below that suit them, with one vivid "
-                "detail and the price, and ask whether to add one. Do not wait to be asked.\n"
-                + self._activity_lines(fits, 5)
-            )
-        if kind == "package":
-            owe(f"{lead_in} {lead.line(self.lang, 'package', total=eng.money(eng.price(t).total))}")
-            return (
-                f"{total}\nNEXT: every step has something in it. Say it is in, the total, and offer: "
-                "another activity, a look at the whole package, or review and book."
-            )
-        owe(f"{lead_in} {lead.offer(t, self.lang)}")
-        return f"{total}\nNEXT: {self.next_note()}"
+        owe(f"{lead_in} {then}", then=then, cover=cover)
+        return (
+            f"{self.total_line()}\nOn screen now: {step}\n"
+            "They have been offered it (by you, or in the brain's words just after); do not "
+            "offer it again, take their answer."
+        )
 
-    def _activity_lines(self, fits: list[tuple[int, dict[str, Any]]], limit: int) -> str:
+    def _activity_lines(
+        self, fits: list[tuple[int, dict[str, Any]]], limit: int, t: Trip | None = None
+    ) -> str:
+        t = t or self.trip
         by_act: dict[str, tuple[dict[str, Any], list[int]]] = {}
         for n, a in fits:
             by_act.setdefault(a["id"], (a, []))[1].append(n)
@@ -904,7 +1027,7 @@ class HolidaysBrain(OpenAIBrain):
             city = eng.ACTIVITIES[a["id"]]["city"]
             lines.append(
                 f"{a['name']} ({eng.CITIES[city]['name']}, {a['duration']}, {a['slot'].replace('_', ' ')}): {a['blurb']} "
-                f"{eng.money(eng.activity_price(self.trip, a['id']))} for the group; fits day {', '.join(map(str, ds))}."
+                f"{eng.money(eng.activity_price(t, a['id']))} for the group; fits day {', '.join(map(str, ds))}."
             )
         return "\n".join(lines)
 
@@ -926,7 +1049,8 @@ class HolidaysBrain(OpenAIBrain):
             self.build_package,
             self.trip_summary,
             self.go_to_checkout,
-            self.set_language,
+            # Only when persona.json offers more than one language (H2).
+            *([self.set_language] if len(LANGUAGES) > 1 else []),
         ]
 
     def _send(self, move: str, args: dict[str, Any]) -> None:
@@ -1081,6 +1205,13 @@ class HolidaysBrain(OpenAIBrain):
             )
         return "\n".join([*notes, head, tail])
 
+    def _missed(self, why: str, said: str) -> str:
+        """A pick that did not happen (H3). The tool does not wait, so the model
+        may already have said it did: the brain says ``said`` after it, whatever
+        the model said, and the model reads ``why`` with its next request."""
+        owe(said, always=True)
+        return (why + " " if why else "") + f"Not done; the visitor was told: {said!r}"
+
     def _need_brief(self) -> str | None:
         if missing := self.trip.missing():
             return f"Not yet: the brief still needs {', '.join(missing)}. Ask for it, then call set_trip."
@@ -1120,15 +1251,16 @@ class HolidaysBrain(OpenAIBrain):
             "Say the two or three that matter (time, stops, price for the group), which you suggest "
             "and why, and ask which one to add."
         )
+        if ahead := self.ahead():
+            out.append(ahead)
         return "\n".join(out)
 
-    @needs_result_now
     async def choose_flight(self, choice: FlightChoice) -> str:
         """Put the flight option the visitor picked into the trip. Opens the next
-        step (a city's hotels) and returns its options: present them in the
-        same reply."""
+        step (a city's hotels) at once: in the same response as this call, say
+        the flight is in and present that step, as AFTER THEIR PICK said."""
         if why := self._need_brief():
-            return why
+            return self._missed(why, lead.ask_missing(self.trip, self.lang))
         options = self.sorted_flights(self.flight_sort)
         said = _fold(choice.choice)
         pick: dict[str, Any] | None = None
@@ -1147,8 +1279,12 @@ class HolidaysBrain(OpenAIBrain):
             hit = match_label(choice.choice, [f["airline_name"] for f in options])
             pick = next((f for f in options if f["airline_name"] == hit), None)
         if pick is None:
-            return f"No option matches '{choice.choice}'. Options: " + "; ".join(
-                f"{i}. {f['airline_name']}" for i, f in enumerate(options, 1)
+            names = [f["airline_name"] for f in options]
+            return self._missed(
+                f"No option matches '{choice.choice}'. Options: "
+                + "; ".join(f"{i}. {n}" for i, n in enumerate(names, 1)),
+                f"Sorry, I couldn't match that to a flight. On screen there's {_or(names)}. "
+                "Which one shall I add?",
             )
         self.trip.flight_id = pick["id"]
         self._revalidate()
@@ -1250,55 +1386,72 @@ class HolidaysBrain(OpenAIBrain):
             "Present the two that suit them best, each with one vivid detail and its price for "
             "their nights, and ask which one to add."
         )
+        if nights and (ahead := self.ahead(hotel_city=city)):
+            out.append(ahead)
         return "\n".join(out)
 
-    @needs_result_now
     async def choose_hotel(self, choice: HotelChoice) -> str:
         """Put a hotel (and room) into the trip for its city, replacing the one
         there. Opens the next step (the next city's hotels, or the days with
-        activities) and returns its options: present them in the same reply."""
+        activities) at once: in the same response as this call, say the hotel is
+        in and present that step, as AFTER THEIR PICK said."""
         if why := self._need_brief():
-            return why
+            return self._missed(why, lead.ask_missing(self.trip, self.lang))
         d = self.trip.dest
         assert d is not None
         hotels = {h["name"]: h for c in d["cities"] for h in c["hotels"]}
         hit = match_label(choice.hotel, list(hotels))
         if hit is None:
-            return f"No hotel on this trip is called '{choice.hotel}'. Hotels: {', '.join(hotels)}."
+            return self._missed(
+                f"No hotel on this trip is called '{choice.hotel}'. Hotels: {', '.join(hotels)}.",
+                "Sorry, I couldn't match that to a hotel on this trip. Which one did you mean?",
+            )
         h = hotels[hit]
         city = h["city"] if "city" in h else eng.HOTELS[h["id"]]["city"]
         if not dict(eng.stops(self.trip)).get(city):
-            return f"{h['name']} is in {eng.CITIES[city]['name']}, which has no nights in this trip. Offer set_nights first."
+            cname = eng.CITIES[city]["name"]
+            return self._missed(
+                f"{h['name']} is in {cname}, which has no nights in this trip. Offer set_nights first.",
+                f"{h['name']} is in {cname}, and the trip has no nights there yet. "
+                f"Shall I move a night or two to {cname}?",
+            )
         room = h["rooms"][0]
         if choice.room:
             rhit = match_label(choice.room, [r["name"] for r in h["rooms"]])
             if rhit is None:
-                return f"{h['name']} has: {', '.join(r['name'] for r in h['rooms'])}."
+                rooms = [r["name"] for r in h["rooms"]]
+                return self._missed(
+                    f"{h['name']} has: {', '.join(rooms)}.",
+                    f"{h['name']} has {_or(rooms)}. Which room would you like?",
+                )
             room = next(r for r in h["rooms"] if r["name"] == rhit)
         before = eng.price(self.trip).total
         self.trip.hotels[city] = (h["id"], room["id"])
         self._send("trip.hotel", {"city": city, "hotel_id": h["id"], "room_id": room["id"]})
         after = eng.price(self.trip).total
         diff = after - before
-        change = (
-            f"{eng.money(abs(diff))} {'more' if diff > 0 else 'less'}" if diff else "the same price"
+        stay = eng.hotel_price(self.trip, city, h["id"], room["id"])
+        change = f"{eng.money(stay)} for the stay; the total moved by {eng.money(abs(diff))} " + (
+            "(hotel changes carry 5% GST)" if diff else "(the same price)"
         )
         nxt = self._advance(lead.line(self.lang, "hotel_in", hotel=h["name"]))
         return f"{h['name']}, {room['name']}, is in for {eng.CITIES[city]['name']}: {change}. {nxt}"
 
-    @needs_result_now
     async def set_nights(self, request: NightsRequest) -> str:
         """Change how many nights are spent in one city; the other cities give or
-        take the difference, so the trip's length stays the same."""
+        take the difference, so the trip's length stays the same. Returns at
+        once: say the change in the same response as this call."""
         if why := self._need_brief():
-            return why
+            return self._missed(why, lead.ask_missing(self.trip, self.lang))
         t = self.trip
         d = t.dest
         assert d is not None
         city = self._city(request.city)
         if city is None:
-            return f"{request.city} is not on this trip. Cities: " + ", ".join(
-                c["name"] for c in d["cities"]
+            names = [c["name"] for c in d["cities"]]
+            return self._missed(
+                f"{request.city} is not on this trip. Cities: " + ", ".join(names),
+                f"{request.city} isn't on this trip; it goes to {_or(names, 'and')}.",
             )
         ids = [c["id"] for c in d["cities"]]
         split = list(t.split)
@@ -1315,7 +1468,13 @@ class HolidaysBrain(OpenAIBrain):
                 diff = 0
         split[i] = want
         if diff != 0 or not eng.valid_split(t, split):
-            return f"That split cannot be served: {d['name']}'s cities in order are {', '.join(eng.CITIES[c]['name'] for c in ids)}, and the trip is {t.nights} nights. Current: {', '.join(f'{eng.CITIES[c]["name"]} {n}' for c, n in eng.stops(t))}."
+            now = ", ".join(f"{eng.CITIES[c]['name']} {n}" for c, n in eng.stops(t))
+            order = ", ".join(eng.CITIES[c]["name"] for c in ids)
+            return self._missed(
+                f"That split cannot be served: {d['name']}'s cities in order are {order}, "
+                f"and the trip is {t.nights} nights. Current: {now}.",
+                f"I can't split the nights that way; right now it's {now}.",
+            )
         before = {a for _, a in t.activities}
         self._set_split(split)
         dropped = [eng.ACTIVITIES[a]["name"] for a in before - {a for _, a in t.activities}]
@@ -1335,16 +1494,21 @@ class HolidaysBrain(OpenAIBrain):
             out += f" Dropped because their day moved: {', '.join(dropped)}."
         return out + " " + self.state_line() + "\n" + nxt
 
-    def _fits(self, city: str | None, day: int | None) -> list[tuple[int, dict[str, Any]]]:
-        t = self.trip
+    def _fits(
+        self, city: str | None, day: int | None, t: Trip | None = None
+    ) -> list[tuple[int, dict[str, Any]]]:
+        t = t or self.trip
         style = t.style or ("family" if t.kids else "relaxed")
         out: list[tuple[int, dict[str, Any]]] = []
         for d in eng.days(t):
             if (day and d.n != day) or (city and d.city != city):
                 continue
+            stay = eng.HOTELS[t.hotels[d.city][0]]["inclusions"] if d.city in t.hotels else []
             for a in eng.CITIES[d.city]["activities"]:
-                if eng.can_add(t, a["id"], d.n) is None and all(
-                    a["id"] != x for _, x in t.activities
+                if (
+                    eng.can_add(t, a["id"], d.n) is None
+                    and all(a["id"] != x for _, x in t.activities)
+                    and not _included(a["name"], stay)
                 ):
                     out.append((d.n, a))
         out.sort(key=lambda x: (style not in x[1]["tags"], x[0]))
@@ -1369,7 +1533,7 @@ class HolidaysBrain(OpenAIBrain):
         return (
             self._activity_lines(fits, 8)
             + "\nSuggest one or two that suit them, each with one vivid detail and the price, and ask "
-            "whether to add one."
+            "whether to add one.\n" + self.ahead()
         )
 
     def _activity(self, said: str) -> dict[str, Any] | None:
@@ -1380,16 +1544,17 @@ class HolidaysBrain(OpenAIBrain):
         hit = match_label(said, list(acts))
         return acts.get(hit) if hit else None
 
-    @needs_result_now
     async def add_activity(self, choice: ActivityChoice) -> str:
         """Add an activity to a day of the trip (the first day it fits, if no day
-        was said). Returns what else fits: offer the next one in the same reply."""
+        was said). Returns at once: in the same response as this call, say it is
+        in and offer one more that fits, or the package."""
         if why := self._need_brief():
-            return why
+            return self._missed(why, lead.ask_missing(self.trip, self.lang))
         a = self._activity(choice.activity)
         if a is None:
-            return (
-                f"No activity on this trip is called '{choice.activity}'. Use suggest_activities."
+            return self._missed(
+                f"No activity on this trip is called '{choice.activity}'. Use suggest_activities.",
+                "Sorry, I couldn't find that activity on this trip. Shall I suggest a few?",
             )
         a = eng.ACTIVITIES[a["id"]]
         day = choice.day
@@ -1400,13 +1565,19 @@ class HolidaysBrain(OpenAIBrain):
             )
             if day is None:
                 why = eng.can_add(self.trip, a["id"], 1) or "no day is free for it"
-                return f"{a['name']} does not fit any day: {why}."
+                return self._missed(
+                    f"{a['name']} does not fit any day: {why}.",
+                    f"Sorry, the {a['name']} doesn't fit any day of this trip.",
+                )
         if (why := eng.can_add(self.trip, a["id"], day)) is not None:
             fits = [
                 d.n for d in eng.days(self.trip) if eng.can_add(self.trip, a["id"], d.n) is None
             ]
-            return f"Not added: {why}." + (
-                f" It fits day {', '.join(map(str, fits))}." if fits else ""
+            where = f" It fits day {', '.join(map(str, fits))}." if fits else ""
+            return self._missed(
+                f"Not added: {why}.{where}",
+                f"I couldn't put it on day {day}: {why}."
+                + (f" Shall I put it on day {fits[0]} instead?" if fits else ""),
             )
         self.trip.activities.append((day, a["id"]))
         self._send("trip.add", {"activity_id": a["id"], "day": day})
@@ -1418,30 +1589,40 @@ class HolidaysBrain(OpenAIBrain):
         fits = self._fits(None, None)
         package = lead.line(self.lang, "offer_package")
         if not fits:
-            owe(f"{lead_in} {package}")
-            return f"{done}\nNEXT: nothing more fits their days. Offer the whole package or review and book."
+            owe(f"{lead_in} {package}", then=package, cover=_PACKAGE_WORDS)
+            return f"{done}\nNothing more fits their days; the package or review and book is next."
         nd, na = fits[0]
-        owe(f"{lead_in} {lead.activity_line(self.trip, nd, eng.ACTIVITIES[na['id']], self.lang)}")
+        more = lead.activity_line(self.trip, nd, eng.ACTIVITIES[na["id"]], self.lang)
+        owe(
+            f"{lead_in} {more}",
+            then=more,
+            cover=(*(x["name"] for _, x in fits[:6]), *_PACKAGE_WORDS),
+        )
         return (
-            f"{done}\nNEXT, in this same reply: say it is in with a happy word, then offer one more "
-            "that suits them (a vivid detail and the price), or the whole package and booking.\n"
+            f"{done}\nThey have been offered one more (by you, or in the brain's words just "
+            "after) or the package; take their answer. What else fits:\n"
             + self._activity_lines(fits, 4)
         )
 
-    @needs_result_now
     async def remove_activity(self, choice: ActivityChoice) -> str:
-        """Take an activity off the trip."""
+        """Take an activity off the trip. Returns at once: say it in the same
+        response as this call."""
         t = self.trip
         names = {
             eng.ACTIVITIES[a]["name"]: (d, a) for d, a in t.activities if choice.day in (None, d)
         }
         hit = match_label(choice.activity, list(names))
         if hit is None:
-            return "That is not in the trip. In it: " + (", ".join(names) or "no activities") + "."
+            return self._missed(
+                "That is not in the trip. In it: " + (", ".join(names) or "no activities") + ".",
+                "That one isn't in your trip"
+                + (f"; it has {_or(list(names), 'and')}." if names else "."),
+            )
         day, aid = names[hit]
         t.activities.remove((day, aid))
         self._send("trip.remove", {"activity_id": aid, "day": day})
-        owe(f"{lead.line(self.lang, 'removed', activity=hit)} {lead.offer(t, self.lang)}")
+        offer = lead.offer(t, self.lang)
+        owe(f"{lead.line(self.lang, 'removed', activity=hit)} {offer}", then="")
         return f"{hit} is off day {day}. {self.total_line()} NEXT: {self.next_note()}"
 
     @needs_result_now
@@ -1482,8 +1663,6 @@ class HolidaysBrain(OpenAIBrain):
         for city, _ in eng.stops(t):
             if pick := t.hotels.get(city):
                 h = eng.HOTELS[pick[0]]
-                if self.lang == "hi":
-                    return f"{eng.CITIES[city]['name']} में {h['name']}"
                 return f"{h['name']} in {eng.CITIES[city]['name']}"
         return eng.CITIES[eng.stops(t)[0][0]]["name"] if eng.stops(t) else ""
 
@@ -1493,6 +1672,12 @@ class HolidaysBrain(OpenAIBrain):
         and how it compares with the budget."""
         if not self.trip.destination:
             return "No trip yet. " + self.state_line()
+        if not self.trip.flight_id and not self.trip.hotels:
+            owe(lead.offer(self.trip, self.lang))
+            return (
+                "Nothing is priced yet: no flight or hotel is chosen, so there is no total to say. "
+                f"Say so and lead on. {self.state_line()} {self.next_note()}"
+            )
         owe(self._line("summary") + " " + lead.offer(self.trip, self.lang))
         return (
             self.state_line()
@@ -1502,19 +1687,31 @@ class HolidaysBrain(OpenAIBrain):
         )
 
     async def go_to_checkout(self) -> str:
-        """Open the review and payment page. The visitor types their details and
-        presses Pay; never take payment details."""
+        """Open the review and payment page, once the trip has a flight and a
+        hotel in every city (the trip note says what is still missing; offer
+        that first). The visitor types their details and presses Pay; never
+        take payment details."""
         t = self.trip
         if why := self._need_brief():
             return why
-        if not t.flight_id or any(c not in t.hotels for c, _ in eng.stops(t)):
-            return "Not yet: the trip needs a flight and a hotel in every city first."
+        if not t.flight_id:
+            return self._missed(
+                "Not yet: the trip needs a flight and a hotel in every city first.",
+                "Before we book, let's pick your flight. " + lead.line(self.lang, "offer_flights"),
+            )
+        if empty := [c for c, _ in eng.stops(t) if c not in t.hotels]:
+            name = eng.CITIES[empty[0]]["name"]
+            return self._missed(
+                f"Not yet: no hotel in {name}. The trip needs a hotel in every city first.",
+                f"Almost there, but you don't have a hotel in {name} yet, so I can't open the "
+                f"booking page. {lead.line(self.lang, 'offer_hotels', city=name)}",
+            )
         self._send("trip.go", {"page": "checkout"})
         landed(self._line("checkout"))
         return f"The review page is open. {self.total_line()} They fill in the lead traveller and press Pay themselves."
 
     async def set_language(self, request: LanguageRequest) -> str:
-        """Speak and listen in English (en) or Hindi (hi) from now on."""
+        """Speak and listen in another language persona.json offers, from now on."""
         self._switch(request.language, by="voice")
         return f"Now speaking {LANGUAGES[self.lang].name}."
 
@@ -1522,7 +1719,7 @@ class HolidaysBrain(OpenAIBrain):
         s = speaking(tag)
         if s.tag == self.lang:
             return
-        self.lang = "hi" if s.tag == "hi" else "en"
+        self.lang = s.tag
         configure_soon(self.session, self._speaking(s))
         self.session.dispatch(LanguageChanged(language=self.lang))
         self.system_instruction = system_instruction(self.page, self.lang, self.today)

@@ -13,12 +13,51 @@ function memoryStorage() {
   };
 }
 
-describe("the call's language survives a reload", () => {
+describe("English only (H2: persona.json lists one language)", () => {
   beforeEach(() => {
     vi.stubGlobal("localStorage", memoryStorage());
     vi.resetModules();
   });
   afterEach(() => vi.unstubAllGlobals());
+
+  it("a Hindi this browser remembered from before is not offered: the call starts in English", async () => {
+    localStorage.setItem("wanderloom-lang", "hi");
+    const { useLang } = await import("./lang");
+    expect(useLang.getState().lang).toBe("en");
+  });
+
+  it("asking for Hindi changes nothing, on or off a call", async () => {
+    const { chooseLang, languageChanged, useLang } = await import("./lang");
+    chooseLang("hi");
+    expect(useLang.getState().lang).toBe("en");
+    const sent: string[] = [];
+    useLang.setState({ sender: (l) => sent.push(l) });
+    chooseLang("hi");
+    languageChanged({ language: "hi" });
+    expect(sent).toEqual([]);
+    expect(useLang.getState().lang).toBe("en");
+  });
+});
+
+/** The toggle's behaviour when persona.json offers two languages again. */
+describe("with two languages, the call's language survives a reload", () => {
+  beforeEach(() => {
+    vi.stubGlobal("localStorage", memoryStorage());
+    vi.resetModules();
+    vi.doMock("../persona", () => ({
+      PERSONA: {
+        defaultLanguage: "en",
+        languages: [
+          { tag: "en", label: "EN", name: "English" },
+          { tag: "hi", label: "हिंदी", name: "Hindi" },
+        ],
+      },
+    }));
+  });
+  afterEach(() => {
+    vi.doUnmock("../persona");
+    vi.unstubAllGlobals();
+  });
 
   it("a pick off a call is remembered, and the next page load starts on it", async () => {
     const a = await import("./lang");

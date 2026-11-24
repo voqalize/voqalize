@@ -7,8 +7,9 @@ landing page's main flow: the home page helps choose a destination and starts
 the brief; the trip builder takes a brief in one sentence, builds a priced
 package, edits it item by item ("swap the hotel in Ubud for something by the
 beach"), takes the visitor's own clicks, and ends at checkout with the visitor
-paying. Plus the language: English or Hindi from the page, and a switch mid-call;
-and redial: a call whose brain socket drops picks up where it was.
+paying. Plus the language: English only (H2), whatever the page asks; redial: a
+call whose brain socket drops picks up where it was; and the lead: every step
+ends on the next choice (H1), with no second model request after a pick (H3).
 
 Run: ``cd demos && uv run pytest tests/test_holidays_e2e.py``
 """
@@ -253,7 +254,9 @@ async def test_the_trip_builder_takes_a_brief_builds_edits_and_checks_out() -> N
         t8 = await rig.driver.user_says("Looks great, let's book")
         check_turn(rig, t8)
         trek = tool_results_of(llm.captured_inputs[-1], "add_activity")[0]
-        assert trek == "Not added: the morning of day 2 is already taken.", trek
+        assert trek.startswith("Not added: the morning of day 2 is already taken."), trek
+        # The pick did not wait for its result (H3), so the visitor hears why at once.
+        assert "I couldn't put it on day 2: the morning of day 2 is already taken." in t7.text
         assert ("2", "ubud-batur-trek") not in [(str(d), a) for d, a in brain.trip.activities]
         assert _move(rig, "trip.go")["args"] == {"page": "checkout"}
         await _page_answers(rig, answered)
@@ -342,37 +345,29 @@ async def test_what_is_not_sold_is_said_and_not_invented() -> None:
         assert [m["args"] for m in _moves(rig) if m["move"] == "trip.brief"] == [{"nights": 5}]
 
 
-async def test_hindi_from_the_page_and_english_from_the_toggle() -> None:
-    llm = ScriptedOpenAI({"हिंदी": reply("ज़रूर।")})
+async def test_english_only_whatever_the_page_asks() -> None:
+    """H2: the planner speaks English only (persona.json lists one language). A
+    page that still sends Hindi (a browser that remembered it) gets English on
+    both legs; the toggle's event changes nothing; the model has no language
+    switch and is told to stay in English."""
+    llm = ScriptedOpenAI({"Hindi": reply("I can only help in English for now.")})
     async with _rig(llm) as rig:
+        assert list(LANGUAGES) == ["en"]
         greeting = await rig.driver.start_session(init={"page": "home", "lang": "hi"})
-        assert greeting is not None and greeting.text == LANGUAGES["hi"].greeting_home
-        check_voice_pair(rig, voice=LANGUAGES["hi"].voice, language="hi")
-        assert "This call is in Hindi" in llm.captured_instructions[0] if llm.requests else True
-
-        await rig.driver.send_ui_event("language_chosen", {"language": "en"})
-        await asyncio.sleep(0.1)
+        assert greeting is not None and greeting.text == LANGUAGES["en"].greeting_home
         check_voice_pair(rig, voice=LANGUAGES["en"].voice, language="en")
-        brain = _brain(rig)
-        assert brain.lang == "en"
-        assert "This call is in English" in brain.system_instruction
-        # The toggle only asked; the brain's language_changed is what moves it.
-        assert rig.command("language_changed") == {"language": "en"}
+        configs = len(_configs(rig.driver))
 
-
-async def test_a_switch_asked_by_voice_moves_the_page_toggle() -> None:
-    """The visitor asks for Hindi out loud: both legs move, and the page's
-    toggle follows (language_changed), so the next call starts in Hindi too."""
-    llm = ScriptedOpenAI(
-        {"Hindi mein": reply_and_call("ज़रूर, अब हिंदी में।", "set_language", language="hi")}
-    )
-    async with _rig(llm) as rig:
-        await rig.driver.start_session(init={"page": "plan", "lang": "en"})
-        assert "language_changed" not in rig.actions()
-        check_turn(rig, await rig.driver.user_says("Hindi mein baat karein?"))
+        await rig.driver.send_ui_event("language_chosen", {"language": "hi"})
         await asyncio.sleep(0.1)
-        check_voice_pair(rig, voice=LANGUAGES["hi"].voice, language="hi")
-        assert rig.command("language_changed") == {"language": "hi"}
+        brain = _brain(rig)
+        assert brain.lang == "en" and len(_configs(rig.driver)) == configs
+        assert "language_changed" not in rig.actions()
+
+        check_turn(rig, await rig.driver.user_says("Hindi mein baat karein?"))
+        assert "You speak English only" in llm.captured_instructions[-1]
+        names = {t.get("name") for t in llm.requests[-1]["tools"]}
+        assert "set_language" not in names and "choose_flight" in names
 
 
 async def test_a_trip_built_by_hand_before_the_call_is_where_the_call_starts() -> None:
@@ -445,7 +440,7 @@ def _redial_llm() -> ScriptedOpenAI:
             "build the whole thing": replies(
                 call("build_package"), reply("{show: total} Here it is, all in.")
             ),
-            "the flights": replies(call("show_flights"), reply("दो विकल्प हैं।")),
+            "the flights": replies(call("show_flights"), reply("There are two options.")),
         }
     )
 
@@ -502,8 +497,8 @@ async def _drop(driver: VoqalizeDriver, brain: HolidaysBrain) -> None:
 
 
 async def test_a_dropped_socket_rejoins_the_call_where_it_was() -> None:
-    """Mid-flow — a brief, a built package, a switch to Hindi on the toggle and a
-    room the visitor picked by hand — the brain's socket drops without a hang-up.
+    """Mid-flow — a brief, a built package and a room the visitor picked by
+    hand — the brain's socket drops without a hang-up.
     The planner turned redial on; Voqalize dials again for the same session with
     the same (now stale) init; the new socket's brain adopts the call — trip,
     page, language and voice, the model's history — greets no one, and the next
@@ -525,7 +520,6 @@ async def test_a_dropped_socket_rejoins_the_call_where_it_was() -> None:
         await _lands(first, answered)
         await first.user_says("Just build the whole thing for us")
         await _lands(first, answered)
-        await first.send_ui_event("language_chosen", {"language": "hi"})
         await first.send_ui_event(
             "stage_event",
             {
@@ -541,7 +535,7 @@ async def test_a_dropped_socket_rejoins_the_call_where_it_was() -> None:
         )
         await asyncio.sleep(0.1)
         before = built[-1]
-        assert before.lang == "hi"
+        assert before.lang == "en"
         assert before.trip.hotels["seminyak"] == ("petitenget-villas", "one-bed")
         trip_before = before.trip.to_json()
         history_before = len(before._history)  # pyright: ignore[reportPrivateUsage]
@@ -555,12 +549,12 @@ async def test_a_dropped_socket_rejoins_the_call_where_it_was() -> None:
         assert after is not before
         assert regreeting is None, "a rejoined call is not greeted again"
         assert after.trip.to_json() == trip_before, "the trip on screen is kept"
-        assert after.lang == "hi" and after.page == "plan"
-        assert "This call is in Hindi" in after.system_instruction
+        assert after.lang == "en" and after.page == "plan"
+        assert "You speak English only" in after.system_instruction
         assert after._history and len(after._history) >= history_before  # pyright: ignore[reportPrivateUsage]
         last = _configs(second)[-1].config
-        assert last.tts is not None and last.tts.voice == LANGUAGES["hi"].voice
-        assert last.tts.language == "hi" and last.stt is not None and last.stt.language == "hi"
+        assert last.tts is not None and last.tts.voice == LANGUAGES["en"].voice
+        assert last.tts.language == "en" and last.stt is not None and last.stt.language == "en"
         assert _redials(second) == [True]
 
         turn = await second.user_says("And what are the flights?")
@@ -656,7 +650,8 @@ async def test_a_budget_is_heard_in_rupees_and_amounts_are_said_the_indian_way()
     rupees; a budget passed as ₹15 is refused and confirmed back, never put in the
     brief; the confirmed ₹1,50,000 is. What the planner writes as "₹1.25 lakh" (two
     decimals, which the TTS would read as rupees and paise) is given to the voice in
-    words, in English, and with लाख and whole rupees in Hindi."""
+    words. (The Hindi chain is covered in test_holidays_amounts.py; the call is
+    English only since H2.)"""
     llm = ScriptedOpenAI(
         {
             "around 1 and half lakhs": replies(
@@ -675,7 +670,6 @@ async def test_a_budget_is_heard_in_rupees_and_amounts_are_said_the_indian_way()
                 call("set_trip", budget=150000),
                 reply("Done. Goa for two usually comes to ₹1.25 lakh, so you're well inside it."),
             ),
-            "Hindi mein": reply("ज़रूर। पैकेज ₹1.5\u20132 लाख में बन जाएगा, कुल ₹2.3 लाख तक।"),
         }
     )
     answered: set[str] = set()
@@ -704,12 +698,6 @@ async def test_a_budget_is_heard_in_rupees_and_amounts_are_said_the_indian_way()
         said = " ".join(u.text for u in t2.units)
         assert "one point two five lakh rupees" in said and "₹1.25" not in said, said
 
-        brain.lang = "hi"  # as the toggle leaves it; the voice pair is covered above
-        t3 = await rig.driver.user_says("Hindi mein bataiye")
-        check_turn(rig, t3)
-        said = " ".join(u.text for u in t3.units)
-        assert "₹1.5 लाख से ₹2 लाख" in said and "₹2,30,000" in said, said
-
 
 # ─── H1: she leads, and no step ends silent (the owner's call, 24 Nov) ────────
 
@@ -717,7 +705,9 @@ async def test_a_budget_is_heard_in_rupees_and_amounts_are_said_the_indian_way()
 #: answered "I'll add Banyan Air to your trip." and "I'll add Azure Atoll Resort
 #: & Spa to your trip." and stopped; he had to say "Okay, go ahead." and
 #: "Continue." Here the model is scripted at its worst — a one-line preamble and
-#: a silent second hop — and every turn must still end on the next choice.
+#: a silent second hop on a read, a pick that names nothing of the next step —
+#: and every turn must still end on the next choice. A pick is one model
+#: request (H3): the brain's next-choice line follows it at once.
 _H1_SILENT = reply("")
 
 
@@ -742,29 +732,17 @@ async def test_his_call_moves_forward_at_every_step_without_a_nudge() -> None:
                 reply_and_call("Let me pull up your flights from Bengaluru.", "show_flights"),
                 _H1_SILENT,
             ),
-            "Banyan air": replies(
-                reply_and_call(
-                    "I'll add Banyan Air to your trip.", "choose_flight", choice="Banyan Air"
-                ),
-                _H1_SILENT,
+            "Banyan air": reply_and_call(
+                "I'll add Banyan Air to your trip.", "choose_flight", choice="Banyan Air"
             ),
-            "Azure Adult Resort": replies(
-                reply_and_call(
-                    "I'll add Azure Atoll Resort & Spa to your trip.",
-                    "choose_hotel",
-                    hotel="Azure Adult Resort and Spa",
-                    room="Overwater Villa",
-                ),
-                _H1_SILENT,
+            "Azure Adult Resort": reply_and_call(
+                "I'll add Azure Atoll Resort & Spa to your trip.",
+                "choose_hotel",
+                hotel="Azure Adult Resort and Spa",
+                room="Overwater Villa",
             ),
-            "turtle": replies(
-                reply_and_call(
-                    "Adding the turtle snorkel.",
-                    "add_activity",
-                    activity="turtle reef snorkel trip",
-                ),
-                _H1_SILENT,
-            ),
+            # The worst: the pick's call alone, not a word.
+            "turtle": call("add_activity", activity="turtle reef snorkel trip"),
         }
     )
     answered: set[str] = set()
@@ -799,12 +777,19 @@ async def test_his_call_moves_forward_at_every_step_without_a_nudge() -> None:
         t = await rig.driver.user_says("First show me the flakes.")
         check_turn(rig, t, units=2)
         assert "My pick is" in t.units[-1].text and "Which one shall I add?" in t.units[-1].text
+        # H3: before the pick, the model is told what opens after it.
+        flights = tool_results_of(llm.captured_inputs[-1], "show_flights")[0]
+        assert "AFTER THEIR PICK: when they choose a flight, call choose_flight" in flights
+        assert "Coral Veli Island Resort" in flights and "Azure Atoll Resort & Spa" in flights
         await _page_answers(rig, answered)
 
         # Was: "I'll add Banyan Air to your trip." and nothing. Now the hotels
-        # open on screen and she offers two, each with a detail from the data.
+        # open on screen and, in the brain's words right after hers, two are
+        # offered, each with a detail from the data: no second model request.
+        asked = len(llm.requests)
         t = await rig.driver.user_says("Banyan air, I think it is good one. Let's go with that.")
         check_turn(rig, t, units=2)
+        assert len(llm.requests) == asked + 1, "a pick is one model request (H3)"
         assert eng.FLIGHTS[brain.trip.flight_id or ""]["airline_name"] == "Banyan Air"
         await _page_answers(rig, answered)  # the hotels wait behind the flight
         assert _move(rig, "trip.hotels")["args"] == {
@@ -812,14 +797,10 @@ async def test_his_call_moves_forward_at_every_step_without_a_nudge() -> None:
             "want": "honeymoon",
         }
         said = t.units[-1].text
-        assert said.startswith("Lovely, Banyan Air is in.")
+        assert said.startswith("Now the fun part, where you'll stay"), said  # hers said "in"
         assert "Coral Veli Island Resort, a friendly island with a house reef" in said
         assert "Azure Atoll Resort & Spa" in said and "Which one catches your eye?" in said
         assert "Sandbank Retreat" not in said  # not a honeymoon hotel
-        assert (
-            "NEXT, in this same reply"
-            in tool_results_of(llm.captured_inputs[-1], "choose_flight")[0]
-        )
         await _page_answers(rig, answered)
 
         # Was: "I'll add Azure Atoll Resort & Spa to your trip." and nothing.
@@ -830,23 +811,28 @@ async def test_his_call_moves_forward_at_every_step_without_a_nudge() -> None:
         await _page_answers(rig, answered)
         assert _move(rig, "trip.step")["args"] == {"step": "days"}
         said = t.units[-1].text
-        assert said.startswith("Azure Atoll Resort & Spa is in")
-        assert "Now let's fill your days." in said and "Shall I add it" in said
-        result = tool_results_of(llm.captured_inputs[-1], "choose_hotel")[0]
-        assert "Turtle reef snorkel trip" in result  # the activities that fit, to offer
+        assert said.startswith("Now let's fill your days."), said
+        assert "Shall I add it" in said
         await _page_answers(rig, answered)
 
+        # The next turn's trip note has the activities that fit, to offer.
         t = await rig.driver.user_says("Yes, add the turtle one.")
-        check_turn(rig, t, units=2)
+        check_turn(rig, t, units=1)
+        assert "Turtle reef snorkel trip" in input_texts(llm.captured_inputs[-1])
+        # The resort gives a sunset dolphin cruise: it is not offered as extra.
+        fits = brain._fits(None, None)  # pyright: ignore[reportPrivateUsage]
+        assert fits and all(a["name"] != "Sunset dolphin cruise" for _, a in fits)
         assert any(a == "mv-snorkel-turtles" for _, a in brain.trip.activities)
         said = t.units[-1].text
-        assert said.startswith("Turtle reef snorkel trip is on day")
+        assert said.startswith("Turtle reef snorkel trip is on day"), said  # she said nothing
         assert "Shall I add it, or hear another idea?" in said
         await _page_answers(rig, answered)
 
 
-async def test_a_step_she_speaks_after_needs_no_floor() -> None:
-    """When the model does speak from the result, the brain adds nothing."""
+async def test_a_pick_she_says_whole_needs_no_floor() -> None:
+    """H3: told before the pick what opens after it, the model says the pick and
+    the next choice in the response that calls it — one request — and the brain
+    adds nothing."""
     llm = ScriptedOpenAI(
         {
             "Bali": replies(
@@ -861,9 +847,10 @@ async def test_a_step_she_speaks_after_needs_no_floor() -> None:
                 reply("Bali for your honeymoon, how lovely! Flights first, or the whole package?"),
             ),
             "flights": replies(call("show_flights"), reply("Lagoon Air is my pick. Which one?")),
-            "first one": replies(
-                reply_and_call("Lovely choice.", "choose_flight", choice="1"),
-                reply("Now Ubud: Sayan Ridge looks over the jungle. Which hotel?"),
+            "first one": reply_and_call(
+                "Lovely choice, it's in! Now Ubud: Sayan Ridge looks over the jungle. Which hotel?",
+                "choose_flight",
+                choice="1",
             ),
         }
     )
@@ -873,14 +860,53 @@ async def test_a_step_she_speaks_after_needs_no_floor() -> None:
         for said in ("Delhi to Bali in February", "Show me the flights"):
             check_turn(rig, await rig.driver.user_says(said))
             await _page_answers(rig, answered)
+        flights = tool_results_of(llm.captured_inputs[-1], "show_flights")[0]
+        assert "AFTER THEIR PICK" in flights and "Sayan Ridge" in flights
+        asked = len(llm.requests)
         t = await rig.driver.user_says("The first one")
-        check_turn(rig, t, units=2)
+        check_turn(rig, t, units=1)
+        assert len(llm.requests) == asked + 1
         assert [u.text for u in t.units] == [
-            "Lovely choice.",
-            "Now Ubud: Sayan Ridge looks over the jungle. Which hotel?",
+            "Lovely choice, it's in! Now Ubud: Sayan Ridge looks over the jungle. Which hotel?",
         ]
         await _page_answers(rig, answered)
         assert _move(rig, "trip.hotels")["args"]["city"] == "ubud"
+
+
+async def test_a_pick_that_cannot_happen_is_said_at_once() -> None:
+    """H3: a pick does not wait for its result, so the model may already have
+    said it worked; the brain says what went wrong straight after, and the
+    model reads why with its next request."""
+    llm = ScriptedOpenAI(
+        {
+            "Bali": replies(
+                call(
+                    "set_trip",
+                    from_city="Delhi",
+                    destination="Bali",
+                    month="February",
+                    nights=6,
+                ),
+                reply("Bali! Flights first, or the whole package?"),
+            ),
+            "flights": replies(call("show_flights"), reply("Two options. Which one?")),
+            "fifth": reply_and_call("Lovely, the fifth it is!", "choose_flight", choice="5"),
+        }
+    )
+    answered: set[str] = set()
+    async with _rig(llm) as rig:
+        await rig.driver.start_session(init={"page": "plan", "lang": "en"})
+        for said in ("Delhi to Bali in February", "Show me the flights"):
+            check_turn(rig, await rig.driver.user_says(said))
+            await _page_answers(rig, answered)
+        t = await rig.driver.user_says("The fifth one")
+        check_turn(rig, t, units=2)
+        assert t.units[-1].text == (
+            "Sorry, I couldn't match that to a flight. On screen there's Lagoon Air or "
+            "Kestrel Airways. Which one shall I add?"
+        ), t.units[-1].text
+        assert _brain(rig).trip.flight_id is None
+        assert "trip.flight" not in [m["move"] for m in _moves(rig)]
 
 
 async def test_a_pick_by_click_is_followed_by_the_next_choice() -> None:
@@ -923,37 +949,3 @@ async def test_a_pick_by_click_is_followed_by_the_next_choice() -> None:
             "Lovely, Lagoon Air is in. Shall I show you where to stay in Maldives resort island?"
         )
         assert len(_moves(rig)) == before  # her offer moves nothing
-
-
-async def test_in_hindi_she_leads_on_in_hindi() -> None:
-    llm = ScriptedOpenAI(
-        {
-            "मालदीव": replies(
-                call(
-                    "set_trip",
-                    from_city="Bengaluru",
-                    destination="Maldives",
-                    month="February",
-                    nights=5,
-                    style="honeymoon",
-                ),
-                _H1_SILENT,
-            ),
-            "बनयान": replies(
-                reply_and_call("बनयान एयर जोड़ रही हूँ।", "choose_flight", choice="Banyan Air"),
-                _H1_SILENT,
-            ),
-        }
-    )
-    answered: set[str] = set()
-    async with _rig(llm) as rig:
-        await rig.driver.start_session(init={"page": "plan", "lang": "hi"})
-        t = await rig.driver.user_says("फ़रवरी में बेंगलुरु से मालदीव, पाँच रातें, हनीमून")
-        check_turn(rig, t)
-        assert "वाह, Maldives!" in t.text and "पूरा पैकेज" in t.text, t.text
-        await _page_answers(rig, answered)
-        t = await rig.driver.user_says("बनयान एयर ठीक है")
-        check_turn(rig, t, units=2)
-        said = t.units[-1].text
-        assert said.startswith("बढ़िया, Banyan Air जुड़ गई।"), said
-        assert "कौन सा पसंद आया?" in said

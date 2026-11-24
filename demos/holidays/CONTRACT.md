@@ -129,11 +129,12 @@ summary and running total; every item editable by click), `/checkout` (review, t
 the visitor, mock payment — the visitor presses Pay; the agent never pays), `/booked` (reference
 `WL-<6 digits>`).
 
-The call starts with `init = {page: "home" | "plan", lang: "en" | "hi", trip?: {...brief, flight_id,
+The call starts with `init = {page: "home" | "plan", lang: <a tag persona.json offers; "en" today>, trip?: {...brief, flight_id,
 hotels, split, activities}}` — `trip` only when the visitor already built something by hand, so the
 brain starts from what is on screen.
 
-The language toggle: mid-call a press sends `language_chosen {language}` (a ui-event); the brain moves
+The language toggle (shown only when persona.json offers more than one language; English only since
+H2): mid-call a press sends `language_chosen {language}` (a ui-event); the brain moves
 both legs and answers with `language_changed {language}` (a ui-command), which it also sends when the
 visitor switches by voice (`set_language`). The toggle follows only `language_changed`, and the page
 remembers it for the next call.
