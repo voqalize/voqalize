@@ -26,7 +26,7 @@ route wherever your backend can take one.
 Point an agent at your inbound route with the [MCP server](/reference/mcp/):
 
 ```text
-update_agent(tenant="acme", agent_id="06a2…", brain_url="wss://brain.example.com/voice")
+update_agent(workspace="acme", agent_id="06a2…", brain_url="wss://brain.example.com/voice")
 ```
 
 `create_agent` takes the same `brain_url` argument up front.
@@ -200,7 +200,7 @@ sessions share your one outbound socket.
 Get the credentials over the [MCP server](/reference/mcp/):
 
 ```text
-create_agent_credentials(tenant="acme", agent_id="06a2…")
+create_agent_credentials(workspace="acme", agent_id="06a2…")
 ```
 
 | Field | Where it goes |
