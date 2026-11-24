@@ -58,6 +58,7 @@ from .persona import PERSONA, Persona
 from .pricing import choose_plan, quote, spoken
 from .prompt import system_instruction
 from .rejoin import Rejoin
+from .spoken import SpokenAmounts, dropped_scale, numbers_note, speak_text
 from .stage_gen import MOVES as STAGE_MOVES
 from .stage_gen import SPEC, ReadRequest
 
@@ -273,6 +274,10 @@ class PaynoraSiteBrain(OpenAIBrain):
         self._fallback = FallbackLine()
         #: This brain took over a call whose socket dropped (rejoin.py).
         self.rejoined = False
+        #: The visitor's last few turns, as heard: what a headcount is checked against.
+        self._heard_recent: list[str] = []
+        #: Every amount spoken in the form the voice reads right (spoken.py, X8).
+        self._spoken = SpokenAmounts(lambda: self.lang)
 
     @property
     def today(self) -> date:
@@ -333,7 +338,7 @@ class PaynoraSiteBrain(OpenAIBrain):
         None on a rejoined call: the visitor was greeted when it began."""
         if self.rejoined:
             return None
-        return GREETING[self.job][self.lang].format(name=self.persona.name)
+        return speak_text(GREETING[self.job][self.lang].format(name=self.persona.name), self.lang)
 
     def _at(self, path: str) -> bool:
         """The visitor is on ``path``; True when the job changed."""
@@ -345,10 +350,12 @@ class PaynoraSiteBrain(OpenAIBrain):
 
     # ─── The turn ───────────────────────────────────────────────────────
 
-    async def on_user_message(
-        self, session: Session, msg: UserMessage
-    ) -> AsyncGenerator[Speech, None]:
+    def on_user_message(self, session: Session, msg: UserMessage) -> AsyncGenerator[Speech, None]:
+        return self._spoken.wrap(self._answer(session, msg))
+
+    async def _answer(self, session: Session, msg: UserMessage) -> AsyncGenerator[Speech, None]:
         self.turns += 1
+        self._heard_recent = [*self._heard_recent[-2:], msg.text]
         self.stage.visitor_spoke()
         self._talk = None
         self._settle_expired()
@@ -356,6 +363,8 @@ class PaynoraSiteBrain(OpenAIBrain):
             await session.configure(self._speaking("hi"))
         self.append_note(self.screen_now())
         self.append_note(msg.text)
+        if (said := numbers_note(msg.text)) is not None:
+            self.append_note(said)
         held = self.held
         if held is not None and held.turn < self.turns:
             answer = _yes_no(msg.text)
@@ -379,7 +388,7 @@ class PaynoraSiteBrain(OpenAIBrain):
         self.stage.end_turn()
 
     def on_user_idle(self, session: Session, idle: UserIdle) -> AsyncGenerator[Speech, None]:
-        return self._idle(session)
+        return self._spoken.wrap(self._idle(session))
 
     async def _idle(self, session: Session) -> AsyncGenerator[Speech, None]:
         """A quiet spell: a line the brain owes (a booking's outcome, a language
@@ -606,7 +615,9 @@ class PaynoraSiteBrain(OpenAIBrain):
             lead["name"] = request.name.strip()
             changes.append(("name", {"value": lead["name"]}))
         if request.headcount is not None:
-            if request.headcount <= 0:
+            if (wrong := dropped_scale(request.headcount, self._heard_recent[::-1])) is not None:
+                notes.append(wrong.replace("Not done:", "Headcount not added:", 1))
+            elif request.headcount <= 0:
                 notes.append("A headcount must be a positive number.")
             elif request.headcount != lead["headcount"]:
                 lead["headcount"] = request.headcount
@@ -712,6 +723,8 @@ class PaynoraSiteBrain(OpenAIBrain):
         every line of the maths."""
         if request.headcount <= 0:
             return "Ask for their headcount first."
+        if (wrong := dropped_scale(request.headcount, self._heard_recent[::-1])) is not None:
+            return wrong
         unknown = [m for m in request.modules if m not in MODULES]
         q = quote(request.headcount, request.modules, request.billing, request.filing)
         extra = [m for m in q.modules if MODULES[m]["min_plan"] != "starter"]

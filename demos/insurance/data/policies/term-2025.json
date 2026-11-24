@@ -1,0 +1,585 @@
+{
+  "id": "term-2025",
+  "product": "term",
+  "title": "Individual Term Life Insurance Policy",
+  "plan": "Chhatri Term Secure",
+  "policy_number": "CHI/TL/25/0009864",
+  "status": "active",
+  "start": "2025-09-01",
+  "end": "2053-03-14",
+  "premium_paid": 15729,
+  "summary": "₹1,50,00,000 life cover for Rohan until age 65, with an extra ₹25,00,000 accidental death benefit; Meera is the nominee.",
+  "insured": [
+    {
+      "id": "rohan",
+      "name": "Rohan Kulkarni",
+      "role": "Policyholder and life assured"
+    },
+    {
+      "id": "meera",
+      "name": "Meera Kulkarni",
+      "role": "Nominee (wife)"
+    }
+  ],
+  "schedule": [
+    {
+      "label": "Policy number",
+      "value": "CHI/TL/25/0009864"
+    },
+    {
+      "label": "Life assured",
+      "value": "Rohan Kulkarni, born 14 Mar 1988, male, non-smoker"
+    },
+    {
+      "label": "Age at entry",
+      "value": "37"
+    },
+    {
+      "label": "Sum assured on death",
+      "value": "₹1,50,00,000"
+    },
+    {
+      "label": "Date of commencement",
+      "value": "1 Sep 2025"
+    },
+    {
+      "label": "Cover till",
+      "value": "Age 65 (14 Mar 2053)"
+    },
+    {
+      "label": "Premium",
+      "value": "₹15,729 a year (GST exempt), due 1 September each year"
+    },
+    {
+      "label": "Premium payment term",
+      "value": "Regular, until 1 Sep 2052"
+    },
+    {
+      "label": "Accidental death benefit rider",
+      "value": "₹25,00,000"
+    },
+    {
+      "label": "Critical illness rider",
+      "value": "Not opted"
+    },
+    {
+      "label": "Waiver of premium on disability",
+      "value": "Not opted"
+    },
+    {
+      "label": "Nominee",
+      "value": "Meera Kulkarni (wife), 100%"
+    },
+    {
+      "label": "Maturity benefit",
+      "value": "None (pure protection)"
+    }
+  ],
+  "addons": [
+    {
+      "id": "accidental_death",
+      "label": "Accidental death benefit (₹25,00,000 extra)",
+      "included": true
+    },
+    {
+      "id": "critical_illness_rider",
+      "label": "Critical illness rider (₹10,00,000)",
+      "included": false
+    },
+    {
+      "id": "waiver_of_premium",
+      "label": "Waiver of premium on disability",
+      "included": false
+    }
+  ],
+  "sections": [
+    {
+      "id": "s1",
+      "number": "1",
+      "title": "Schedule notes and definitions",
+      "clauses": [
+        {
+          "id": "1.1",
+          "title": "Life assured and sum assured",
+          "kind": "info",
+          "text": "This policy insures the life of Rohan Kulkarni, born 14 March 1988, for a sum assured on death of ₹1,50,00,000. The sum assured is level and does not increase or decrease during the policy term.",
+          "plain": "Rohan's life is covered for ₹1,50,00,000, a fixed amount for the whole term.",
+          "tags": [
+            "life cover",
+            "sum assured",
+            "1.5 crore",
+            "death benefit",
+            "how much cover",
+            "kitna milega",
+            "term insurance",
+            "life assured"
+          ]
+        },
+        {
+          "id": "1.2",
+          "title": "Policy term",
+          "kind": "info",
+          "text": "The policy commenced on 1 September 2025 and cover continues until 14 March 2053, the date on which the life assured attains age 65, provided premiums are paid as due. Cover ends on that date and no benefit is payable for death after it.",
+          "plain": "You are covered until your 65th birthday, 14 March 2053.",
+          "tags": [
+            "policy term",
+            "cover till",
+            "age 65",
+            "2053",
+            "expiry",
+            "end date",
+            "kab tak",
+            "duration"
+          ]
+        },
+        {
+          "id": "1.3",
+          "title": "Premium",
+          "kind": "info",
+          "text": "The annual premium is ₹15,729, payable on 1 September each year until 1 September 2052. The premium is fixed at commencement and will not increase with age during the policy term. Individual life insurance premiums are exempt from GST.",
+          "plain": "You pay ₹15,729 every year on 1 September; the amount does not go up.",
+          "tags": [
+            "premium",
+            "annual premium",
+            "due date",
+            "1 September",
+            "fixed premium",
+            "kitna dena",
+            "payment",
+            "GST"
+          ]
+        },
+        {
+          "id": "1.4",
+          "title": "Nominee",
+          "kind": "info",
+          "text": "Meera Kulkarni, wife of the life assured, is the nominee for 100% of the death benefit under Section 39 of the Insurance Act, 1938. The policyholder may change the nomination at any time during the policy term by written notice, as set out in Clause 6.3.",
+          "plain": "Meera receives the money if Rohan dies during the term.",
+          "tags": [
+            "nominee",
+            "Meera",
+            "beneficiary",
+            "wife",
+            "who gets money",
+            "nomination",
+            "patni",
+            "claimant"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "s2",
+      "number": "2",
+      "title": "Benefits",
+      "clauses": [
+        {
+          "id": "2.1",
+          "title": "Death benefit",
+          "kind": "covered",
+          "text": "If the life assured dies during the policy term while the policy is in force, the Company will pay the sum assured of ₹1,50,00,000 to the nominee as a lump sum, and the policy will terminate. Death from any cause is covered, including illness and accident, subject only to the exclusion in Clause 4.1.",
+          "plain": "If Rohan dies during the term from any cause, Meera receives ₹1,50,00,000.",
+          "tags": [
+            "death claim",
+            "death benefit",
+            "lump sum",
+            "die",
+            "maut",
+            "illness death",
+            "covid",
+            "heart attack",
+            "payout"
+          ]
+        },
+        {
+          "id": "2.2",
+          "title": "No maturity or survival benefit",
+          "kind": "info",
+          "text": "This is a pure protection plan. No benefit is payable if the life assured survives to the end of the policy term, and premiums paid are not returned.",
+          "plain": "Nothing is paid back if Rohan is alive at 65; this is pure protection.",
+          "tags": [
+            "maturity",
+            "survival benefit",
+            "return of premium",
+            "money back",
+            "paisa wapas",
+            "end of term",
+            "pure term",
+            "savings"
+          ]
+        },
+        {
+          "id": "2.3",
+          "title": "Accidental death benefit rider",
+          "kind": "covered",
+          "text": "In consideration of the rider premium, if the life assured dies as a result of bodily injury caused solely by violent, accidental, external and visible means, and death occurs within 180 days of the accident, the Company will pay an additional ₹25,00,000 over the death benefit. The rider ends at the same time as the base policy, subject to Clause 4.2.",
+          "plain": "If Rohan dies in an accident, Meera receives ₹25,00,000 more, ₹1,75,00,000 in total.",
+          "tags": [
+            "accidental death",
+            "rider",
+            "25 lakh",
+            "accident",
+            "road accident",
+            "extra payout",
+            "durghatna",
+            "ADB"
+          ]
+        },
+        {
+          "id": "2.4",
+          "title": "Riders not opted",
+          "kind": "excluded",
+          "text": "The critical illness rider and the waiver of premium on disability rider have not been opted under this policy. No lump sum is payable on diagnosis of a critical illness, and premiums remain payable in the event of disability.",
+          "plain": "There is no payout for a serious illness diagnosis, and no premium waiver if you are disabled.",
+          "tags": [
+            "critical illness",
+            "cancer",
+            "heart attack diagnosis",
+            "waiver of premium",
+            "disability",
+            "riders",
+            "not opted",
+            "not covered"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "s3",
+      "number": "3",
+      "title": "Premium payment, lapse and revival",
+      "clauses": [
+        {
+          "id": "3.1",
+          "title": "Grace period",
+          "kind": "condition",
+          "text": "A grace period of 30 days from the due date is allowed for payment of each annual premium. The policy remains in force during the grace period, and if the life assured dies in that period the death benefit is payable after deducting the unpaid premium.",
+          "plain": "You have 30 days after the due date to pay, and stay covered in that time.",
+          "tags": [
+            "grace period",
+            "30 days",
+            "late payment",
+            "missed premium",
+            "due date",
+            "covered",
+            "der se payment",
+            "renewal"
+          ]
+        },
+        {
+          "id": "3.2",
+          "title": "Lapse",
+          "kind": "condition",
+          "text": "If a premium is not paid by the end of the grace period, the policy lapses and no benefit is payable on death after that date. A lapsed policy acquires no surrender or paid-up value.",
+          "plain": "If you do not pay within the grace period, the cover stops.",
+          "tags": [
+            "lapse",
+            "policy lapsed",
+            "unpaid premium",
+            "cover stopped",
+            "band ho gayi",
+            "no payment",
+            "inactive",
+            "missed"
+          ]
+        },
+        {
+          "id": "3.3",
+          "title": "Revival",
+          "kind": "condition",
+          "text": "A lapsed policy may be revived within 5 years from the due date of the first unpaid premium, by paying all arrears of premium with interest at the rate set by the Company and submitting evidence of continued good health satisfactory to the Company. Revival takes effect only when the Company approves it in writing.",
+          "plain": "A lapsed policy can be restarted within 5 years by paying the arrears and showing good health.",
+          "tags": [
+            "revival",
+            "revive",
+            "restart policy",
+            "5 years",
+            "reinstate",
+            "arrears",
+            "phir se chalu",
+            "health check"
+          ]
+        },
+        {
+          "id": "3.4",
+          "title": "No surrender value",
+          "kind": "info",
+          "text": "This policy has no surrender value at any time. If the policyholder stops paying premiums or surrenders the policy, no amount is refundable.",
+          "plain": "If you stop or surrender the policy, you get nothing back.",
+          "tags": [
+            "surrender",
+            "cancel policy",
+            "refund",
+            "surrender value",
+            "stop paying",
+            "band karna",
+            "exit",
+            "paisa wapas"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "s4",
+      "number": "4",
+      "title": "Exclusions",
+      "clauses": [
+        {
+          "id": "4.1",
+          "title": "Suicide within 12 months",
+          "kind": "excluded",
+          "text": "If the life assured dies by suicide, whether sane or insane, within 12 months from the date of commencement or the date of revival, the Company will pay the nominee 80% of the premiums paid up to the date of death, or the surrender value if higher, and the policy will terminate. The death benefit is not payable in that case. This 12-month period ran from 1 September 2025 to 31 August 2026 and has now ended, unless the policy is later revived.",
+          "plain": "Suicide in the first 12 months returns only 80% of the premiums paid; that period ended on 31 August 2026.",
+          "tags": [
+            "suicide",
+            "self harm",
+            "12 months",
+            "first year",
+            "80 percent",
+            "aatmahatya",
+            "exclusion",
+            "premiums returned"
+          ]
+        },
+        {
+          "id": "4.2",
+          "title": "Accidental death rider: intoxication",
+          "kind": "excluded",
+          "text": "No accidental death benefit is payable if the death results from the life assured being under the influence of alcohol or drugs, except drugs taken as prescribed by a medical practitioner. The base death benefit in Clause 2.1 remains payable.",
+          "plain": "The extra accident payout is not made if the death was due to alcohol or drugs, though the main cover still pays.",
+          "tags": [
+            "alcohol",
+            "drunk",
+            "drugs",
+            "intoxication",
+            "sharaab",
+            "drink driving",
+            "accident rider",
+            "not covered"
+          ]
+        },
+        {
+          "id": "4.3",
+          "title": "Accidental death rider: hazardous activities",
+          "kind": "excluded",
+          "text": "No accidental death benefit is payable if the death results from taking part in hazardous sports or pastimes such as mountaineering, skydiving, paragliding, bungee jumping, scuba diving or motor racing, from aviation other than as a fare-paying passenger on a licensed commercial airline, or from committing a criminal act.",
+          "plain": "The extra accident payout is not made for deaths during adventure sports or while committing a crime.",
+          "tags": [
+            "adventure sports",
+            "paragliding",
+            "skydiving",
+            "trekking",
+            "scuba",
+            "racing",
+            "private flight",
+            "crime",
+            "not covered"
+          ]
+        },
+        {
+          "id": "4.4",
+          "title": "Accidental death rider: war and self-injury",
+          "kind": "excluded",
+          "text": "No accidental death benefit is payable for death caused by war, invasion, hostilities, civil war, riot or terrorism in which the life assured took active part, by service in the armed forces, by nuclear contamination, or by intentional self-inflicted injury.",
+          "plain": "The extra accident payout is not made for deaths from war, military service or self-harm.",
+          "tags": [
+            "war",
+            "military",
+            "army",
+            "terrorism",
+            "self inflicted",
+            "nuclear",
+            "yuddh",
+            "riot",
+            "not covered"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "s5",
+      "number": "5",
+      "title": "Claims",
+      "clauses": [
+        {
+          "id": "5.1",
+          "title": "Death claim intimation",
+          "kind": "condition",
+          "text": "The nominee or claimant should notify the Company of the death of the life assured as soon as possible, through the claims helpline, the website or any branch, giving the policy number, date and cause of death. There is no time limit beyond which a genuine claim will be refused for late intimation alone.",
+          "plain": "The nominee should tell us of the death as soon as possible, with the policy number.",
+          "tags": [
+            "death claim",
+            "intimation",
+            "nominee",
+            "how to claim",
+            "report death",
+            "helpline",
+            "claim kaise kare",
+            "notify"
+          ]
+        },
+        {
+          "id": "5.2",
+          "title": "Documents for a death claim",
+          "kind": "condition",
+          "text": "A death claim must be supported by the claim form, the death certificate issued by the local authority, the original policy document or an indemnity if it is lost, photo identity and address proof and bank details of the nominee, and medical records or the hospital discharge or death summary where the death followed an illness.",
+          "plain": "The nominee needs the death certificate, the policy document, ID and bank details, and medical records if death followed an illness.",
+          "tags": [
+            "documents",
+            "death certificate",
+            "policy document",
+            "nominee ID",
+            "bank details",
+            "medical records",
+            "kagaz",
+            "claim form"
+          ]
+        },
+        {
+          "id": "5.3",
+          "title": "Additional documents for accidental death",
+          "kind": "condition",
+          "text": "For a claim under the accidental death benefit rider, the claimant must also provide a copy of the FIR, the post-mortem report, the final police report or panchnama, and the driving licence of the life assured if he was driving at the time.",
+          "plain": "For an accident claim, the FIR and post-mortem report are also needed.",
+          "tags": [
+            "FIR",
+            "post mortem",
+            "panchnama",
+            "police report",
+            "accident claim",
+            "driving licence",
+            "accidental death",
+            "documents"
+          ]
+        },
+        {
+          "id": "5.4",
+          "title": "Settlement of death claims",
+          "kind": "info",
+          "text": "The Company will settle a death claim within 30 days of receiving all necessary documents. Where an investigation is needed, it will be completed within 90 days of intimation and the claim settled within 30 days after that. Payment is made by bank transfer to the nominee.",
+          "plain": "We pay the nominee within 30 days of receiving all documents.",
+          "tags": [
+            "settlement",
+            "30 days",
+            "payment",
+            "how long",
+            "investigation",
+            "bank transfer",
+            "kab milega",
+            "claim time"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "s6",
+      "number": "6",
+      "title": "General conditions",
+      "clauses": [
+        {
+          "id": "6.1",
+          "title": "Free-look period",
+          "kind": "condition",
+          "text": "The policyholder may return the policy within 30 days of receiving it if not satisfied with the terms, stating the reasons. The Company will refund the premium paid less proportionate risk premium for the period of cover, medical examination costs and stamp duty. The free-look period for this policy has ended.",
+          "plain": "You could return the policy within 30 days of receiving it; that period is over.",
+          "tags": [
+            "free look",
+            "return policy",
+            "30 days",
+            "cancel",
+            "refund",
+            "not satisfied",
+            "wapas karna",
+            "cooling off"
+          ]
+        },
+        {
+          "id": "6.2",
+          "title": "Disclosure and non-disclosure",
+          "kind": "condition",
+          "text": "This policy is issued on the basis of the proposal and declarations made by the life assured, including about health, habits, occupation and income. In accordance with Section 45 of the Insurance Act, 1938, the policy may be called in question within three years from the date of issue or revival on grounds of fraud or non-disclosure of a material fact. After three years from that date, the policy cannot be called in question on any ground.",
+          "plain": "Answering health and habit questions honestly matters; after three years the policy cannot be disputed.",
+          "tags": [
+            "disclosure",
+            "non-disclosure",
+            "honest",
+            "smoking",
+            "medical history",
+            "section 45",
+            "fraud",
+            "chhupana",
+            "three years"
+          ]
+        },
+        {
+          "id": "6.3",
+          "title": "Change of nomination",
+          "kind": "condition",
+          "text": "The policyholder may change the nominee at any time before the policy matures or a claim arises, by giving written notice to the Company. The change takes effect when it is registered by the Company.",
+          "plain": "You can change the nominee at any time by writing to us.",
+          "tags": [
+            "change nominee",
+            "nomination",
+            "update nominee",
+            "beneficiary",
+            "nominee badalna",
+            "add nominee",
+            "written notice",
+            "registration"
+          ]
+        },
+        {
+          "id": "6.4",
+          "title": "Misstatement of age",
+          "kind": "condition",
+          "text": "If the age of the life assured has been understated, the sum assured will be reduced to the amount the premium paid would have bought at the correct age. If the correct age would have made the life assured ineligible, the policy will be cancelled and premiums refunded.",
+          "plain": "If the age given was wrong, the cover is adjusted to match the correct age.",
+          "tags": [
+            "age proof",
+            "wrong age",
+            "date of birth",
+            "misstatement",
+            "age correction",
+            "umar",
+            "DOB",
+            "eligibility"
+          ]
+        },
+        {
+          "id": "6.5",
+          "title": "Tax benefit",
+          "kind": "info",
+          "text": "Premium paid may be eligible for deduction under section 80C of the Income-tax Act, 1961, and the death benefit may be exempt under section 10(10D), subject to the conditions in that law. The Company does not give tax advice.",
+          "plain": "The premium may help you save tax under section 80C; check with your tax adviser.",
+          "tags": [
+            "tax",
+            "80C",
+            "10(10D)",
+            "tax saving",
+            "income tax",
+            "deduction",
+            "tax free",
+            "certificate"
+          ]
+        },
+        {
+          "id": "6.6",
+          "title": "Complaints and grievance redressal",
+          "kind": "info",
+          "text": "A complaint may be raised through the helpline 1800 266 4242 or the website. The Company will acknowledge it within 3 working days and resolve it within 14 days. If not satisfied, the policyholder may approach the Insurance Ombudsman.",
+          "plain": "If you are unhappy, call the helpline; we reply within 14 days.",
+          "tags": [
+            "complaint",
+            "grievance",
+            "ombudsman",
+            "dispute",
+            "escalate",
+            "shikayat",
+            "helpline",
+            "not happy"
+          ]
+        }
+      ]
+    }
+  ]
+}
