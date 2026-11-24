@@ -1,6 +1,6 @@
 ---
 title: Site Agent rollback, roles and the console
-description: Running a Site Agent day to day. Going back to an earlier version, replacing a lost key, who in your tenant may do what, and which steps the console takes that MCP does not.
+description: Running a Site Agent day to day. Going back to an earlier version, replacing a lost key, who in your organization may do what, and which steps the console takes that MCP does not.
 ---
 
 The site is live, kept current and set up the way you want

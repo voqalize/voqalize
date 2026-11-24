@@ -886,11 +886,12 @@ facts:
     reproduce: >-
       grep -rn 'MCP_TOOL_RPM' ../platform/backend/controlplane/app/
     note: >-
-      Per tenant, per minute, on the MCP surface's own key namespace —
+      Per organization, per minute, on the MCP surface's own key namespace —
       charged at the membership check, so it lands only after membership is
       proven and an agent looping over sessions cannot spend the budget a page
-      needs to start a call. The three unscoped tools (`whoami`, `list_tenants`,
-      `create_tenant`) take no `tenant` and are not metered here. 120, down
+      needs to start a call. The three unscoped tools (`whoami`,
+      `list_organizations`, `create_organization`) take no `organization` and
+      are not metered here. 120, down
       from 300 on 2026-08-29: an agent driving tools in a loop is serial by
       construction, and reference/mcp.md said 300 until 2026-09-10.
     forbid:
@@ -1644,7 +1645,7 @@ facts:
       grep -n 'concurrency' ../marketing-website/src/data/pricing.ts
     note: >-
       Docs describe the product as sold and point at the pricing page for each
-      plan's concurrent sessions, minutes and storage. The per-tenant API rate
+      plan's concurrent sessions, minutes and storage. The per-organization API rate
       limit is a `429` with `Retry-After`. Until 2026-09-21 this entry said
       session limits were not enforced during developer preview.
     forbid:

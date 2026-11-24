@@ -88,9 +88,9 @@ either the MCP tools or the console.
 
 ```text
 whoami()
-list_tenants()                       # pick your tenant; create_tenant() if the list is empty
-create_agent(tenant, name="Concierge")
-create_agent_credentials(tenant, agent_id)
+list_organizations()                 # pick your organization; create_organization() if the list is empty
+create_agent(organization, name="Concierge")
+create_agent_credentials(organization, agent_id)
 ```
 
 `create_agent_credentials` puts the agent in Cortex mode and returns
@@ -114,7 +114,7 @@ running: it is your brain, connected and waiting for sessions.
 ### 5. Talk to it
 
 Open the agent's **Playground** in the console. With MCP, its link is the
-`test_url` that `create_agent` and `get_agent(tenant, agent_id)` return. Start a
+`test_url` that `create_agent` and `get_agent(organization, agent_id)` return. Start a
 session, allow the microphone and say something.
 
 You hear the greeting, then your own words after "You said". That echo is the

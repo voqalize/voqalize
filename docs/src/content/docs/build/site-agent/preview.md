@@ -37,7 +37,7 @@ a version to preview. `list_site_invites` lists a site's invites and
 
 ## Preview it yourself
 
-Any member of the tenant can use **Preview in my browser** in the console. That
+Any member of the organization can use **Preview in my browser** in the console. That
 **member invite** lasts 30 days and has no minute budget. It is console-only.
 
 ## Opening the link

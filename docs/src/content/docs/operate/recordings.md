@@ -35,7 +35,7 @@ See [keys and authentication](/build/keys/).
 
 ## What you get back
 
-`get_recordings(tenant, session_id)` returns one entry **per role**. Every
+`get_recordings(organization, session_id)` returns one entry **per role**. Every
 recorded session has the audio roles: `user_audio` (the user's microphone),
 `agent_audio` (what was spoken back) and `audio` (those mixed). Each reports an
 entry whatever happened to it, so you can tell "the agent never spoke" from "the
@@ -87,7 +87,7 @@ rendered file.
 ## Whether the recording arrived
 
 ```python
-get_session(tenant, session_id)["files"]["recording"]
+get_session(organization, session_id)["files"]["recording"]
 # {"status": "uploaded", "reason": null, "size_bytes": 412331, "updated_at": "…"}
 ```
 

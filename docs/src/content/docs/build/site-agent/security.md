@@ -84,7 +84,7 @@ With that agreement the reader may read pages your `robots.txt` asks crawlers
 to skip. Without it, studies obey `robots.txt`, and the reader matches
 `robots.txt` groups by its product token, `VoqalizeSiteReader`.
 
-- **Only a tenant owner or admin can agree.** A site added by anyone else
+- **Only an organization owner or admin can agree.** A site added by anyone else
   obeys `robots.txt` until an owner or admin turns reading on in Settings.
 - **Over MCP the agreement is opt-in.** `create_site` takes it as
   `robots_acknowledgement_version`, the version of the wording agreed to; the
@@ -148,7 +148,7 @@ assistant's judgment.
 
 ### What is kept
 
-Each call is a session in your tenant, kept for 30 days like any other: its
+Each call is a session in your organization, kept for 30 days like any other: its
 events, its transcript and Voqalize's logs. Site Agent calls are not recorded by
 default: the site's agents are created with recording off, and the snippet does
 not ask for it.
