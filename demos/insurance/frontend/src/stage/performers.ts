@@ -54,14 +54,17 @@ async function point(c: MoveContext, el: Element, label: string) {
   await c.ring(el, label);
 }
 
-/** Ring what leads to the next page (a nav link, a card), if it is showing. */
+/**
+ * Ring what leads to the next page (a nav link, a card), if it is on screen at
+ * all; it is brought fully into view first (X1), so a ring is never cut off.
+ */
 async function ringIfShown(c: MoveContext, names: string[], label: string) {
   for (const n of names) {
     const el = document.querySelector(sel(n));
     if (shown(el)) {
       const r = el.getBoundingClientRect();
       if (r.bottom > 0 && r.top < window.innerHeight) {
-        await c.ring(el, label);
+        await point(c, el, label);
         return;
       }
     }
@@ -322,10 +325,12 @@ export const performers: Performers<typeof scene.spec> = {
     const sec = secs.find((x) => x.id === section);
     if (!sec) return c.refuse("section", `the ${type} claim has no section ${section}`, secs.map((x) => x.id));
     await onClaimPage(c);
-    const el = await part(c, `claim-section:${sec.id}`);
-    await point(c, el, sec.title);
     const s = useClaim.getState();
+    // Opened first, so what is shown whole (X1) is the section as it will be.
     openSection(sec.id);
+    const el = await part(c, `claim-section:${sec.id}`);
+    await new Promise((r) => requestAnimationFrame(r));
+    await point(c, el, sec.title);
     if (sec.id === "documents") {
       const missing = claimMissing(s).documents;
       // The uploads still owed, ringed once the section has opened.

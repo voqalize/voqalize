@@ -139,7 +139,7 @@ export function PolicyDocument() {
           </nav>
           <div className="sections">
             {pol.sections.map((s) => (
-              <section key={s.id} className="doc-section" data-stage-part={`section:${s.id}`} aria-labelledby={`sec-${s.id}`}>
+              <section key={s.id} className="doc-section" data-stage-part={`section:${s.id}`} data-stage-group aria-labelledby={`sec-${s.id}`}>
                 <h2 id={`sec-${s.id}`} className="doc-sec-h">
                   <span className="doc-sec-n">{s.number}</span> {s.title}
                 </h2>

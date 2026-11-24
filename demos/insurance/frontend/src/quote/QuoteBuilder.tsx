@@ -74,7 +74,7 @@ export function QuoteBuilder({ product, title }: { product: ProductId; title?: s
         <h3 className="addons-h">
           Add-ons <span className="muted small">{product === "term" ? "riders, priced per year" : "switch on what you need"}</span>
         </h3>
-        <div className="addon-grid">
+        <div className="addon-grid" data-stage-group>
           {spec.addons.map((a) => {
             const isOn = on.includes(a.id);
             const why = q.unavailable[a.id];

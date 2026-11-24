@@ -60,7 +60,7 @@ export function ClaimPage() {
 
 function TypeChooser({ type }: { type: ClaimType | null }) {
   return (
-    <div className={`claim-types${type ? " is-compact" : ""}`} data-stage-part="claim-types" role="radiogroup" aria-label="Claim type">
+    <div className={`claim-types${type ? " is-compact" : ""}`} data-stage-part="claim-types" data-stage-group role="radiogroup" aria-label="Claim type">
       {claimTypes.map((t) => {
         const I = TYPE_ICON[t.id];
         const n = claimPolicies(t.id).length;
@@ -285,7 +285,7 @@ function Documents({ type }: { type: ClaimType }) {
   const s = useClaim();
   const docs = documentsFor(type, s.answers);
   return (
-    <ul className="doc-list" data-stage-part="doc-list">
+    <ul className="doc-list" data-stage-part="doc-list" data-stage-group>
       {docs.map((d) => {
         const up = s.uploads[d.id];
         return (

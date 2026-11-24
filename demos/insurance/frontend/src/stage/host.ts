@@ -12,11 +12,20 @@ import { useVoiceClient } from "./client";
 import { setEventSink } from "./events";
 import { performers } from "./performers";
 import { scene } from "./scene.gen";
+import { showWhole } from "./view";
 
 /** The ring: saffron, the brand's accent, visible on teal and on paper. */
 export const RING_COLOR = "#e5791b";
 
-export const moves = new Moves(new Spotlight({ color: RING_COLOR }), { fixed: [".site-header"] });
+export const moves = new Moves(new Spotlight({ color: RING_COLOR }), {
+  fixed: [".site-header"],
+  // X1: every scroll a move makes shows the target's whole group, inner scroll
+  // areas included, then the window with Stage's own scroll and timing.
+  extend: (c) => {
+    const windowScroll = c.scrollTo;
+    return { scrollTo: (el: Element) => showWhole(el, windowScroll) };
+  },
+});
 scene.registerAll(moves, performers);
 
 let page: StagePage | null = null;
