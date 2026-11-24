@@ -148,7 +148,6 @@ async def demo_from(name: str, build: Callable[[], Brain]) -> AsyncIterator[Demo
                 private_key_pem=keypair.private_pem,
                 session_id=session_id,
                 agent_id=name,
-                organization_id="demo",
             ),
         ),
         session_id=session_id,

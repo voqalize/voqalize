@@ -176,9 +176,8 @@ lifetime is exactly the socket's.
 | Attribute | Type | What it holds |
 |---|---|---|
 | `id` | `str` | The session id Voqalize assigned — the same string in `?session_id=`, in your logs, and in [the call record](/operate/reading-a-call/). |
-| `organization_id` | `str \| None` | The organization the connection's verified token names. `None` behind Cortex and under `allow_unverified=True`. |
-| `tenant_id` | `str \| None` | Deprecated duplicate of `organization_id`, from before the organization was renamed. Reading it raises a `DeprecationWarning`; it is removed in 0.17.0, two weeks after the organization switch. |
-| `agent_id` | `str \| None` | The agent the verified token names, on the same terms. Branch on it when one brain serves several agents. |
+| `agent_id` | `str \| None` | The agent the connection's verified token names: the call's identity (an agent belongs to exactly one organization, which the SDK does not expose). `None` behind Cortex and under `allow_unverified=True`. Branch on it when one brain serves several agents. |
+| `tenant_id` | `str \| None` | Deprecated: use `agent_id`. The SDK no longer exposes the account; until 0.17.0 (two weeks after the organization switch) this still returns the account the verified token names, and reading it raises a `DeprecationWarning`. |
 | `init` | `dict[str, Any]` | The opaque init data handed to Voqalize at connect. Read your own keys out of it; the SDK interprets none of it. |
 | `capabilities` | `frozenset[Capability]` | What this Voqalize said it honours beyond the wire version's baseline, at `SessionStart`. Read the `can_*` properties rather than the set. |
 | `can_cancel_speech` | `bool` | Whether `cancel_speech` is honoured. Fixed for the session's life. |
@@ -470,11 +469,10 @@ warning once per process; see
 `expect_agent` included, and is for local development. A token that fails raises
 `SessionRejected`; close the socket with code 4000, and the session ends at
 once. The claims themselves are in
-[The wire](/reference/wire/). The organization is read from the token's
-`organization_id` claim, falling back to `tenant_id` for a token minted before the
-rename. For two weeks after the organization switch the token carries both
-claims with the same value, so a brain on an SDK older than 0.16.0 still reads
-its organization from `tenant_id`.
+[The wire](/reference/wire/). The SDK identifies a call by its agent:
+`session.agent_id` is globally unique, and an agent belongs to exactly one
+organization. If your brain needs the organization, map agent to organization
+yourself.
 
 `run_session` returns when the session ends or the socket errors, and it never
 closes the channel — your framework owns the socket's lifecycle. See
@@ -520,14 +518,13 @@ you decide where the call lives. See [Cortex relay](/build/hosting/#a-brain-that
 The split is deliberate: the context is always on, the sink is opt-in.
 
 ```python
-def session_context(session_id: str, *, organization_id: str | None = None, agent_id: str = "") -> AbstractContextManager[None]: ...
+def session_context(session_id: str, *, agent_id: str = "") -> AbstractContextManager[None]: ...
 
 def configure_logging(*, level: str = "INFO", json_logs: bool = False) -> None: ...
 ```
 
-**`session_context`** puts `service`, `session_id`, and any `organization_id` /
-`agent_id` into loguru's `extra` via a `ContextVar`. It still accepts
-`tenant_id=` as a deprecated duplicate of `organization_id=`, with a
+**`session_context`** puts `service`, `session_id`, and any `agent_id` into
+loguru's `extra` via a `ContextVar`. It still accepts `tenant_id=`, with a
 `DeprecationWarning`, until 0.17.0. Both entry points already
 wrap every session in it, so a bare `from loguru import logger` anywhere in your
 brain — and in any task it spawns — logs with the call attached, with no argument
@@ -538,9 +535,10 @@ never calls it: it replaces loguru's handlers for the whole process, which a
 library has no business doing to its host. Call it from your own entrypoint if
 you have no loguru configuration; if you do have one, add `{extra}` to your
 format instead. `json_logs=True` writes one JSON object per line with
-`session_id`, `organization_id` and `agent_id` promoted to the top level. For
-two weeks after the organization switch each line also carries `tenant_id`, the
-field's name before the rename, with the same value; it goes in 0.17.0.
+`session_id` and `agent_id` promoted to the top level. Until 0.17.0 (two weeks
+after the organization switch) a verified session's lines also carry the
+deprecated `tenant_id`, so a log query on it keeps matching; move it to
+`agent_id`.
 
 Binding fields onto a handler whose format never prints them looks exactly like
 working, and every one of those fields is computed and thrown away. The

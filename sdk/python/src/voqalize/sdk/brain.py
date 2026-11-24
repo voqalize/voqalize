@@ -254,15 +254,17 @@ class Session:
         #: than this set.
         self.capabilities = capabilities
         identity = verified_identity.get()
-        #: The organization this session was signed for, from the connection's
-        #: verified token. ``None`` when nothing verified one: a brain behind the
-        #: Cortex relay (the relay already admits only your agent's sessions) or
-        #: a ``run_session(..., allow_unverified=True)`` in local development.
-        self.organization_id: str | None = identity.organization_id if identity else None
-        #: The agent this session was signed for, on the same terms as
-        #: :attr:`organization_id`. Branch on it when one brain serves several agents;
-        #: to refuse every other agent, pass ``expect_agent=`` to ``run_session``.
+        #: The agent this session was signed for, from the connection's
+        #: verified token: the call's identity (an agent belongs to exactly one
+        #: account, which the SDK does not expose). ``None`` when nothing
+        #: verified one: a brain behind the Cortex relay (the relay already
+        #: admits only your agent's sessions) or a
+        #: ``run_session(..., allow_unverified=True)`` in local development.
+        #: Branch on it when one brain serves several agents; to refuse every
+        #: other agent, pass ``expect_agent=`` to ``run_session``.
         self.agent_id: str | None = identity.agent_id if identity else None
+        # RENAME-CLEANUP: the account, kept only to serve the deprecated tenant_id.
+        self._tenant_id: str | None = identity.account if identity else None
         # One id per speech unit, session-monotonic. Voqalize never reads it — it
         # comes back on the Finalize naming the unit it belongs to, and nothing
         # on that side compares, orders or formats it.
@@ -289,10 +291,10 @@ class Session:
     # RENAME-CLEANUP: drop the Session.tenant_id alias
     @property
     def tenant_id(self) -> str | None:
-        """Deprecated alias for :attr:`organization_id` (the tenant is now called
-        an organization). Warns; removed in 0.17.0."""
+        """Deprecated: use :attr:`agent_id`; the SDK no longer exposes the
+        account. Warns; removed in 0.17.0."""
         warn_tenant_alias("Session.tenant_id")
-        return self.organization_id
+        return self._tenant_id
 
     # ─── The app ────────────────────────────────────────────────────────
 

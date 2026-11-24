@@ -232,11 +232,12 @@ def _token(
     sid: str,
     *,
     agent_id: str,
-    organization: dict[str, str] | None = None,
+    account: dict[str, str] | None = None,
     **headers,
 ) -> str:
-    """``organization`` is the organization claim(s) to sign: ``organization_id`` alone by
-    default, or ``tenant_id`` (a token from before the rename), or both."""
+    """``account`` is the account claim(s) to sign, as the platform does:
+    ``organization_id`` alone by default, ``tenant_id`` (a platform from before
+    the rename), or both (the brain token during the grace)."""
     now = datetime.now(UTC)
     return jwt.encode(
         {
@@ -245,7 +246,7 @@ def _token(
             "sub": sid,
             "kind": "pygato",
             "agent_id": agent_id,
-            **(organization if organization is not None else {"organization_id": "t-1"}),
+            **(account if account is not None else {"organization_id": "t-1"}),
             "iat": now,
             "exp": now + timedelta(seconds=60),
         },
@@ -259,7 +260,7 @@ class _IdentityBrain(Brain):
     """Greets with what its session says it was signed for."""
 
     async def greet(self, session) -> str:
-        return f"for {session.organization_id}/{session.agent_id}"
+        return f"for {session.agent_id}"
 
     async def on_user_message(self, session, msg):
         yield SpeechStart()
@@ -289,9 +290,7 @@ async def test_expect_agent_refuses_a_token_for_another_agent():
     """The attack this exists for: a genuine token, for someone else's agent."""
     priv, pub = _keypair()
     sid = str(uuid.uuid4())
-    stranger = _token(
-        priv, sid, agent_id="agent-stranger", organization={"organization_id": "t-other"}
-    )
+    stranger = _token(priv, sid, agent_id="agent-stranger", account={"organization_id": "t-other"})
     server_ch, _client_ch = _pipe()
     with pytest.raises(SessionRejected, match="another agent"):
         await run_session(
@@ -313,7 +312,7 @@ async def test_expect_agent_accepts_its_own_agent_and_says_who_on_the_session():
         public_keys=pub,
         expect_agent="agent-mine",
     )
-    assert text == "for t-1/agent-mine"
+    assert text == "for agent-mine"
 
 
 async def test_expect_agent_takes_a_list():
@@ -325,7 +324,7 @@ async def test_expect_agent_takes_a_list():
         public_keys=pub,
         expect_agent=["agent-a", "agent-b"],
     )
-    assert text == "for t-1/agent-b"
+    assert text == "for agent-b"
 
 
 async def test_an_empty_expect_agent_is_a_mistake_not_accept_all():
@@ -351,39 +350,26 @@ async def test_without_expect_agent_any_agent_still_runs(monkeypatch):
             token=f"Bearer {_token(priv, sid, agent_id='anyone')}",
             public_keys=pub,
         )
-        assert text == "for t-1/anyone"
+        assert text == "for anyone"
     assert sum("expect_agent" in w for w in warned) == 1
 
 
 async def test_unverified_sessions_carry_no_identity():
     text = await _greeting(session_id=str(uuid.uuid4()), allow_unverified=True)
-    assert text == "for None/None"
+    assert text == "for None"
 
 
-# ─── tenant → organization: the claim and its deprecated twin ──────────────────
-# RENAME-CLEANUP: this whole section covers the tenant_id fallback and aliases;
-# 0.17.0 keeps only the organization_id-only case.
+# ─── the account: no longer exposed; tenant_id deprecated ─────────────────────
+# RENAME-CLEANUP: this section covers the deprecated tenant_id; 0.17.0 keeps
+# only the absence of any account field.
 
 
-@pytest.mark.parametrize(
-    ("claims", "expected"),
-    [
-        ({"organization_id": "o-1"}, "o-1"),  # a token minted after the rename
-        ({"tenant_id": "o-1"}, "o-1"),  # a token from a platform before the rename
-        ({"organization_id": "o-1", "tenant_id": "o-1"}, "o-1"),  # the brain token, in the grace
-        ({"organization_id": "o-new", "tenant_id": "o-old"}, "o-new"),  # organization_id wins
-    ],
-)
-async def test_the_organization_is_read_from_organization_id_then_tenant_id(claims, expected):
-    priv, pub = _keypair()
-    sid = str(uuid.uuid4())
-    text = await _greeting(
-        session_id=sid,
-        token=f"Bearer {_token(priv, sid, agent_id='agent-mine', organization=claims)}",
-        public_keys=pub,
-        expect_agent="agent-mine",
-    )
-    assert text == f"for {expected}/agent-mine"
+def test_the_session_exposes_no_organization_id():
+    from voqalize.sdk import Session
+    from voqalize.sdk._identity import VerifiedIdentity
+
+    assert not hasattr(Session, "organization_id")
+    assert "organization_id" not in VerifiedIdentity.__dataclass_fields__
 
 
 class _TenantAliasBrain(_IdentityBrain):
@@ -394,21 +380,22 @@ class _TenantAliasBrain(_IdentityBrain):
 
 
 @pytest.mark.parametrize(
-    "claims",
+    ("claims", "expected"),
     [
-        {"organization_id": "o-1", "tenant_id": "o-1"},  # the brain token, in the grace
-        {"organization_id": "o-1"},  # a platform that dropped tenant_id
-        {"tenant_id": "o-1"},  # a platform from before the rename
+        ({"organization_id": "o-1", "tenant_id": "o-1"}, "o-1"),  # the brain token, in the grace
+        ({"organization_id": "o-1"}, "o-1"),  # a platform that dropped tenant_id
+        ({"tenant_id": "o-1"}, "o-1"),  # a platform from before the rename
+        ({"organization_id": "o-new", "tenant_id": "o-old"}, "o-new"),  # organization_id wins
     ],
-    ids=["both-claims", "organization-only", "tenant-only"],
+    ids=["both-claims", "organization-only", "tenant-only", "organization-wins"],
 )
-async def test_a_015_brain_reading_session_tenant_id_gets_the_id_and_one_warning(claims):
+async def test_a_015_brain_reading_session_tenant_id_gets_the_id_and_one_warning(claims, expected):
     """The customer guarantee: brain code written for 0.15 runs unchanged on 0.16,
-    whatever the token carries, and is told once that the name is going."""
+    whatever the token carries, and is told once to move to agent_id."""
     priv, pub = _keypair()
     sid = str(uuid.uuid4())
     server_ch, client_ch = _pipe()
-    token = _token(priv, sid, agent_id="agent-mine", organization=claims)
+    token = _token(priv, sid, agent_id="agent-mine", account=claims)
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
         task = asyncio.create_task(
@@ -429,19 +416,20 @@ async def test_a_015_brain_reading_session_tenant_id_gets_the_id_and_one_warning
             await client_ch.close()
             with contextlib.suppress(*_TEARDOWN_ERRORS):
                 await asyncio.wait_for(task, timeout=2.0)
-    assert any(isinstance(f, SpeechChunkFrame) and f.text == "for o-1/agent-mine" for f in frames)
+    want = f"for {expected}/agent-mine"
+    assert any(isinstance(f, SpeechChunkFrame) and f.text == want for f in frames)
     deprecations = [w for w in caught if issubclass(w.category, DeprecationWarning)]
     assert len(deprecations) == 1, [str(w.message) for w in deprecations]
-    assert "Session.tenant_id" in str(deprecations[0].message)
-    assert "organization_id" in str(deprecations[0].message)
-    assert "removed in 0.17.0" in str(deprecations[0].message)
+    message = str(deprecations[0].message)
+    assert "Session.tenant_id" in message
+    assert "use agent_id; the SDK no longer exposes the account (removed in 0.17.0)" in message
 
 
 def test_verified_identity_tenant_id_is_a_deprecated_alias():
     from voqalize.sdk._identity import VerifiedIdentity
 
-    identity = VerifiedIdentity(organization_id="o-1", agent_id="a-1")
-    with pytest.warns(DeprecationWarning, match="removed in 0.17.0"):
+    identity = VerifiedIdentity(agent_id="a-1", account="o-1")
+    with pytest.warns(DeprecationWarning, match="use agent_id"):
         assert identity.tenant_id == "o-1"
 
 

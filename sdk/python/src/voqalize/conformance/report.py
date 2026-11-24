@@ -25,7 +25,7 @@ import time
 import traceback
 from dataclasses import dataclass, field
 
-from voqalize.sdk._identity import resolve_organization_kwarg
+from voqalize.sdk._identity import deprecated_tenant_kwarg
 
 from .scenarios import CATALOG, Scenario, ScenarioContext
 
@@ -181,7 +181,6 @@ async def run_suite(
     only: list[str] | None = None,
     default_timeout: float = 5.0,
     agent_id: str = "agent_conformance",
-    organization_id: str | None = None,
     tenant_id: str | None = None,  # RENAME-CLEANUP: drop the deprecated tenant_id= keyword
 ) -> Report:
     """Run the catalog against ``brain_url`` and return a :class:`Report`.
@@ -201,21 +200,21 @@ async def run_suite(
     runs unverified — they can't pass without token enforcement); ``only``
     restricts to named scenarios.
 
-    ``organization_id`` names the organization the minted tokens carry (default
-    ``"organization_conformance"``); ``tenant_id=`` is its deprecated alias.
+    ``tenant_id=`` is deprecated (it warns, and is removed in 0.17.0): the SDK
+    identifies a call by ``agent_id`` and no longer exposes the account.
     """
-    organization = resolve_organization_kwarg(
-        "run_suite", organization_id, tenant_id, "organization_conformance"
-    )
+    account = deprecated_tenant_kwarg("run_suite", tenant_id)
 
     def _ctx() -> ScenarioContext:
-        return ScenarioContext(
+        ctx = ScenarioContext(
             brain_url,
             private_key_pem=private_key_pem,
             agent_id=agent_id,
-            organization_id=organization,
             default_timeout=default_timeout,
         )
+        if account is not None:  # RENAME-CLEANUP: drop with the tenant_id= keyword
+            ctx._account = account
+        return ctx
 
     selected = [s for s in CATALOG if only is None or s.name in only]
     reference_reason = _GRAMMAR_OFF

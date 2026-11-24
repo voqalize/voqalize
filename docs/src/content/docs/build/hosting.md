@@ -280,10 +280,12 @@ Your agent's id is the `agent_id` that `create_agent` returned, and `get_agent`
 reports it. `expect_agent` is optional in this release, and leaving it out logs
 a warning once per process. A future release will require it.
 
-Inside the brain, `session.organization_id` and `session.agent_id` hold the organization
-and agent the verified token names. Branch on `agent_id` when one brain serves
-several agents. Both are `None` behind Cortex, which already admits only your
-agent's sessions, and under `allow_unverified=True`.
+Inside the brain, `session.agent_id` holds the agent the verified token names:
+the call's identity. An agent belongs to exactly one organization, and the SDK
+does not expose the organization; map agent to organization yourself if you
+need it. Branch on `agent_id` when one brain serves several agents. It is `None`
+behind Cortex, which already admits only your agent's sessions, and under
+`allow_unverified=True`.
 
 The claims are listed in [the wire reference](/reference/wire/#connection-and-auth),
 and the harness in [Test the brain](/build/testing/) mints the same token for tests.

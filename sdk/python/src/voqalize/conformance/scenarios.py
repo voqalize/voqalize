@@ -30,7 +30,7 @@ import uuid
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 
-from voqalize.sdk._identity import resolve_organization_kwarg
+from voqalize.sdk._identity import deprecated_tenant_kwarg, warn_tenant_alias
 from voqalize.sdk.wire import SpeechChunkFrame, SpeechEndFrame
 
 from . import checks
@@ -54,7 +54,7 @@ from .reference import (
     TWO_SECOND,
     story_opening,
 )
-from .wire_voqalize import DirectConnection, mint_voqalize_token
+from .wire_voqalize import CONFORMANCE_ACCOUNT, DirectConnection, _mint
 
 
 class ScenarioContext:
@@ -69,18 +69,23 @@ class ScenarioContext:
         *,
         private_key_pem: bytes | None,
         agent_id: str = "agent_conformance",
-        organization_id: str | None = None,
         default_timeout: float = 5.0,
         tenant_id: str | None = None,  # RENAME-CLEANUP: drop the deprecated tenant_id= keyword
     ) -> None:
         self.brain_url = brain_url
         self.private_key_pem = private_key_pem
         self.agent_id = agent_id
-        self.organization_id = resolve_organization_kwarg(
-            "ScenarioContext", organization_id, tenant_id, "organization_conformance"
-        )
+        # RENAME-CLEANUP: the account the minted tokens name; drop with tenant_id=.
+        self._account = deprecated_tenant_kwarg("ScenarioContext", tenant_id) or CONFORMANCE_ACCOUNT
         self.default_timeout = default_timeout
         self._drivers: list[VoqalizeDriver] = []
+
+    # RENAME-CLEANUP: drop the ScenarioContext.tenant_id alias
+    @property
+    def tenant_id(self) -> str:
+        """Deprecated: use :attr:`agent_id`; the SDK no longer exposes the account."""
+        warn_tenant_alias("ScenarioContext.tenant_id")
+        return self._account
 
     def new_session_id(self) -> str:
         return f"conf-{uuid.uuid4().hex[:12]}"
@@ -104,11 +109,12 @@ class ScenarioContext:
             if key is None:
                 token: str | None = None
             else:
-                token = mint_voqalize_token(
+                token = _mint(
                     private_key_pem=key,
                     session_id=sid,
                     agent_id=self.agent_id,
-                    organization_id=self.organization_id,
+                    ttl_seconds=60,
+                    account=self._account,
                 )
         elif auth == "none":
             token = None

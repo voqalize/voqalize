@@ -29,10 +29,10 @@ mode — binding fields onto a handler whose format never prints them looks exac
 like working, and every one of those fields is computed and thrown away.
 
 Field names match what Voqalize writes — ``service``, ``session_id``,
-``organization_id``, ``agent_id`` — because being joinable across the whole call is
-the entire point. (``organization_id`` was ``tenant_id`` before 0.16.0. Log
-shippers index on these names, so for the two-week grace after the organization
-switch every line also carries ``tenant_id`` with the same value.)
+``agent_id`` — because being joinable across the whole call is the entire point.
+(Until 0.16.0 lines also carried the account as ``tenant_id``. Log shippers index
+on these names, so for the two-week grace after the organization switch the
+field stays, deprecated, and goes in 0.17.0.)
 """
 
 from __future__ import annotations
@@ -46,7 +46,7 @@ from typing import Any
 
 from loguru import logger
 
-from ._identity import resolve_organization_kwarg
+from ._identity import deprecated_tenant_kwarg
 
 SERVICE_NAME = "brain"
 
@@ -55,7 +55,6 @@ SERVICE_NAME = "brain"
 # own bound fields in `extra`.
 IDENTITY_FIELDS = (
     "session_id",
-    "organization_id",
     "tenant_id",  # RENAME-CLEANUP: drop the tenant_id log field
     "agent_id",
 )
@@ -64,7 +63,6 @@ IDENTITY_FIELDS = (
 def session_context(
     session_id: str,
     *,
-    organization_id: str | None = None,
     agent_id: str = "",
     tenant_id: str | None = None,  # RENAME-CLEANUP: drop the deprecated tenant_id= keyword
 ) -> AbstractContextManager[None]:
@@ -75,19 +73,18 @@ def session_context(
     useless as a join key: Voqalize and the session's own records carry the full
     UUID, so a prefix matches nothing on the other side of the query.
 
-    ``tenant_id=`` is a deprecated alias for ``organization_id=`` (it warns, and is
-    removed in 0.17.0).
+    ``tenant_id=`` is deprecated (it warns): use ``agent_id``; the SDK no longer
+    exposes the account. It is removed in 0.17.0.
     """
-    organization = resolve_organization_kwarg("session_context", organization_id, tenant_id, "")
-    return _session_context(session_id, organization_id=organization, agent_id=agent_id)
+    tenant = deprecated_tenant_kwarg("session_context", tenant_id)
+    return _session_context(session_id, tenant_id=tenant or "", agent_id=agent_id)
 
 
 @contextmanager
-def _session_context(session_id: str, *, organization_id: str, agent_id: str) -> Generator[None]:
+def _session_context(session_id: str, *, agent_id: str, tenant_id: str = "") -> Generator[None]:
     fields: dict[str, str] = {"service": SERVICE_NAME, "session_id": session_id}
-    if organization_id:
-        fields["organization_id"] = organization_id
-        fields["tenant_id"] = organization_id  # RENAME-CLEANUP: drop the tenant_id log field
+    if tenant_id:  # RENAME-CLEANUP: drop the tenant_id log field
+        fields["tenant_id"] = tenant_id
     if agent_id:
         fields["agent_id"] = agent_id
     with logger.contextualize(**fields):

@@ -17,67 +17,54 @@ kept for the history, and nothing installable was ever cut from them.
 
 ## 0.16.0
 
-The tenant is now called an **organization**, in the SDK as everywhere else in
-Voqalize. This is a rename and nothing more: no behaviour changes, nothing on
-the wire changes, and every brain written for 0.15.0 runs unchanged — it only
-starts seeing a `DeprecationWarning` where it says `tenant_id`.
+**The SDK identifies a call by its agent.** `session.agent_id` is globally
+unique, and an agent belongs to exactly one organization (what Voqalize used to
+call a tenant). The SDK no longer exposes that account: every `tenant_id` is
+deprecated, and nothing replaces it. No behaviour changes, nothing on the wire
+changes, and every brain written for 0.15.0 runs unchanged; it only starts
+seeing a `DeprecationWarning` where it says `tenant_id`.
 
 **Migrate within two weeks of the organization switch.** For two weeks after
 Voqalize switches to organizations, the token it signs on every brain
-connection carries both the `organization_id` and the `tenant_id` claim with
-the same value, and this release keeps every `tenant_id` name below as a
-deprecated alias. Both go in 0.17.0, two weeks after the switch. Before then,
-upgrade to 0.16.0 and rename what your brain reads:
+connection still carries the old `tenant_id` claim, and this release keeps
+every `tenant_id` below working. Both go in 0.17.0, two weeks after the switch.
+Before then, move whatever reads the account to the agent:
 
 ```python
 # before (0.15.0)
-org = session.tenant_id
-with session_context(session_id, tenant_id=org):
+account = session.tenant_id
+with session_context(session_id, tenant_id=account):
     ...
 
 # after (0.16.0)
-org = session.organization_id
-with session_context(session_id, organization_id=org):
+agent = session.agent_id
+with session_context(session_id, agent_id=agent):
     ...
 ```
+
+If your brain needs the organization, keep your own map from agent id to
+organization: an agent never moves between organizations.
 
 A brain still on 0.15.0 or older keeps working through those two weeks (it
 reads `tenant_id` from the token); after them its `session.tenant_id` is empty.
 
-### Changed
-
-- **`Session.organization_id`** replaces `Session.tenant_id`: the organization
-  the connection's verified token names. `None` on the same terms as before.
-- **`VerifiedIdentity.organization_id`** replaces `VerifiedIdentity.tenant_id`.
-- **`session_context(session_id, *, organization_id=..., agent_id=...)`**
-  replaces the `tenant_id=` keyword, and every session log line carries
-  `organization_id` (`configure_logging(json_logs=True)` promotes it to the top
-  level, as it did `tenant_id`). During the two weeks each line also carries
-  `tenant_id` with the same value, so a log query or dashboard that filters on
-  `tenant_id` keeps matching; move it to `organization_id` before 0.17.0.
-- **Token verification reads the `organization_id` claim**, and falls back to
-  `tenant_id` when a token has none, so a token signed before the rename still
-  names its organization.
-- **`voqalize.conformance`**: `run_suite(organization_id=...)`,
-  `ScenarioContext(organization_id=...)` and
-  `mint_voqalize_token(organization_id=...)`, defaulting to
-  `"organization_conformance"`. A minted token carries **both**
-  `organization_id` and `tenant_id`, the same shape Voqalize signs during the
-  two weeks.
-
 ### Deprecated
 
-Every `tenant_id` below still works, and **is removed in 0.17.0, two weeks
-after the organization switch**:
+Every `tenant_id` below warns ("use agent_id; the SDK no longer exposes the
+account") and **is removed in 0.17.0, two weeks after the organization switch**:
 
-- `Session.tenant_id` and `VerifiedIdentity.tenant_id` are read-only aliases
-  for `organization_id` that warn on every read.
-- `session_context(tenant_id=...)`, `run_suite(tenant_id=...)`,
-  `ScenarioContext(tenant_id=...)` and `mint_voqalize_token(tenant_id=...)`
-  warn and map to `organization_id`. Passing both keywords with different
-  values raises `TypeError`.
-- The `tenant_id` log field, the `tenant_id` claim fallback, and the
-  `tenant_id` claim in tokens the conformance kit mints.
+- `Session.tenant_id` (and the internal `VerifiedIdentity.tenant_id`). Its value
+  is the token's `organization_id` claim, falling back to `tenant_id`, so it
+  stays right whichever claims the platform sends.
+- `session_context(tenant_id=...)`.
+- The `tenant_id` log field. A verified session's lines still carry it (log
+  shippers index on it), alongside `session_id` and `agent_id`; move any log
+  query or dashboard that filters on it to `agent_id`.
+- `run_suite(tenant_id=...)`, `ScenarioContext(tenant_id=...)`,
+  `ScenarioContext.tenant_id` and `mint_voqalize_token(tenant_id=...)`. The
+  conformance kit has no account parameter: its tokens name a fixed internal
+  account (`organization_id`, plus `tenant_id` for the two weeks), mirroring
+  the claims Voqalize signs.
 
 ## 0.15.0
 
