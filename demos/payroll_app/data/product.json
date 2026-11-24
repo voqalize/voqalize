@@ -1,0 +1,306 @@
+{
+  "_about": "Paynora, a fictional Indian HRMS and payroll product. The ONE source of brand, modules, plans and tax rules for both demos (payroll_site and payroll_app). Hand-authored; build_data.py copies it to demos/payroll_site/data/product.json and the e2e tests fail if the copy drifts. Every company, person and number here is invented.",
+  "brand": {
+    "name": "Paynora",
+    "legal_name": "Paynora Software Pvt. Ltd.",
+    "tagline": "Payroll that gets Indian tax right.",
+    "one_liner": "HR and payroll for Indian companies of 20 to 1,000 people: payroll runs, leave, reimbursements, payslips and income tax in one place.",
+    "domain_display": "paynora.example",
+    "support_email": "help@paynora.example",
+    "sales_email": "sales@paynora.example",
+    "hq": "Bengaluru",
+    "palette": {
+      "primary": "#0B6E5F",
+      "primary_dark": "#08524A",
+      "primary_soft": "#E3F1EE",
+      "accent": "#E8A33D",
+      "accent_soft": "#FBF0DC",
+      "ink": "#13212B",
+      "ink_muted": "#5A6873",
+      "paper": "#F7F5F0",
+      "surface": "#FFFFFF",
+      "line": "#E2DED6",
+      "positive": "#1F8A4C",
+      "warning": "#B7791F",
+      "negative": "#C2413A"
+    },
+    "type": {
+      "display": "Fraunces",
+      "ui": "Plus Jakarta Sans",
+      "numbers": "JetBrains Mono",
+      "note": "Numbers in tables use tabular figures. Install with @fontsource-variable/fraunces, @fontsource-variable/plus-jakarta-sans, @fontsource-variable/jetbrains-mono."
+    },
+    "logo_svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 40 40\" role=\"img\" aria-label=\"Paynora\"><rect width=\"40\" height=\"40\" rx=\"10\" fill=\"#0B6E5F\"/><path fill-rule=\"evenodd\" d=\"M11 10h10.2a6.6 6.6 0 0 1 0 13.2h-5.9V30H11zm4.3 4.1v5h5.6a2.5 2.5 0 0 0 0-5z\" fill=\"#fff\"/><circle cx=\"28.5\" cy=\"27.5\" r=\"3.2\" fill=\"#E8A33D\"/></svg>"
+  },
+  "modules": [
+    {
+      "id": "payroll",
+      "name": "Payroll runs",
+      "short": "Run payroll for every state in one pass, with LOP, arrears and TDS worked out before you approve.",
+      "points": ["Monthly runs with a review step before you pay", "Loss-of-pay from approved leave flows in automatically", "Bank transfer file and payment register", "Arrears, bonuses and one-time payments"],
+      "min_plan": "starter",
+      "icon": "wallet"
+    },
+    {
+      "id": "employees",
+      "name": "Employee records",
+      "short": "One record per person: job, salary structure, bank, PAN, UAN and documents.",
+      "points": ["Import from a spreadsheet in minutes", "Salary structures by grade", "Joining and exit with full-and-final settlement", "Org chart by department and location"],
+      "min_plan": "starter",
+      "icon": "users"
+    },
+    {
+      "id": "leave",
+      "name": "Leave tracking",
+      "short": "Leave policies, balances, approvals and holiday calendars per location.",
+      "points": ["Earned, casual and sick leave with monthly accrual", "Manager approvals from email or the app", "Leave without balance becomes loss-of-pay in payroll", "Location-wise holiday calendars"],
+      "min_plan": "starter",
+      "icon": "calendar"
+    },
+    {
+      "id": "payslips",
+      "name": "Payslips and self-service",
+      "short": "Clear payslips every month, and a self-service portal where employees find them.",
+      "points": ["Payslips that explain every line", "Employees see balances, payslips and tax in one place", "Password-protected PDF by email", "Year-to-date figures on every slip"],
+      "min_plan": "starter",
+      "icon": "receipt"
+    },
+    {
+      "id": "tax",
+      "name": "Income tax and TDS",
+      "short": "TDS on salary under the old or new regime, recalculated every month, with Form 16 at year end.",
+      "points": ["Old vs new regime comparison for every employee", "Monthly TDS spread over the remaining months", "Form 16 Part B generated for every employee", "Quarterly 24Q data ready to file"],
+      "min_plan": "starter",
+      "icon": "landmark"
+    },
+    {
+      "id": "compliance",
+      "name": "PF, ESI and PT",
+      "short": "Provident fund, ESI and professional tax worked out by state, with challans and returns data.",
+      "points": ["PF on the statutory wage ceiling or on full basic", "ESI for employees earning up to the ESI ceiling", "Professional tax by state slab", "ECR file for PF every month"],
+      "min_plan": "starter",
+      "icon": "shield"
+    },
+    {
+      "id": "reimbursements",
+      "name": "Reimbursements",
+      "short": "Claims with bills, approvals and payout with the next salary.",
+      "points": ["Claim from phone with a photo of the bill", "Category limits per grade", "Approve, send back for a fix, or reject", "Paid with the next payroll run"],
+      "min_plan": "growth",
+      "icon": "receipt-indian-rupee"
+    },
+    {
+      "id": "declarations",
+      "name": "Investment declarations and proofs",
+      "short": "Employees declare 80C, 80D, HRA rent and more; you verify proofs and TDS updates itself.",
+      "points": ["Declaration window at the start of the year", "Proof submission window before the last quarter", "Verify or reject each proof line", "TDS recalculated from verified amounts"],
+      "min_plan": "growth",
+      "icon": "file-check"
+    },
+    {
+      "id": "multi_entity",
+      "name": "Multiple companies",
+      "short": "Run payroll for several legal entities from one login.",
+      "points": ["Separate PF, ESI and TAN per entity", "Group-level reports", "Shared employee directory"],
+      "min_plan": "scale",
+      "icon": "building"
+    },
+    {
+      "id": "api",
+      "name": "API and single sign-on",
+      "short": "Connect your HR system, accounting and SSO.",
+      "points": ["REST API and webhooks", "SAML single sign-on", "Accounting journal export"],
+      "min_plan": "scale",
+      "icon": "plug"
+    }
+  ],
+  "plans": [
+    {
+      "id": "starter",
+      "name": "Starter",
+      "price_per_employee_month": 79,
+      "minimum_month": 2499,
+      "max_employees": 50,
+      "setup_fee": 0,
+      "summary": "For teams up to 50 people who want payroll, leave and tax done right.",
+      "includes_modules": ["payroll", "employees", "leave", "payslips", "tax", "compliance"],
+      "support": "Email and chat support, Monday to Saturday"
+    },
+    {
+      "id": "growth",
+      "name": "Growth",
+      "price_per_employee_month": 119,
+      "minimum_month": 5999,
+      "max_employees": 300,
+      "setup_fee": 15000,
+      "summary": "For growing companies across states, with reimbursements and investment proofs.",
+      "includes_modules": ["payroll", "employees", "leave", "payslips", "tax", "compliance", "reimbursements", "declarations"],
+      "support": "Email, chat and phone support, plus a named onboarding manager"
+    },
+    {
+      "id": "scale",
+      "name": "Scale",
+      "price_per_employee_month": 169,
+      "minimum_month": 39999,
+      "max_employees": 1000,
+      "setup_fee": 50000,
+      "summary": "For larger or multi-entity companies that need APIs, SSO and a payroll specialist.",
+      "includes_modules": ["payroll", "employees", "leave", "payslips", "tax", "compliance", "reimbursements", "declarations", "multi_entity", "api"],
+      "support": "A dedicated payroll specialist and priority support"
+    }
+  ],
+  "pricing_rules": {
+    "currency": "INR",
+    "gst_pct": 18,
+    "annual_discount_pct": 15,
+    "setup_fee_waived_on_annual": true,
+    "above_max_employees": "Above 1,000 employees we quote a custom price.",
+    "plan_choice": "The plan is the cheapest one that covers both the headcount (max_employees) and every module asked for (min_plan). The monthly fee is headcount x price per employee, or the plan minimum if that is higher. Prices exclude GST.",
+    "addons": [
+      {
+        "id": "filing",
+        "name": "Statutory filing service",
+        "price_per_employee_month": 20,
+        "available_on": ["growth", "scale"],
+        "summary": "We file PF ECR, ESI and PT returns and quarterly TDS returns (24Q) for you."
+      }
+    ],
+    "free_trial_days": 14
+  },
+  "customers": [
+    {
+      "id": "banyan-bay",
+      "name": "Banyan & Bay Foods",
+      "industry": "D2C packaged foods",
+      "city": "Bengaluru",
+      "employees": 56,
+      "states": 4,
+      "plan": "growth",
+      "quote": "Proof season used to eat our whole February. This year the team uploaded proofs, we verified them in two afternoons and TDS fixed itself.",
+      "quote_by": "Meghna Rao, HR Manager",
+      "metric": "Payroll closes in 1 day instead of 4"
+    },
+    {
+      "id": "meridian",
+      "name": "Meridian Tool Works",
+      "industry": "Precision manufacturing",
+      "city": "Pune",
+      "employees": 240,
+      "states": 2,
+      "plan": "growth",
+      "quote": "Half our people are on ESI and the plant runs shifts. Loss-of-pay from attendance used to be a spreadsheet war. Now it is a review screen.",
+      "quote_by": "Sunil Deshpande, Finance Controller",
+      "metric": "Zero ESI mismatches in 9 months"
+    },
+    {
+      "id": "saffronline",
+      "name": "Saffronline Travels",
+      "industry": "Travel agency",
+      "city": "Jaipur",
+      "employees": 38,
+      "states": 1,
+      "plan": "starter",
+      "quote": "We moved from our accountant's Excel sheet in a week. Payslips finally make sense to the team.",
+      "quote_by": "Anjali Rathore, Founder",
+      "metric": "Moved over in 6 days"
+    },
+    {
+      "id": "kestrel",
+      "name": "Kestrel Health Labs",
+      "industry": "Diagnostics",
+      "city": "Hyderabad",
+      "employees": 410,
+      "states": 5,
+      "plan": "scale",
+      "quote": "Five states, five PT slabs, two entities. One payroll run.",
+      "quote_by": "Farhan Siddiqui, Head of People",
+      "metric": "2 entities, 1 run"
+    },
+    {
+      "id": "inkwell",
+      "name": "Inkwell Learning",
+      "industry": "Education technology",
+      "city": "Kochi",
+      "employees": 120,
+      "states": 3,
+      "plan": "growth",
+      "quote": "The regime comparison alone cut our tax-season questions in half.",
+      "quote_by": "Leena Thomas, HR Lead",
+      "metric": "50% fewer tax tickets"
+    }
+  ],
+  "tax": {
+    "_about": "Indian income tax on salary for ONE stated year, read by the Python engine (payroll_app/backend/payroll_engine.py) and its TypeScript twin. Well-established rules only; the demos call it illustrative.",
+    "fy": "2025-26",
+    "ay": "2026-27",
+    "act": "Income-tax Act, 1961",
+    "fy_label": "FY 2025-26 (AY 2026-27)",
+    "disclaimer": "Illustrative calculation for FY 2025-26 under the Income-tax Act, 1961, for a resident individual below 60 with salary income only. Not tax advice.",
+    "regimes": {
+      "new": {
+        "label": "New regime (section 115BAC, the default)",
+        "slabs": [[0, 400000, 0], [400000, 800000, 5], [800000, 1200000, 10], [1200000, 1600000, 15], [1600000, 2000000, 20], [2000000, 2400000, 25], [2400000, null, 30]],
+        "standard_deduction": 75000,
+        "rebate_87a": { "income_limit": 1200000, "max": 60000, "marginal_relief": true },
+        "allows": ["standard_deduction"]
+      },
+      "old": {
+        "label": "Old regime",
+        "slabs": [[0, 250000, 0], [250000, 500000, 5], [500000, 1000000, 20], [1000000, null, 30]],
+        "standard_deduction": 50000,
+        "rebate_87a": { "income_limit": 500000, "max": 12500, "marginal_relief": false },
+        "allows": ["standard_deduction", "professional_tax", "hra", "lta", "80C", "80CCD1B", "80D", "24b"]
+      }
+    },
+    "cess_pct": 4,
+    "rounding": "Total income rounded to the nearest ₹10 (section 288A); tax payable rounded to the nearest ₹10 (section 288B).",
+    "surcharge_note": "Surcharge applies only above ₹50 lakh of income. Every sample employee is below that, so none is shown.",
+    "limits": {
+      "80C": 150000,
+      "80CCD1B": 50000,
+      "80D_self": 25000,
+      "80D_self_senior": 50000,
+      "80D_parents": 25000,
+      "80D_parents_senior": 50000,
+      "80D_checkup_within": 5000,
+      "24b": 200000,
+      "professional_tax": 2500
+    },
+    "hra": {
+      "rule": "Exempt HRA is the least of: HRA received; rent paid minus 10% of basic; 50% of basic in Mumbai, Delhi, Kolkata or Chennai, 40% elsewhere.",
+      "metro_cities": ["Mumbai", "New Delhi", "Kolkata", "Chennai"],
+      "metro_pct": 50,
+      "non_metro_pct": 40,
+      "rent_minus_basic_pct": 10,
+      "landlord_pan_above": 100000
+    },
+    "lta": {
+      "rule": "Leave travel allowance is exempt up to the actual fare for travel within India, for two journeys in a block of four calendar years. Old regime only."
+    },
+    "sections": {
+      "80C": "Investments and payments such as EPF (employee share), PPF, ELSS, life insurance premium, children's tuition fees and home-loan principal, up to ₹1,50,000 in all.",
+      "80CCD1B": "Your own NPS contribution, up to ₹50,000, over and above 80C.",
+      "80D": "Health insurance premium: up to ₹25,000 for self, spouse and children (₹50,000 if you are a senior citizen), and up to ₹25,000 more for parents (₹50,000 if they are senior citizens). Preventive check-ups up to ₹5,000 count within these limits.",
+      "24b": "Interest on a home loan for a self-occupied house, up to ₹2,00,000.",
+      "hra": "House rent allowance exemption for rent you pay. A landlord's PAN is needed when rent is above ₹1,00,000 a year.",
+      "lta": "Leave travel allowance for domestic travel, on the actual fare.",
+      "standard_deduction": "A flat deduction from salary: ₹75,000 in the new regime, ₹50,000 in the old.",
+      "professional_tax": "State professional tax deducted from salary, up to ₹2,500 a year. Old regime only.",
+      "87A": "A rebate that brings tax to nil when total income is up to ₹12,00,000 in the new regime (rebate up to ₹60,000, with marginal relief just above) or ₹5,00,000 in the old regime (up to ₹12,500).",
+      "tds": "TDS on salary (section 192): the employer estimates the year's tax and deducts it evenly over the months left, recalculating every month as salary, leave or declarations change.",
+      "form16": "Form 16 is the certificate of TDS on salary. Part A lists the tax deducted and deposited; Part B shows how salary, exemptions and deductions add up to the tax. Employers issue it by 15 June after the year ends."
+    },
+    "regime_choice": "An employee tells the employer which regime to use for TDS at the start of the year; without a choice, the new regime applies. The final choice is made in the income-tax return.",
+    "pf": { "wage_ceiling": 15000, "employee_pct": 12, "employer_pct": 12, "note": "12% of basic each from employee and employer, here on basic capped at the ₹15,000 wage ceiling." },
+    "esi": { "gross_ceiling": 21000, "employee_pct": 0.75, "employer_pct": 3.25, "note": "Applies when monthly gross is up to ₹21,000. Contributions rounded up to the next rupee." },
+    "professional_tax": {
+      "note": "Illustrative state slabs on monthly gross salary for FY 2025-26.",
+      "states": {
+        "Karnataka": { "slabs": [[0, 24999, 0], [25000, null, 200]], "february": 300 },
+        "Maharashtra": { "slabs": [[0, 7500, 0], [7501, 10000, 175], [10001, null, 200]], "slabs_women": [[0, 25000, 0], [25001, null, 200]], "february": 300 },
+        "Telangana": { "slabs": [[0, 15000, 0], [15001, 20000, 150], [20001, null, 200]] },
+        "Delhi": { "slabs": [[0, null, 0]], "none": true }
+      }
+    }
+  }
+}
