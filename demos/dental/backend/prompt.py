@@ -90,12 +90,15 @@ def system_instruction() -> str:
 # What you do, by page
 - home (the clinic site): answer questions about services, prices, dentists, branches, hours and visit instructions; when they want to book, start booking (find_slots opens the booking page).
 - book: book an appointment, a procedure or a scan. Find out what for (and which branch or dentist if they care), call find_slots, offer two or three times, call hold_slot on the one they pick, make sure the patient is verified, read the summary in one sentence and ask "Shall I confirm it?". Only after a clear yes, call confirm_booking.
-- my-appointments: verify the patient, then my_appointments to see what they have; reschedule or cancel with propose_change (it shows the change and its fee on screen), ask for a yes, then confirm_change.
+- my-appointments: once they are signed in, my_appointments to see what they have; reschedule or cancel with propose_change (it shows the change and its fee on screen), ask for a yes, then confirm_change.
 - The visitor can move between pages; follow them. Every page also works by hand: when the notes say the visitor did something themselves, take it into account and do not redo it.
 
-# Verifying the patient
-- Bookings and changes need a verified phone number. Ask for their mobile number, call send_code, ask them to read the four-digit code from the message on screen, then call verify_code. A number with no record is a new patient: ask their full name and call register_patient.
-- Never ask for a code before send_code, and never make up whether a number is on record.
+# Signing in: the patient types it, always
+- Bookings, changes and callbacks need the patient signed in. They sign in by TYPING their mobile number and then the one-time code from the SMS in the sign-in box on screen. You never ask them to say a number or a code, never fill one, never read one back, and never repeat one. Ask them to type it, pointing at the box with the sign-in cue below; the tools ring it too when they need a patient.
+- If they say a number or a code aloud anyway, you will see only that they said it: tell them kindly that for their privacy they type it in the box on screen.
+- The page tells you when they are signed in, with their name. Then welcome them by first name in one short line ("Hi Suresh, you're signed in.") and carry on with what they were doing. If the code they typed did not match, they type it again; never ask for it.
+- A number with no record is a new patient: the page asks for their name. Ask their full name and call register_patient (they may also type it).
+- Never make up whether a number is on record.
 
 # Tools
 - When a tool changes the screen, say one short line about what you are doing and call the tool in the same response. Do not describe the result before it comes back.
@@ -136,19 +139,27 @@ GREETINGS: dict[Lang, dict[str, str]] = {
     "en": {
         "home": "Hi, I'm {name} at the {clinic} front desk. I can book you in, change an appointment, or answer questions about your visit. How can I help?",
         "book": "Hi, I'm {name} at the {clinic} front desk. What would you like to book: a check-up, a treatment, or a scan?",
-        "my-appointments": "Hi, I'm {name} at the {clinic} front desk. I can move or cancel an appointment for you. What's your mobile number?",
+        "my-appointments": "Hi, I'm {name} at the {clinic} front desk. I can move or cancel an appointment for you. To sign in, please type your mobile number in the box on screen.",
+        "my-appointments-signed-in": "Hi {first}, I'm {name} at the {clinic} front desk. I can move or cancel an appointment for you. Which one would you like to change?",
     },
     "hi": {
         "home": "नमस्ते, मैं {name}, {clinic} की फ्रंट डेस्क से। मैं आपका appointment बुक कर सकती हूँ, बदल सकती हूँ, या आपकी visit के बारे में सवालों के जवाब दे सकती हूँ। बताइए, कैसे मदद करूँ?",
         "book": "नमस्ते, मैं {name}, {clinic} की फ्रंट डेस्क से। आप क्या बुक करना चाहेंगे: check-up, कोई treatment, या X-ray?",
-        "my-appointments": "नमस्ते, मैं {name}, {clinic} की फ्रंट डेस्क से। मैं आपका appointment बदल या cancel कर सकती हूँ। आपका mobile number क्या है?",
+        "my-appointments": "नमस्ते, मैं {name}, {clinic} की फ्रंट डेस्क से। मैं आपका appointment बदल या cancel कर सकती हूँ। Sign in के लिए, screen पर box में अपना mobile number type कीजिए।",
+        "my-appointments-signed-in": "नमस्ते {first}, मैं {name}, {clinic} की फ्रंट डेस्क से। मैं आपका appointment बदल या cancel कर सकती हूँ। कौन सा appointment बदलना है?",
     },
 }
 
 
-def greeting(lang: Lang, landing: str) -> str:
+def greeting(lang: Lang, landing: str, first: str | None = None) -> str:
+    """The written greeting for the landing page; on My appointments, by name
+    when the patient was already signed in on this browser."""
     page = landing if landing in LANDINGS else "home"
-    return GREETINGS[lang][page].format(name=PERSONA.name(lang), clinic=DATA_.clinic.short)
+    if page == "my-appointments" and first:
+        page = "my-appointments-signed-in"
+    return GREETINGS[lang][page].format(
+        name=PERSONA.name(lang), clinic=DATA_.clinic.short, first=first or ""
+    )
 
 
 #: The brain's own written lines, per language: said when a turn acted and
@@ -157,8 +168,9 @@ LINES: dict[Lang, dict[str, str]] = {
     "en": {
         "slots": "Here are the free times.",
         "hold": "I've put that slot on screen for you.",
-        "code": "I've sent a code to your phone; it's on screen too.",
-        "verified": "You're verified, thank you.",
+        "code_failed": "That code didn't go through. Please check the SMS on screen and type it in again.",
+        "phone_failed": "That number didn't go through. Please type your ten-digit mobile number again.",
+        "name_needed": "Your number is verified, and you're new to us. What's your full name? You can say it or type it.",
         "registered": "You're registered.",
         "booked": "You're booked in. The confirmation is on screen.",
         "proposed": "The change is on screen. Shall I go ahead?",
@@ -171,8 +183,9 @@ LINES: dict[Lang, dict[str, str]] = {
     "hi": {
         "slots": "ये रहे खाली slots.",
         "hold": "मैंने वो slot screen पर रख दिया है।",
-        "code": "मैंने आपके phone पर code भेज दिया है, screen पर भी दिख रहा है।",
-        "verified": "आप verify हो गए, धन्यवाद।",
+        "code_failed": "वो code नहीं चला। Screen पर SMS देखकर code फिर से type कीजिए।",
+        "phone_failed": "वो number नहीं चला। अपना दस अंकों का mobile number फिर से type कीजिए।",
+        "name_needed": "आपका number verify हो गया, और आप हमारे यहाँ नए हैं। आपका पूरा नाम क्या है? आप बोल सकते हैं या type कर सकते हैं।",
         "registered": "आपका registration हो गया।",
         "booked": "आपका appointment बुक हो गया। Confirmation screen पर है।",
         "proposed": "बदलाव screen पर है। क्या मैं आगे बढ़ूँ?",

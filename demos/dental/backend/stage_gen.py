@@ -13,10 +13,10 @@ from voqalize.sdk.stage import Move, MoveClass, MoveSet, StageSpec, load_spec
 #: The spec itself, carried here so the brain never reads the JSON at run
 #: time (and a deploy that ships this file ships the spec with it).
 SPEC: StageSpec = load_spec(
-    '{"id":"dantika_front_desk","languages":["en","hi"],"moves":[{"args":[{"doc":"The page: home, book or my-appointments.","enum":["home","book","my-appointments"],"name":"page"}],"claims":["opening the booking page","taking you to","opening your appointments"],"class":"navigate","doc":"Open one of the clinic\'s pages, ringing its link in the header first.","id":"site.go","objects":["page","booking page","appointments page"],"say":"{go: book} as you start the sentence about that page: \\"Let\'s open the booking page.\\"","verb":"go"},{"args":[{"doc":"A part of the page by name: services, dentists, branches, visit-info, payment, insurance, parking, eating, aftercare, emergency, hours, policy, calendar, summary, appointments.","name":"thing"}],"class":"look","doc":"Scroll to a part of the page and ring it; nothing changes. Opens the home page first for a part only it has.","id":"site.show","say":"{show: parking} at the start of the sentence that talks about it; it scrolls into view and is ringed.","verb":"show"},{"args":[{"doc":"The service\'s id from clinic.json: consult, checkup, emergency, scaling, filling, rct, extraction, wisdom, aligner, whitening, implant, iopa, opg, cbct.","name":"service_id"},{"doc":"The day shown, YYYY-MM-DD.","name":"date"},{"doc":"indiranagar or hsr; none for both.","name":"branch_id","optional":true},{"doc":"The dentist\'s id; none for a scan or for any dentist.","name":"dentist_id","optional":true},{"default":"day","doc":"The calendar\'s view.","enum":["day","week"],"name":"view"}],"claims":["checking the calendar","looking at the slots","pulling up the slots"],"class":"reversible","doc":"On the booking page: pick the service, branch and dentist as the visitor would, put that dentist\'s (or the imaging room\'s) calendar on the day, and ring the free slots. Opens the booking page first.","id":"book.slots","objects":["slots","calendar","times","availability"]},{"args":[{"name":"service_id"},{"name":"branch_id"},{"doc":"YYYY-MM-DD.","name":"date"},{"doc":"HH:MM, 24-hour.","name":"time"},{"name":"dentist_id","optional":true},{"doc":"The chair the slot was computed on.","name":"chair_id","optional":true},{"doc":"The imaging room, for a scan.","name":"resource_id","optional":true},{"doc":"A root canal\'s later sittings, each \'YYYY-MM-DD HH:MM branch_id chair_id\'.","name":"sittings","optional":true,"type":"array"}],"claims":["holding the slot","picking that slot","selecting the slot"],"class":"reversible","doc":"Select one free slot on the calendar and show the booking summary (price, preparation, sittings) with its Confirm button. Nothing is booked yet. Refused when the slot is no longer free.","id":"book.hold","objects":["slot","time","appointment"]},{"args":[{"doc":"The id the brain minted, DT-24117.","name":"booking_id"},{"doc":"The verified patient, P-1001, or the new patient\'s id.","name":"patient_id"},{"name":"service_id"},{"name":"branch_id"},{"name":"date"},{"name":"time"},{"name":"dentist_id","optional":true},{"name":"chair_id","optional":true},{"name":"resource_id","optional":true},{"name":"sittings","optional":true,"type":"array"},{"doc":"The ids of the later sittings, in order.","name":"sitting_ids","optional":true,"type":"array"}],"claims":["booking it now","confirming your appointment","confirming the booking"],"class":"confirmed","doc":"Book the held slot, after the patient\'s spoken yes: the appointment goes on the calendar and the confirmation shows. Refused when nothing is held, the patient is not verified, or the slot was taken.","id":"book.confirm","objects":["booking","appointment"]},{"args":[{"doc":"The phone number as said; the page keeps the last ten digits.","name":"phone"}],"claims":["sending you a code","sending the code"],"class":"reversible","doc":"Fill the phone number in the sign-in panel and send the one-time code (a demo SMS shown on screen).","id":"patient.phone","objects":["code","otp","phone number"]},{"args":[{"doc":"The four digits the patient read out.","name":"code"}],"claims":["verifying the code","checking the code"],"class":"reversible","doc":"Fill the one-time code and verify it. Refused when it does not match.","id":"patient.otp","objects":["code","otp"]},{"args":[{"doc":"A new patient\'s full name, as said.","name":"name"}],"claims":["adding your name","registering you"],"class":"reversible","doc":"For a phone number with no record: fill the new patient\'s name and register them.","id":"patient.name","objects":["name","registration"]},{"args":[{"doc":"DT-24051.","name":"appointment_id"}],"class":"look","doc":"On My appointments: scroll to one appointment\'s card and ring it.","id":"appt.focus"},{"args":[{"name":"appointment_id"},{"enum":["reschedule","cancel"],"name":"action"},{"default":0,"doc":"The late-change fee in rupees, 0 when free.","name":"fee","type":"integer"},{"doc":"The new day, for a reschedule.","name":"date","optional":true},{"doc":"The new time, for a reschedule.","name":"time","optional":true},{"name":"branch_id","optional":true},{"name":"dentist_id","optional":true},{"name":"chair_id","optional":true},{"name":"resource_id","optional":true}],"claims":["moving it to","cancelling it"],"class":"reversible","doc":"On My appointments: open the change sheet on one card (old and new time, or the cancellation) with the policy line and fee, and its Confirm and Keep buttons. Nothing changes yet.","id":"appt.propose","objects":["appointment","reschedule","cancellation"]},{"args":[{"name":"appointment_id"},{"enum":["reschedule","cancel"],"name":"action"},{"default":0,"name":"fee","type":"integer"},{"name":"date","optional":true},{"name":"time","optional":true},{"name":"branch_id","optional":true},{"name":"dentist_id","optional":true},{"name":"chair_id","optional":true},{"name":"resource_id","optional":true}],"claims":["moving your appointment now","cancelling your appointment now"],"class":"confirmed","doc":"Make the change the sheet shows, after the patient\'s spoken yes. Refused when the new slot was taken.","id":"appt.apply","objects":["appointment"]},{"args":[{"doc":"CB-3107.","name":"callback_id"},{"doc":"One short line for the dentist, in English.","name":"reason"},{"enum":["urgent","today","routine"],"name":"urgency"},{"doc":"When the call comes, as authored: within 30 minutes.","name":"window"},{"doc":"The number to call, when known.","name":"phone","optional":true}],"claims":["asking a dentist to call","requesting a callback","arranging a callback"],"class":"reversible","doc":"Show the callback request card: what the dentist will call about, how soon, and its reference.","id":"callback.request","objects":["callback","call back"]},{"args":[{"doc":"YYYY-MM-DD.","name":"date"},{"name":"dentist_id","optional":true},{"name":"resource_id","optional":true},{"default":"week","enum":["day","week"],"name":"mode"}],"class":"look","doc":"Put one dentist\'s (or imaging room\'s) calendar on screen, on the day or its week, and ring it. Changes no selection.","id":"cal.view"}],"stage":1}'
+    '{"id":"dantika_front_desk","languages":["en","hi"],"moves":[{"args":[{"doc":"The page: home, book or my-appointments.","enum":["home","book","my-appointments"],"name":"page"}],"claims":["opening the booking page","taking you to","opening your appointments"],"class":"navigate","doc":"Open one of the clinic\'s pages, ringing its link in the header first.","id":"site.go","objects":["page","booking page","appointments page"],"say":"{go: book} as you start the sentence about that page: \\"Let\'s open the booking page.\\"","verb":"go"},{"args":[{"doc":"A part of the page by name: services, dentists, branches, visit-info, payment, insurance, parking, eating, aftercare, emergency, hours, policy, calendar, summary, appointments.","name":"thing"}],"class":"look","doc":"Scroll to a part of the page and ring it; nothing changes. Opens the home page first for a part only it has.","id":"site.show","say":"{show: parking} at the start of the sentence that talks about it; it scrolls into view and is ringed.","verb":"show"},{"args":[{"doc":"The service\'s id from clinic.json: consult, checkup, emergency, scaling, filling, rct, extraction, wisdom, aligner, whitening, implant, iopa, opg, cbct.","name":"service_id"},{"doc":"The day shown, YYYY-MM-DD.","name":"date"},{"doc":"indiranagar or hsr; none for both.","name":"branch_id","optional":true},{"doc":"The dentist\'s id; none for a scan or for any dentist.","name":"dentist_id","optional":true},{"default":"day","doc":"The calendar\'s view.","enum":["day","week"],"name":"view"}],"claims":["checking the calendar","looking at the slots","pulling up the slots"],"class":"reversible","doc":"On the booking page: pick the service, branch and dentist as the visitor would, put that dentist\'s (or the imaging room\'s) calendar on the day, and ring the free slots. Opens the booking page first.","id":"book.slots","objects":["slots","calendar","times","availability"]},{"args":[{"name":"service_id"},{"name":"branch_id"},{"doc":"YYYY-MM-DD.","name":"date"},{"doc":"HH:MM, 24-hour.","name":"time"},{"name":"dentist_id","optional":true},{"doc":"The chair the slot was computed on.","name":"chair_id","optional":true},{"doc":"The imaging room, for a scan.","name":"resource_id","optional":true},{"doc":"A root canal\'s later sittings, each \'YYYY-MM-DD HH:MM branch_id chair_id\'.","name":"sittings","optional":true,"type":"array"}],"claims":["holding the slot","picking that slot","selecting the slot"],"class":"reversible","doc":"Select one free slot on the calendar and show the booking summary (price, preparation, sittings) with its Confirm button. Nothing is booked yet. Refused when the slot is no longer free.","id":"book.hold","objects":["slot","time","appointment"]},{"args":[{"doc":"The id the brain minted, DT-24117.","name":"booking_id"},{"doc":"The verified patient, P-1001, or the new patient\'s id.","name":"patient_id"},{"name":"service_id"},{"name":"branch_id"},{"name":"date"},{"name":"time"},{"name":"dentist_id","optional":true},{"name":"chair_id","optional":true},{"name":"resource_id","optional":true},{"name":"sittings","optional":true,"type":"array"},{"doc":"The ids of the later sittings, in order.","name":"sitting_ids","optional":true,"type":"array"}],"claims":["booking it now","confirming your appointment","confirming the booking"],"class":"confirmed","doc":"Book the held slot, after the patient\'s spoken yes: the appointment goes on the calendar and the confirmation shows. Refused when nothing is held, the patient is not verified, or the slot was taken.","id":"book.confirm","objects":["booking","appointment"]},{"args":[{"doc":"The box to point at: phone, code or name; none for the step the sign-in is on.","enum":["phone","code","name"],"name":"field","optional":true}],"class":"look","doc":"Open the sign-in panel (on the booking page when a slot is held, else on My appointments) and ring the box the visitor types in next. Fills nothing: the visitor types the mobile number and the code themselves.","id":"patient.ask","say":"{signin: phone} as you ask them to type their mobile number in the box on screen. You never fill, read back or hear a number or a code: the visitor types both.","verb":"signin"},{"args":[{"doc":"A new patient\'s full name, as said.","name":"name"}],"claims":["adding your name","registering you"],"class":"reversible","doc":"For a phone number with no record: fill the new patient\'s name and register them.","id":"patient.name","objects":["name","registration"]},{"args":[{"doc":"DT-24051.","name":"appointment_id"}],"class":"look","doc":"On My appointments: scroll to one appointment\'s card and ring it.","id":"appt.focus"},{"args":[{"name":"appointment_id"},{"enum":["reschedule","cancel"],"name":"action"},{"default":0,"doc":"The late-change fee in rupees, 0 when free.","name":"fee","type":"integer"},{"doc":"The new day, for a reschedule.","name":"date","optional":true},{"doc":"The new time, for a reschedule.","name":"time","optional":true},{"name":"branch_id","optional":true},{"name":"dentist_id","optional":true},{"name":"chair_id","optional":true},{"name":"resource_id","optional":true}],"claims":["moving it to","cancelling it"],"class":"reversible","doc":"On My appointments: open the change sheet on one card (old and new time, or the cancellation) with the policy line and fee, and its Confirm and Keep buttons. Nothing changes yet.","id":"appt.propose","objects":["appointment","reschedule","cancellation"]},{"args":[{"name":"appointment_id"},{"enum":["reschedule","cancel"],"name":"action"},{"default":0,"name":"fee","type":"integer"},{"name":"date","optional":true},{"name":"time","optional":true},{"name":"branch_id","optional":true},{"name":"dentist_id","optional":true},{"name":"chair_id","optional":true},{"name":"resource_id","optional":true}],"claims":["moving your appointment now","cancelling your appointment now"],"class":"confirmed","doc":"Make the change the sheet shows, after the patient\'s spoken yes. Refused when the new slot was taken.","id":"appt.apply","objects":["appointment"]},{"args":[{"doc":"CB-3107.","name":"callback_id"},{"doc":"One short line for the dentist, in English.","name":"reason"},{"enum":["urgent","today","routine"],"name":"urgency"},{"doc":"When the call comes, as authored: within 30 minutes.","name":"window"}],"claims":["asking a dentist to call","requesting a callback","arranging a callback"],"class":"reversible","doc":"Show the callback request card: what the dentist will call about, how soon, and its reference. The dentist calls the signed-in patient\'s number on record; refused when nobody is signed in.","id":"callback.request","objects":["callback","call back"]},{"args":[{"doc":"YYYY-MM-DD.","name":"date"},{"name":"dentist_id","optional":true},{"name":"resource_id","optional":true},{"default":"week","enum":["day","week"],"name":"mode"}],"class":"look","doc":"Put one dentist\'s (or imaging room\'s) calendar on screen, on the day or its week, and ring it. Changes no selection.","id":"cal.view"}],"stage":1}'
 )
 #: The spec's hash: a page reading another spec reports a different one.
-SPEC_SHA256 = "b6179d19ca39b7d99cfe526be40c428fc7e9031f3124c1c4eaec06c6eb653487"
+SPEC_SHA256 = "9208d81188b3c87b176531c1cd1e063bf3eee22a197fb48cb58c29565fc452de"
 
 
 class GoArgs(BaseModel):
@@ -85,18 +85,11 @@ class ConfirmArgs(BaseModel):
     """The ids of the later sittings, in order."""
 
 
-class PhoneArgs(BaseModel):
-    """The arguments of ``patient.phone``."""
+class AskArgs(BaseModel):
+    """The arguments of ``patient.ask``."""
 
-    phone: str
-    """The phone number as said; the page keeps the last ten digits."""
-
-
-class OtpArgs(BaseModel):
-    """The arguments of ``patient.otp``."""
-
-    code: str
-    """The four digits the patient read out."""
+    field: Literal["phone", "code", "name"] | None = None
+    """The box to point at: phone, code or name; none for the step the sign-in is on."""
 
 
 class NameArgs(BaseModel):
@@ -154,8 +147,6 @@ class RequestArgs(BaseModel):
     urgency: Literal["urgent", "today", "routine"]
     window: str
     """When the call comes, as authored: within 30 minutes."""
-    phone: str | None = None
-    """The number to call, when known."""
 
 
 class ViewArgs(BaseModel):
@@ -277,38 +268,14 @@ CONFIRM = Move(
 )
 """Book the held slot, after the patient's spoken yes: the appointment goes on the calendar and the confirmation shows. Refused when nothing is held, the patient is not verified, or the slot was taken."""
 
-PHONE = Move(
-    id="patient.phone",
-    verb=None,
-    cls=MoveClass.REVERSIBLE,
-    args=("phone",),
-    claims=(
-        "sending you a code",
-        "sending the code",
-    ),
-    objects=(
-        "code",
-        "otp",
-        "phone number",
-    ),
+ASK = Move(
+    id="patient.ask",
+    verb="signin",
+    cls=MoveClass.LOOK,
+    args=("field",),
+    say="{signin: phone} as you ask them to type their mobile number in the box on screen. You never fill, read back or hear a number or a code: the visitor types both.",
 )
-"""Fill the phone number in the sign-in panel and send the one-time code (a demo SMS shown on screen)."""
-
-OTP = Move(
-    id="patient.otp",
-    verb=None,
-    cls=MoveClass.REVERSIBLE,
-    args=("code",),
-    claims=(
-        "verifying the code",
-        "checking the code",
-    ),
-    objects=(
-        "code",
-        "otp",
-    ),
-)
-"""Fill the one-time code and verify it. Refused when it does not match."""
+"""Open the sign-in panel (on the booking page when a slot is held, else on My appointments) and ring the box the visitor types in next. Fills nothing: the visitor types the mobile number and the code themselves."""
 
 NAME = Move(
     id="patient.name",
@@ -393,7 +360,6 @@ REQUEST = Move(
         "reason",
         "urgency",
         "window",
-        "phone",
     ),
     claims=(
         "asking a dentist to call",
@@ -405,7 +371,7 @@ REQUEST = Move(
         "call back",
     ),
 )
-"""Show the callback request card: what the dentist will call about, how soon, and its reference."""
+"""Show the callback request card: what the dentist will call about, how soon, and its reference. The dentist calls the signed-in patient's number on record; refused when nobody is signed in."""
 
 VIEW = Move(
     id="cal.view",
@@ -427,8 +393,7 @@ MOVES = MoveSet(
         SLOTS,
         HOLD,
         CONFIRM,
-        PHONE,
-        OTP,
+        ASK,
         NAME,
         FOCUS,
         PROPOSE,
@@ -442,4 +407,5 @@ MOVES = MoveSet(
 PROMPT_LINES: tuple[str, ...] = (
     '{go: book} as you start the sentence about that page: "Let\'s open the booking page."',
     "{show: parking} at the start of the sentence that talks about it; it scrolls into view and is ringed.",
+    "{signin: phone} as you ask them to type their mobile number in the box on screen. You never fill, read back or hear a number or a code: the visitor types both.",
 )

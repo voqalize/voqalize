@@ -29,15 +29,31 @@ export interface ScheduleChanged {
   by?: 'visitor' | 'agent';
 }
 
-/** The phone number was verified with its code (or a new patient registered). */
+/**
+ * The visitor typed their mobile number and its code and they matched (or a
+ * new patient registered). The patient's record, never the number: the brain
+ * looks a known patient up by id.
+ */
 export interface PatientSignedIn {
   patient_id: string;
 
   name?: string;
 
-  phone?: string;
+  first_name?: string;
 
   is_new?: boolean;
+
+  by?: 'visitor' | 'agent';
+}
+
+/**
+ * A step of the sign-in the visitor is typing: `code_sent` (the number
+ * was accepted and the demo SMS is on screen), `bad_phone` (not a ten-digit
+ * mobile number), `wrong_code` (the code did not match) or `name_needed`
+ * (verified, new to the clinic). Never the number or the code.
+ */
+export interface SignInStep {
+  step: 'code_sent' | 'bad_phone' | 'wrong_code' | 'name_needed';
 
   by?: 'visitor' | 'agent';
 }
@@ -178,6 +194,7 @@ export type AppEvent =
   | { event: 'page_viewed'; payload: PageViewed }
   | { event: 'schedule_changed'; payload: ScheduleChanged }
   | { event: 'patient_signed_in'; payload: PatientSignedIn }
+  | { event: 'sign_in_step'; payload: SignInStep }
   | { event: 'patient_signed_out'; payload: PatientSignedOut }
   | { event: 'selection_changed'; payload: SelectionChanged }
   | { event: 'booked'; payload: Booked }
@@ -191,6 +208,7 @@ export const APP_EVENT_NAMES: readonly AppEventName[] = [
   'page_viewed',
   'schedule_changed',
   'patient_signed_in',
+  'sign_in_step',
   'patient_signed_out',
   'selection_changed',
   'booked',

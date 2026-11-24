@@ -45,9 +45,17 @@ async function run(page, id, args) {
   console.log(`  ${id}: ${res.outcome} — ${res.detail}${res.refused?.length ? ` ${JSON.stringify(res.refused)}` : ""}`);
   return res;
 }
+/** Sign in the way a patient does: typing the number and the code (the agent never fills them). */
 async function signIn(page, phone = "98450 31726") {
-  await run(page, "patient.phone", { phone });
-  await run(page, "patient.otp", { code: "4821" });
+  await page.evaluate((phone) => {
+    const { actions } = window.__dentalDebug;
+    actions.openSignin();
+    actions.setPhone(phone);
+    actions.sendCode(phone);
+    actions.setCode("4821");
+    actions.verify("4821");
+  }, phone);
+  await settle(page, 300);
 }
 
 const SHOTS = [
@@ -153,8 +161,7 @@ const SHOTS = [
     run: async (page) => {
       await run(page, "book.slots");
       await run(page, "book.hold");
-      await run(page, "patient.phone", { phone: "+91 91234 56789" });
-      await run(page, "patient.otp", { code: "4821" });
+      await signIn(page, "+91 91234 56789");
       await settle(page, 600);
     },
   },

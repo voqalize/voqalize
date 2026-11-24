@@ -142,20 +142,18 @@ export const scene = defineScene({
       ]
     },
     {
-      "id": "patient.phone",
-      "class": "reversible",
+      "id": "patient.ask",
+      "verb": "signin",
+      "class": "look",
       "args": [
         {
-          "name": "phone"
-        }
-      ]
-    },
-    {
-      "id": "patient.otp",
-      "class": "reversible",
-      "args": [
-        {
-          "name": "code"
+          "name": "field",
+          "enum": [
+            "phone",
+            "code",
+            "name"
+          ],
+          "optional": true
         }
       ]
     },
@@ -287,10 +285,6 @@ export const scene = defineScene({
         },
         {
           "name": "window"
-        },
-        {
-          "name": "phone",
-          "optional": true
         }
       ]
     },
@@ -322,4 +316,4 @@ export const scene = defineScene({
   ]
 });
 
-export const SPEC_SHA256 = "b6179d19ca39b7d99cfe526be40c428fc7e9031f3124c1c4eaec06c6eb653487";
+export const SPEC_SHA256 = "9208d81188b3c87b176531c1cd1e063bf3eee22a197fb48cb58c29565fc452de";

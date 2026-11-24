@@ -9,10 +9,18 @@ the script holds are the ones the engine computes.
 One storyline per landing page:
 
 - ``/book``: a root canal, from the slots on the calendar to a held slot, the
-  phone and its code, a refused confirm (no yes yet) and the booking with its
-  two later sittings pencilled in.
-- ``/my-appointments``: Rohan verifies, hears his appointments, moves his
-  cleaning to a free slot and says yes; the change goes to the page.
+  sign-in box rung for the patient to type into, the typed sign-in answered with
+  a welcome by name that reads the held slot back, a refused confirm (no yes
+  yet) and the booking with its two later sittings pencilled in.
+- ``/my-appointments``: Rohan signs in by typing, hears his appointments, moves
+  his cleaning to a free slot and says yes; the change goes to the page.
+
+Sign-in is typed, never spoken (FEEDBACK X9): Meera has no tool that fills a
+number or a code; a number or code said aloud is withheld from the model and she
+asks for it to be typed; a typed sign-in reaches the brain as an event with the
+patient's id and first name, and she welcomes them and carries on with what they
+asked; a wrong code is said without the code; no request to the model ever holds
+the phone number or the code.
 - ``/`` in Hindi: the greeting and both legs in Hindi, a parking question rung
   on the page, and a clinical question routed to a dentist's callback.
 
@@ -27,6 +35,7 @@ Run: ``cd demos && uv run pytest tests/test_dental_e2e.py``
 from __future__ import annotations
 
 import asyncio
+import json
 from collections.abc import Iterator
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -65,8 +74,9 @@ from voqalize_demos._loaded.dental.brain import (  # noqa: E402
     affirmed,
     clinical,
 )
+from voqalize_demos._loaded.dental.credentials import CODE_MARK, PHONE_MARK, withhold  # noqa: E402
 from voqalize_demos._loaded.dental.persona import PERSONA  # noqa: E402
-from voqalize_demos._loaded.dental.prompt import greeting  # noqa: E402
+from voqalize_demos._loaded.dental.prompt import LINES, greeting  # noqa: E402
 from voqalize_demos._loaded.dental.rejoin import KEEP_AFTER_DROP_S, Rejoin  # noqa: E402
 
 NOW = datetime(2026, 11, 18, 10, 7, tzinfo=cl.IST)  # a Wednesday morning
@@ -131,6 +141,37 @@ def _results(llm: ScriptedOpenAI, name: str) -> list[str]:
     return out
 
 
+#: What must never reach the model: Rohan's number (as typed and as spoken) and
+#: the demo code.
+_SECRETS = ("9845031726", "98450 31726", "98450", cl.DATA_.otp.demo_code)
+
+
+def _no_secrets(llm: ScriptedOpenAI) -> None:
+    """No request the model was sent holds a phone number or the code."""
+    sent = json.dumps(llm.requests, ensure_ascii=False)
+    for secret in _SECRETS:
+        assert secret not in sent, f"{secret!r} reached the model"
+
+
+async def _typed_sign_in(
+    driver: VoqalizeDriver, patient_id: str, name: str, *, is_new: bool = False
+) -> None:
+    """The visitor types their number, then the code, and the page signs them in:
+    the two events the page sends, with no number or code in either."""
+    await driver.send_ui_event("sign_in_step", {"step": "code_sent", "by": "visitor"})
+    await driver.send_ui_event(
+        "patient_signed_in",
+        {
+            "patient_id": patient_id,
+            "name": name,
+            "first_name": name.split()[0],
+            "is_new": is_new,
+            "by": "visitor",
+        },
+    )
+    await asyncio.sleep(0.1)
+
+
 # ─── /book ────────────────────────────────────────────────────────────────────
 
 
@@ -154,15 +195,14 @@ def _book_script() -> ScriptedOpenAI:
                     dentist="dr-kavitha",
                     branch=s.branch,
                 ),
-                reply("It's held. What's your mobile number?"),
+                reply(
+                    "It's held. {signin: phone} Please type your mobile number in the box on screen."
+                ),
             ],
-            "98450 31726": [
-                reply_and_call("Sending a code.", "send_code", phone="98450 31726"),
-                reply("Please read me the code."),
-            ],
-            "It's 4821": [
-                reply_and_call("Checking.", "verify_code", code="4821"),
-                reply("Thanks Rohan. Shall I confirm it?"),
+            "just signed in on screen": [
+                reply(
+                    "Hi Rohan, you're signed in. Your root canal with Dr Kavitha is held: shall I confirm it?"
+                ),
             ],
             "Hmm, what does it cost?": [
                 reply_and_call("Confirming now.", "confirm_booking"),
@@ -206,20 +246,24 @@ async def test_book_a_root_canal_with_its_sittings() -> None:
         assert hold["args"]["sittings"] == [
             f"{p.on.isoformat()} {p.time} {p.branch} {p.chair}" for p in RCT_PLAN
         ]
-        assert "not verified" in _results(llm, "hold_slot")[0]
+        held = _results(llm, "hold_slot")[0]
+        assert "Not signed in yet" in held and "type their mobile number" in held
+        # The sign-in box is rung for the patient to type into; nothing is filled.
+        ask = await _until(rig, "patient.ask")
+        assert ask["args"] == {"field": "phone"}
         await _answer(rig, hold)
+        await _answer(rig, ask)
 
-        await rig.driver.user_says("98450 31726")
-        phone = await _until(rig, "patient.phone")
-        assert phone["args"] == {"phone": "9845031726"}
-        await _answer(rig, phone)
-
-        await rig.driver.user_says("It's 4821")
-        otp = await _until(rig, "patient.otp")
-        assert otp["args"] == {"code": "4821"}
-        verified = _results(llm, "verify_code")[0]
-        assert "Rohan Mehta" in verified and "DT-24051" in verified
-        await _answer(rig, otp)
+        # Rohan types his number and the code; the page tells the brain.
+        await _typed_sign_in(rig.driver, "P-1001", "Rohan Mehta")
+        assert brain.patient is not None and brain.patient.id == "P-1001"
+        welcome = await rig.driver.user_idle()
+        check_turn(rig, welcome)
+        said = " ".join(u.text for u in welcome.units)
+        assert said.startswith("Hi Rohan, you're signed in.")
+        told = input_texts(llm.captured_inputs[-1])
+        assert "Rohan just signed in on screen" in told
+        assert "The held slot (Root canal" in told, "the welcome carries on with the held slot"
 
         # No yes yet: the confirm is refused in code, whatever the model did.
         await rig.driver.user_says("Hmm, what does it cost?")
@@ -241,6 +285,8 @@ async def test_book_a_root_canal_with_its_sittings() -> None:
         assert [a.sitting for a in mine] == [1, 2, 3]
         assert brain.cal.slot_at(RCT, RCT_SLOT.on, RCT_SLOT.time, dentist_id="dr-kavitha") is None
         await _answer(rig, confirm, detail="booked DT-24117")
+        assert not [m for m in _moves(rig) if m["move"] in ("patient.phone", "patient.otp")]
+        _no_secrets(llm)
 
 
 async def test_a_refused_confirm_is_undone_and_said() -> None:
@@ -249,8 +295,10 @@ async def test_a_refused_confirm_is_undone_and_said() -> None:
         await rig.driver.start_session(init={"landing": "book", "lang": "en"})
         brain = rig.brain
         assert isinstance(brain, DentalBrain)
-        for text in ("I need a root canal", "The first one please", "98450 31726", "It's 4821"):
+        for text in ("I need a root canal", "The first one please"):
             await rig.driver.user_says(text)
+        await _typed_sign_in(rig.driver, "P-1001", "Rohan Mehta")
+        await rig.driver.user_idle()
         await rig.driver.user_says("Yes, go ahead")
         confirm = await _until(rig, "book.confirm")
         assert "DT-24117" in brain.cal.appts
@@ -262,8 +310,6 @@ async def test_a_refused_confirm_is_undone_and_said() -> None:
 async def test_a_cbct_without_referral_or_consult_is_refused() -> None:
     llm = ScriptedOpenAI(
         {
-            "99000 48213": [call("send_code", phone="9900048213"), reply("Code?")],
-            "4821": [call("verify_code", code="4821"), reply("Thanks Ishita.")],
             "I want a CBCT scan": [
                 reply_and_call("Checking.", "find_slots", service="cbct", branch="indiranagar"),
                 reply("A CBCT needs a consultation first."),
@@ -272,8 +318,8 @@ async def test_a_cbct_without_referral_or_consult_is_refused() -> None:
     )
     async with demo("dental", llm) as rig:
         await rig.driver.start_session(init={"landing": "book", "lang": "en"})
-        for text in ("99000 48213", "4821", "I want a CBCT scan"):
-            await rig.driver.user_says(text)
+        await _typed_sign_in(rig.driver, "P-1002", "Ishita Banerjee")
+        await rig.driver.user_says("I want a CBCT scan")
         found = _results(llm, "find_slots")[0]
         assert "Not bookable for Ishita Banerjee" in found
         assert "consult" in found
@@ -293,8 +339,6 @@ async def test_reschedule_a_cleaning_after_a_yes() -> None:
     target = targets[0]
     llm = ScriptedOpenAI(
         {
-            "98450 31726": [call("send_code", phone="9845031726"), reply("Code please.")],
-            "4821": [call("verify_code", code="4821"), reply("Thanks Rohan.")],
             "What do I have coming up": [
                 call("my_appointments"),
                 reply("A root canal sitting and a cleaning."),
@@ -320,8 +364,8 @@ async def test_reschedule_a_cleaning_after_a_yes() -> None:
         assert greeting_turn is not None and greeting_turn.text == greeting("en", "my-appointments")
         brain = rig.brain
         assert isinstance(brain, DentalBrain)
-        for text in ("98450 31726", "4821", "What do I have coming up"):
-            await rig.driver.user_says(text)
+        await _typed_sign_in(rig.driver, "P-1001", "Rohan Mehta")
+        await rig.driver.user_says("What do I have coming up")
         listed = _results(llm, "my_appointments")[0]
         assert "DT-24051" in listed and "DT-24063" in listed
         assert "sitting 2 of 3" in listed
@@ -344,8 +388,6 @@ async def test_reschedule_a_cleaning_after_a_yes() -> None:
 async def test_a_root_canal_sitting_stays_in_its_window() -> None:
     llm = ScriptedOpenAI(
         {
-            "98450 31726": [call("send_code", phone="9845031726"), reply("Code please.")],
-            "4821": [call("verify_code", code="4821"), reply("Thanks Rohan.")],
             "Move my root canal to three weeks later": [
                 call(
                     "propose_change",
@@ -360,10 +402,218 @@ async def test_a_root_canal_sitting_stays_in_its_window() -> None:
     )
     async with demo("dental", llm) as rig:
         await rig.driver.start_session(init={"landing": "my-appointments", "lang": "en"})
-        for text in ("98450 31726", "4821", "Move my root canal to three weeks later"):
-            await rig.driver.user_says(text)
+        await _typed_sign_in(rig.driver, "P-1001", "Rohan Mehta")
+        await rig.driver.user_says("Move my root canal to three weeks later")
         assert "can only move to between" in _results(llm, "propose_change")[0]
         assert _moves(rig, "appt.propose") == []
+
+
+# ─── Sign-in: typed, never spoken (FEEDBACK X9) ───────────────────────────────
+
+
+async def test_sign_in_is_typed_and_the_welcome_carries_on() -> None:
+    """On /my-appointments Rohan asks to move his cleaning before signing in.
+    Meera rings the sign-in box; he says his number aloud anyway and then the
+    code: neither reaches the model, nothing is filled, and the box is rung
+    again. He types a wrong code: the page shows it and Meera says it didn't go
+    through, without the code. He types the right one: the page sends his id and
+    first name, and in the next quiet moment Meera welcomes him by name and
+    carries on with the move he asked for."""
+    scaling = cl.service("scaling")
+    assert scaling is not None
+    llm = ScriptedOpenAI(
+        {
+            "I'd like to move my cleaning": [
+                call("my_appointments"),
+                reply("{signin: phone} Please type your mobile number in the box on screen."),
+            ],
+            "My number is": reply("For your privacy, please type it in the box on screen."),
+            "the code is": reply("Please type the code in the box on screen."),
+            "just signed in on screen": [
+                reply_and_call(
+                    "Hi Rohan, you're signed in. Let's move your cleaning.",
+                    "propose_change",
+                    appointment_id="DT-24063",
+                    action="reschedule",
+                ),
+                reply("Which of these times suits you?"),
+            ],
+        }
+    )
+    async with demo("dental", llm) as rig:
+        greeted = await rig.driver.start_session(init={"landing": "my-appointments", "lang": "en"})
+        assert greeted is not None and greeted.text == greeting("en", "my-appointments")
+        assert "type your mobile number" in greeted.text
+        brain = rig.brain
+        assert isinstance(brain, DentalBrain)
+
+        await rig.driver.user_says("I'd like to move my cleaning")
+        listed = _results(llm, "my_appointments")[0]
+        assert "Not signed in yet" in listed and "Never ask them to say" in listed
+        ask = await _until(rig, "patient.ask")
+        assert ask["args"] == {"field": "phone"}
+        await _answer(rig, ask)
+
+        # Said aloud anyway: withheld from the model, the box rung again.
+        await rig.driver.user_says("My number is 98450 31726")
+        told = input_texts(llm.captured_inputs[-1])
+        assert f"My number is {PHONE_MARK}" in told
+        assert "They said their mobile number aloud. It was not kept" in told
+        again = await _until(rig, "patient.ask", 2)
+        assert again["args"] == {"field": "phone"}
+        await _answer(rig, again)
+        assert brain.patient is None
+
+        # He types the number; then says the code aloud: withheld too.
+        await rig.driver.send_ui_event("sign_in_step", {"step": "code_sent", "by": "visitor"})
+        await asyncio.sleep(0.05)
+        await rig.driver.user_says("OK the code is 4821")
+        told = input_texts(llm.captured_inputs[-1])
+        assert f"the code is {CODE_MARK}" in told
+        code_ask = await _until(rig, "patient.ask", 3)
+        assert code_ask["args"] == {"field": "code"}
+        await _answer(rig, code_ask)
+
+        # A wrong code typed: said, without the code; nobody signed in.
+        await rig.driver.send_ui_event("sign_in_step", {"step": "wrong_code", "by": "visitor"})
+        await asyncio.sleep(0.05)
+        failed = await rig.driver.user_idle()
+        said = " ".join(u.text for u in failed.units)
+        assert said == LINES["en"]["code_failed"]
+        assert brain.patient is None and brain.signin == "code_sent"
+
+        # The right code typed: the welcome by name, and on with the move.
+        await rig.driver.send_ui_event(
+            "patient_signed_in",
+            {
+                "patient_id": "P-1001",
+                "name": "Rohan Mehta",
+                "first_name": "Rohan",
+                "is_new": False,
+                "by": "visitor",
+            },
+        )
+        await asyncio.sleep(0.05)
+        assert brain.patient is not None and brain.patient.id == "P-1001"
+        welcome = await rig.driver.user_idle()
+        said = " ".join(u.text for u in welcome.units)
+        assert said.startswith("Hi Rohan, you're signed in.")
+        told = input_texts(llm.captured_inputs[-1])
+        assert "Rohan just signed in on screen" in told and "DT-24063" in told
+        assert "Free times for DT-24063" in _results(llm, "propose_change")[0]
+        await _until(rig, "cal.view")
+
+        # Meera never filled a number or a code, and the model never held one.
+        assert not [m for m in _moves(rig) if m["move"] in ("patient.phone", "patient.otp")]
+        _no_secrets(llm)
+
+
+async def test_a_returning_patient_is_greeted_by_name() -> None:
+    """Signed in on this browser before the call: the page names him by id in
+    init, the greeting uses his first name, and the restored sign-in event the
+    page sends on connect is not welcomed a second time."""
+    llm = ScriptedOpenAI({"hello": reply("Hi!")})
+    async with demo("dental", llm) as rig:
+        greeted = await rig.driver.start_session(
+            init={"landing": "my-appointments", "lang": "en", "patient_id": "P-1001"}
+        )
+        assert greeted is not None
+        assert greeted.text == greeting("en", "my-appointments", "Rohan")
+        assert greeted.text.startswith("Hi Rohan,")
+        brain = rig.brain
+        assert isinstance(brain, DentalBrain)
+        assert brain.patient is not None and brain.patient.id == "P-1001"
+        await rig.driver.send_ui_event(
+            "patient_signed_in",
+            {
+                "patient_id": "P-1001",
+                "name": "Rohan Mehta",
+                "first_name": "Rohan",
+                "restored": True,
+                "by": "visitor",
+            },
+        )
+        await asyncio.sleep(0.05)
+        assert brain._talk_next is None
+        quiet = await rig.driver.user_idle(timeout=0.5)
+        assert not quiet.units
+
+
+async def test_a_new_patient_types_their_number_too() -> None:
+    """A new patient booking: the number is typed and verified on the page, the
+    page asks for a name, Meera asks for it and registers it (a name is not a
+    credential), and the booking goes to the new patient id."""
+    s = RCT_SLOT
+    llm = ScriptedOpenAI(
+        {
+            "I need a root canal": [
+                call("find_slots", service="root canal"),
+                reply("The earliest is next week."),
+            ],
+            "The first one please": [
+                call(
+                    "hold_slot",
+                    service="rct",
+                    date=s.on.isoformat(),
+                    time=s.time,
+                    dentist="dr-kavitha",
+                    branch=s.branch,
+                ),
+                reply("{signin: phone} Please type your mobile number in the box on screen."),
+            ],
+            "Asha Rao": [reply_and_call("Registering you.", "register_patient", name="Asha Rao")],
+            "Yes, book it": [reply_and_call("Booking it now.", "confirm_booking")],
+        }
+    )
+    async with demo("dental", llm) as rig:
+        await rig.driver.start_session(init={"landing": "book", "lang": "hi"})
+        brain = rig.brain
+        assert isinstance(brain, DentalBrain)
+        for text in ("I need a root canal", "The first one please"):
+            await rig.driver.user_says(text)
+        await _until(rig, "patient.ask")
+        await rig.driver.send_ui_event("sign_in_step", {"step": "code_sent", "by": "visitor"})
+        await rig.driver.send_ui_event("sign_in_step", {"step": "name_needed", "by": "visitor"})
+        await asyncio.sleep(0.05)
+        asked = await rig.driver.user_idle()
+        assert " ".join(u.text for u in asked.units) == LINES["hi"]["name_needed"]
+
+        await rig.driver.user_says("Asha Rao")
+        name = await _until(rig, "patient.name")
+        assert name["args"] == {"name": "Asha Rao"}
+        await _answer(rig, name, detail="registered Asha Rao as new patient P-2001")
+        # The page reports the registration it made for the agent: no welcome owed.
+        await rig.driver.send_ui_event(
+            "patient_signed_in",
+            {
+                "patient_id": "P-2001",
+                "name": "Asha Rao",
+                "first_name": "Asha",
+                "is_new": True,
+                "by": "agent",
+            },
+        )
+        await asyncio.sleep(0.05)
+        assert brain.patient is not None and brain.patient.id == "P-2001"
+        assert brain._talk_next is None
+        await rig.driver.user_says("Yes, book it")
+        confirm = await _until(rig, "book.confirm")
+        assert confirm["args"]["patient_id"] == "P-2001"
+
+
+def test_spoken_numbers_and_codes_are_withheld() -> None:
+    assert withhold("98450 31726").kinds == ("phone",)
+    assert withhold("plus nine one nine eight four five zero three one seven two six").kinds == (
+        "phone",
+    )
+    assert withhold("मेरा नंबर नौ आठ चार पाँच शून्य तीन एक सात दो छह है").kinds == ("phone",)
+    assert withhold("It's 4821", expecting_code=True).text == f"It's {CODE_MARK}"
+    assert withhold("the OTP is four eight two one").kinds == ("code",)
+    # Not a code: no code expected or named, or it is money.
+    assert withhold("It's 4821").kinds == ()
+    assert withhold("Is it under 5000 rupees?", expecting_code=True).kinds == ()
+    assert withhold("Is a filling under dedh hazaar?", expecting_code=True).kinds == ()
+    assert withhold("The first one please").text == "The first one please"
 
 
 # ─── / in Hindi ───────────────────────────────────────────────────────────────
@@ -384,13 +634,15 @@ async def test_home_in_hindi_parking_and_a_clinical_callback() -> None:
                     "request_callback",
                     reason="Bleeding after an extraction",
                     urgency="urgent",
-                    phone="9886055102",
                 ),
             ],
         }
     )
     async with demo("dental", llm) as rig:
-        greeting_turn = await rig.driver.start_session(init={"landing": "home", "lang": "hi"})
+        # Suresh signed in on this browser before the call: the page names him by id.
+        greeting_turn = await rig.driver.start_session(
+            init={"landing": "home", "lang": "hi", "patient_id": "P-1003"}
+        )
         check_greeting(rig, greeting_turn)
         assert greeting_turn is not None and greeting_turn.text == greeting("hi", "home")
         assert PERSONA.name("hi") in greeting_turn.text
@@ -407,6 +659,8 @@ async def test_home_in_hindi_parking_and_a_clinical_callback() -> None:
         assert cb["args"]["callback_id"] == "CB-3107"
         assert cb["args"]["urgency"] == "urgent"
         assert cb["args"]["window"] == "within 30 minutes"
+        assert "phone" not in cb["args"], "the page calls the number on record"
+        assert "9886055102" not in json.dumps(llm.requests, ensure_ascii=False)
         # The clinical note reached the model before its answer.
         assert "This sounds clinical" in input_texts(llm.captured_inputs[-1])
 
@@ -521,8 +775,6 @@ async def test_a_dropped_socket_rejoins_the_call_where_it_was() -> None:
     target = targets[0]
     llm = ScriptedOpenAI(
         {
-            "98450 31726": [call("send_code", phone="9845031726"), reply("Code please.")],
-            "4821": [call("verify_code", code="4821"), reply("Thanks Rohan.")],
             "Move the cleaning": [
                 reply_and_call(
                     "Let me put that on screen.",
@@ -570,8 +822,7 @@ async def test_a_dropped_socket_rejoins_the_call_where_it_was() -> None:
         greeted = await first.start_session(init=init)
         assert greeted is not None and greeted.text == greeting("en", "my-appointments")
         assert _redials(first) == [True], "redial is turned on with the voice, before the greeting"
-        for text in ("98450 31726", "4821"):
-            await first.user_says(text)
+        await _typed_sign_in(first, "P-1001", "Rohan Mehta")
         await first.send_ui_event("language_requested", {"language": "hi", "by": "visitor"})
         await asyncio.sleep(0.1)
         await first.user_says("Move the cleaning")
@@ -701,5 +952,10 @@ def test_every_offered_language_has_a_voice_greeting_and_lines() -> None:
 
     for code in PERSONA.codes:
         assert PERSONA.voice(code)
-        assert set(GREETINGS[code]) == {"home", "book", "my-appointments"}
+        assert set(GREETINGS[code]) == {
+            "home",
+            "book",
+            "my-appointments",
+            "my-appointments-signed-in",
+        }
         assert set(LINES[code]) == set(LINES["en"])

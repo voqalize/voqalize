@@ -4,7 +4,10 @@ The clinic site works by click alone, so a patient may sign in, pick a slot,
 book, move or cancel by hand while Meera is on the call. Each of those is one
 small typed :class:`~voqalize.sdk.AppEvent`. The brain folds it into its own
 calendar (so the slots it offers are the ones the screen shows) and leaves one
-line in the model's context; nothing here makes it speak.
+line in the model's context. Only the sign-in speaks back: the visitor types the
+mobile number and the code themselves (FEEDBACK X9), so the page tells the brain
+how that went (:class:`SignInStep`, :class:`PatientSignedIn`) and Meera answers
+in the next quiet moment. No event carries the number or the code.
 
 Every event carries ``by``: ``"visitor"`` when the patient did it, ``"agent"``
 when the page reports a move Meera made.
@@ -35,6 +38,7 @@ __all__ = [
     "PatientSignedOut",
     "ScheduleChanged",
     "SelectionChanged",
+    "SignInStep",
 ]
 
 By = Literal["visitor", "agent"]
@@ -78,12 +82,26 @@ class ScheduleChanged(AppEvent):
 
 
 class PatientSignedIn(AppEvent):
-    """The phone number was verified with its code (or a new patient registered)."""
+    """The visitor typed their mobile number and its code and they matched (or a
+    new patient registered). The patient's record, never the number: the brain
+    looks a known patient up by id."""
 
     patient_id: str
     name: str = ""
-    phone: str = ""
+    first_name: str = ""
     is_new: bool = False
+    #: Signed in on this browser before the call connected: nothing to welcome.
+    restored: bool = False
+    by: By = "visitor"
+
+
+class SignInStep(AppEvent):
+    """A step of the sign-in the visitor is typing: ``code_sent`` (the number
+    was accepted and the demo SMS is on screen), ``bad_phone`` (not a ten-digit
+    mobile number), ``wrong_code`` (the code did not match) or ``name_needed``
+    (verified, new to the clinic). Never the number or the code."""
+
+    step: Literal["code_sent", "bad_phone", "wrong_code", "name_needed"]
     by: By = "visitor"
 
 
@@ -148,6 +166,7 @@ DentalEvent = (
     | ScheduleChanged
     | PatientSignedIn
     | PatientSignedOut
+    | SignInStep
     | SelectionChanged
     | Booked
     | AppointmentChanged
@@ -160,6 +179,7 @@ DENTAL_EVENTS = AppEvents(
     ScheduleChanged,
     PatientSignedIn,
     PatientSignedOut,
+    SignInStep,
     SelectionChanged,
     Booked,
     AppointmentChanged,

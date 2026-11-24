@@ -99,8 +99,7 @@ export function examples(): Record<string, Record<string, unknown>> {
       ...slotArgs,
       ...(held?.sittings.length ? { sitting_ids: held.sittings.map((_, i) => `DT-2411${8 + i}`) } : {}),
     },
-    "patient.phone": { phone: "98450 31726" },
-    "patient.otp": { code: DATA.otp.demo_code },
+    "patient.ask": { field: "phone" },
     "patient.name": { name: "Asha Rao" },
     "appt.focus": { appointment_id: target.id },
     "appt.propose": {
@@ -130,7 +129,6 @@ export function examples(): Record<string, Record<string, unknown>> {
       reason: "Swelling near the lower left molar since yesterday, asks which painkiller is safe",
       urgency: "today",
       window: DATA.clinical.callback_windows.today,
-      phone: null,
     },
     "cal.view": { date: viewDay, dentist_id: "dr-kavitha", mode: "week" },
   };

@@ -6,7 +6,7 @@
  * line. It refuses, with what the page offers instead, rather than guess.
  */
 import type { MoveContext, Performers } from "@voqalize/stage";
-import { DATA, branch, dentist, minutes, normalPhone, room, service, showPhone, time12 } from "../data/clinic";
+import { DATA, branch, dentist, minutes, room, service, time12 } from "../data/clinic";
 import { type Slot, changeTerms, daysBetween, addDays, shortDate, sittingWindow, weekdayOf } from "../data/slots";
 import { actions, inWindow, patientById, signedInPatient, useStore } from "../state/store";
 import { PATH, type Page, currentPage, navigate } from "./nav";
@@ -361,40 +361,33 @@ function rawPerformers(): Performers<Spec> {
       return line;
     },
 
-    "patient.phone": async ({ phone }, c) => {
-      const digits = normalPhone(String(phone ?? ""));
-      if (digits.length !== 10) return c.refuse("phone", "a mobile number has ten digits");
+    "patient.ask": async ({ field }, c) => {
+      // Points, never fills (FEEDBACK X9): the visitor types the number and the code.
       const me = signedInPatient();
-      if (me && me.phone === digits) return `already signed in as ${me.name}`;
+      if (me) return `already signed in as ${me.name}`;
       if (currentPage() === "home") await goTo(useStore.getState().book.hold ? "book" : "my-appointments", c);
-      if (me) actions.signOut("agent");
       actions.openSignin();
-      if (useStore.getState().signin.step !== "phone") actions.resetSignin();
-      actions.openSignin();
-      const field = await appear(() => $('[data-stage-thing="signin"] [name="phone"]'));
+      const step = useStore.getState().signin.step;
+      const want = field ?? step;
+      const box: Record<string, { name: string; label: string; step: string }> = {
+        phone: { name: "phone", label: "Type your mobile number", step: "phone" },
+        code: { name: "code", label: "Type the code from the SMS", step: "code" },
+        name: { name: "name", label: "Your full name", step: "name" },
+      };
+      const target = box[want] ?? box.phone;
+      if (target.step !== step) {
+        const now = box[step] ?? box.phone;
+        const el = await appear(() => $(`[data-stage-thing="signin"] [name="${now.name}"]`));
+        if (el) await show(el, c, now.label);
+        return `the sign-in is at the ${step} step; its box is ringed`;
+      }
+      const el = await appear(() => $(`[data-stage-thing="signin"] [name="${target.name}"]`));
       const panel = thing("signin");
-      if (field) await show(field, c, "Mobile number");
-      else if (panel) await show(panel, c, "Sign in");
-      actions.setPhone(digits);
-      await c.beat(300);
-      actions.sendCode(digits);
-      return `code sent to ${showPhone(digits)}; the demo SMS shows it on screen`;
-    },
-
-    "patient.otp": async ({ code }, c) => {
-      const s = useStore.getState().signin;
-      if (!s.sent || s.step === "phone") return c.refuse("code", "no code has been sent yet: send one to the phone first");
-      if (s.step === "name") return c.refuse("code", "the code is already verified; the new patient's name is needed");
-      const field = await appear(() => $('[data-stage-thing="signin"] [name="code"]'));
-      if (field) await show(field, c, "Code");
-      actions.setCode(String(code ?? ""));
-      await c.beat(300);
-      const got = actions.verify(String(code ?? ""), "agent");
-      if (got === "wrong") return c.refuse("code", "that code does not match the one sent");
-      if (got === "need-name") return `verified; new number ${showPhone(s.phone)}, name needed`;
-      const p = signedInPatient()!;
-      const n = useStore.getState().cal.upcoming(p.id).length;
-      return `signed in as ${p.name} (${p.id}), ${n} upcoming appointment${n === 1 ? "" : "s"}`;
+      if (el) {
+        await show(el, c, target.label);
+        el.focus({ preventScroll: true });
+      } else if (panel) await show(panel, c, "Sign in");
+      return `the ${target.name} box is ringed for the visitor to type in`;
     },
 
     "patient.name": async ({ name }, c) => {
@@ -457,18 +450,18 @@ function rawPerformers(): Performers<Spec> {
       return line;
     },
 
-    "callback.request": async ({ callback_id, reason, urgency, window: win, phone }, c) => {
+    "callback.request": async ({ callback_id, reason, urgency, window: win }, c) => {
       if (!["urgent", "today", "routine"].includes(urgency)) return c.refuse("urgency", `no urgency ${urgency}`, ["urgent", "today", "routine"]);
       if (!String(reason ?? "").trim()) return c.refuse("reason", "say what the dentist should call about");
-      if (phone && normalPhone(phone).length !== 10) return c.refuse("phone", "a mobile number has ten digits");
-      if (!phone && !signedInPatient()) return c.refuse("phone", "no number to call: ask for one, or sign the patient in");
+      // The number on the signed-in patient's record; the agent never carries one.
+      if (!signedInPatient()) return c.refuse("callback_id", "nobody is signed in: the patient types their number in the sign-in box first");
       const cb = actions.requestCallback(
-        { id: callback_id, reason: String(reason), urgency: urgency as "urgent" | "today" | "routine", window: win ?? undefined, phone },
+        { id: callback_id, reason: String(reason), urgency: urgency as "urgent" | "today" | "routine", window: win ?? undefined },
         "agent",
       );
       const card = await appear(() => thing("callback"));
       if (card) await show(card, c, cb.id);
-      return `callback ${cb.id} requested: a dentist calls ${showPhone(cb.phone ?? "")} ${cb.window}`;
+      return `callback ${cb.id} requested: a dentist calls the number on record ${cb.window}`;
     },
 
     "cal.view": async ({ date, dentist_id, resource_id, mode }, c) => {

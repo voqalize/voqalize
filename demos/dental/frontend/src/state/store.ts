@@ -193,6 +193,15 @@ export const patientById = (id: string | null | undefined, s: State = get()) => 
 export const patientByPhone = (phone: string, s: State = get()) => allPatients(s).find((p) => p.phone === normalPhone(phone));
 export const signedInPatient = (s: State = get()) => patientById(s.signedIn, s);
 
+/** What the brain hears of a sign-in: who, by id and name. Never the number. */
+export const signedInEvent = (p: Patient, isNew: boolean, restored = false) => ({
+  patient_id: p.id,
+  name: p.name,
+  first_name: p.name.split(/\s+/)[0] ?? p.name,
+  is_new: isNew,
+  restored,
+});
+
 export function toWire(a: Appt): AppointmentIn {
   return {
     id: a.id,
@@ -367,6 +376,9 @@ export const actions = {
   },
 
   // ── Sign-in ──
+  // Typed by the visitor, never filled by the agent (FEEDBACK X9). The brain
+  // hears how each step went (`sign_in_step`) and who signed in
+  // (`patient_signed_in`: id and first name), never the number or the code.
   openSignin() {
     set((s) => ({ signin: { ...s.signin, wanted: true } }));
   },
@@ -377,9 +389,11 @@ export const actions = {
     const p = normalPhone(phone ?? get().signin.phone);
     if (p.length !== 10) {
       set((s) => ({ signin: { ...s.signin, phone: phone ?? s.signin.phone, error: "Enter a 10-digit mobile number." } }));
+      emit("sign_in_step", { step: "bad_phone" });
       return false;
     }
     set((s) => ({ signin: { ...s.signin, phone: p, sent: true, step: "code", code: "", error: null, wanted: true } }));
+    emit("sign_in_step", { step: "code_sent" });
     return true;
   },
   setCode(code: string) {
@@ -392,16 +406,18 @@ export const actions = {
     const digits = code.replace(/\D/g, "");
     if (digits !== DATA.otp.demo_code) {
       set((st) => ({ signin: { ...st.signin, code: digits, error: "That code doesn't match. Check the SMS and try again." } }));
+      emit("sign_in_step", { step: "wrong_code" }, by);
       return "wrong";
     }
     const p = patientByPhone(s.signin.phone);
     if (!p) {
       set((st) => ({ signin: { ...st.signin, code: digits, step: "name", error: null } }));
+      emit("sign_in_step", { step: "name_needed" }, by);
       return "need-name";
     }
     commit({ signedIn: p.id });
     set({ signin: freshSignin() });
-    emit("patient_signed_in", { patient_id: p.id, name: p.name, phone: p.phone, is_new: false }, by);
+    emit("patient_signed_in", signedInEvent(p, false), by);
     return "signed-in";
   },
   setName(name: string) {
@@ -417,7 +433,7 @@ export const actions = {
     const p: Patient = { id: `P-${n}`, name: clean, phone: s.signin.phone, referral: null, history: [] };
     commit({ patients: [...s.patients, p], signedIn: p.id });
     set({ signin: freshSignin() });
-    emit("patient_signed_in", { patient_id: p.id, name: p.name, phone: p.phone, is_new: true }, by);
+    emit("patient_signed_in", signedInEvent(p, true), by);
     return p;
   },
   resetSignin() {

@@ -265,15 +265,16 @@ def branch(bid: str) -> Branch | None:
     return next((b for b in DATA_.branches if b.id == bid), None)
 
 
-def patient_by_phone(phone: str) -> Patient | None:
-    digits = normal_phone(phone)
-    return next((p for p in DATA_.patients if p.phone == digits), None)
+def patient(pid: str) -> Patient | None:
+    """A patient on the clinic's record, by id. The brain finds a patient only
+    this way: the page signs them in from the number they typed and names them
+    by id (FEEDBACK X9), so no lookup by phone number exists here."""
+    return next((p for p in DATA_.patients if p.id == pid), None)
 
 
-def normal_phone(phone: str) -> str:
-    """The last ten digits of what was typed or said: "+91 98450 31726" → "9845031726"."""
-    digits = "".join(ch for ch in phone if ch.isdigit())
-    return digits[-10:]
+def first_name(name: str) -> str:
+    """ "Rohan Mehta" → "Rohan"."""
+    return name.split()[0] if name.split() else name
 
 
 def minutes(hhmm: str) -> int:

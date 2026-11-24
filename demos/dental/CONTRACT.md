@@ -74,11 +74,12 @@ to 7–14 days after sitting n−1.
 | route | the agent's job there (the brain's mode) |
 | --- | --- |
 | `/` | the clinic site: services and prices, dentists, branches and hours, visit information; answers questions, starts a booking |
-| `/book` | booking: service → branch & dentist → calendar & slot → patient (phone + OTP) → confirm; the dentist/room calendar (day/week) updates live |
-| `/my-appointments` | sign in with phone + OTP; upcoming appointments with Reschedule / Cancel (a confirm sheet with the policy line and fee); visit instructions per appointment |
+| `/book` | booking: service → branch & dentist → calendar & slot → patient (phone + OTP, typed by the patient) → confirm; the dentist/room calendar (day/week) updates live |
+| `/my-appointments` | sign in with phone + OTP, typed by the patient; upcoming appointments with Reschedule / Cancel (a confirm sheet with the policy line and fee); visit instructions per appointment |
 
-The call starts with `init = {surface: "dental-web", landing, path, lang}` where `landing` is
-`home | book | my-appointments` and `lang` is the toggle's code (`en`/`hi`). Every page works by
+The call starts with `init = {surface: "dental-web", landing, path, lang, patient_id}` where
+`landing` is `home | book | my-appointments`, `lang` is the toggle's code (`en`/`hi`) and
+`patient_id` names the patient already signed in on this browser (or `null`); never a number. Every page works by
 click alone; the call button (with the EN / हिंदी toggle beside it) is on every page.
 
 ## Brain → page: Stage moves (`frontend/src/stage/scene.json`)
@@ -96,13 +97,12 @@ and returns one short line.
 | `book.slots {service_id, date, branch_id?, dentist_id?, view}` | reversible | opens /book, selects the service, branch, dentist (or the imaging room), sets the calendar to that day/week, rings the free slots |
 | `book.hold {service_id, branch_id, date, time, dentist_id?, chair_id?, resource_id?, sittings?}` | reversible | selects the slot, rings it, shows the summary card (price range, duration, prep line, later sittings) with Confirm. Refuses a slot that is not free |
 | `book.confirm {booking_id, patient_id, …same…, sitting_ids?}` | confirmed | writes the appointment(s) with these ids to the store, shows the confirmation; the calendar block turns "Your appointment" and pulses |
-| `patient.phone {phone}` | reversible | fills the sign-in phone, "sends" the code: a demo-SMS bubble shows `otp.demo_code` |
-| `patient.otp {code}` | reversible | fills and verifies the code; refuses a wrong code. Signs the patient in (or, for an unknown number, asks for the name) |
+| `patient.ask {field?}` | look | opens the sign-in panel (booking page when a slot is held, else My appointments) and rings the box the patient types in next (`phone`, `code` or `name`; none for the current step). Fills nothing |
 | `patient.name {name}` | reversible | registers the new patient (`P-` + 4 digits, minted by the page); detail names the id |
 | `appt.focus {appointment_id}` | look | rings that appointment's card |
 | `appt.propose {appointment_id, action, fee, date?, time?, branch_id?, dentist_id?, chair_id?, resource_id?}` | reversible | opens the change sheet on the card: old → new (or the cancellation), the policy line, the fee, Confirm / Keep |
 | `appt.apply {…same…}` | confirmed | makes the change; the card and the calendar update |
-| `callback.request {callback_id, reason, urgency, window, phone?}` | reversible | shows the callback card (reference, what about, when) |
+| `callback.request {callback_id, reason, urgency, window}` | reversible | shows the callback card (reference, what about, when); the dentist calls the signed-in patient's number on record. Refuses when nobody is signed in |
 | `cal.view {date, dentist_id?, resource_id?, mode}` | look | puts that calendar on screen and rings it |
 
 Plus one plain action outside Stage: `language_changed {language}` moves the EN / हिंदी toggle.
@@ -111,12 +111,23 @@ Plus one plain action outside Stage: `language_changed {language}` moves the EN 
 
 `page_viewed{page, path}`, `schedule_changed{appointments[]}` (every appointment this browser made
 or changed, whole, with its real date; on connect and after every change), `patient_signed_in
-{patient_id, name, phone, is_new}`, `patient_signed_out`, `selection_changed{service_id, branch_id,
+{patient_id, name, first_name, is_new, restored}` (`restored`: signed in before the call, sent on
+connect), `sign_in_step{step}` (`code_sent | bad_phone | wrong_code | name_needed`),
+`patient_signed_out`, `selection_changed{service_id, branch_id,
 dentist_id, date, time}`, `booked{booking_id, service_id, date, time, dentist_id, branch_id}`,
 `appointment_changed{appointment_id, action, date, time, fee}`, `callback_requested{callback_id,
 reason, urgency}`, `language_requested{language}`. Every one carries `by: "visitor" | "agent"`.
 
 ## Rules the brain keeps
+
+- **Credentials are typed, never spoken** (FEEDBACK X9). The patient types the mobile number and
+  the code. The brain never asks for, fills, reads back or hears them: no move fills them, no
+  event carries them, a number or code heard in speech is withheld from the model
+  (`backend/credentials.py`), and the brain finds a patient only by id. On a typed sign-in
+  (`patient_signed_in`, `by: visitor`, not `restored`) the agent welcomes the patient by first
+  name in the next quiet moment and carries on with what they were doing; on `wrong_code` or
+  `bad_phone` she says it did not go through and asks them to type it again; on `name_needed`
+  she asks the new patient's name (a name is not a credential, `patient.name` fills it).
 
 - Facts only from the data: prices, durations, dentists, rules, policies, instructions. Slots only
   from the engine.

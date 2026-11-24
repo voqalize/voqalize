@@ -81,20 +81,19 @@
       "doc": "Book the held slot, after the patient's spoken yes: the appointment goes on the calendar and the confirmation shows. Refused when nothing is held, the patient is not verified, or the slot was taken."
     },
     {
-      "id": "patient.phone",
-      "class": "reversible",
-      "args": [{ "name": "phone", "doc": "The phone number as said; the page keeps the last ten digits." }],
-      "claims": ["sending you a code", "sending the code"],
-      "objects": ["code", "otp", "phone number"],
-      "doc": "Fill the phone number in the sign-in panel and send the one-time code (a demo SMS shown on screen)."
-    },
-    {
-      "id": "patient.otp",
-      "class": "reversible",
-      "args": [{ "name": "code", "doc": "The four digits the patient read out." }],
-      "claims": ["verifying the code", "checking the code"],
-      "objects": ["code", "otp"],
-      "doc": "Fill the one-time code and verify it. Refused when it does not match."
+      "id": "patient.ask",
+      "verb": "signin",
+      "class": "look",
+      "args": [
+        {
+          "name": "field",
+          "enum": ["phone", "code", "name"],
+          "optional": true,
+          "doc": "The box to point at: phone, code or name; none for the step the sign-in is on."
+        }
+      ],
+      "say": "{signin: phone} as you ask them to type their mobile number in the box on screen. You never fill, read back or hear a number or a code: the visitor types both.",
+      "doc": "Open the sign-in panel (on the booking page when a slot is held, else on My appointments) and ring the box the visitor types in next. Fills nothing: the visitor types the mobile number and the code themselves."
     },
     {
       "id": "patient.name",
@@ -153,12 +152,11 @@
         { "name": "callback_id", "doc": "CB-3107." },
         { "name": "reason", "doc": "One short line for the dentist, in English." },
         { "name": "urgency", "enum": ["urgent", "today", "routine"] },
-        { "name": "window", "doc": "When the call comes, as authored: within 30 minutes." },
-        { "name": "phone", "optional": true, "doc": "The number to call, when known." }
+        { "name": "window", "doc": "When the call comes, as authored: within 30 minutes." }
       ],
       "claims": ["asking a dentist to call", "requesting a callback", "arranging a callback"],
       "objects": ["callback", "call back"],
-      "doc": "Show the callback request card: what the dentist will call about, how soon, and its reference."
+      "doc": "Show the callback request card: what the dentist will call about, how soon, and its reference. The dentist calls the signed-in patient's number on record; refused when nobody is signed in."
     },
     {
       "id": "cal.view",

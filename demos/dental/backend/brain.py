@@ -18,8 +18,18 @@ rules (CBCT referral, OPG before wisdom-tooth surgery, root-canal sittings) and
 the cancellation terms are checked here, in code, against the patient's record.
 
 **What is marked ``@needs_result_now``**: the reads the model must answer from:
-clinic_info, find_slots, hold_slot, send_code, verify_code, my_appointments,
-propose_change. Everything else is an act whose line is said with the call.
+clinic_info, find_slots, hold_slot, my_appointments, propose_change. Everything
+else is an act whose line is said with the call.
+
+**The patient signs in by typing, never by voice** (FEEDBACK X9). Meera has no
+tool that fills a mobile number or a code: where a verified patient is needed
+she rings the sign-in box (``patient.ask``) and asks them to type it. The page
+says how it went (``sign_in_step``, ``patient_signed_in`` with the patient's id
+and first name, never the number) and Meera answers in the next quiet moment: a
+personal welcome that carries on with what they were doing, or "that code
+didn't go through, please type it again". A number or code said aloud anyway is
+taken out of what the model reads (:mod:`.credentials`) and she asks them to
+type it. The model never holds a patient's phone number.
 
 **A booking or a change needs a spoken yes.** confirm_booking and
 confirm_change are refused unless the patient's last words were a yes (or they
@@ -72,8 +82,10 @@ from .app_events import (
     PatientSignedOut,
     ScheduleChanged,
     SelectionChanged,
+    SignInStep,
 )
 from .clinic import Appt, Calendar, Patient, Service, Slot
+from .credentials import withhold
 from .persona import PERSONA, Lang
 from .prompt import LANDINGS, LINES, greeting, system_instruction
 from .rejoin import Rejoin
@@ -89,6 +101,9 @@ _IDLE_MS = 15000
 #: A line the brain already knows (a refusal the page sent after the turn):
 #: said as soon as the voice is free.
 _SAY_NOW_MS = 400
+#: A turn the brain owes after the page's news (a sign-in): taken in the next
+#: quiet spell, so it never talks over the visitor still typing.
+_TALK_MS = 700
 
 #: The first booking and callback numbers this brain mints in a session.
 _FIRST_BOOKING = 24117
@@ -198,14 +213,6 @@ class HoldRequest(BaseModel):
     branch: str | None = Field(default=None, description="Branch id, as find_slots gave it.")
 
 
-class PhoneRequest(BaseModel):
-    phone: str = Field(description="The mobile number as the patient said it, digits only.")
-
-
-class CodeRequest(BaseModel):
-    code: str = Field(description="The four digits the patient read out.")
-
-
 class NameRequest(BaseModel):
     name: str = Field(description="The new patient's full name.")
 
@@ -220,7 +227,6 @@ class ChangeRequest(BaseModel):
 class CallbackRequest(BaseModel):
     reason: str = Field(description="One short line for the dentist, in English.")
     urgency: Literal["urgent", "today", "routine"]
-    phone: str | None = Field(default=None, description="A number to call, if not verified yet.")
 
 
 class LanguageRequest(BaseModel):
@@ -289,8 +295,9 @@ class DentalBrain(OpenAIBrain):
         self.page: Page = "home"
         self.cal = Calendar.build(cl.now_ist())
         self.patient: Patient | None = None
-        self.phone: str | None = None  # the number a code was sent to
-        self.code_ok = False  # the code matched; a new number still needs a name
+        #: Where the visitor's own typing of the sign-in has got to, as the page
+        #: said (SignInStep); None before they start. Never the number itself.
+        self.signin: str | None = None
         self.hold: Hold | None = None
         self.pending: Pending | None = None
         self.heard = ""  # what the patient said last
@@ -300,6 +307,8 @@ class DentalBrain(OpenAIBrain):
         # Brain-made changes waiting for the page's answer: call_ref → undo.
         self._undo: dict[str, list[Appt | str]] = {}
         self._say_next: str | None = None
+        #: A model turn owed in the next quiet spell: the note that asks for it.
+        self._talk_next: str | None = None
         self._new_name: str | None = None
         self._fallback = FallbackLine()
         #: Every amount spoken in a form the voice reads right (spoken.py, X8).
@@ -333,6 +342,9 @@ class DentalBrain(OpenAIBrain):
         landing = str(init.get("landing") or "home")
         self.page = landing if landing in LANDINGS else "home"  # type: ignore[assignment]
         self.cal = Calendar.build(cl.now_ist())
+        # Signed in on this browser before the call: the page names the patient
+        # by id (never by number); a clinic record is looked up here.
+        self.patient = cl.patient(str(init.get("patient_id") or ""))
         await session.configure(self._speaking(self.lang, idle=True, session=session))
         logger.info("dental: session start on {} in {}", self.page, self.lang)
         now = self.cal.now
@@ -379,7 +391,8 @@ class DentalBrain(OpenAIBrain):
         and the model must not read a second greeting in its history)."""
         if self._rejoined:
             return None
-        return speak_text(greeting(self.lang, self.page), self.lang)
+        first = cl.first_name(self.patient.name) if self.patient else None
+        return speak_text(greeting(self.lang, self.page, first), self.lang)
 
     def _line(self, key: str, **kw: str) -> str:
         return LINES[self.lang][key].format(**kw)
@@ -388,7 +401,7 @@ class DentalBrain(OpenAIBrain):
         jobs = {
             "home": "The visitor is on the clinic's home page: answer questions, and book if they want.",
             "book": "The visitor is on the booking page: help them book.",
-            "my-appointments": "The visitor is on My appointments: verify them, then reschedule or cancel.",
+            "my-appointments": "The visitor is on My appointments: once they are signed in (they type it), reschedule or cancel.",
         }
         return jobs[self.page]
 
@@ -396,12 +409,26 @@ class DentalBrain(OpenAIBrain):
         return self._spoken.wrap(self._answer(session, msg))
 
     async def _answer(self, session: Session, msg: UserMessage) -> AsyncGenerator[Speech, None]:
+        kept = withhold(
+            msg.text, expecting_code=self.patient is None and self.signin == "code_sent"
+        )
+        if kept.kinds:
+            # A number or a code said aloud: the model reads only that it was said.
+            msg = UserMessage(text=kept.text)
+            logger.info("dental: withheld a spoken {} from the model", " and ".join(kept.kinds))
         self.heard = msg.text
         self.confirm_pressed = False
         self.stage.visitor_spoke()
         self._settle_expired()
         self.cal.now = cl.now_ist()
         self.append_note(self._state_note())
+        if (owed := self._talk_next) is not None:
+            # They spoke before the quiet spell the welcome was waiting for:
+            # this reply carries it instead.
+            self._talk_next = None
+            self.append_note(owed)
+        if kept.kinds:
+            self.append_note(self._spoken_credential_note(kept.kinds))
         if clinical(msg.text):
             self.append_note(
                 "[This sounds clinical. Do not advise or name any medicine. Say a dentist should "
@@ -420,13 +447,13 @@ class DentalBrain(OpenAIBrain):
     def _state_note(self) -> str:
         bits = [f"page: {self.page}"]
         if self.patient is not None:
-            bits.append(f"verified patient: {self.patient.name} ({self.patient.id})")
-        elif self.code_ok:
-            bits.append("number verified, new patient: name still needed")
-        elif self.phone:
-            bits.append(f"code sent to {self.phone}, not verified yet")
+            bits.append(f"signed in: {self.patient.name} ({self.patient.id})")
+        elif self.signin == "name_needed":
+            bits.append("their number is verified and new to us: their full name is still needed")
+        elif self.signin == "code_sent":
+            bits.append("not signed in yet: the code is on screen for them to type")
         else:
-            bits.append("patient not verified")
+            bits.append("not signed in")
         if self.hold is not None:
             h = self.hold
             bits.append(
@@ -450,17 +477,34 @@ class DentalBrain(OpenAIBrain):
         return self._spoken.wrap(self._idle(session))
 
     async def _idle(self, session: Session) -> AsyncGenerator[Speech, None]:
+        """Quiet. Meera speaks only when the page left her something: a written
+        line (a refusal, a code that did not go through), or a turn the page's
+        news asked for (a sign-in: the welcome, then what they were doing)."""
         self._settle_expired()
         say, self._say_next = self._say_next, None
-        if say is None:
+        talk, self._talk_next = self._talk_next, None
+        if say is None and talk is None:
             return
         configure_soon(session, Config(idle=IdleConfig(timeout_ms=_IDLE_MS)))
-        async for event in self.say_line(say, remember=True):
+        if say is not None:
+            async for event in self.say_line(say, remember=True):
+                yield event
+            return
+        assert talk is not None
+        self.cal.now = cl.now_ist()
+        self.append_note(talk)
+        async for event in self.respond(session):
             yield event
 
     def _say_soon(self, line: str) -> None:
         self._say_next = line
+        self._talk_next = None
         configure_soon(self.session, Config(idle=IdleConfig(timeout_ms=_SAY_NOW_MS)))
+
+    def _talk_soon(self, note: str) -> None:
+        self._talk_next = note
+        self._say_next = None
+        configure_soon(self.session, Config(idle=IdleConfig(timeout_ms=_TALK_MS)))
 
     # ─── Page → brain ───────────────────────────────────────────────────
 
@@ -499,22 +543,29 @@ class DentalBrain(OpenAIBrain):
                     self.cal.put(self._appt_in(a))
                 return None
             case PatientSignedIn():
-                known = next((p for p in cl.DATA_.patients if p.id == event.patient_id), None)
-                self.patient = known or Patient(
+                was = self.patient
+                self.patient = cl.patient(event.patient_id) or Patient(
                     id=event.patient_id,
-                    name=event.name,
-                    phone=cl.normal_phone(event.phone),
+                    name=event.name or event.first_name,
+                    phone="",  # the page keeps it; the brain never needs it
                     age=0,
                     since=self.cal.today.year,
                 )
-                self.code_ok = True
-                if event.by == "agent":
-                    return None
-                return f"[The patient signed in on screen themselves: {self.patient.name} ({self.patient.id}).]"
+                self.signin = None
+                if event.restored or event.by == "agent":
+                    return (
+                        f"[Signed in on this browser: {self.patient.name} ({self.patient.id}).]"
+                        if event.restored and (was is None or was.id != self.patient.id)
+                        else None
+                    )
+                first = event.first_name or cl.first_name(self.patient.name)
+                self._talk_soon(self._welcome_note(first, is_new=event.is_new))
+                return None
+            case SignInStep():
+                return self._signin_step(event.step)
             case PatientSignedOut():
                 self.patient = None
-                self.code_ok = False
-                self.phone = None
+                self.signin = None
                 return "[The patient signed out on screen.]"
             case SelectionChanged() if event.by == "visitor":
                 picked = ", ".join(
@@ -613,14 +664,113 @@ class DentalBrain(OpenAIBrain):
 
     def _adopt_registration(self, detail: str) -> None:
         m = re.search(r"P-\d+", detail)
-        if m and self.patient is None and self.phone:
+        if m and self.patient is None:
+            self.signin = None
             self.patient = Patient(
                 id=m.group(0),
                 name=self._new_name or "",
-                phone=self.phone,
+                phone="",
                 age=0,
                 since=self.cal.today.year,
             )
+
+    # ─── Sign-in: typed by the visitor (FEEDBACK X9) ────────────────────
+
+    def _ask_sign_in(self, field: Literal["phone", "code", "name"] | None = None) -> None:
+        """Ring the sign-in box the visitor types in next. Fills nothing."""
+        if self.patient is not None:
+            return
+        if field is None:
+            field = {"code_sent": "code", "name_needed": "name"}.get(self.signin or "", "phone")  # type: ignore[assignment]
+        self._send("patient.ask", {"field": field})
+
+    def _sign_in_first(self, why: str) -> str:
+        """A tool that needs a signed-in patient, called before one is: ring the
+        box and say what to ask."""
+        self._ask_sign_in()
+        if self.signin == "code_sent":
+            return (
+                f"Not signed in yet ({why}): the code is on screen and its box is ringed. "
+                "Ask them to type the code in that box. Never ask them to say it."
+            )
+        if self.signin == "name_needed":
+            return f"Their number is verified and new to us ({why}): ask their full name, then register_patient."
+        return (
+            f"Not signed in yet ({why}): the sign-in box is on screen and ringed. Ask them to type their "
+            "mobile number there, and then the code from the SMS. Never ask them to say either; "
+            "the page tells you when they are in."
+        )
+
+    def _spoken_credential_note(self, kinds: tuple[str, ...]) -> str:
+        what = " and ".join(
+            {"phone": "their mobile number", "code": "a sign-in code"}[k] for k in kinds
+        )
+        if self.patient is not None:
+            return (
+                f"[They said {what} aloud. It was not kept. They are already signed in "
+                f"as {self.patient.name}: carry on.]"
+            )
+        field: Literal["phone", "code"] = "code" if kinds == ("code",) else "phone"
+        self._ask_sign_in(field)
+        return (
+            f"[They said {what} aloud. It was not kept and you cannot use it: never repeat it and "
+            "never ask them to say it. In one short, kind sentence ask them to type it in the box "
+            "on screen (it is ringed now); the page tells you when they are signed in.]"
+        )
+
+    def _signin_step(self, step: str) -> str | None:
+        """The visitor's own typing moved on: a note, and a line where they
+        need one (a number or a code that did not go through, a name needed)."""
+        self.signin = step
+        if step == "code_sent":
+            return "[They typed their number and the code is on screen; they type it in themselves. Wait for the page.]"
+        if step == "wrong_code":
+            self.signin = "code_sent"
+            self._say_soon(self._line("code_failed"))
+            return (
+                "[The code they typed did not match. Never ask for the code; they type it again.]"
+            )
+        if step == "bad_phone":
+            self.signin = None
+            self._say_soon(self._line("phone_failed"))
+            return "[The number they typed is not a ten-digit mobile number; they type it again.]"
+        if step == "name_needed":
+            self._say_soon(self._line("name_needed"))
+            return (
+                "[Their number is verified and new to us: they are a new patient. When they say "
+                "their full name, call register_patient (or they type it).]"
+            )
+        return None
+
+    def _welcome_note(self, first: str, *, is_new: bool) -> str:
+        """The turn owed after a typed sign-in: a welcome by name, then on."""
+        assert self.patient is not None
+        example = {
+            "en": f"Hi {first}, you're signed in.",
+            "hi": f"नमस्ते {first}, आप sign in हो गए हैं।",
+        }[self.lang]
+        doing: str
+        if self.hold is not None:
+            h = self.hold
+            doing = (
+                f"The held slot ({h.svc.name} on {_iso(h.slot.on)} at {h.slot.time}) is waiting: "
+                "read it back in one sentence and ask whether to confirm it."
+            )
+        elif self.pending is not None:
+            doing = "A change is on screen waiting for their yes: ask for it."
+        elif is_new:
+            doing = "They are new, with no appointments yet."
+        else:
+            up = self.cal.upcoming(self.patient.id)
+            listed = "; ".join(self._appt_line(a) for a in up) or "none"
+            doing = f"Their upcoming appointments: {listed}."
+        return (
+            f"[{first} just signed in on screen, typing it themselves ({self.patient.name}, "
+            f"{self.patient.id}{', new patient' if is_new else ''}). Start with a short personal "
+            f'welcome in the call\'s language, like "{example}", then carry on with what they asked '
+            f"for before signing in, without asking again what they want if they already said it. "
+            f"{doing} If nothing was under way, ask how you can help.]"
+        )
 
     async def _switch(self, session: Session, lang: Lang, *, how: str) -> None:
         if lang == self.lang or lang not in PERSONA.codes:
@@ -642,8 +792,6 @@ class DentalBrain(OpenAIBrain):
             self.clinic_info,
             self.find_slots,
             self.hold_slot,
-            self.send_code,
-            self.verify_code,
             self.register_patient,
             self.confirm_booking,
             self.my_appointments,
@@ -887,51 +1035,18 @@ class DentalBrain(OpenAIBrain):
         if rule.ok is None and rule.rule is not None:
             out.append(f"Rule to check before confirming: {rule.rule.text}")
         if self.patient is None:
-            out.append(
-                "The patient is not verified: ask for their mobile number (send_code) before confirming."
-            )
+            out.append(self._sign_in_first("needed before confirming"))
         else:
             out.append(f"For {self.patient.name}. Read it back in one sentence and ask for a yes.")
         return " ".join(out)
 
-    @needs_result_now
-    async def send_code(self, request: PhoneRequest) -> str:
-        """Fill the patient's mobile number on screen and send the one-time code."""
-        digits = cl.normal_phone(request.phone)
-        if len(digits) != 10 or digits[0] not in "6789":
-            return f"'{request.phone}' is not a ten-digit Indian mobile number. Ask them to say it again."
-        self.phone = digits
-        self.code_ok = False
-        self._send("patient.phone", {"phone": digits})
-        landed(self._line("code"))
-        spaced = f"{digits[:5]} {digits[5:]}"
-        return f"Code sent to {spaced} (shown on screen as a demo SMS). Ask them to read out the four-digit code."
-
-    @needs_result_now
-    async def verify_code(self, request: CodeRequest) -> str:
-        """Check the code the patient read out and sign them in."""
-        if self.phone is None:
-            return "No code was sent yet: ask for their mobile number and call send_code first."
-        code = "".join(ch for ch in request.code if ch.isdigit())
-        if code != cl.DATA_.otp.demo_code:
-            return "That code does not match. Ask them to read the four digits on screen again."
-        self.code_ok = True
-        self._send("patient.otp", {"code": code})
-        known = cl.patient_by_phone(self.phone)
-        if known is None:
-            return "Verified. This number has no record: it is a new patient. Ask their full name, then register_patient."
-        self.patient = known
-        landed(self._line("verified", name=known.name))
-        up = self.cal.upcoming(known.id)
-        listed = "; ".join(self._appt_line(a) for a in up) or "none"
-        return f"Verified: {known.name} ({known.id}). Upcoming appointments: {listed}."
-
     async def register_patient(self, request: NameRequest) -> str:
-        """Register a new patient's name after their number was verified."""
-        if not self.code_ok or self.phone is None:
-            return "Verify their number first (send_code, verify_code)."
+        """Register a new patient's full name, once the number they typed was
+        verified and the page asks for a name."""
         if self.patient is not None:
-            return f"Already registered as {self.patient.name}."
+            return f"Already signed in as {self.patient.name}."
+        if self.signin != "name_needed":
+            return self._sign_in_first("a name is taken only once their typed number is verified")
         self._new_name = request.name.strip()
         self._send("patient.name", {"name": self._new_name})
         landed(self._line("registered"))
@@ -950,7 +1065,7 @@ class DentalBrain(OpenAIBrain):
         if h is None:
             return "Nothing is held: find_slots, then hold_slot first."
         if self.patient is None:
-            return "The patient is not verified: ask for their mobile number (send_code) first."
+            return self._sign_in_first("needed to book")
         if not self._yes():
             return "They have not said yes to the summary yet. Ask: shall I confirm it?"
         rule = cl.check_rule(h.svc, self.patient, h.slot.on, self.cal)
@@ -1032,7 +1147,7 @@ class DentalBrain(OpenAIBrain):
     async def my_appointments(self) -> str:
         """The verified patient's upcoming appointments and what each change would cost."""
         if self.patient is None:
-            return "Not verified yet: ask for their mobile number (send_code)."
+            return self._sign_in_first("needed to see their appointments")
         self.cal.now = cl.now_ist()
         up = self.cal.upcoming(self.patient.id)
         if not up:
@@ -1053,7 +1168,7 @@ class DentalBrain(OpenAIBrain):
         """Put a reschedule or a cancellation on screen with its fee, for the
         patient to say yes to. Without a new date and time, returns the free ones."""
         if self.patient is None:
-            return "Not verified yet: ask for their mobile number (send_code)."
+            return self._sign_in_first("needed to change an appointment")
         self.cal.now = cl.now_ist()
         a = self.cal.appts.get(request.appointment_id.strip().upper())
         if a is None or a.patient_id != self.patient.id:
@@ -1187,14 +1302,13 @@ class DentalBrain(OpenAIBrain):
         )
 
     async def request_callback(self, request: CallbackRequest) -> str:
-        """Ask a dentist to call the patient back, for anything clinical."""
-        phone = (
-            self.patient.phone
-            if self.patient
-            else self.phone or (cl.normal_phone(request.phone) if request.phone else None)
-        )
-        if not phone or len(phone) != 10:
-            return "No number to call yet: ask for their mobile number, then call request_callback with phone."
+        """Ask a dentist to call the patient back, for anything clinical. The
+        dentist calls the number on the signed-in patient's record."""
+        if self.patient is None:
+            return self._sign_in_first(
+                "the dentist calls the number on their record; for anything urgent they can "
+                f"also call the emergency line {cl.DATA_.clinic.emergency_line}"
+            )
         self._next_callback += 1
         cid = f"CB-{self._next_callback - 1}"
         window = cl.DATA_.clinical.callback_windows[request.urgency]
@@ -1205,11 +1319,10 @@ class DentalBrain(OpenAIBrain):
                 "reason": request.reason,
                 "urgency": request.urgency,
                 "window": window,
-                "phone": phone,
             },
         )
         landed(self._line("callback"))
-        return f"Callback {cid} requested: a dentist calls {phone[:5]} {phone[5:]} {window}. Tell them that."
+        return f"Callback {cid} requested: a dentist calls the number on their record {window}. Tell them that."
 
     async def set_language(self, request: LanguageRequest) -> str:
         """Switch the call's language (both what you hear and how you speak)."""

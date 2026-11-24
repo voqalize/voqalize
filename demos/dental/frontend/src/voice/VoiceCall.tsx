@@ -20,7 +20,7 @@ import { connectRequest, withRealHeaders } from "../config";
 import { displayName, persona } from "../persona";
 import { setVoiceClient, setVoiceLive } from "../stage/client";
 import { currentPage, currentPath } from "../stage/nav";
-import { actions, sendSchedule, signedInPatient, useStore } from "../state/store";
+import { actions, sendSchedule, signedInEvent, signedInPatient, useStore } from "../state/store";
 import { asUiAction } from "./events.gen";
 import { debugMode, emit, setEventSender } from "./events";
 import { CallTile } from "./CallTile";
@@ -30,9 +30,11 @@ import { DockBar } from "./VoiceDock";
 
 type Activity = "idle" | "connecting" | "listening" | "thinking" | "speaking" | "error";
 
-/** `init`: where the call starts and in which language. Nothing else. */
+/** `init`: where the call starts, in which language, and who is signed in (by id). */
 function initNow() {
-  return { surface: "dental-web", landing: currentPage(), path: currentPath(), lang: useStore.getState().lang };
+  // Who is signed in on this browser, by id only (never the number): the
+  // brain greets a returning patient by name.
+  return { surface: "dental-web", landing: currentPage(), path: currentPath(), lang: useStore.getState().lang, patient_id: signedInPatient()?.id ?? null };
 }
 
 function useCall(media: VoqalizeMedia) {
@@ -119,7 +121,7 @@ function Dock({ call }: { call: ReturnType<typeof useCall> }) {
       // Where the visitor is, who they are, and what this browser changed.
       emit("page_viewed", { page: currentPage(), path: currentPath() });
       const p = signedInPatient();
-      if (p) emit("patient_signed_in", { patient_id: p.id, name: p.name, phone: p.phone, is_new: false });
+      if (p) emit("patient_signed_in", signedInEvent(p, false, true));
       sendSchedule();
     }, [call.client]),
   );

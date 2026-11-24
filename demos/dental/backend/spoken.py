@@ -26,7 +26,7 @@ chain; see the README, "Amounts in speech"):
 only the last few words while they could still be part of an amount.
 
 **In (voice → brain).** No tool here takes an amount from the patient (the
-desk's tools take a service, a slot, a phone number and a code), so nothing is
+desk's tools take a service, a slot, a date and a name), so nothing is
 filled from one. A patient may still ask about money in words ("anything under
 dedh hazaar?", "is it more than 10k?"): :func:`parse_amounts` reads digits with
 Indian or Western commas, lakh / crore / thousand / hazaar / k, number words in

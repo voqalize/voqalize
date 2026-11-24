@@ -15,8 +15,8 @@ she offers are the ones the calendar shows.
 | route | what the front desk does there |
 | --- | --- |
 | `/demos/dental/` | the clinic site: services and prices, dentists, branches, parking, visit information. She answers from the authored instructions and starts a booking |
-| `/demos/dental/book` | booking: service, branch and dentist, the calendar (day or week, per dentist or imaging room), the slot, the patient's phone and code, the summary and Confirm |
-| `/demos/dental/my-appointments` | sign in with phone and code; reschedule or cancel with a change sheet that shows the policy and fee, confirmed by a spoken yes |
+| `/demos/dental/book` | booking: service, branch and dentist, the calendar (day or week, per dentist or imaging room), the slot, the sign-in the patient types (phone and code), the summary and Confirm |
+| `/demos/dental/my-appointments` | sign in by typing the phone and code; reschedule or cancel with a change sheet that shows the policy and fee, confirmed by a spoken yes |
 
 The call starts on whichever page the visitor is on, and that page sets her job; she follows
 the visitor to the others.
@@ -47,6 +47,13 @@ first scrolled fully into view with the group around it (`frontend/src/stage/vie
   scans free up to 2 hours before, two online changes per appointment.
 - **Clinical questions** (bleeding, swelling, fever, medicines) are never answered: she offers a
   dentist's callback, with the authored red-flag line first when it applies.
+- **Sign-in is typed, never spoken** (FEEDBACK X9). The patient types the mobile number and the
+  code in the sign-in box; Meera rings the box and asks them to type it, but has no tool that
+  fills either, and a number or code said aloud is withheld from the model
+  (`backend/credentials.py`) while she asks for it to be typed. The page sends `sign_in_step`
+  and `patient_signed_in` (id and first name, never the number), and Meera welcomes the patient
+  by name in the next quiet moment and carries on with what they were doing; a wrong code is
+  said without the code. A patient already signed in on the browser is named by id in `init`.
 - **Sample patients** (demo OTP `4821`): Rohan Mehta `98450 31726` (root canal in progress,
   a cleaning), Ishita Banerjee `99000 48213` (aligner consult; no referral, so no CBCT),
   Suresh Gowda `98860 55102` (check-up on the next open day, an OPG, a CBCT referral on file).
