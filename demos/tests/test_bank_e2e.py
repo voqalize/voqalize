@@ -1123,6 +1123,15 @@ from voqalize_demos._loaded.bank.spoken import (  # noqa: E402
         ("Loan ₹1.25\u20131.5 करोड़ तक।", "hi", "Loan ₹1.25 करोड़ से ₹1.5 करोड़ तक।"),
         ("आप 1.25 करोड़ रुपये ले सकते हैं।", "hi", "आप ₹1.25 करोड़ ले सकते हैं।"),
         ("Rate 8.65\u20139.4% सालाना है।", "hi", "Rate 8.65% से 9.4% सालाना है।"),
+        # An amount that ends a Hindi sentence: the danda (।, ॥) is a stop, not a letter.
+        ("आपका लोन ₹13.6 लाख।", "hi", "आपका लोन ₹13,60,000।"),
+        ("आप ₹1.25 करोड़।", "hi", "आप ₹1.25 करोड़।"),
+        ("आप ₹1.85 करोड़।", "hi", "आप ₹1,85,00,000।"),
+        ("आप ₹1.85 करोड़॥", "hi", "आप ₹1,85,00,000॥"),
+        ("आप ₹1.25 crore।", "hi", "आप ₹1.25 करोड़।"),
+        ("आपका लोन ₹13.6 लाख।", "en", "आपका लोन thirteen point six lakh rupees।"),
+        ("Your loan is ₹13.6 lakh.", "en", "Your loan is thirteen point six lakh rupees."),
+        ("You can borrow ₹1.25 crore।", "en", "You can borrow one point two five crore rupees।"),
     ],
 )
 def test_amounts_are_written_the_way_the_voice_reads_them(
@@ -1159,10 +1168,39 @@ def test_amounts_are_written_the_way_the_voice_reads_them(
         ("एक लाख पचास हज़ार", [150000]),
         ("पंद्रह हज़ार", [15000]),
         ("लगभग ₹\u0967,\u0968\u096b,\u0966\u0966\u0966 का", [125000]),
+        ("in 2025 15000 a month", [2025, 15000]),
     ],
 )
 def test_spoken_amounts_parse_to_rupees(heard: str, values: list[float]) -> None:
     assert [h.value for h in parse_amounts(heard)] == values
+
+
+@pytest.mark.parametrize(
+    ("heard", "low", "high"),
+    [
+        # A range is one amount with both ends, never the two added (₹3 lakh).
+        ("my income is between 1 and 2 lakh", 100000, 200000),
+        ("between one and two lakh", 100000, 200000),
+        ("1-2 lakh", 100000, 200000),
+        ("1 to 2 lakh", 100000, 200000),
+        ("a car around 8 to 12 lakh", 800000, 1200000),
+        ("1.5 to 2 crore", 15000000, 20000000),
+        ("₹50,000 to ₹1 lakh", 50000, 100000),
+        ("एक से दो लाख", 100000, 200000),
+    ],
+)
+def test_a_spoken_range_parses_as_one_range(heard: str, low: float, high: float) -> None:
+    (h,) = parse_amounts(heard)
+    assert (h.low, h.value) == (low, high)
+
+
+def test_the_amounts_note_gives_a_range_as_a_range() -> None:
+    assert amounts_note("my income is between 1 and 2 lakh") == (
+        "[Amounts they said, in rupees: '1 and 2 lakh' = 100000 to 200000 rupees.]"
+    )
+    assert amounts_note("around 8 to 12 lakh") == (
+        "[Amounts they said, in rupees: '8 to 12 lakh' = about 800000 to 1200000 rupees.]"
+    )
 
 
 async def test_an_amount_split_across_streamed_chunks_is_still_said_whole() -> None:

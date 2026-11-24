@@ -24,10 +24,11 @@ only the last few words while they could still be part of an amount.
 **In (voice → brain).** :func:`parse_amounts` reads the amounts in what the
 recogniser heard: digits with Indian or Western commas, lakh / crore / thousand /
 hazaar / k, number words in English and Hindi (Devanagari or Latin), "one and a
-half", dedh, dhai, sava, saade, paune, decimals, Devanagari digits, and
-"around" / "about" / lagbhag. :func:`implausible` is the guard a tool runs
-before it uses an amount: a value no customer would mean (₹15 for a loan) is
-never used silently; the tool asks the model to confirm it back first.
+half", dedh, dhai, sava, saade, paune, decimals, Devanagari digits, ranges ("1 to
+2 lakh", "between one and two lakh", "एक से दो लाख") and "around" / "about" /
+lagbhag. :func:`implausible` is the guard a tool runs before it uses an amount: a
+value no customer would mean (₹15 for a loan) is never used silently; the tool
+asks the model to confirm it back first.
 """
 
 from __future__ import annotations
@@ -111,12 +112,14 @@ def en_number(raw: str) -> str:
 
 _NUM = r"\d[\d,]*(?:\.\d+)?"
 _DEVANAGARI = "ऀ-ॿ"
+#: Devanagari letters and digits, not the danda (।, ॥) that ends a Hindi sentence.
+_DEVANAGARI_WORD = "ऀ-ॣ०-ॿ"
 #: lakh and crore as a model writes them; "L" only right after a rupee mark (else litres).
 _SCALE = r"lakhs?|lacs?|crores?|cr|लाख|करो(?:\u095c|\u0921\u093c)|करोड"
 _SCALED = re.compile(
     rf"(?<![\w.,])(?P<cur>₹|(?<![A-Za-z])Rs\.?|(?<![A-Za-z])INR)?[ \t]*(?P<a>{_NUM})"
     rf"(?:[ \t]*(?:[-\u2013\u2014]|\bto\b|से)[ \t]*(?P<cur2>₹)?[ \t]*(?P<b>{_NUM}))?"
-    rf"[ \t]*(?:(?P<scale>{_SCALE})|(?<=\d)(?P<L>L))(?![A-Za-z{_DEVANAGARI}])"
+    rf"[ \t]*(?:(?P<scale>{_SCALE})|(?<=\d)(?P<L>L))(?![A-Za-z{_DEVANAGARI_WORD}])"
     rf"(?:[ \t]+(?P<word>rupees|रुपये|रुपए))?",
     re.IGNORECASE,
 )
@@ -392,6 +395,8 @@ class Heard:
     scaled: bool
     #: Said with "around", "about", lagbhag.
     approx: bool
+    #: The lower end, when it was a range ("1 to 2 lakh": ``value`` 200000, ``low`` 100000).
+    low: float | None = None
 
 
 def _is_number(tok: str, nxt: str | None) -> bool:
@@ -402,8 +407,64 @@ def _is_number(tok: str, nxt: str | None) -> bool:
     return tok in _HI_LATIN and nxt is not None and (nxt in _SCALES or _is_number(nxt, None))
 
 
+#: Between two amounts, what makes them one range ("1 to 2 lakh", "एक से दो लाख").
+_RANGE_GAP = re.compile(
+    r"^\s*(?:to|se|से|or|या|till|until|upto|up to|[-\u2013\u2014/])\s*(?:₹|rs\.?)?\s*$",
+    re.IGNORECASE,
+)
+#: Characters right after a token that end the amount it is in.
+_STOP_CHARS = (".", ",", ";", "?", "!", "।", "-", "\u2013", "\u2014", "/")
+
+
+@dataclass(frozen=True)
+class _Span:
+    value: float
+    begin: int
+    end: int
+    scaled: bool
+    approx: bool
+    #: The biggest scale said in it (1 when none): "1 to 2 lakh" lends it to the "1".
+    unit: float
+    #: "between" came just before it: its "and" ends it ("between 1 and 2 lakh").
+    between: bool
+
+
+def _ranges(text: str, spans: list[_Span]) -> list[Heard]:
+    """Spans as amounts, two joined by "to", "se" or a dash (or "between … and") as one
+    range, the scale said once given to both ends."""
+    out: list[Heard] = []
+    i = 0
+    while i < len(spans):
+        a = spans[i]
+        b = spans[i + 1] if i + 1 < len(spans) else None
+        gap = text[a.end : b.begin] if b is not None else ""
+        joined = b is not None and (
+            _RANGE_GAP.match(gap) is not None or (a.between and gap.strip().lower() == "and")
+        )
+        if b is None or not joined:
+            out.append(Heard(round(a.value, 2), text[a.begin : a.end], a.scaled, a.approx))
+            i += 1
+            continue
+        lo = a.value
+        if a.unit < b.unit and lo * b.unit <= b.value * 10:
+            lo *= b.unit
+        lo, hi = sorted((lo, b.value))
+        out.append(
+            Heard(
+                round(hi, 2),
+                text[a.begin : b.end],
+                a.scaled or b.scaled,
+                a.approx or b.approx,
+                low=round(lo, 2),
+            )
+        )
+        i += 2
+    return out
+
+
 def parse_amounts(text: str) -> list[Heard]:
-    """Every amount in ``text``, in rupees, in the order said."""
+    """Every amount in ``text``, in rupees, in the order said; a range as one, with its
+    lower end in ``low``."""
     text = _nfc(text)
     norm = text.lower().translate(_DEVANAGARI_DIGITS)
     toks: list[tuple[str, int, int]] = []
@@ -411,18 +472,11 @@ def parse_amounts(text: str) -> list[Heard]:
     stops: set[int] = set()
     for m in _TOKEN.finditer(norm):
         tok = m[0].rstrip(".") or m[0]
-        if m.end() > m.start() + len(tok) or norm[m.end() : m.end() + 1] in (
-            ".",
-            ",",
-            ";",
-            "?",
-            "!",
-            "।",
-        ):
+        if m.end() > m.start() + len(tok) or norm[m.end() : m.end() + 1] in _STOP_CHARS:
             stops.add(len(toks))
         toks.append((tok, m.start(), m.start() + len(tok)))
     words = [t for t, _, _ in toks]
-    out: list[Heard] = []
+    out: list[_Span] = []
     i, approx = 0, False
     while i < len(words):
         w = words[i]
@@ -438,13 +492,16 @@ def parse_amounts(text: str) -> list[Heard]:
             i += 1
             continue
         begin = toks[i][1]
-        total, current, scaled, prefix = 0.0, 0.0, False, 0.0
+        between = i > 0 and words[i - 1] in ("between", "बीच")
+        total, current, scaled, prefix, unit = 0.0, 0.0, False, 0.0, 1.0
         end = i
         while end < len(words):
             w = words[end]
             nxt = words[end + 1] if end + 1 < len(words) else None
             after = words[end + 2] if end + 2 < len(words) else None
             if w[0].isdigit():
+                if end > i and words[end - 1][0].isdigit():
+                    break  # "2025 15000": two numbers, not one
                 current += float(w.replace(",", ""))
             elif w in _EN_WORDS:
                 current += _EN_WORDS[w]
@@ -471,6 +528,8 @@ def parse_amounts(text: str) -> list[Heard]:
                 current, end, scaled = current + 0.5, end + 2, True
             elif w == "and" and nxt == "half" and current:
                 current, end, scaled = current + 0.5, end + 1, True
+            elif w == "and" and between:
+                break  # "between 1 and 2 lakh": a range, not 1 + 2
             elif w == "and" and nxt is not None and _is_number(nxt, after) and (current or total):
                 pass  # "two thousand and eighty"
             elif w == "point" and nxt is not None and (nxt[0].isdigit() or nxt in _EN_WORDS):
@@ -483,6 +542,7 @@ def parse_amounts(text: str) -> list[Heard]:
                 continue
             elif w in _SCALES and (current or prefix):
                 size = _SCALES[w]
+                unit = max(unit, size)
                 current += prefix
                 prefix = 0.0
                 if size == 100:
@@ -499,10 +559,10 @@ def parse_amounts(text: str) -> list[Heard]:
         value = total + current + prefix
         last = toks[end - 1][2] if end > i else toks[i][2]
         if value > 0:
-            out.append(Heard(round(value, 2), text[begin:last], scaled, approx))
+            out.append(_Span(value, begin, last, scaled, approx, unit, between))
         approx = False
         i = max(end, i + 1)
-    return out
+    return _ranges(text, out)
 
 
 def amounts_note(text: str) -> str | None:
@@ -512,7 +572,9 @@ def amounts_note(text: str) -> str | None:
     if not said:
         return None
     parts = [
-        f"'{h.said}' = {'about ' if h.approx else ''}{h.value:,.0f} rupees".replace(",", "")
+        f"'{h.said}' = {'about ' if h.approx else ''}"
+        + (f"{h.low:.0f} to " if h.low is not None else "")
+        + f"{h.value:.0f} rupees"
         for h in said
     ]
     return f"[Amounts they said, in rupees: {'; '.join(parts)}.]"
