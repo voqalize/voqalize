@@ -103,7 +103,9 @@ substitutions:
 steps:
   # 1. Build + assemble every demo UI → demos/dist/demos/<name>/. The per-demo
   #    VITE_* wiring is read from the environment (build.mjs maps _<NAME>_AGENT/_PK
-  #    onto each app's VITE_AGENT_ID / VITE_PUBLISHABLE_KEY).
+  #    onto each app's VITE_AGENT_ID / VITE_PUBLISHABLE_KEY). build.mjs builds the
+  #    demos in parallel, one per CPU (bounded by memory) — which is why this build
+  #    asks for a bigger machine below. DEMOS_BUILD_JOBS overrides the pool size.
   - name: 'node:20-slim'
     id: demos
     entrypoint: bash
@@ -235,3 +237,9 @@ tags: ['web-artifact']
 
 options:
   logging: CLOUD_LOGGING_ONLY
+  # 8 vCPU / 8 GB, for build.mjs's parallel demo builds (and the docs step that
+  # runs beside them). On the default machine (2 vCPU) the demos built one after
+  # another and took ~12.5 of the build's ~14 minutes. E2_HIGHCPU_32 is the next
+  # step up if the demo count keeps growing. Not available on a private pool,
+  # which this build does not use.
+  machineType: E2_HIGHCPU_8

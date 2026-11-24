@@ -30,8 +30,9 @@
  * in on 2026-08-09 and nothing here ever read it.
  */
 
-import { execSync } from "node:child_process";
+import { execSync, spawn } from "node:child_process";
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync } from "node:fs";
+import { availableParallelism, totalmem } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { DAILY_MARKER } from "./shared/no-daily.mjs";
@@ -43,16 +44,52 @@ const distDir = join(demosDir, "dist");
 const manifest = JSON.parse(readFileSync(join(demosDir, "manifest.json"), "utf8"));
 const demoNames = manifest.demos.map((d) => d.name);
 
+/**
+ * How many demos build at once. Each one is its own `pnpm install` + `tsc` +
+ * `vite build`, and they share nothing but pnpm's store — one per user by
+ * default, and safe to write from concurrent installs, so a package one demo
+ * downloads is a hard link for the next. Run one after another they took
+ * ~12.5 minutes of a ~14 minute Cloud Build.
+ *
+ * Default: one per CPU, but no more than memory allows at 1 GiB per build
+ * (eight at once peaked at ~4.6 GB together, ~0.6 GB each, 2026-11-24).
+ * `DEMOS_BUILD_JOBS=1` restores the old one-at-a-time order.
+ */
+const MEM_PER_BUILD = 1024 ** 3;
+const defaultJobs = Math.max(1, Math.min(availableParallelism(), Math.floor(totalmem() / MEM_PER_BUILD)));
+const jobs = Number.parseInt(process.env.DEMOS_BUILD_JOBS ?? "", 10) || defaultJobs;
+
 function run(cmd, cwd, extraEnv = {}) {
   console.log(`\n$ ${cmd}\n  (cwd: ${cwd.replace(repoRoot, ".")})`);
   execSync(cmd, { cwd, stdio: "inherit", env: { ...process.env, ...extraEnv } });
 }
 
+/** `run`, but asynchronous and into a demo's own log instead of the terminal, so
+ *  concurrent builds do not interleave. Rejects on a non-zero exit. */
+function runBuffered(log, cmd, args, cwd, extraEnv = {}) {
+  log.push(`\n$ ${[cmd, ...args].join(" ")}\n  (cwd: ${cwd.replace(repoRoot, ".")})\n`);
+  return new Promise((resolve, reject) => {
+    const child = spawn(cmd, args, {
+      cwd,
+      env: { ...process.env, ...extraEnv },
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    child.stdout.on("data", (b) => log.push(b.toString()));
+    child.stderr.on("data", (b) => log.push(b.toString()));
+    child.on("error", reject);
+    child.on("close", (code, signal) =>
+      code === 0
+        ? resolve()
+        : reject(new Error(`${cmd} ${args.join(" ")} exited with ${signal ?? code}`)),
+    );
+  });
+}
+
 /** Install (standalone, outside any workspace) and build one Vite app, then copy
  *  its `dist/` into the assembled tree at `outDir`. */
-function buildApp(appDir, outDir, env = {}) {
-  run("pnpm install --ignore-workspace --frozen-lockfile", appDir);
-  run("pnpm build", appDir, env);
+async function buildApp(log, appDir, outDir, env = {}) {
+  await runBuffered(log, "pnpm", ["install", "--ignore-workspace", "--frozen-lockfile"], appDir);
+  await runBuffered(log, "pnpm", ["build"], appDir, env);
   mkdirSync(outDir, { recursive: true });
   cpSync(join(appDir, "dist"), outDir, { recursive: true });
 }
@@ -115,7 +152,7 @@ function kitImports(src) {
  * the demo's whole `src/`, which is why the conditional entries look for their
  * disabling prop anywhere in the file rather than on the tag itself.
  */
-function assertStylesheetShipped(name, appDir, outDir) {
+function assertStylesheetShipped(log, name, appDir, outDir) {
   const src = readSource(appDir);
   const styled = [...kitImports(src)].filter((n) => {
     if (HEADLESS_KIT_EXPORTS.has(n)) return false;
@@ -127,7 +164,7 @@ function assertStylesheetShipped(name, appDir, outDir) {
 
   if (styled.length === 0) {
     if (importsStyles) {
-      console.log(`  · ${name}: imports the kit stylesheet but renders no kit UI — drop the import`);
+      log.push(`  · ${name}: imports the kit stylesheet but renders no kit UI — drop the import\n`);
     }
     return;
   }
@@ -152,7 +189,7 @@ function assertStylesheetShipped(name, appDir, outDir) {
         `import was tree-shaken or the build dropped it.`,
     );
   }
-  console.log(`  ✓ ${name}: voice-ui-kit stylesheet shipped (${css.map((e) => e.name).join(", ")})`);
+  log.push(`  ✓ ${name}: voice-ui-kit stylesheet shipped (${css.map((e) => e.name).join(", ")})\n`);
 }
 
 // 1. The gallery's own shared chrome — the ambient presence ring and the
@@ -163,34 +200,81 @@ run("pnpm build", join(demosDir, "shared"));
 
 // daily-js must not ship: every demo's vite config aliases it away with
 // `noDaily()` (shared/no-daily.mjs). Its own strings in a built file mean it got in.
-function assertNoDaily(name, outDir) {
+function assertNoDaily(log, name, outDir) {
   const assets = join(outDir, "assets");
   const hit = readdirSync(assets).filter(
     (f) => f.endsWith(".js") && DAILY_MARKER.test(readFileSync(join(assets, f), "utf8")),
   );
   if (hit.length) {
-    console.error(`\n✗ ${name}: daily-js is in ${hit.join(", ")} — add noDaily() to its vite.config.ts`);
-    process.exit(1);
+    throw new Error(`${name}: daily-js is in ${hit.join(", ")} — add noDaily() to its vite.config.ts`);
   }
-  console.log(`  ✓ ${name}: no daily-js`);
+  log.push(`  ✓ ${name}: no daily-js\n`);
 }
 
 // Fresh output tree.
 rmSync(distDir, { recursive: true, force: true });
 mkdirSync(distDir, { recursive: true });
 
-// 2. Each demo → dist/demos/<name>/, with its wiring mapped from per-demo env.
-for (const name of demoNames) {
-  console.log(`\n=== ${name} ===`);
+// 2. Each demo → dist/demos/<name>/, with its wiring mapped from per-demo env,
+// `jobs` at a time. Each demo's output is buffered and printed as one block when
+// it finishes. The first failure stops new demos from starting; the ones already
+// running finish, then the failed demos' logs are printed again in full and the
+// build exits non-zero.
+async function buildDemo(name) {
+  const log = [];
+  const started = Date.now();
   const up = name.toUpperCase();
   const appDir = join(demosDir, name, "frontend");
   const outDir = join(distDir, "demos", name);
-  buildApp(appDir, outDir, {
-    VITE_AGENT_ID: process.env[`VITE_${up}_AGENT`] ?? "",
-    VITE_PUBLISHABLE_KEY: process.env[`VITE_${up}_PK`] ?? "",
-  });
-  assertStylesheetShipped(name, appDir, outDir);
-  assertNoDaily(name, outDir);
+  let error;
+  try {
+    await buildApp(log, appDir, outDir, {
+      VITE_AGENT_ID: process.env[`VITE_${up}_AGENT`] ?? "",
+      VITE_PUBLISHABLE_KEY: process.env[`VITE_${up}_PK`] ?? "",
+    });
+    assertStylesheetShipped(log, name, appDir, outDir);
+    assertNoDaily(log, name, outDir);
+  } catch (e) {
+    error = e;
+    log.push(`\n✗ ${e instanceof Error ? e.message : String(e)}\n`);
+  }
+  const secs = ((Date.now() - started) / 1000).toFixed(1);
+  const status = error ? "FAILED" : "ok";
+  console.log(`\n=== ${name} (${status}, ${secs}s) ===${log.join("").trimEnd()}`);
+  return { name, secs, error, log };
 }
 
+console.log(`\nbuilding ${demoNames.length} demos, ${jobs} at a time (DEMOS_BUILD_JOBS to change)`);
+// Longest first, so the slowest demo is not the last one started: a build script
+// with more steps than `tsc && vite build` (fernhollow renders its product
+// images, ~80 s; several write route shells) goes ahead of the rest. The sort is
+// stable, so ties keep manifest order. Output layout does not depend on order.
+const buildSteps = (name) =>
+  (JSON.parse(readFileSync(join(demosDir, name, "frontend", "package.json"), "utf8")).scripts
+    ?.build ?? "").split("&&").length;
+const queue = [...demoNames].sort((a, b) => buildSteps(b) - buildSteps(a));
+const results = [];
+let failed = false;
+await Promise.all(
+  Array.from({ length: Math.min(jobs, queue.length) }, async () => {
+    while (!failed && queue.length) {
+      const r = await buildDemo(queue.shift());
+      results.push(r);
+      if (r.error) failed = true;
+    }
+  }),
+);
+
+const failures = results.filter((r) => r.error);
+if (failures.length) {
+  for (const f of failures) {
+    console.error(`\n=== ${f.name}: full log of the failed build ===${f.log.join("").trimEnd()}`);
+  }
+  const skipped = queue.length ? `; not started: ${queue.join(", ")}` : "";
+  console.error(`\n✗ ${failures.map((f) => f.name).join(", ")} failed${skipped}`);
+  process.exit(1);
+}
+
+const slowest = [...results].sort((a, b) => b.secs - a.secs).slice(0, 5);
+console.log(`\nslowest: ${slowest.map((r) => `${r.name} ${r.secs}s`).join(", ")}`);
 console.log(`\n✓ assembled ${demoNames.length} demos → ${distDir.replace(repoRoot, ".")}`);
