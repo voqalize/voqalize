@@ -30,7 +30,7 @@ import {
   visitDays,
   weekdayLabel,
 } from "../data/homes";
-import { bookVisit, pickSlot, slotProblem } from "../state/actions";
+import { bookVisit, pickSlot, slotProblem, validPhone } from "../state/actions";
 import { emiOf, takenSlots, useStore } from "../state/store";
 import { currentPath, goTo, moves, part, thing, waitFor } from "./host";
 import { scene } from "./scene.gen";
@@ -316,6 +316,37 @@ export function performers(): Performers<Spec> {
       return null;
     },
 
+    "visit.fill": async ({ listing_id, slot, name, visitors }, c) => {
+      const l = listingOr(c, listing_id);
+      const problem = slotProblem(l.id, slot);
+      if (problem) {
+        const free = (slotsFor(l, slot.slice(0, 10), takenSlots(useStore.getState().bookings, l.id)) ?? []).filter((s) => s.free).map((s) => s.id);
+        c.refuse("slot", problem, free);
+      }
+      const people = Math.max(1, Math.min(6, Number(visitors) || 1));
+      await goTo(`/listing/${l.id}`);
+      useStore.getState().setVisit({ listing_id: l.id, day: slot.slice(0, 10) });
+      const slotEl = await waitFor(() => part(`slot:${slot}`), 900);
+      await ringScroll(c, slotEl, timeLabel(slot.slice(11)));
+      pickSlot(l.id, slot);
+      if (name.trim()) {
+        await ringScroll(c, part("visit:name"), "Name");
+        useStore.getState().setVisit({ name: name.trim() });
+      }
+      await ringScroll(c, part("visit:visitors"), `${people} ${people > 1 ? "visitors" : "visitor"}`);
+      useStore.getState().setVisit({ visitors: people });
+      const typed = validPhone(useStore.getState().visit.phone);
+      if (!typed) {
+        // X9: the agent never fills the number; it points at the box and waits.
+        const box = part("visit:phone");
+        c.after(async () => {
+          await ringScroll(c, box, "Type your mobile here");
+          box?.querySelector("input")?.focus({ preventScroll: true });
+        });
+      }
+      return `${weekdayLabel(slot.slice(0, 10))} ${timeLabel(slot.slice(11))} for ${name.trim() || "the buyer"}, ${people} ${people > 1 ? "visitors" : "visitor"}; mobile ${typed ? "typed" : "not typed yet"}`;
+    },
+
     "visit.book": async ({ listing_id, slot, name, visitors }, c) => {
       const l = listingOr(c, listing_id);
       const problem = slotProblem(l.id, slot);
@@ -324,6 +355,7 @@ export function performers(): Performers<Spec> {
         c.refuse("slot", problem, free);
       }
       if (!name.trim()) c.refuse("name", "say the name the visit is booked under");
+      if (!validPhone(useStore.getState().visit.phone)) c.refuse("slot", "the visitor has not typed their mobile number yet");
       const people = Math.max(1, Math.min(6, Number(visitors) || 1));
       await goTo(`/listing/${l.id}`);
       useStore.getState().setVisit({ listing_id: l.id, day: slot.slice(0, 10) });

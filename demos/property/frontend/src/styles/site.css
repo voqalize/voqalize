@@ -363,6 +363,7 @@ textarea {
 }
 select,
 input[type="text"],
+input[type="tel"],
 input:not([type]),
 textarea {
   border: 1px solid var(--line-2);
@@ -1264,6 +1265,21 @@ textarea {
 }
 .visit-form button {
   grid-column: 1 / -1;
+}
+.visit-form .visit-phone {
+  grid-column: 1 / -1;
+  order: 1;
+}
+.visit-form .visit-phone small {
+  font-weight: 400;
+  font-size: 11.5px;
+}
+.visit-form [data-stage-part="visit:visitors"] {
+  order: 0;
+}
+.visit-form button,
+.visit-form .form-error {
+  order: 2;
 }
 .form-error {
   grid-column: 1 / -1;

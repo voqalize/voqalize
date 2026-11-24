@@ -9,6 +9,7 @@ is the one on screen. Everything is in memory and answers in microseconds.
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
@@ -209,6 +210,39 @@ def places(kind: str | None = None, city: str | None = None) -> list[dict[str, A
 
 def place_name(place_id: str) -> str:
     return next((p["name"] for p in places() if p["id"] == place_id), place_id)
+
+
+def office_area(place_id: str) -> str:
+    """The locality an office sits in (the nearest one on the drawn map): what a
+    buyer says when they say "I work in Whitefield"."""
+    for c in HOMES["cities"]:
+        for p in c["places"]:
+            if p["id"] == place_id:
+                return min(
+                    c["localities"],
+                    key=lambda loc: (loc["x"] - p["x"]) ** 2 + (loc["y"] - p["y"]) ** 2,
+                )["name"]
+    return ""
+
+
+def resolve_office(raw: str, city: str | None = None) -> str | None:
+    """An office id from what the buyer called it: its id, its name, a word of its
+    name ("Cedarline", "the tech park") or the locality it sits in ("Whitefield",
+    "Hinjewadi"). None when nothing in ``city`` (or anywhere) fits."""
+    text = raw.strip().lower()
+    if not text:
+        return None
+    offices = places("office", city)
+    for o in offices:
+        if text in (o["id"], o["name"].lower()):
+            return o["id"]
+    for o in offices:
+        area = office_area(o["id"]).lower()
+        if area and (area in text or text in area):
+            return o["id"]
+    words = {w for w in re.findall(r"[a-z]+", text) if len(w) > 3}
+    hits = [o for o in offices if words & set(re.findall(r"[a-z]+", o["name"].lower()))]
+    return hits[0]["id"] if len(hits) == 1 else None
 
 
 def localities(city: str | None = None) -> list[str]:

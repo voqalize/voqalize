@@ -60,7 +60,8 @@ the landing's job and follows `screen.viewed` to switch.
 All on-screen moves are **Stage** moves (`frontend/src/stage/scene.json`, generated to
 `backend/stage_gen.py` and `frontend/src/stage/scene.gen.ts`): `site.go`, `listings.filter`,
 `listings.show` (cue `{show: BLR-104}`), `compare.show`, `emi.show`, `shortlist.set`, `visit.slots`,
-`visit.book`. Each performer rings before it acts, refuses with what the page offers, and returns one
+`visit.fill` (selects the slot, fills name and visitors as the buyer says them, and rings and focuses the
+empty Mobile box; books nothing), `visit.book` (refused until the visitor has typed a mobile number). Each performer rings before it acts, refuses with what the page offers, and returns one
 short line. Markup: `data-stage-thing="listing:<id>"` (cards, map pins), `data-stage-part="<field>:<value>"`
 on filter controls (`bhk:2`, `deal:buy`, `possession:ready`, `locality:Whitefield`, `amenity:Gym`,
 `city:pune`), `data-stage-thing="visit-day:<YYYY-MM-DD>"`, `data-stage-part="slot:<slot id>"`.
@@ -75,7 +76,8 @@ language at the next quiet spell, and answers `language_changed` (or the old lan
 
 Stage events (`stage_event`), each with `by: visitor|agent`: `screen.viewed {path, page, listing_id?,
 title?}` (every route change, silent), `search.changed {summary, count, …filters, ids}` (the first 12
-result ids), `shortlist.changed {count, ids}`, `visit.slot_picked {listing_id, slot}`, `visit.booked
+result ids), `shortlist.changed {count, ids}`, `visit.slot_picked {listing_id, slot}`, `visit.phone_typed {listing_id, typed}` (whether a valid
+mobile number is in the Mobile box, told when that answer changes; never the number), `visit.booked
 {listing_id, slot, reference}` (speaks when the visitor booked by hand). Plus Stage's own
 `stage_result` / `stage_hello` / `stage_progress`.
 
@@ -83,7 +85,11 @@ result ids), `shortlist.changed {count, ids}`, `visit.slot_picked {listing_id, s
 
 - Everything works by click alone; the voice layer is an adapter over the same store.
 - `?debug=1` shows a console that fires any Stage move by hand (it runs the registered performer).
-- The agent books only after the buyer's spoken yes (`visit.book` is `confirmed`).
+- The agent books only after the buyer's spoken yes (`visit.book` is `confirmed`), and only once the
+  visitor has typed their mobile number. Credentials are typed (FEEDBACK X9): the agent never asks for,
+  hears, fills or reads back the number; a number said aloud is never used. When the number goes in while a
+  visit is held, the brain says the one confirmation itself ("Thanks, Ravi, your number is in. Shall I
+  book …?"), and after the booking a personal line ("Done, Ravi! …"), both in the call's language.
 
 ## Redial: a call outlives a dropped brain socket (SDK 0.15.0, owner 2026-11-23)
 

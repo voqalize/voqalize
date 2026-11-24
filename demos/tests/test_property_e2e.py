@@ -14,6 +14,7 @@ from __future__ import annotations
 import asyncio
 import json
 from collections.abc import Iterator
+from datetime import date
 from typing import Any
 
 import pytest
@@ -68,6 +69,20 @@ async def _answer(rig: DemoRig, move: str) -> None:
             "stage_result",
             {"call_ref": m["call_ref"], "move": move, "outcome": "applied", "detail": "done"},
         )
+    await asyncio.sleep(0.1)
+
+
+async def _phone_typed(rig: DemoRig, listing_id: str = "BLR-101", typed: bool = True) -> None:
+    """The visitor typed (or cleared) a mobile number on the visit form: the page
+    says only whether one is in, never the number."""
+    await rig.driver.send_ui_event(
+        "stage_event",
+        {
+            "name": "visit.phone_typed",
+            "by": "visitor",
+            "data": {"listing_id": listing_id, "typed": typed},
+        },
+    )
     await asyncio.sleep(0.1)
 
 
@@ -321,6 +336,19 @@ async def test_the_booker_finds_a_slot_and_books_only_on_yes() -> None:
         check_turn(rig, await rig.driver.user_says("The first one. I'm Ravi, two of us."))
         assert not _moves(rig, "visit.book"), "booked before the buyer said yes"
         assert _brain(rig).pending is not None
+        # The form fills as said; the mobile number is the visitor's to type (X9).
+        (fill,) = _moves(rig, "visit.fill")
+        assert fill["args"] == {
+            "listing_id": "BLR-101",
+            "slot": slot,
+            "name": "Ravi",
+            "visitors": 2,
+        }
+        await _answer(rig, "visit.fill")
+        await _phone_typed(rig)
+        confirm = await rig.driver.user_idle()
+        check_turn(rig, confirm, units=1)
+        assert "Ravi" in confirm.text and "the two of you" in confirm.text
 
         yes = await rig.driver.user_says("Yes, please book it.")
         check_turn(rig, yes, units=1)
@@ -347,7 +375,7 @@ async def test_the_booker_finds_a_slot_and_books_only_on_yes() -> None:
         done = await rig.driver.user_idle()
         check_turn(rig, done, units=1)
         text = done.units[0].text
-        assert h.reference("BLR-101", slot) in text
+        assert text.startswith("Done, Ravi!"), "a personal confirmation"
         assert h.PROJECTS["kosha-aranya"]["team"]["contact"] in text
         assert len(llm.requests) == requests, "the yes and the outcome needed no model call"
         assert f"kosha-aranya|{slot}" in _brain(rig).taken
@@ -502,7 +530,17 @@ async def test_a_dropped_socket_rejoins_the_call_where_it_was() -> None:
         await first.user_says("Save it.")
         await first.user_says("Saturday afternoon?")
         await first.user_says("The first one. I'm Ravi, two of us.")
+        await first.send_ui_event(
+            "stage_event",
+            {
+                "name": "visit.phone_typed",
+                "by": "visitor",
+                "data": {"listing_id": "BLR-101", "typed": True},
+            },
+        )
+        await asyncio.sleep(0.1)
         before = built[-1]
+        assert before.phone_typed
         assert before.job == "booker" and before.listing_id == "BLR-101"
         assert before.lang == "hi" and before.shortlisted == ["BLR-101"]
         assert before.pending is not None and before.pending.slot == slot
@@ -920,3 +958,382 @@ async def test_every_two_chunk_split_speaks_like_the_whole_sentence(
         assert await _ws_streamed([[head, tail]], lang) == whole, (head, tail)
         if tail[0] == " " and tail[1] in "₹0123456789":  # an amount starts the second unit
             assert await _ws_streamed([[head], [tail]], lang) == whole, (head, tail)
+
+
+# ─── The K0 audit: the guide sells, no turn ends silent, the mobile is typed ────
+# Each test pins one problem the real-model audit found (FEEDBACK K0; transcripts
+# beside the PR). The model is scripted; what is checked is what the brain does
+# with its call: the search on screen, what the tool tells the model to say next,
+# and the brain's own lines.
+
+
+async def test_the_guide_greeting_leads_with_the_first_questions() -> None:
+    async with demo("property", ScriptedOpenAI()) as rig:
+        greeting = await rig.driver.start_session(init={"page": "/", "lang": "en"})
+        assert greeting is not None
+        assert "buy or rent" in greeting.text and "which city" in greeting.text
+
+
+async def test_an_office_named_by_its_area_sets_the_commute() -> None:
+    """A1/B1: "I work at the tech park in Whitefield" was re-asked as "which tech
+    park?" twice and never filtered. The area alone names the office."""
+    llm = ScriptedOpenAI(
+        {
+            "I work in Whitefield.": [
+                reply_and_call("Let me sort by your commute.", "search_homes", office="Whitefield"),
+                reply("The nearest is two km away."),
+            ]
+        }
+    )
+    async with demo("property", llm) as rig:
+        await rig.driver.start_session(init={"page": "/"})
+        await rig.driver.user_says("I work in Whitefield.")
+        (move,) = _moves(rig, "listings.filter")
+        assert move["args"]["office"] == "cedarline"
+        assert move["args"]["city"] == "bengaluru"
+        (said,) = tool_results_of(llm.captured_inputs[-1], "search_homes")
+        assert "km from Cedarline Tech Park" in said
+        assert "never ask which office" in said
+
+
+async def test_a_crore_budget_is_a_home_to_buy_not_a_question() -> None:
+    """C1/F2: "3 BHK in Hyderabad up to 1.5 crore" showed a rental and asked
+    "buy or rent?"."""
+    llm = ScriptedOpenAI(
+        {
+            "3 BHK in Hyderabad up to 1.5 crore.": [
+                reply_and_call(
+                    "Let me look.",
+                    "search_homes",
+                    city="hyderabad",
+                    bhk=[3],
+                    budget_max=15000000,
+                ),
+                reply("Two fit."),
+            ]
+        }
+    )
+    async with demo("property", llm) as rig:
+        await rig.driver.start_session(init={"page": "/listings"})
+        await rig.driver.user_says("3 BHK in Hyderabad up to 1.5 crore.")
+        (move,) = _moves(rig, "listings.filter")
+        assert move["args"]["deal"] == "buy"
+        assert all(h.LISTINGS[i]["deal"] == "buy" for i in _brain(rig).results)
+        (said,) = tool_results_of(llm.captured_inputs[-1], "search_homes")
+        assert "whether they want to buy or rent" not in said, "not the next question"
+        assert "never ask buy or rent" in said
+
+
+async def test_around_a_budget_shows_homes_a_little_over_it() -> None:
+    """A2/E1: "about 90 lakh" filtered at exactly ₹90 lakh and found nothing; a
+    buyer who says "around" means homes a little over it count too."""
+    said_text = "2 BHK in Bengaluru, budget around 90 lakh."
+    llm = ScriptedOpenAI(
+        {
+            said_text: [
+                reply_and_call(
+                    "Let me look.",
+                    "search_homes",
+                    city="bengaluru",
+                    deal="buy",
+                    bhk=[2],
+                    budget_max=9000000,
+                ),
+                reply("One fits."),
+            ]
+        }
+    )
+    async with demo("property", llm) as rig:
+        await rig.driver.start_session(init={"page": "/"})
+        await rig.driver.user_says(said_text)
+        (move,) = _moves(rig, "listings.filter")
+        assert move["args"]["budget_max"] == 9900000
+        assert "BLR-112" in _brain(rig).results
+        (said,) = tool_results_of(llm.captured_inputs[-1], "search_homes")
+        assert "They said around ₹90 lakh" in said
+
+
+async def test_nothing_fitting_relaxes_one_thing_and_says_so() -> None:
+    """E1: an empty list ended the Hindi call ("raise your budget?") and every
+    later turn ("the first one's EMI", "book a visit") had nothing to act on."""
+    llm = ScriptedOpenAI(
+        {
+            "2 BHK in Bengaluru up to 85 lakh.": [
+                reply_and_call(
+                    "Let me look.",
+                    "search_homes",
+                    city="bengaluru",
+                    deal="buy",
+                    bhk=[2],
+                    budget_max=8500000,
+                ),
+                reply("Nothing at that price, but the closest is close."),
+            ]
+        }
+    )
+    async with demo("property", llm) as rig:
+        await rig.driver.start_session(init={"page": "/"})
+        await rig.driver.user_says("2 BHK in Bengaluru up to 85 lakh.")
+        (move,) = _moves(rig, "listings.filter")
+        assert move["args"]["budget_max"] == 9400000, "stretched to the nearest home's price"
+        assert _brain(rig).results == ["BLR-112"]
+        (said,) = tool_results_of(llm.captured_inputs[-1], "search_homes")
+        assert "Nothing fit exactly" in said and "₹94 lakh" in said
+        # F: the widening is for this answer only; the next change starts from
+        # what they asked for, never from the stretched budget.
+        assert _brain(rig).wanted.budget_max == 8500000
+
+
+async def test_the_pitch_asks_the_next_question_once_then_nudges() -> None:
+    """A3/A4: the guide re-asked "which tech park?" after the buyer moved on, and
+    never offered a visit. The tool names one next question, never the same one
+    twice, and once the homes are few, the nudge to a site visit."""
+    llm = ScriptedOpenAI(
+        {
+            "Buying in Bengaluru, up to 2 crore.": [
+                reply_and_call(
+                    "Let me look.",
+                    "search_homes",
+                    city="bengaluru",
+                    deal="buy",
+                    budget_max=20000000,
+                ),
+                reply("Plenty fit. How many bedrooms?"),
+            ],
+            "Ready to move, please.": [
+                reply_and_call("Sure.", "search_homes", possession="ready"),
+                reply("Here they are."),
+            ],
+            "Two bedrooms, I work in Whitefield, near a school.": [
+                reply_and_call(
+                    "Narrowing.", "search_homes", bhk=[2], office="Whitefield", school_km=2
+                ),
+                reply("Two fit."),
+            ],
+        }
+    )
+    async with demo("property", llm) as rig:
+        await rig.driver.start_session(init={"page": "/"})
+        await rig.driver.user_says("Buying in Bengaluru, up to 2 crore.")
+        (first,) = tool_results_of(llm.captured_inputs[-1], "search_homes")
+        assert "Then ask ONE question" in first and "how many bedrooms" in first
+        await _answer(rig, "listings.filter")
+        await rig.driver.user_says("Ready to move, please.")
+        second = tool_results_of(llm.captured_inputs[-1], "search_homes")[-1]
+        assert "how many bedrooms" not in second, "a question is never asked twice"
+        await _answer(rig, "listings.filter")
+        await rig.driver.user_says("Two bedrooms, I work in Whitefield, near a school.")
+        third = tool_results_of(llm.captured_inputs[-1], "search_homes")[-1]
+        assert "Then nudge: offer a site visit" in third
+        best = h.LISTINGS[_brain(rig).results[0]]
+        assert best["title"] in third
+
+
+async def test_a_read_left_unspoken_is_answered_by_the_brain() -> None:
+    """F1: "I'll look for three BHK homes…" and then nothing: the search ran and
+    its answer was never said. The brain says the written answer."""
+    llm = ScriptedOpenAI(
+        {
+            "Three BHK in Bangalore around 1 crore.": [
+                reply_and_call(
+                    "I'll look for three BHK homes.",
+                    "search_homes",
+                    city="bengaluru",
+                    bhk=[3],
+                    budget_max=10000000,
+                ),
+                reply(""),
+            ]
+        }
+    )
+    async with demo("property", llm) as rig:
+        await rig.driver.start_session(init={"page": "/"})
+        turn = await rig.driver.user_says("Three BHK in Bangalore around 1 crore.")
+        best = h.LISTINGS[_brain(rig).results[0]]
+        assert best["title"] in turn.text, turn.text
+        assert "fit what you told me" in turn.text
+
+
+async def test_opening_a_home_offers_the_visit_and_never_stops_there() -> None:
+    """B2: "Can I see it?" opened the listing with "I'll open it for you." and
+    the call stopped. Opening a home waits for its result and moves to the visit."""
+    llm = ScriptedOpenAI(
+        {
+            "Can I see the cheaper one?": [
+                reply_and_call("Opening it.", "open_listing", listing_id="PNQ-115"),
+                reply(""),
+            ]
+        }
+    )
+    async with demo("property", llm) as rig:
+        await rig.driver.start_session(init={"page": "/listings"})
+        turn = await rig.driver.user_says("Can I see the cheaper one?")
+        (said,) = tool_results_of(llm.captured_inputs[-1], "open_listing")
+        assert "offer a site visit" in said
+        assert "Which day would suit you" in turn.text
+
+
+async def test_compare_names_the_home_that_suits_them_better() -> None:
+    """C2: the comparison was read out row by row with no verdict and no next step."""
+    llm = ScriptedOpenAI(
+        {
+            "I work at Cedarline.": [
+                reply_and_call("Noted.", "search_homes", office="cedarline"),
+                reply("Sorted by your commute."),
+            ],
+            "Compare these two.": [
+                call("compare_homes", listing_ids=["BLR-105", "BLR-112"]),
+                reply("Palm Grove suits you better."),
+            ],
+        }
+    )
+    async with demo("property", llm) as rig:
+        await rig.driver.start_session(init={"page": "/listings"})
+        await rig.driver.user_says("I work at Cedarline.")
+        await _answer(rig, "listings.filter")
+        await rig.driver.user_says("Compare these two.")
+        (said,) = tool_results_of(llm.captured_inputs[-1], "compare_homes")
+        assert said.startswith("SAY")
+        assert f"{h.LISTINGS['BLR-112']['title']} suits them better" in said
+        assert "2.1 km from Cedarline Tech Park" in said
+        assert "offer a site visit" in said
+
+
+async def test_two_homes_emis_compared_on_one_screen_move() -> None:
+    """C3: two EMIs were two emi.show moves (the second replaced the first) and a
+    reply with every figure and no next step."""
+    llm = ScriptedOpenAI(
+        {
+            "Which has the lower EMI with 30 percent down?": [
+                call("estimate_emi", listing_id="HYD-110", down_pct=30, also=["HYD-106"]),
+                reply("Banjara Crest is lower."),
+            ]
+        }
+    )
+    async with demo("property", llm) as rig:
+        await rig.driver.start_session(init={"page": "/compare"})
+        await rig.driver.user_says("Which has the lower EMI with 30 percent down?")
+        assert len(_moves(rig, "emi.show")) == 1
+        (said,) = tool_results_of(llm.captured_inputs[-1], "estimate_emi")
+        mine = h.emi(h.LISTINGS["HYD-110"]["price"], 30, 20, "sahyadri").emi
+        theirs = h.emi(h.LISTINGS["HYD-106"]["price"], 30, 20, "sahyadri").emi
+        assert h.inr(mine) in said and h.inr(theirs) in said
+        assert "nudge: offer a site visit" in said
+        assert said.index("SAY") < said.index("DETAIL")
+
+
+async def test_a_weekend_visit_offers_both_days() -> None:
+    """D1: "this weekend" got "Saturday or Sunday?" instead of the free times."""
+    llm = ScriptedOpenAI(
+        {
+            "This weekend, any time.": [
+                call("visit_slots", listing_id="BLR-101", day="weekend"),
+                reply("Saturday has a few."),
+            ]
+        }
+    )
+    async with demo("property", llm) as rig:
+        await rig.driver.start_session(init={"page": "/listing/BLR-101"})
+        await rig.driver.user_says("This weekend, any time.")
+        (said,) = tool_results_of(llm.captured_inputs[-1], "visit_slots")
+        assert "This weekend:" in said and "Saturday" in said and "Sunday" in said
+        (shown,) = _moves(rig, "visit.slots")
+        assert date.fromisoformat(shown["args"]["day"]).weekday() >= 5
+
+
+async def test_the_mobile_number_is_typed_never_said_and_one_yes_books() -> None:
+    """X9 and D2-D6: the booker never asked for a phone at all, and the outcome was
+    a reference read aloud. Now the form fills as said, the Mobile box is the
+    visitor's to type, a yes before it is in books nothing, the typed number
+    brings the ONE confirmation, and the booked line is personal."""
+    _, slot = _afternoon()
+    llm = ScriptedOpenAI(
+        {
+            "The first one. I'm Ravi Kumar, two of us.": [
+                call(
+                    "propose_visit", listing_id="BLR-101", slot=slot, name="Ravi Kumar", visitors=2
+                ),
+                reply("I've filled it in. Please type your mobile number in the box."),
+            ],
+            "My number is 98765 43210.": reply("Please type it in the box instead."),
+        }
+    )
+    async with demo("property", llm) as rig:
+        await rig.driver.start_session(init={"page": "/listing/BLR-101"})
+        await rig.driver.user_says("The first one. I'm Ravi Kumar, two of us.")
+        (said,) = tool_results_of(llm.captured_inputs[-1], "propose_visit")
+        assert "not typed yet" in said and "never ask them to say it" in said
+        (fill,) = _moves(rig, "visit.fill")
+        assert set(fill["args"]) == {"listing_id", "slot", "name", "visitors"}, "no phone sent"
+        await _answer(rig, "visit.fill")
+
+        await rig.driver.user_says("My number is 98765 43210.")
+        seen = _inputs(llm)
+        assert "They said a phone number aloud" in seen
+
+        early = await rig.driver.user_says("Yes, book it.")
+        assert "type your mobile number" in early.text
+        assert not _moves(rig, "visit.book"), "no booking before the number is typed"
+
+        await _phone_typed(rig)
+        confirm = await rig.driver.user_idle()
+        assert confirm.text.startswith("Thanks, Ravi")
+        assert "the two of you" in confirm.text
+        requests = len(llm.requests)
+
+        yes = await rig.driver.user_says("Yes.")
+        assert yes.text == "Booking it now."
+        (book,) = _moves(rig, "visit.book")
+        await rig.driver.send_ui_event(
+            "stage_result",
+            {
+                "call_ref": book["call_ref"],
+                "move": "visit.book",
+                "outcome": "applied",
+                "detail": "ok",
+            },
+        )
+        await asyncio.sleep(0.1)
+        done = await rig.driver.user_idle()
+        assert done.text.startswith("Done, Ravi!")
+        assert "you both" in done.text and "photo ID" in done.text
+        assert h.reference("BLR-101", slot) not in done.text, "no code read aloud"
+        assert len(llm.requests) == requests, "the confirmation and the outcome are the brain's"
+
+
+async def test_the_hindi_booking_is_confirmed_in_hindi() -> None:
+    """R8 for Kosha: the confirmation and the outcome are whole Hindi sentences,
+    the day and time in Hindi too."""
+    _, slot = _afternoon()
+    llm = ScriptedOpenAI(
+        {
+            "पहला वाला, मेरा नाम अमित है।": [
+                call("propose_visit", listing_id="BLR-101", slot=slot, name="अमित", visitors=1),
+                reply("मोबाइल नंबर बॉक्स में टाइप कर दीजिए।"),
+            ]
+        }
+    )
+    async with demo("property", llm) as rig:
+        await rig.driver.start_session(init={"page": "/listing/BLR-101", "lang": "hi"})
+        await rig.driver.user_says("पहला वाला, मेरा नाम अमित है।")
+        await _answer(rig, "visit.fill")
+        await _phone_typed(rig)
+        confirm = await rig.driver.user_idle()
+        assert confirm.text.startswith("धन्यवाद अमित जी")
+        assert "शनिवार" in confirm.text and "दोपहर" in confirm.text
+        await rig.driver.user_says("हाँ।")
+        (book,) = _moves(rig, "visit.book")
+        await rig.driver.send_ui_event(
+            "stage_result",
+            {
+                "call_ref": book["call_ref"],
+                "move": "visit.book",
+                "outcome": "applied",
+                "detail": "ok",
+            },
+        )
+        await asyncio.sleep(0.1)
+        done = await rig.driver.user_idle()
+        assert done.text.startswith("हो गया, अमित जी!")
+        assert "शनिवार" in done.text
+        assert not any(w in done.text for w in ("booked", "Saturday", "bring"))

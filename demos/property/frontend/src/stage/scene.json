@@ -88,6 +88,17 @@
       "doc": "On the listing page's site-visit panel: ring and open that day, and mark the free slots in that part of the day as suiting the buyer."
     },
     {
+      "id": "visit.fill",
+      "class": "reversible",
+      "args": [
+        { "name": "listing_id" },
+        { "name": "slot", "doc": "YYYY-MM-DDTHH:MM, IST, one of the free slots." },
+        { "name": "name", "doc": "The buyer's name as they said it." },
+        { "name": "visitors", "type": "integer", "default": 1 }
+      ],
+      "doc": "On the listing's visit panel: select the slot and fill the name and visitors, each ringed; while the Mobile box is empty it is ringed and focused for the visitor to type their number (never filled by the agent). Books nothing."
+    },
+    {
       "id": "visit.book",
       "class": "confirmed",
       "args": [
@@ -98,7 +109,7 @@
       ],
       "claims": ["booking the visit", "booking it"],
       "objects": ["booking", "visit", "बुकिंग"],
-      "doc": "Select the slot, fill name and visitors, press Book visit; the visit card appears. Refused when the slot is not free."
+      "doc": "Select the slot, fill name and visitors, press Book visit; the visit card appears. Refused when the slot is not free or the visitor has not typed their mobile number."
     }
   ],
   "slices": [
@@ -144,7 +155,8 @@
       "fields": [
         { "name": "listing_id" },
         { "name": "slot", "optional": true },
-        { "name": "reference", "optional": true }
+        { "name": "reference", "optional": true },
+        { "name": "typed", "type": "boolean", "optional": true }
       ]
     }
   ],
@@ -153,6 +165,14 @@
     { "id": "search.changed", "slice": "search", "op": "set", "note": "{by} changed the search: {summary}; {count} homes match" },
     { "id": "shortlist.changed", "slice": "shortlist", "op": "set", "note": "{by} changed the shortlist: {count} homes" },
     { "id": "visit.slot_picked", "slice": "visit", "op": "merge", "note": "{by} picked the visit slot {slot} for {listing_id}" },
+    {
+      "id": "visit.phone_typed",
+      "slice": "visit",
+      "op": "merge",
+      "react": "speak",
+      "ask": "they typed their mobile number on the visit form: thank them in a few words and go on with the booking",
+      "note": "{by} typed a mobile number on the visit form for {listing_id} (typed: {typed}); the number itself stays on the page"
+    },
     {
       "id": "visit.booked",
       "slice": "visit",

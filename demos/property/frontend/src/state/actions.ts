@@ -24,6 +24,21 @@ export function slotProblem(listingId: string, slot: string): string | null {
   return null;
 }
 
+/** A 10-digit Indian mobile number (optionally +91 or a leading 0). */
+export function validPhone(raw: string): boolean {
+  const digits = raw.replace(/\D/g, "").replace(/^(91|0)(?=\d{10}$)/, "");
+  return /^[6-9]\d{9}$/.test(digits);
+}
+
+/** The visitor typed in the Mobile box: the agent hears only whether a valid
+ * number is in, never the number (X9). Told once per change of that answer. */
+export function typePhone(listingId: string, raw: string): void {
+  const was = validPhone(useStore.getState().visit.phone);
+  useStore.getState().setVisit({ listing_id: listingId, phone: raw });
+  const now = validPhone(raw);
+  if (now !== was) sendEvent("visit.phone_typed", { listing_id: listingId, typed: now });
+}
+
 export function bookVisit(listingId: string, slot: string, name: string, visitors: number): Booking {
   const booking = useStore.getState().book({ listing_id: listingId, slot, name: name.trim(), visitors });
   sendEvent("visit.booked", { listing_id: listingId, slot, reference: booking.reference });

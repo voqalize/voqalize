@@ -171,6 +171,26 @@ export const scene = defineScene({
       ]
     },
     {
+      "id": "visit.fill",
+      "class": "reversible",
+      "args": [
+        {
+          "name": "listing_id"
+        },
+        {
+          "name": "slot"
+        },
+        {
+          "name": "name"
+        },
+        {
+          "name": "visitors",
+          "type": "integer",
+          "default": 1
+        }
+      ]
+    },
+    {
       "id": "visit.book",
       "class": "confirmed",
       "args": [
@@ -313,6 +333,11 @@ export const scene = defineScene({
         {
           "name": "reference",
           "optional": true
+        },
+        {
+          "name": "typed",
+          "type": "boolean",
+          "optional": true
         }
       ]
     }
@@ -338,6 +363,10 @@ export const scene = defineScene({
       "slice": "visit"
     },
     {
+      "id": "visit.phone_typed",
+      "slice": "visit"
+    },
+    {
       "id": "visit.booked",
       "slice": "visit",
       "op": "set"
@@ -345,4 +374,4 @@ export const scene = defineScene({
   ]
 });
 
-export const SPEC_SHA256 = "cd7e890687bc55453404076159297e835b96192058889d176b48cba68229eaa2";
+export const SPEC_SHA256 = "0cb6a031857eb735084c07602b706dc8fd1bfd43ec2135ce3b7f92ecba4f4b73";

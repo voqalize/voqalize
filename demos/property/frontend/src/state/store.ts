@@ -31,6 +31,9 @@ export interface VisitState {
   slot: string | null;
   name: string;
   visitors: number;
+  /** The visitor's mobile number, typed by them only (X9): never sent to the agent,
+   * never filled by it, kept in memory for this visit. */
+  phone: string;
 }
 
 interface Store {
@@ -82,7 +85,7 @@ export const useStore = create<Store>((set, get) => ({
   bookings: load<Booking[]>(BOOKINGS, []),
   emi: {},
   emiOpen: null,
-  visit: { listing_id: null, day: null, suits: null, slot: null, name: "", visitors: 1 },
+  visit: { listing_id: null, day: null, suits: null, slot: null, name: "", visitors: 1, phone: "" },
   justBooked: null,
   lang: initialLang(),
   filtersOpen: false,

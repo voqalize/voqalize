@@ -24,9 +24,11 @@ and the default — comes from ``persona.json`` (:mod:`.persona`).
 
 from __future__ import annotations
 
+import contextlib
 import re
 from collections.abc import AsyncGenerator, Callable
-from dataclasses import dataclass
+from contextvars import ContextVar
+from dataclasses import dataclass, replace
 from datetime import date
 from typing import Any, Literal
 
@@ -43,20 +45,32 @@ from voqalize.sdk import (
     RTVIMessage,
     Session,
     Speech,
+    SpeechStart,
     UserIdle,
     UserMessage,
 )
 from voqalize.sdk.openai import OpenAIBrain
-from voqalize.sdk.stage import Mirror, Move, Stage, match_label
+from voqalize.sdk.stage import Mirror, Move, Refused, Stage, match_label
 from voqalize.sdk.stage.wire import StageEvent, StageHello, StageProgress, StageResult
 from voqalize.sdk.wire import Config, IdleConfig, RedialConfig, SttConfig, TtsConfig
 
 from . import homes as h
-from .lines import BOOKING, BRING_SHORT, GREETING, LANDED, NO_WORDS, YES_WORDS
+from .lines import (
+    BOOKING,
+    BRING_SHORT,
+    GREETING,
+    HI_DAYS,
+    HI_MONTHS,
+    LANDED,
+    NO_WORDS,
+    OWED,
+    WHO,
+    YES_WORDS,
+)
 from .persona import PERSONA, Persona
 from .prompt import system_instruction
 from .rejoin import Rejoin
-from .spoken import SpokenAmounts, amounts_note, implausible, speak_text
+from .spoken import SpokenAmounts, amounts_note, implausible, parse_amounts, speak_text
 from .stage_gen import MOVES as STAGE_MOVES
 from .stage_gen import SPEC, ReadRequest
 
@@ -73,8 +87,66 @@ _DEVANAGARI = re.compile(r"[ऀ-ॿ]")
 
 Job = Literal["guide", "booker"]
 
-for _table in (*LANDED.values(), *GREETING.values(), *BOOKING.values()):
+for _table in (
+    *LANDED.values(),
+    *GREETING.values(),
+    *BOOKING.values(),
+    *OWED.values(),
+    *WHO.values(),
+):
     assert set(PERSONA.languages) <= set(_table), "a persona language has no written line"
+
+#: A phone number said aloud: never used, never repeated (X9).
+_SPOKEN_PHONE = re.compile(r"(?:\d[\s-]?){7,}")
+
+#: The questions that narrow the homes, in the order a good adviser asks them:
+#: (topic, the search field that answers it, how the tool names it to the model).
+_TOPICS: tuple[tuple[str, str, str], ...] = (
+    ("deal", "deal", "whether they want to buy or rent"),
+    ("city", "city", "which city"),
+    ("budget", "budget_max", "their budget"),
+    ("bhk", "bhk", "how many bedrooms"),
+    ("office", "office", "where they work, so the commute is short"),
+    ("possession", "possession", "ready to move, or is under construction fine"),
+    ("school", "school_km", "whether a good school nearby matters"),
+)
+
+
+@dataclass
+class _Owed:
+    """One turn's record: how many units of the model's speech went out, and the
+    written answer a read owes if nothing is said after it ran."""
+
+    starts: int = 0
+    line: str | None = None
+    at: int = 0
+
+
+async def _counted(
+    turn: AsyncGenerator[Speech, None], record: _Owed
+) -> AsyncGenerator[Speech, None]:
+    """The model's turn, each unit of its speech counted."""
+    try:
+        async for s in turn:
+            if isinstance(s, SpeechStart):
+                record.starts += 1
+            yield s
+    finally:
+        await turn.aclose()
+
+
+#: Per turn, like ``landed``'s record: each turn runs in its own task.
+_OWED: ContextVar[_Owed | None] = ContextVar("property_owed", default=None)
+
+
+def owe(line: str) -> None:
+    """Beside a read whose answer the buyer is waiting for (the homes that fit,
+    an EMI, a comparison): the written answer, said by the brain when the model's
+    turn says nothing after the tool ran. "Let me narrow that down" followed by
+    silence is the gap this closes (the turn's opening line alone does not count)."""
+    if (record := _OWED.get()) is not None:
+        record.line = line
+        record.at = record.starts
 
 
 class LanguageChanged(Action):
@@ -107,11 +179,18 @@ class SearchRequest(BaseModel):
     budget_max: int | None = Field(default=None, description="Rupees; monthly rent when renting.")
     possession: Literal["ready", "under_construction"] | None = None
     localities: list[str] | None = Field(default=None, description="Locality names.")
-    office: str | None = Field(default=None, description="Office id or name for the commute.")
+    office: str | None = Field(
+        default=None,
+        description="Where they work: an office id, its name, or the area they named (Whitefield).",
+    )
     max_km: float | None = Field(default=None, description="Most km from the office.")
     school_km: float | None = Field(default=None, description="A school within this many km.")
     metro_km: float | None = Field(default=None, description="Metro within this many km.")
     amenities: list[str] | None = None
+    around: bool = Field(
+        default=False,
+        description="They said about/around/roughly/lagbhag the budget: homes a little over it count.",
+    )
     clear: list[str] | None = Field(
         default=None, description="Fields to unset, e.g. ['localities', 'budget_max']."
     )
@@ -128,6 +207,9 @@ class CompareRequest(BaseModel):
 
 class EmiRequest(BaseModel):
     listing_id: str
+    also: list[str] | None = Field(
+        default=None, description="Other listing ids to compare EMIs with, on the same terms."
+    )
     down_pct: float | None = Field(default=None, description="Down payment, percent of price.")
     tenure_years: int | None = None
     lender: str | None = Field(default=None, description="Lender id.")
@@ -148,7 +230,7 @@ class SlotsRequest(BaseModel):
     listing_id: str
     day: str | None = Field(
         default=None,
-        description="YYYY-MM-DD, a weekday name (saturday), today or tomorrow. Empty: the week.",
+        description="YYYY-MM-DD, a weekday name (saturday), tomorrow or weekend. Empty: the week.",
     )
     part: Literal["morning", "afternoon", "evening", "any"] = "any"
 
@@ -178,7 +260,8 @@ class Proposal:
 
 
 def _yes_no(text: str) -> Literal["yes", "no"] | None:
-    t = " " + re.sub(r"[^\wऀ-ॿ ]", " ", text.lower()) + " "
+    # The danda (।, ॥) sits inside the Devanagari block: a Hindi "हाँ।" is a yes too.
+    t = " " + re.sub(r"[^\wऀ-ॿ ]|[।॥]", " ", text.lower()) + " "
     if any(f" {w} " in t for w in NO_WORDS):
         return "no"
     if any(f" {w} " in t for w in YES_WORDS):
@@ -224,11 +307,19 @@ class PropertyBrain(OpenAIBrain):
         self.job: Job = "guide"
         self.listing_id: str | None = None
         self.search = h.Search()
+        #: The search as the buyer asked for it; ``search`` is what the screen shows,
+        #: which a relaxed search widens for one turn (never the next one's start).
+        self.wanted = h.Search()
         self.results: list[str] = [x["id"] for x in h.search(self.search)]
         self.shortlisted: list[str] = []
         self.taken: set[str] = set()  # "<host key>|<slot id>": a host can be in one place at once
         self.booked: dict[str, Proposal] = {}  # reference → booking
         self.pending: Proposal | None = None
+        #: The visitor typed a mobile number on the visit form (the page says so;
+        #: the number itself never reaches the brain, X9).
+        self.phone_typed = False
+        #: The questions the guide was already pointed at: never asked twice.
+        self.asked: set[str] = set()
         self.turns = 0
         self._flights: dict[str, Proposal] = {}  # visit.book call_ref → booking
         self._say_next: Callable[[], str] | None = None
@@ -330,11 +421,21 @@ class PropertyBrain(OpenAIBrain):
             await session.configure(self._speaking("hi"))
         self.append_note(self.screen_now())
         self.append_note(msg.text)
-        if (said := amounts_note(msg.text)) is not None:
+        if _SPOKEN_PHONE.search(msg.text):
+            self.append_note(
+                "[They said a phone number aloud. Never repeat it or use it: their mobile number is "
+                "typed by them in the Mobile box on the visit form.]"
+            )
+        elif (said := amounts_note(msg.text)) is not None:
             self.append_note(said)
         pending = self.pending
         if pending is not None and pending.turn < self.turns:
             answer = _yes_no(msg.text)
+            if answer == "yes" and not self.phone_typed:
+                self._send_fill(pending)
+                async for speech in self.say_line(BOOKING["need_phone"][self.lang], remember=True):
+                    yield speech
+                return
             if answer == "yes":
                 line = self._book(pending)
                 async for speech in self.say_line(line, remember=True):
@@ -347,11 +448,22 @@ class PropertyBrain(OpenAIBrain):
             yield speech
 
     async def respond(self, session: Session) -> AsyncGenerator[Speech, None]:
-        """The model's turn with its cues sent to the page, and a written line
-        under a turn that moved the screen in silence."""
-        turn = self.stage.cued(super().respond(session))
-        async for event in self._fallback.speak_if_silent(self, turn):
-            yield event
+        """The model's turn with its cues sent to the page; a written line under a
+        turn that moved the screen in silence; and the written answer of a read
+        the buyer is waiting for when the model said nothing after it ran."""
+        record = _Owed()
+        token = _OWED.set(record)
+        try:
+            turn = _counted(self.stage.cued(super().respond(session)), record)
+            async for event in self._fallback.speak_if_silent(self, turn):
+                yield event
+            if record.line is not None and record.starts == record.at:
+                logger.warning("property: a read went unanswered; the brain says {!r}", record.line)
+                async for event in self.say_line(record.line, remember=True):
+                    yield event
+        finally:
+            with contextlib.suppress(ValueError):
+                _OWED.reset(token)
         self.stage.end_turn()
 
     def on_user_idle(self, session: Session, idle: UserIdle) -> AsyncGenerator[Speech, None]:
@@ -398,7 +510,13 @@ class PropertyBrain(OpenAIBrain):
             extra += f" Shortlist: {', '.join(self.shortlisted)}."
         if self.pending is not None:
             p = self.pending
-            extra += f" Waiting for their yes to book {p.listing_id} at {p.slot}."
+            extra += f" Waiting for their yes to book {p.listing_id} at {p.slot} for {p.name}."
+        if self.job == "booker":
+            extra += (
+                " Mobile number: typed."
+                if self.phone_typed
+                else " Mobile number: not typed yet (they type it, never say it)."
+            )
         return f"[Screen: {where}{extra}] [Language: {language}]"
 
     # ─── Stage ──────────────────────────────────────────────────────────
@@ -451,9 +569,23 @@ class PropertyBrain(OpenAIBrain):
                 return None
             case "search.changed":
                 self.search = h.Search.of(data)
+                if visitor:
+                    self.wanted = replace(self.search)
                 self.results = [x["id"] for x in h.search(self.search)]
             case "shortlist.changed":
                 self.shortlisted = [str(i) for i in data.get("ids") or []]
+            case "visit.phone_typed":
+                self.phone_typed = bool(data.get("typed"))
+                ask = self.stage.take_reaction()
+                if self.phone_typed and visitor:
+                    if self.pending is not None:
+                        p = self.pending
+                        self._say_soon(lambda: self._confirm_line(p))
+                    elif ask:
+                        self._talk = ask
+                        configure_soon(
+                            self.session, Config(idle=IdleConfig(timeout_ms=_REACT_IDLE_MS))
+                        )
             case "visit.booked":
                 slot, listing = str(data.get("slot") or ""), str(data.get("listing_id") or "")
                 if slot and listing in h.LISTINGS:
@@ -502,14 +634,33 @@ class PropertyBrain(OpenAIBrain):
             + "). Never say it did.]"
         )
 
+    def _when(self, slot: str) -> str:
+        """A slot as the brain's own lines say it, in the call's language."""
+        d = date.fromisoformat(slot[:10])
+        hhmm = slot[11:16]
+        if self.lang == "hi":
+            hour, minute = (int(v) for v in hhmm.split(":"))
+            part = "सुबह" if hour < 12 else "दोपहर" if hour < 16 else "शाम"
+            clock = f"{hour % 12 or 12}:{minute:02d}" if minute else f"{hour % 12 or 12}"
+            return f"{HI_DAYS[d.weekday()]} {d.day} {HI_MONTHS[d.month - 1]}, {part} {clock} बजे"
+        return f"{h.spoken_day(d)} at {h.spoken_time(hhmm)}"
+
+    def _who(self, kind: str, visitors: int) -> str:
+        one, two, more = WHO[kind][self.lang]
+        return one if visitors <= 1 else two if visitors == 2 else more.format(n=visitors)
+
+    def _confirm_line(self, p: Proposal) -> str:
+        return BOOKING["confirm"][self.lang].format(
+            first=p.name.split()[0], when=self._when(p.slot), who=self._who("confirm", p.visitors)
+        )
+
     def _booked_line(self, p: Proposal) -> str:
         x = h.LISTINGS[p.listing_id]
-        d = date.fromisoformat(p.slot[:10])
-        when = f"{h.spoken_day(d)}, {h.spoken_time(p.slot[11:16])}"
         return BOOKING["booked"][self.lang].format(
-            when=when,
-            reference=h.reference(p.listing_id, p.slot),
+            first=p.name.split()[0],
+            when=self._when(p.slot),
             contact=h.host(x).contact,
+            who=self._who("booked", p.visitors),
             bring=BRING_SHORT[self.lang],
         )
 
@@ -540,23 +691,105 @@ class PropertyBrain(OpenAIBrain):
     def _listing(self, ref: str) -> dict[str, Any] | None:
         return h.LISTINGS.get(ref.strip().upper())
 
+    def _approx_budget(self, value: int) -> bool:
+        """The buyer said this budget with "around", "about", lagbhag (their last turn)."""
+        for heard in parse_amounts(self._heard_recent[-1] if self._heard_recent else ""):
+            if heard.approx and heard.low is None and abs(heard.value - value) <= value * 0.02:
+                return True
+        return False
+
+    def _next_step(self, found: list[dict[str, Any]], s: h.Search) -> str:
+        """What the guide does after the pitch: the next question worth asking (never
+        one already asked or answered), or, once the homes are few, the nudge."""
+        known = {
+            topic for topic, fieldname, _ in _TOPICS if getattr(s, fieldname) not in (None, [])
+        }
+        open_topics = [
+            (t, words) for t, _, words in _TOPICS if t not in known and t not in self.asked
+        ]
+        best = found[0]
+        if len(found) <= 2 or (len(found) <= 4 and len(known) >= 4) or not open_topics:
+            return f"Then nudge: offer a site visit to {best['title']} (or its EMI, if they are buying)."
+        topic, words = open_topics[0]
+        self.asked.add(topic)
+        return f"Then ask ONE question to narrow it further: {words}."
+
+    def _relaxed(self, s: h.Search) -> tuple[h.Search, str] | None:
+        """When nothing fits: the smallest change that brings homes back, and what it
+        was. Never the city, buy or rent, or the bedrooms they asked for."""
+        tries: list[tuple[str, dict[str, Any], str]] = []
+        if s.budget_max is not None:
+            over = [
+                h.amount(x)
+                for x in h.search(replace(s, budget_max=None))
+                if h.amount(x) <= s.budget_max * 1.25
+            ]
+            if over:
+                top = min(over)
+                tries.append(
+                    ("budget", {"budget_max": top}, f"the budget stretched to {h.short(top)}")
+                )
+        if s.school_km is not None:
+            tries.append(("school", {"school_km": None}, "the school distance dropped"))
+        if s.metro_km is not None:
+            tries.append(("metro", {"metro_km": None}, "the metro distance dropped"))
+        if s.max_km is not None:
+            tries.append(("commute", {"max_km": None}, "the commute limit dropped"))
+        if s.possession:
+            tries.append(("possession", {"possession": None}, "ready or under construction both"))
+        if s.localities:
+            tries.append(("localities", {"localities": []}, "every locality, not only those named"))
+        if s.budget_min is not None:
+            tries.append(
+                ("budget_min", {"budget_min": None}, "the lower end of the budget dropped")
+            )
+        for _, change, what in tries:
+            loose = replace(s, **change)
+            if h.search(loose):
+                return loose, what
+        return None
+
     @needs_result_now
     async def search_homes(self, request: SearchRequest) -> str:
         """Set the listings page's search from what the buyer said: the sidebar
-        filters tick one by one and the map follows. Pass only what changed."""
+        filters tick one by one and the map follows. Pass only what changed.
+        Returns the homes that fit and what to say next."""
+        deal = request.deal or (None if request.reset else self.search.deal)
+        if deal is None:
+            # A price in crores is a home to buy; a few thousand a month is rent.
+            top = request.budget_max or request.budget_min
+            if top is not None and top >= 10_00_000:
+                deal = "buy"
+            elif top is not None and top <= 3_00_000:
+                deal = "rent"
         why = implausible(
             {"budget_min": request.budget_min, "budget_max": request.budget_max},
-            request.deal or (None if request.reset else self.search.deal),
+            deal,
             self._heard_recent[::-1],
         )
         if why is not None:
             return why
-        s = h.Search() if request.reset else h.Search(**vars(self.search))
+        s = h.Search() if request.reset else replace(self.wanted)
         for name in request.clear or []:
             if hasattr(s, name):
                 setattr(s, name, [] if isinstance(getattr(s, name), list) else None)
-        given = request.model_dump(exclude={"clear", "reset"}, exclude_none=True)
+        given = request.model_dump(exclude={"clear", "reset", "around"}, exclude_none=True)
         notes: list[str] = []
+        if deal and "deal" not in given:
+            given["deal"] = deal
+            if not self.search.deal:
+                notes.append(
+                    f"They are {'buying' if deal == 'buy' else 'renting'} (from the budget): "
+                    "never ask buy or rent."
+                )
+        stretched = ""
+        top = given.get("budget_max")
+        if top and "budget_min" not in given and (request.around or self._approx_budget(top)):
+            given["budget_max"] = int(round(top * 1.1, -4))
+            stretched = (
+                f"They said around {h.short(top)}: homes up to {h.short(given['budget_max'])} "
+                "are shown."
+            )
         if "localities" in given:
             names = h.localities(given.get("city") or s.city)
             picked = [m for m in (match_label(v, names) for v in given["localities"]) if m]
@@ -564,42 +797,93 @@ class PropertyBrain(OpenAIBrain):
                 notes.append(f"Known localities: {', '.join(names)}.")
             given["localities"] = picked
         if "office" in given:
-            offices = h.places("office", given.get("city") or s.city)
-            by_name = {o["name"]: o["id"] for o in offices}
-            ids = {o["id"] for o in offices}
+            city = given.get("city") or s.city
             raw = str(given["office"])
-            office = raw if raw in ids else by_name.get(match_label(raw, list(by_name)) or "")
+            office = h.resolve_office(raw, city) or h.resolve_office(raw)
             if office is None:
+                offices = h.places("office", city)
                 return (
-                    f"No office called {raw!r}. Offices: "
-                    + ", ".join(f"{o['name']} ({o['id']})" for o in offices)
-                    + ". Nothing changed on screen."
+                    f"No office matches {raw!r}. Offices: "
+                    + ", ".join(
+                        f"{o['name']} ({o['id']}, in {h.office_area(o['id'])})" for o in offices
+                    )
+                    + ". Nothing changed on screen. Ask which of these is nearest their work."
                 )
             given["office"] = office
+            if raw.strip().lower() not in (office, h.place_name(office).lower()):
+                notes.append(
+                    f"'{raw}' is {h.place_name(office)}, in {h.office_area(office)}: take it as "
+                    "where they work; never ask which office."
+                )
             if not given.get("city"):
-                given["city"] = next(o["city"] for o in offices if o["id"] == office)
+                given["city"] = next(o["city"] for o in h.places("office") if o["id"] == office)
         for key, value in given.items():
             setattr(s, key, value)
-        self.search = s
+        self.wanted = s
         found = h.search(s)
+        relaxed = ""
+        if not found and (loose := self._relaxed(s)) is not None:
+            s, what = loose
+            found = h.search(s)
+            relaxed = (
+                f"Nothing fit exactly, so you widened the search to {what} (their own limits "
+                "stay what they said). Tell them in a few words, as an adviser would "
+                '("Nothing at exactly that, but just above it…"), before the pitch.'
+            )
+        self.search = s
         self.results = [x["id"] for x in found]
         self._send("listings.filter", s.args(), "filter")
         if not found:
+            owe(OWED["none"][self.lang])
             return (
-                f"No homes match {s.summary()}. The list on screen is empty. Say so and suggest "
-                "loosening one thing (budget, distance or locality)."
+                f"No homes match {s.summary()}. The list on screen is empty. Say so in one "
+                "sentence and offer to loosen one thing (budget, distance or locality)."
             )
-        lines = [f"{len(found)} homes match {s.summary()}; on screen in this order:"]
+        best = found[0]
+        number = (
+            f"{h.office_km(best, s.office)} km from {h.place_name(s.office)}"
+            if s.office
+            else h.price_line(best)
+        )
+        nxt = self._next_step(found, s)
+        count = (
+            ("One home" if self.lang == "en" else "एक घर")
+            if len(found) == 1
+            else (f"{len(found)} homes" if self.lang == "en" else f"{len(found)} घर")
+        )
+        follow = OWED["next_visit" if nxt.startswith("Then nudge") else "next_ask"][self.lang]
+        owe(
+            OWED["search"][self.lang].format(
+                count=count,
+                title=best["title"],
+                locality=best["locality"],
+                price=h.price_line(best),
+                next=follow,
+            )
+        )
+        lines = [
+            "SAY (two or three short sentences in all, in the call's language): how many fit; "
+            f"{{show: {best['id']}}} the best match, {best['title']}, with the one number that "
+            f"matters ({number}"
+            + (f", and its price {h.price_line(best)}" if s.office else "")
+            + "); a second home only if it is a real alternative. "
+            + nxt,
+            *notes,
+            *([stretched] if stretched else []),
+            *([relaxed] if relaxed else []),
+            f"DETAIL ({len(found)} homes match {s.summary()}; on screen in this order; for "
+            "follow-up questions only):",
+        ]
         for x in found[:5]:
             extra = ""
             if s.office:
                 extra = f", {h.office_km(x, s.office)} km to {h.place_name(s.office)}"
             lines.append(
-                f"{x['id']} {x['title']}, {x['locality']}, {h.price_line(x)}, "
+                f"{x['id']} {x['title']}, {x['bhk']} BHK, {x['locality']}, {h.price_line(x)}, "
                 f"{x['carpet_sqft']} sq ft, {x['possession_date']}{extra}, metro "
                 f"{x['nearby']['metro'][0]['km']} km, school {x['nearby']['schools'][0]['km']} km."
             )
-        return " ".join(lines + notes)
+        return " ".join(lines)
 
     @needs_result_now
     async def home_facts(self, request: ListingRef) -> str:
@@ -615,15 +899,30 @@ class PropertyBrain(OpenAIBrain):
             if project
             else ""
         )
-        return h.facts(x) + more
+        owe(
+            OWED["facts"][self.lang].format(
+                title=x["title"], bhk=x["bhk"], carpet=x["carpet_sqft"], price=h.price_line(x)
+            )
+        )
+        return (
+            "SAY: answer just what they asked, in two short sentences (for 'tell me more': the "
+            "two things that matter most to them, from what they told you), then nudge toward a "
+            "site visit. FACTS: " + h.facts(x) + more
+        )
 
+    @needs_result_now
     async def open_listing(self, request: ListingRef) -> str:
         """Open one home's page (where a site visit is booked)."""
         x = self._listing(request.listing_id)
         if x is None:
             return f"No listing {request.listing_id}."
         self._send("site.go", {"path": f"/listing/{x['id']}"}, "open")
-        return f"opening {x['id']}, {x['title']}"
+        owe(OWED["open"][self.lang].format(title=x["title"]))
+        return (
+            f"Opening {x['title']} ({x['id']}, {h.price_line(x)}). You are now its visit booker. "
+            "SAY in two short sentences: one thing about it that fits what they asked for, then "
+            "offer a site visit and ask which day suits them."
+        )
 
     async def open_page(self, request: PageRequest) -> str:
         """Open another page of the site: the listings, the shortlist, booked
@@ -637,6 +936,26 @@ class PropertyBrain(OpenAIBrain):
         self._send("site.go", {"path": page}, "open")
         return f"opening {page}"
 
+    def _pick(self, ids: list[str]) -> tuple[str, str]:
+        """Which of two or three homes suits this buyer better, and the one number
+        that says why: the commute when they gave work, a school when they asked
+        for one, else the most space for the money."""
+        xs = [h.LISTINGS[i] for i in ids]
+        office = self.search.office
+        if office and all(h.office_km(x, office) is not None for x in xs):
+            best = min(xs, key=lambda x: h.office_km(x, office) or 99.0)
+            return best["id"], f"{h.office_km(best, office)} km from {h.place_name(office)}"
+        if self.search.school_km is not None:
+            best = min(xs, key=lambda x: x["nearby"]["schools"][0]["km"])
+            return best["id"], f"a school {best['nearby']['schools'][0]['km']} km away"
+        if all(x["deal"] == "buy" for x in xs):
+            best = min(xs, key=lambda x: x["price_per_sqft"])
+            return best[
+                "id"
+            ], f"{h.inr(best['price_per_sqft'])} per sq ft, the most home for the money"
+        best = min(xs, key=lambda x: h.amount(x))
+        return best["id"], h.price_line(best)
+
     @needs_result_now
     async def compare_homes(self, request: CompareRequest) -> str:
         """Put two or three homes side by side and read the comparison."""
@@ -645,9 +964,16 @@ class PropertyBrain(OpenAIBrain):
         if missing or not 2 <= len(ids) <= 3:
             return f"Compare needs two or three listing ids; unknown: {', '.join(missing) or '-'}."
         self._send("compare.show", {"ids": ids}, "compare")
-        rows = h.compare_rows(ids)
-        out = [f"Comparing {' vs '.join(ids)}."]
-        for label, values, best in rows:
+        pick, why = self._pick(ids)
+        title = h.LISTINGS[pick]["title"]
+        owe(OWED["compare"][self.lang].format(title=title))
+        out = [
+            f"SAY (two or three short sentences): {title} suits them better: {why}; name the "
+            "other's one real advantage in a few words; then offer a site visit to "
+            f"{title}. Other rows only if they ask.",
+            f"DETAIL: comparing {' vs '.join(ids)}.",
+        ]
+        for label, values, best in h.compare_rows(ids):
             mark = f" (better: {ids[best]})" if best is not None else ""
             out.append(f"{label}: {' | '.join(values)}{mark}.")
         return " ".join(out)
@@ -655,7 +981,8 @@ class PropertyBrain(OpenAIBrain):
     @needs_result_now
     async def estimate_emi(self, request: EmiRequest) -> str:
         """Work out a home loan's EMI for a home to buy, on screen, from the
-        site's lender rates. Defaults: 20% down, 20 years."""
+        site's lender rates. Defaults: 20% down, 20 years. ``also``: other homes
+        to compare the EMI with on the same terms."""
         x = self._listing(request.listing_id)
         if x is None or x["deal"] != "buy":
             return "EMI is only for a home to buy; give a listing id of one."
@@ -674,16 +1001,43 @@ class PropertyBrain(OpenAIBrain):
             {"listing_id": x["id"], "down_pct": down, "tenure_years": years, "lender": lender},
             "emi",
         )
+        owe(
+            OWED["emi"][self.lang].format(
+                title=x["title"], emi=h.inr(e.emi), down=f"{down:g}", years=years
+            )
+        )
+        rivals: list[str] = []
+        for ref in request.also or []:
+            y = self._listing(ref)
+            if y is None or y["deal"] != "buy" or y["id"] == x["id"]:
+                continue
+            ey = h.emi(y["price"], down, years, lender)
+            rivals.append(
+                f"{y['title']} ({y['id']}, {h.short(y['price'])}): EMI {h.inr(ey.emi)} a month"
+            )
         others = [
             f"{v['name']} {v['rate']}%: {h.inr(h.emi(x['price'], down, years, k).emi)}"
             for k, v in h.LENDERS.items()
             if k != lender and (k != "kosha-partner" or x["kind"] == "new")
         ]
+        say = (
+            f'SAY (two short sentences): the EMI, e.g. "On {x["title"]}, with {down:g}% down over '
+            f'{years} years, the EMI comes to {h.inr(e.emi)} a month." '
+            + (
+                f"Then the other home's EMI on the same terms in a few words: {'; '.join(rivals)}; "
+                "say which is lower. "
+                if rivals
+                else ""
+            )
+            + "Then nudge: offer a site visit. The rate, loan, interest and other lenders only "
+            "if they ask."
+        )
         return (
-            f"{x['id']} at {h.short(x['price'])}: {down:g}% down is {h.short(x['price'] - e.principal)}, "
-            f"loan {h.short(e.principal)} over {years} years with {e.lender['name']} at "
-            f"{e.lender['rate']}%: EMI {h.inr(e.emi)} a month, total interest {h.short(e.total_interest)}. "
-            f"{e.lender['note']} Other lenders: {'; '.join(others)}."
+            f"{say} DETAIL: {x['id']} at {h.short(x['price'])}: {down:g}% down is "
+            f"{h.short(x['price'] - e.principal)}, loan {h.short(e.principal)} over {years} years "
+            f"with {e.lender['name']} at {e.lender['rate']}%: EMI {h.inr(e.emi)} a month, total "
+            f"interest {h.short(e.total_interest)}. {e.lender['note']} Other lenders: "
+            f"{'; '.join(others)}."
         )
 
     async def shortlist_home(self, request: ShortlistRequest) -> str:
@@ -698,13 +1052,15 @@ class PropertyBrain(OpenAIBrain):
         self._send("shortlist.set", {"listing_id": x["id"], "on": request.on}, "shortlist")
         return f"{x['id']} {'on' if request.on else 'off'} the shortlist"
 
-    def _day(self, text: str | None) -> date | None | Literal["closed"]:
+    def _day(self, text: str | None) -> date | None | Literal["closed", "weekend"]:
         days = h.visit_days()
         if not text:
             return None
         t = text.strip().lower()
         if t == "tomorrow":
             return days[0]
+        if "weekend" in t or t in ("वीकेंड", "सप्ताहांत", "शनिवार-रविवार"):
+            return "weekend"
         for d in days:
             if t in (d.isoformat(), d.strftime("%A").lower(), d.strftime("%a").lower()):
                 return d
@@ -721,6 +1077,16 @@ class PropertyBrain(OpenAIBrain):
         host = h.host(x)
         days = h.visit_days()
         day = self._day(request.day)
+        weekend = ""
+        if day == "weekend":
+            ends = [d for d in days if d.weekday() >= 5]
+            free_by = {d: h.free_slots(x, d, request.part, self._held(x)) for d in ends}
+            day = next((d for d in ends if free_by[d]), ends[0] if ends else None)
+            weekend = "; ".join(
+                f"{h.spoken_day(d)}: "
+                + (", ".join(h.spoken_time(s.time) for s in free_by[d][:4]) or "nothing free")
+                for d in ends
+            )
         if day == "closed":
             return (
                 f"Visits can be booked on {', '.join(h.spoken_day(d) for d in days)} only "
@@ -742,31 +1108,59 @@ class PropertyBrain(OpenAIBrain):
             {"listing_id": x["id"], "day": day.isoformat(), "part": request.part},
             "slots",
         )
+        both = f" This weekend: {weekend}. Offer the best of both days." if weekend else ""
         if h.day_slots(x, day) is None:
             nxt = [
                 h.spoken_day(d) for d in days if h.free_slots(x, d, request.part, self._held(x))
             ][:3]
             return (
                 f"The sales team does not take visits on {h.spoken_day(day)}. "
-                f"Days with free {request.part} slots: {', '.join(nxt) or 'none this week'}."
+                f"Days with free {request.part} slots: {', '.join(nxt) or 'none this week'}." + both
             )
         free = h.free_slots(x, day, request.part, self._held(x))
         if not free:
             other = [s.time for s in h.free_slots(x, day, "any", self._held(x))][:4]
             return (
                 f"No free {request.part} slots on {h.spoken_day(day)}. Other free times that day: "
-                f"{', '.join(h.spoken_time(t) for t in other) or 'none'}."
+                f"{', '.join(h.spoken_time(t) for t in other) or 'none'}. Offer the nearest one."
+                + both
             )
         slots = ", ".join(f"{h.spoken_time(s.time)} ({s.id})" for s in free[:6])
+        times = [
+            self._when(s.id).split(", ")[-1] if self.lang == "hi" else h.spoken_time(s.time)
+            for s in free[:2]
+        ]
+        owe(
+            OWED["slots"][self.lang].format(
+                day=self._when(free[0].id).split(",")[0].rsplit(" at ", 1)[0],
+                times=(" और " if self.lang == "hi" else " and ").join(times),
+            )
+        )
         return (
             f"Free on {h.spoken_day(day)} ({request.part}): {slots}. Visits are "
-            f"{host.team['slot_minutes']} minutes with {host.contact}."
+            f"{host.team['slot_minutes']} minutes with {host.contact}. SAY: offer one or two of "
+            "these in one sentence and ask which suits them." + both
         )
+
+    def _send_fill(self, p: Proposal) -> None:
+        """Fill the visit form as said: the slot, the name, how many are coming;
+        the page rings the Mobile box while it is empty (the visitor types it)."""
+        with contextlib.suppress(Refused):  # the same fill still on its way: it stands
+            self.stage.send(
+                "visit.fill",
+                {
+                    "listing_id": p.listing_id,
+                    "slot": p.slot,
+                    "name": p.name,
+                    "visitors": p.visitors,
+                },
+            )
 
     @needs_result_now
     async def propose_visit(self, request: ProposeRequest) -> str:
-        """Hold one free slot for the buyer, before they confirm. Then ask them
-        to confirm in plain words; their yes books it."""
+        """Hold one free slot for the buyer and fill the visit form on screen,
+        before they confirm. Then ask them to confirm in plain words; their yes
+        books it."""
         x = self._listing(request.listing_id)
         if x is None:
             return f"No listing {request.listing_id}."
@@ -783,10 +1177,23 @@ class PropertyBrain(OpenAIBrain):
             return "Ask for their name first."
         visitors = min(max(request.visitors, 1), 6)
         self.pending = Proposal(x["id"], slot, name, visitors, self.turns)
+        self._send_fill(self.pending)
         when = f"{h.spoken_day(day)} at {h.spoken_time(slot[11:16])}"
+        held = (
+            f"Held and filled in on screen: {when} for {name}, {visitors} "
+            f"visitor{'s' if visitors > 1 else ''}, at {x['title']}."
+        )
+        if not self.phone_typed:
+            return (
+                f"{held} Their mobile number is not typed yet. SAY in one or two short sentences: "
+                "you have filled in the visit for them, and ask them to type their mobile number "
+                "in the Mobile box highlighted on the form (never ask them to say it). The page "
+                "tells you when it is in, and you then ask the one confirmation."
+            )
         return (
-            f"Held: {when} for {name}, {visitors} visitor{'s' if visitors > 1 else ''}, at "
-            f"{x['title']}. Ask them to confirm; nothing is booked until they say yes."
+            f"{held} Their mobile number is typed. SAY the ONE confirmation now, e.g. "
+            f'"Shall I book {when} for {self._who("confirm", visitors) if self.lang == "en" else "you"}?". '
+            "Nothing is booked until they say yes."
         )
 
     async def book_visit(self, request: BookRequest) -> str:
@@ -795,6 +1202,12 @@ class PropertyBrain(OpenAIBrain):
             return "Nothing is held. Find a free slot and propose it first."
         if not request.buyer_said_yes or self.pending.turn >= self.turns:
             return "Not booked: ask them to confirm first and wait for their yes."
+        if not self.phone_typed:
+            self._send_fill(self.pending)
+            return (
+                "Not booked yet: their mobile number is not typed. Ask them to type it in the "
+                "highlighted Mobile box; never ask them to say it."
+            )
         line = self._book(self.pending)
         landed(line)
         return "booking sent; the page answers with the visit card"

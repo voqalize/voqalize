@@ -12,8 +12,8 @@ One brain, one job per landing page; it follows the visitor to another page and 
 
 | Route | Job | What the agent does |
 | --- | --- | --- |
-| `/demos/property/` and `/demos/property/listings` | Property guide | Narrows the listings from the buyer's description (BHK, budget, city, locality, commute to an office, schools, metro, ready to move or not): the sidebar filters tick one by one and the map follows. Rings a home as he talks about it, compares two side by side, works out an EMI from the site's lender rates, shortlists. |
-| `/demos/property/listing/<id>` | Site-visit booker | Finds the slots where the buyer's day meets the sales team's diary (authored per project, IST), holds one, books it on the buyer's spoken yes, and the visit card shows address, sales contact and what to bring. |
+| `/demos/property/` and `/demos/property/listings` | Property guide | Sells like a good adviser: asks the few questions that narrow the homes (buy or rent, city, budget, BHK, where they work, ready or under construction, a school), never the same one twice, and searches as soon as it hears anything; the sidebar filters tick one by one and the map follows. "Around ₹1 crore" counts homes a little over it; when nothing fits it widens one thing and says so. Names the best one or two homes with the one number that matters (the price, or the km to the office), compares two with a verdict, works out an EMI (two homes' EMIs side by side on request), and nudges to a site visit. |
+| `/demos/property/listing/<id>` | Site-visit booker | Finds the slots where the buyer's day ("this weekend" works) meets the sales team's diary (authored per project, IST), fills the visit form as the buyer speaks (slot, name, visitors), and leaves the Mobile box to the visitor to type (never asked aloud). Once the number is in, one confirmation; the buyer's yes books it, and a personal line confirms it ("Done, Ravi! …"); the visit card shows address, sales contact and what to bring. |
 
 ## How it is built
 

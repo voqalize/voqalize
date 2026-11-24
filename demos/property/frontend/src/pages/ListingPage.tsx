@@ -28,8 +28,9 @@ import {
   visitDays,
   weekdayLabel,
 } from "../data/homes";
-import { bookVisit, pickSlot } from "../state/actions";
+import { bookVisit, pickSlot, typePhone, validPhone } from "../state/actions";
 import { type Booking, emiOf, takenSlots, useStore } from "../state/store";
+import { PERSONA } from "../data/persona";
 import { NotFound } from "./Misc";
 
 export function ListingPage() {
@@ -268,6 +269,7 @@ function VisitPanel({ l }: { l: Listing }) {
     e.preventDefault();
     if (!slot) return setError("Pick a time first.");
     if (!visit.name.trim()) return setError("Add the name the visit is booked under.");
+    if (!validPhone(visit.phone)) return setError("Type a 10-digit mobile number so the team can reach you.");
     setError("");
     bookVisit(l.id, slot, visit.name, visit.visitors);
   };
@@ -345,6 +347,20 @@ function VisitPanel({ l }: { l: Listing }) {
         <label data-stage-part="visit:name">
           <span>Name</span>
           <input value={mine ? visit.name : ""} placeholder="Your name" onChange={(e) => useStore.getState().setVisit({ listing_id: l.id, name: e.target.value })} />
+        </label>
+        <label data-stage-part="visit:phone" className="visit-phone">
+          <span>Mobile</span>
+          <input
+            type="tel"
+            inputMode="numeric"
+            autoComplete="tel-national"
+            maxLength={14}
+            value={mine ? visit.phone : ""}
+            placeholder="10-digit mobile, typed by you"
+            aria-describedby="visit-phone-note"
+            onChange={(e) => typePhone(l.id, e.target.value.replace(/[^\d+ ]/g, ""))}
+          />
+          <small id="visit-phone-note">Only the sales team sees it. {PERSONA.name} never asks you to say it.</small>
         </label>
         <label data-stage-part="visit:visitors">
           <span>Visitors</span>
