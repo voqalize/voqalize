@@ -471,7 +471,6 @@ async def _redial_rig(llm: ScriptedOpenAI, sid: str) -> tuple[Any, list[Holidays
             private_key_pem=keypair.private_pem,
             session_id=sid,
             agent_id="holidays",
-            tenant_id="demo",
         )
         return VoqalizeDriver(
             DirectConnection(f"ws://127.0.0.1:{port}", sid, token=token),
