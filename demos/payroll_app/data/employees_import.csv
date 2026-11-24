@@ -1,0 +1,57 @@
+employee_id,name,email,gender,department,designation,location,state,date_of_joining,annual_ctc,pan,uan,tax_regime,manager_id
+BB-1001,Aditi Bhandari,aditi.bhandari@banyanbay.example,F,Leadership,Co-founder and CEO,Bengaluru,Karnataka,2019-06-01,4200000,QEWPB6062K,108348097760,new,
+BB-1002,Kunal Shetty,kunal.shetty@banyanbay.example,M,Leadership,Co-founder and COO,Bengaluru,Karnataka,2019-06-01,4080000,CNUPS9166P,104724704225,new,BB-1001
+BB-1003,Vandana Iyer,vandana.iyer@banyanbay.example,F,Finance and HR,Head of Finance,Bengaluru,Karnataka,2020-02-10,3000000,RNSPI5237V,108921971441,old,BB-1002
+BB-1004,Meghna Rao,meghna.rao@banyanbay.example,F,Finance and HR,HR Manager,Bengaluru,Karnataka,2021-07-05,1500000,SAUPR4678S,104289199029,new,BB-1003
+BB-1005,Tarun Gowda,tarun.gowda@banyanbay.example,M,Finance and HR,Accounts Executive,Bengaluru,Karnataka,2022-11-14,660000,DYVPG8035X,103018807828,new,BB-1003
+BB-1006,Shalini Pillai,shalini.pillai@banyanbay.example,F,Finance and HR,HR Executive,Bengaluru,Karnataka,2023-08-01,540000,WYQPP8690D,109582277738,new,BB-1003
+BB-1007,Kavitha Menon,kavitha.menon@banyanbay.example,F,Engineering,Engineering Manager,Bengaluru,Karnataka,2020-09-01,3600000,RNPPM4318Y,102155500563,new,BB-1002
+BB-1008,Arvind Natarajan,arvind.natarajan@banyanbay.example,M,Engineering,Senior Software Engineer,Bengaluru,Karnataka,2021-03-15,2400000,VQSPN9020W,106153263126,new,BB-1007
+BB-1009,Neha Kulkarni,neha.kulkarni@banyanbay.example,F,Engineering,Senior Software Engineer,Bengaluru,Karnataka,2021-10-04,2280000,RPTPK1550S,108865815672,new,BB-1007
+BB-1010,Siddharth Rao,siddharth.rao@banyanbay.example,M,Engineering,Software Engineer,Bengaluru,Karnataka,2022-06-20,1440000,QYYPR9440D,106406638629,new,BB-1007
+BB-1011,Fatima Sheikh,fatima.sheikh@banyanbay.example,F,Engineering,Software Engineer,Bengaluru,Karnataka,2023-01-09,1380000,RCWPS5365Z,109174455274,new,BB-1007
+BB-1012,Rahul Hegde,rahul.hegde@banyanbay.example,M,Engineering,Software Engineer,Bengaluru,Karnataka,2023-07-17,1320000,ZPEPH8362G,104936254645,new,BB-1007
+BB-1013,Divya Prakash,divya.prakash@banyanbay.example,F,Engineering,QA Engineer,Bengaluru,Karnataka,2023-04-03,960000,UTCPP4257Q,102064454438,new,BB-1007
+BB-1014,Manoj Kumar,manoj.kumar@banyanbay.example,M,Engineering,DevOps Engineer,Bengaluru,Karnataka,2022-02-01,1620000,JXWPK6853T,101664693043,new,BB-1007
+BB-1015,Sneha Reddy,sneha.reddy@banyanbay.example,F,Engineering,Data Analyst,Bengaluru,Karnataka,2024-01-15,1080000,ZETPR4652Y,102248461747,new,BB-1007
+BB-1016,Abhishek Jain,abhishek.jain@banyanbay.example,M,Engineering,Software Engineer,Bengaluru,Karnataka,2025-09-01,1260000,UKSPJ7750E,104465642504,new,BB-1007
+BB-1017,Pooja Nair,pooja.nair@banyanbay.example,F,Engineering,Associate Software Engineer,Bengaluru,Karnataka,2025-11-03,840000,NCBPN6685D,108070686314,new,BB-1007
+BB-1018,Ishaan Malhotra,ishaan.malhotra@banyanbay.example,M,Product and Design,Product Manager,Bengaluru,Karnataka,2022-05-02,2160000,RLXPM5975S,107228305526,new,BB-1002
+BB-1019,Ritika Sen,ritika.sen@banyanbay.example,F,Product and Design,Product Designer,Bengaluru,Karnataka,2022-09-12,1500000,UVFPS3521Q,106183963894,new,BB-1018
+BB-1020,Varun Bhat,varun.bhat@banyanbay.example,M,Product and Design,UX Writer,Bengaluru,Karnataka,2024-03-18,900000,VHXPB2138Q,107645834631,new,BB-1018
+BB-1021,Lakshmi Venkatesh,lakshmi.venkatesh@banyanbay.example,F,Product and Design,Design Lead,Bengaluru,Karnataka,2021-01-11,2040000,FBWPV9925W,105501930879,new,BB-1018
+BB-1022,Nikita Saxena,nikita.saxena@banyanbay.example,F,Marketing,Head of Marketing,Bengaluru,Karnataka,2021-04-19,2520000,XAEPS9682Y,101591510462,new,BB-1001
+BB-1023,Aman Chawla,aman.chawla@banyanbay.example,M,Marketing,Performance Marketer,Bengaluru,Karnataka,2022-12-05,1200000,PTPPC2288J,106940735819,new,BB-1022
+BB-1024,Sanjana Das,sanjana.das@banyanbay.example,F,Marketing,Brand Manager,Bengaluru,Karnataka,2023-02-13,1320000,JQRPD7811F,106530501666,new,BB-1022
+BB-1025,Yusuf Ali,yusuf.ali@banyanbay.example,M,Marketing,Content Lead,Bengaluru,Karnataka,2023-09-25,1080000,RQDPA9638S,108716819276,new,BB-1022
+BB-1026,Tanvi Joshi,tanvi.joshi@banyanbay.example,F,Marketing,Social Media Executive,Bengaluru,Karnataka,2024-06-10,600000,ACQPJ6413H,103879341616,new,BB-1022
+BB-1027,Harish Murthy,harish.murthy@banyanbay.example,M,Leadership,Head of Supply Chain,Bengaluru,Karnataka,2020-03-02,2880000,MTXPM9820F,101930042724,old,BB-1002
+BB-1028,Deepa Raghavan,deepa.raghavan@banyanbay.example,F,Finance and HR,Payroll Specialist,Bengaluru,Karnataka,2025-10-06,780000,UZGPR5828T,107712309698,new,BB-1003
+BB-1029,Gaurav Mehta,gaurav.mehta@banyanbay.example,M,Sales,Head of Sales,Mumbai,Maharashtra,2020-08-17,3240000,JDPPM3806D,104445925714,old,BB-1001
+BB-1030,Ravi Kumar,ravi.kumar@banyanbay.example,M,Sales,Senior Sales Executive,Mumbai,Maharashtra,2021-11-22,1680000,JUCPK5768L,109297094780,old,BB-1029
+BB-1031,Swati Patil,swati.patil@banyanbay.example,F,Sales,Key Account Manager,Mumbai,Maharashtra,2021-05-10,1920000,CAPPP5211J,101066271313,old,BB-1029
+BB-1032,Imran Qureshi,imran.qureshi@banyanbay.example,M,Sales,Sales Executive,Mumbai,Maharashtra,2023-03-06,900000,KDDPQ6739A,107030952492,new,BB-1029
+BB-1033,Anita D'Souza,anita.dsouza@banyanbay.example,F,Sales,Sales Executive,Mumbai,Maharashtra,2023-10-16,840000,QPXPD2956V,108243305412,new,BB-1029
+BB-1034,Rohit Sawant,rohit.sawant@banyanbay.example,M,Sales,Sales Executive,Mumbai,Maharashtra,2024-07-01,780000,KMBPS8155N,104772774153,new,BB-1029
+BB-1035,Mehul Shah,mehul.shah@banyanbay.example,M,Sales,Key Account Manager,Mumbai,Maharashtra,2022-01-24,1800000,ZDKPS7826K,104878185755,new,BB-1029
+BB-1036,Priyanka Kadam,priyanka.kadam@banyanbay.example,F,Sales,Sales Coordinator,Mumbai,Maharashtra,2024-09-09,540000,TBZPK2844G,101526928976,new,BB-1029
+BB-1037,Farhan Kapadia,farhan.kapadia@banyanbay.example,M,Sales,Sales Executive,Mumbai,Maharashtra,2025-08-18,720000,MVWPK5951S,105418637341,new,BB-1029
+BB-1038,Kiran Jadhav,kiran.jadhav@banyanbay.example,M,Sales,Sales Executive,Mumbai,Maharashtra,2024-11-11,690000,PNNPJ4920M,108630436378,new,BB-1029
+BB-1039,Sachin Pawar,sachin.pawar@banyanbay.example,M,Operations,Warehouse Manager,Pune,Maharashtra,2021-06-14,1080000,TAXPP9869F,101634295292,new,BB-1027
+BB-1040,Sunita Gaikwad,sunita.gaikwad@banyanbay.example,F,Operations,Inventory Controller,Pune,Maharashtra,2022-04-04,480000,TRPPG5322J,109411603028,new,BB-1039
+BB-1041,Mahesh Shinde,mahesh.shinde@banyanbay.example,M,Operations,Warehouse Associate,Pune,Maharashtra,2023-01-16,252000,TBWPS9422F,108816253492,new,BB-1039
+BB-1042,Vijay More,vijay.more@banyanbay.example,M,Operations,Warehouse Associate,Pune,Maharashtra,2023-05-22,252000,LBXPM1186Z,106337813280,new,BB-1039
+BB-1043,Rekha Salunkhe,rekha.salunkhe@banyanbay.example,F,Operations,Packing Associate,Pune,Maharashtra,2023-08-28,240000,SEZPS7538X,104393727296,new,BB-1039
+BB-1044,Santosh Kale,santosh.kale@banyanbay.example,M,Operations,Forklift Operator,Pune,Maharashtra,2022-10-03,276000,GMMPK8524L,108030910422,new,BB-1039
+BB-1045,Ganesh Bhosale,ganesh.bhosale@banyanbay.example,M,Operations,Warehouse Associate,Pune,Maharashtra,2024-02-12,252000,UKGPB3593X,107992278028,new,BB-1039
+BB-1046,Asha Chavan,asha.chavan@banyanbay.example,F,Operations,Packing Associate,Pune,Maharashtra,2024-08-05,240000,MSYPC7690A,104416072521,new,BB-1039
+BB-1047,Nilesh Wagh,nilesh.wagh@banyanbay.example,M,Operations,Dispatch Executive,Pune,Maharashtra,2025-07-07,330000,MTZPW5342K,104176214552,new,BB-1039
+BB-1048,Arjita Bose,arjita.bose@banyanbay.example,F,Sales,"Regional Sales Manager, North",New Delhi,Delhi,2021-08-02,2160000,YUKPB1731G,109398992078,new,BB-1029
+BB-1049,Vikram Singh,vikram.singh@banyanbay.example,M,Sales,Sales Executive,New Delhi,Delhi,2022-08-29,900000,WXFPS9335S,101450634247,new,BB-1048
+BB-1050,Simran Kaur,simran.kaur@banyanbay.example,F,Sales,Sales Executive,New Delhi,Delhi,2023-06-12,840000,TJKPK1681L,101815084990,new,BB-1048
+BB-1051,Rajat Khanna,rajat.khanna@banyanbay.example,M,Sales,Key Account Manager,New Delhi,Delhi,2022-03-21,1560000,KMEPK7367T,107110247693,new,BB-1048
+BB-1052,Neeraj Tyagi,neeraj.tyagi@banyanbay.example,M,Sales,Sales Executive,New Delhi,Delhi,2025-12-01,720000,SAFPT6155Z,103315401479,new,BB-1048
+BB-1053,Sravani Reddy,sravani.reddy@banyanbay.example,F,Customer Support,Support Lead,Hyderabad,Telangana,2022-07-11,960000,SXYPR1032D,108910956260,new,BB-1002
+BB-1054,Mohammed Irfan,mohammed.irfan@banyanbay.example,M,Customer Support,Support Associate,Hyderabad,Telangana,2023-11-06,420000,GTEPI5065K,101543418435,new,BB-1053
+BB-1055,Keerthi Rao,keerthi.rao@banyanbay.example,F,Customer Support,Support Associate,Hyderabad,Telangana,2024-05-20,396000,ZCNPR5301D,107944767454,new,BB-1053
+BB-1056,Anil Goud,anil.goud@banyanbay.example,M,Customer Support,Support Associate,Hyderabad,Telangana,2024-12-02,360000,RDTPG9502R,108796570265,new,BB-1053

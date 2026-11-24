@@ -48,12 +48,18 @@ import STYLES from "../styles/avatar-live.css?inline";
  * than from source. Unset — a local build, CI — the picker still renders and
  * the Talk button says why it cannot call.
  *
- * `/api/v1` is same-origin: the docs host rewrites `/api/**` to the control
- * plane, and `astro dev` proxies it.
+ * The connect goes to the environment's signalling host on the deployed docs
+ * origins (`docs.voqalize.com`, `docs.dev.voqalize.com`); anywhere else it is
+ * same-origin `/api/v1`, which `astro dev` and the local origin proxy.
  */
 const AGENT_ID = (import.meta.env.PUBLIC_AVATAR_AGENT_ID as string | undefined) ?? "";
 const PUBLISHABLE_KEY = (import.meta.env.PUBLIC_AVATAR_PK as string | undefined) ?? "";
-const API_BASE = "/api/v1";
+const API_BASE =
+  location.hostname === "docs.voqalize.com"
+    ? "https://signal.voqalize.com/api/v1"
+    : location.hostname === "docs.dev.voqalize.com"
+      ? "https://signal.dev.voqalize.com/api/v1"
+      : "/api/v1";
 
 /** The face the picker starts on unless `?avatar=` names another. The brain
  *  falls back to the same face (`DEFAULT_AVATAR` in its `content.py`). */

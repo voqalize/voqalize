@@ -1,0 +1,242 @@
+{
+  "_about": "Site-only content for the Paynora marketing site (payroll_site): page copy, the lead card's vocabulary, the sales calendar and the booking rules. Read by the brain (backend/site.py) and the page (frontend/src/data/site.ts). Product facts (modules, plans, prices, tax rules, customers) live in data/product.json and are never repeated here. Every person and company is invented.",
+  "nav": [
+    { "path": "/modules", "label": "Modules" },
+    { "path": "/tax", "label": "Tax & compliance" },
+    { "path": "/customers", "label": "Customers" },
+    { "path": "/pricing", "label": "Pricing" }
+  ],
+  "pages": {
+    "/": "Home",
+    "/modules": "Modules",
+    "/tax": "Tax & compliance",
+    "/customers": "Customers",
+    "/pricing": "Pricing",
+    "/book-demo": "Book a demo"
+  },
+  "home": {
+    "eyebrow": "HR and payroll for Indian companies",
+    "headline": "Payroll that closes on time, with the tax already right.",
+    "sub": "Paynora runs payroll for every state you operate in, works out TDS under both regimes every month, and keeps PF, ESI and professional tax in order. Built for teams of 20 to 1,000.",
+    "primary_cta": "Book a demo",
+    "secondary_cta": "See pricing",
+    "pains_title": "Where payroll usually goes wrong",
+    "pains_intro": "Four problems we hear on almost every first call.",
+    "pains": [
+      {
+        "id": "payroll_errors",
+        "title": "The run takes four days and still has errors",
+        "body": "Attendance comes from one sheet, leave from another and arrears from an email. Every month someone rebuilds the same formulas and hopes nothing moved."
+      },
+      {
+        "id": "tax_proofs",
+        "title": "February is lost to proofs",
+        "body": "Employees send rent receipts and ELSS statements as photos. HR checks them by hand, and the TDS that should have been spread over the year lands in the last two payslips."
+      },
+      {
+        "id": "statutory",
+        "title": "PF, ESI and PT differ by state",
+        "body": "Each state has its own professional tax slab, ESI stops at a wage ceiling, and a mismatch shows up months later as a notice."
+      },
+      {
+        "id": "leave",
+        "title": "Leave never matches the payslip",
+        "body": "Leave without balance should become loss-of-pay. When leave lives outside payroll, it only does when someone remembers."
+      }
+    ],
+    "modules_title": "Everything payroll touches, in one place",
+    "modules_intro": "Ten modules. Starter covers the first six; Growth and Scale add the rest.",
+    "tax_title": "Old regime or new? Paynora shows the working.",
+    "tax_body": "For every employee, Paynora works out tax under both regimes, slab by slab, and recalculates TDS each month as declarations turn into verified proofs.",
+    "quotes_title": "Teams that moved their payroll to Paynora",
+    "cta_title": "See your own payroll in Paynora",
+    "cta_body": "A 30-minute walk-through with someone from our sales team, on your headcount and your states."
+  },
+  "modules_page": {
+    "title": "Modules",
+    "intro": "Pick what you need now and add the rest later. Every plan includes the six core modules; Growth adds reimbursements and investment proofs; Scale adds multiple companies and the API."
+  },
+  "module_detail": {
+    "payroll": {
+      "headline": "Approve payroll in an afternoon, not a week.",
+      "body": "Paynora pulls approved leave, arrears and one-time payments into the month's run, works out TDS, PF, ESI and professional tax, and shows you a review screen before anything is paid. When you approve, you get the bank transfer file and the payment register."
+    },
+    "employees": {
+      "headline": "One record for every person, from joining to exit.",
+      "body": "Salary structures by grade, bank details, PAN and UAN, documents and the org chart live on one record. Exits close with a full-and-final settlement worked out from the same data."
+    },
+    "leave": {
+      "headline": "Leave that payroll actually reads.",
+      "body": "Set earned, casual and sick leave policies with monthly accrual and holiday calendars per location. Approved leave without balance becomes loss-of-pay in that month's run on its own."
+    },
+    "payslips": {
+      "headline": "Payslips your team can read without asking HR.",
+      "body": "Every line on a Paynora payslip says what it is and why it changed. Employees find their slips, leave balances and tax working in the self-service portal, and get a password-protected PDF by email."
+    },
+    "tax": {
+      "headline": "TDS under the right regime, every month.",
+      "body": "Paynora compares the old and new regimes for each employee, spreads the year's tax over the months left, and recalculates when salary, leave or declarations change. Form 16 Part B and the quarterly 24Q data come out of the same numbers."
+    },
+    "compliance": {
+      "headline": "PF, ESI and professional tax, state by state.",
+      "body": "Provident fund on the wage ceiling or on full basic, ESI for employees up to the ESI ceiling, and professional tax by each state's slab. The PF ECR file is ready every month."
+    },
+    "reimbursements": {
+      "headline": "Claims with the bill attached, paid with salary.",
+      "body": "Employees claim from their phone with a photo of the bill. Managers approve, send back or reject, category limits apply per grade, and approved claims are paid in the next payroll run."
+    },
+    "declarations": {
+      "headline": "Proof season, done in two afternoons.",
+      "body": "Employees declare 80C, 80D, HRA rent and more at the start of the year and upload proofs before the last quarter. You verify each line, and TDS recalculates from the verified amounts."
+    },
+    "multi_entity": {
+      "headline": "Several companies, one login.",
+      "body": "Run payroll for each legal entity with its own PF, ESI and TAN, and see group-level reports across all of them. The employee directory is shared."
+    },
+    "api": {
+      "headline": "Paynora in the rest of your stack.",
+      "body": "Use the REST API and webhooks to connect your HR system, export journals to accounting, and sign in with SAML single sign-on."
+    }
+  },
+  "tax_page": {
+    "title": "Tax & compliance",
+    "intro": "What Paynora works out for every employee each month, written down. The figures on this page follow the Income-tax Act, 1961 for FY 2025-26 and are illustrative.",
+    "example_title": "A worked example: ₹16.8 lakh CTC in Mumbai",
+    "example_intro": "A senior sales executive pays ₹35,000 a month in rent. Here is the year's tax under each regime, first on what she declared in April and then on the proofs she submitted in January.",
+    "example_note": "Illustrative, FY 2025-26. Computed by the same engine that runs payroll in Paynora. Not tax advice."
+  },
+  "customers_page": {
+    "title": "Customers",
+    "intro": "Five companies, five kinds of payroll. Each moved off spreadsheets, an accountant's workbook or another tool."
+  },
+  "pricing_page": {
+    "title": "Pricing",
+    "intro": "Priced per employee per month, with a monthly minimum per plan. Prices exclude GST.",
+    "calculator_title": "Work out your price",
+    "calculator_intro": "Set your headcount and the modules you need. The plan is the cheapest one that covers both.",
+    "notes": [
+      "The statutory filing service is available on Growth and Scale, so asking for it moves a Starter team to Growth.",
+      "Annual billing takes 15% off the monthly fee and waives the one-time setup fee.",
+      "GST at 18% is added to every invoice, including the setup fee."
+    ],
+    "faq": [
+      {
+        "q": "Who counts as an employee?",
+        "a": "Everyone you run payroll for in a month, including people who joined or left during it."
+      },
+      {
+        "q": "What happens if we grow past our plan's limit?",
+        "a": "You move to the next plan from the next month. Starter covers up to 50 employees, Growth up to 300 and Scale up to 1,000. Above 1,000 employees we quote a custom price."
+      },
+      {
+        "q": "Is there a free trial?",
+        "a": "Yes, 14 days on any plan, with your own employee data."
+      },
+      {
+        "q": "What does the setup fee cover?",
+        "a": "Moving your employee records, salary structures and opening balances into Paynora with a named onboarding manager. It is waived when you pay annually."
+      }
+    ]
+  },
+  "book_page": {
+    "title": "Book a demo",
+    "intro": "Pick a 30-minute slot with our sales team. All times are IST.",
+    "topics": [
+      { "id": "walkthrough", "label": "A walk-through of payroll and tax" },
+      { "id": "migration", "label": "Moving from our current tool" },
+      { "id": "compliance", "label": "PF, ESI and PT across states" },
+      { "id": "pricing", "label": "Pricing for our headcount" }
+    ],
+    "after": "You will get a calendar invite at the email you gave, with a video link. Bring your headcount by state and a recent payroll register if you can."
+  },
+  "lead": {
+    "fields": ["company", "name", "headcount", "states", "current_tool", "pains", "recommended_plan", "email"],
+    "labels": {
+      "company": "Company",
+      "name": "Your name",
+      "headcount": "Employees",
+      "states": "States",
+      "current_tool": "Payroll today",
+      "pains": "What hurts",
+      "recommended_plan": "Suggested plan",
+      "email": "Work email"
+    },
+    "current_tools": [
+      { "id": "spreadsheets", "label": "Spreadsheets" },
+      { "id": "ca_accountant", "label": "A CA or accountant" },
+      { "id": "other_software", "label": "Another payroll software" },
+      { "id": "in_house", "label": "An in-house tool" }
+    ],
+    "pains": [
+      { "id": "payroll_errors", "label": "Payroll errors and late runs", "modules": ["payroll", "employees"] },
+      { "id": "tax_proofs", "label": "Tax season and investment proofs", "modules": ["tax", "declarations"] },
+      { "id": "statutory", "label": "PF, ESI and PT compliance", "modules": ["compliance"] },
+      { "id": "leave", "label": "Leave and loss-of-pay", "modules": ["leave"] },
+      { "id": "reimbursements", "label": "Expense claims", "modules": ["reimbursements"] },
+      { "id": "payslip_queries", "label": "Questions about payslips", "modules": ["payslips"] },
+      { "id": "multi_entity", "label": "Several companies or entities", "modules": ["multi_entity"] },
+      { "id": "integrations", "label": "Connecting HR, accounting or SSO", "modules": ["api"] }
+    ],
+    "states": [
+      "Andhra Pradesh", "Delhi", "Goa", "Gujarat", "Haryana", "Karnataka", "Kerala", "Madhya Pradesh",
+      "Maharashtra", "Punjab", "Rajasthan", "Tamil Nadu", "Telangana", "Uttar Pradesh", "West Bengal"
+    ]
+  },
+  "calendar": {
+    "_about": "The sales team's weekly hours. The calendar shows the next 10 business days (Monday to Friday, skipping the holidays below) starting the day after today, IST. Each slot is 30 minutes.",
+    "timezone": "Asia/Kolkata",
+    "tz_label": "IST",
+    "slot_minutes": 30,
+    "business_days": 10,
+    "holidays": ["2026-12-25", "2027-01-01", "2027-01-26"],
+    "taken_rule": "A slot is already taken when (epoch_day * 3 + (start_minutes / 30) * 7 + rep_index * 11) mod 5 == 0, where epoch_day counts days since 1970-01-01, start_minutes counts minutes after midnight IST and rep_index is the rep's place in this list from 0. Python (backend/calendar_rules.py) and TypeScript (frontend/src/lib/calendar.ts) both implement it; content/calendar_cases.json pins it.",
+    "reps": [
+      {
+        "id": "kavya",
+        "name": "Kavya Menon",
+        "initials": "KM",
+        "title": "Account executive",
+        "city": "Bengaluru",
+        "focus": "Teams of 20 to 150 moving off spreadsheets",
+        "hours": {
+          "mon": ["10:00", "10:30", "11:00", "15:00", "15:30"],
+          "tue": ["11:00", "11:30", "16:00"],
+          "wed": ["10:00", "10:30", "11:00", "15:00", "15:30"],
+          "thu": ["11:00", "11:30", "16:00"],
+          "fri": ["10:00", "10:30", "14:30"]
+        }
+      },
+      {
+        "id": "arjun",
+        "name": "Arjun Bhatia",
+        "initials": "AB",
+        "title": "Senior account executive",
+        "city": "Mumbai",
+        "focus": "Multi-state companies and Scale",
+        "hours": {
+          "mon": ["12:00", "12:30", "17:00"],
+          "tue": ["10:00", "10:30", "12:00", "17:00"],
+          "wed": ["12:00", "12:30"],
+          "thu": ["10:00", "10:30", "12:00", "17:00"],
+          "fri": ["12:00", "16:00", "16:30"]
+        }
+      },
+      {
+        "id": "nandini",
+        "name": "Nandini Iyer",
+        "initials": "NI",
+        "title": "Payroll specialist",
+        "city": "Pune",
+        "focus": "Tax, PF, ESI and PT questions",
+        "hours": {
+          "mon": ["14:00", "14:30"],
+          "tue": ["14:00", "14:30", "15:00"],
+          "wed": ["09:30", "14:00"],
+          "thu": ["14:00", "14:30", "15:00"],
+          "fri": ["09:30", "11:30"]
+        }
+      }
+    ],
+    "reference": "TKD-<DDMM>-<HHMM>-<rep initials>, from the slot's date and start time."
+  }
+}

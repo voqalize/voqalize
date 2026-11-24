@@ -1,0 +1,379 @@
+{
+ "_about": "Pins the pricing rule for both twins: backend/pricing.py and frontend/src/lib/pricing.ts must produce exactly these numbers. Generated once from the Python twin and checked by hand for the first case (56 x 119 = 6,664, above the 5,999 minimum).",
+ "cases": [
+  {
+   "input": {
+    "headcount": 56,
+    "modules": [
+     "reimbursements"
+    ],
+    "billing": "monthly",
+    "filing": false
+   },
+   "expect": {
+    "status": "ok",
+    "plan": "growth",
+    "base": 6664,
+    "minimum_applies": false,
+    "subscription": 6664,
+    "filing_fee": 0,
+    "monthly": 6664,
+    "discount": 0,
+    "monthly_net": 6664,
+    "gst": 1200,
+    "monthly_total": 7864,
+    "setup_due": 15000,
+    "setup_gst": 2700,
+    "annual_total": 94362
+   },
+   "lines": [
+    "base",
+    "minimum",
+    "subtotal",
+    "gst",
+    "total",
+    "setup"
+   ]
+  },
+  {
+   "input": {
+    "headcount": 56,
+    "modules": [
+     "reimbursements"
+    ],
+    "billing": "annual",
+    "filing": false
+   },
+   "expect": {
+    "status": "ok",
+    "plan": "growth",
+    "base": 6664,
+    "minimum_applies": false,
+    "subscription": 6664,
+    "filing_fee": 0,
+    "monthly": 6664,
+    "discount": 1000,
+    "monthly_net": 5664,
+    "gst": 1020,
+    "monthly_total": 6684,
+    "setup_due": 0,
+    "setup_gst": 0,
+    "annual_total": 80202
+   },
+   "lines": [
+    "base",
+    "minimum",
+    "subtotal",
+    "discount",
+    "gst",
+    "total",
+    "annual",
+    "setup"
+   ]
+  },
+  {
+   "input": {
+    "headcount": 20,
+    "modules": [],
+    "billing": "monthly",
+    "filing": false
+   },
+   "expect": {
+    "status": "ok",
+    "plan": "starter",
+    "base": 1580,
+    "minimum_applies": true,
+    "subscription": 2499,
+    "filing_fee": 0,
+    "monthly": 2499,
+    "discount": 0,
+    "monthly_net": 2499,
+    "gst": 450,
+    "monthly_total": 2949,
+    "setup_due": 0,
+    "setup_gst": 0,
+    "annual_total": 35386
+   },
+   "lines": [
+    "base",
+    "minimum",
+    "subtotal",
+    "gst",
+    "total",
+    "setup"
+   ]
+  },
+  {
+   "input": {
+    "headcount": 38,
+    "modules": [
+     "payroll",
+     "tax"
+    ],
+    "billing": "annual",
+    "filing": false
+   },
+   "expect": {
+    "status": "ok",
+    "plan": "starter",
+    "base": 3002,
+    "minimum_applies": false,
+    "subscription": 3002,
+    "filing_fee": 0,
+    "monthly": 3002,
+    "discount": 450,
+    "monthly_net": 2552,
+    "gst": 459,
+    "monthly_total": 3011,
+    "setup_due": 0,
+    "setup_gst": 0,
+    "annual_total": 36136
+   },
+   "lines": [
+    "base",
+    "minimum",
+    "subtotal",
+    "discount",
+    "gst",
+    "total",
+    "annual",
+    "setup"
+   ]
+  },
+  {
+   "input": {
+    "headcount": 45,
+    "modules": [],
+    "billing": "monthly",
+    "filing": true
+   },
+   "expect": {
+    "status": "ok",
+    "plan": "growth",
+    "base": 5355,
+    "minimum_applies": true,
+    "subscription": 5999,
+    "filing_fee": 900,
+    "monthly": 6899,
+    "discount": 0,
+    "monthly_net": 6899,
+    "gst": 1242,
+    "monthly_total": 8141,
+    "setup_due": 15000,
+    "setup_gst": 2700,
+    "annual_total": 97690
+   },
+   "lines": [
+    "base",
+    "minimum",
+    "filing",
+    "subtotal",
+    "gst",
+    "total",
+    "setup"
+   ]
+  },
+  {
+   "input": {
+    "headcount": 120,
+    "modules": [
+     "declarations"
+    ],
+    "billing": "annual",
+    "filing": true
+   },
+   "expect": {
+    "status": "ok",
+    "plan": "growth",
+    "base": 14280,
+    "minimum_applies": false,
+    "subscription": 14280,
+    "filing_fee": 2400,
+    "monthly": 16680,
+    "discount": 2502,
+    "monthly_net": 14178,
+    "gst": 2552,
+    "monthly_total": 16730,
+    "setup_due": 0,
+    "setup_gst": 0,
+    "annual_total": 200760
+   },
+   "lines": [
+    "base",
+    "minimum",
+    "filing",
+    "subtotal",
+    "discount",
+    "gst",
+    "total",
+    "annual",
+    "setup"
+   ]
+  },
+  {
+   "input": {
+    "headcount": 240,
+    "modules": [
+     "reimbursements",
+     "declarations"
+    ],
+    "billing": "monthly",
+    "filing": true
+   },
+   "expect": {
+    "status": "ok",
+    "plan": "growth",
+    "base": 28560,
+    "minimum_applies": false,
+    "subscription": 28560,
+    "filing_fee": 4800,
+    "monthly": 33360,
+    "discount": 0,
+    "monthly_net": 33360,
+    "gst": 6005,
+    "monthly_total": 39365,
+    "setup_due": 15000,
+    "setup_gst": 2700,
+    "annual_total": 472378
+   },
+   "lines": [
+    "base",
+    "minimum",
+    "filing",
+    "subtotal",
+    "gst",
+    "total",
+    "setup"
+   ]
+  },
+  {
+   "input": {
+    "headcount": 80,
+    "modules": [],
+    "billing": "monthly",
+    "filing": false
+   },
+   "expect": {
+    "status": "ok",
+    "plan": "growth",
+    "base": 9520,
+    "minimum_applies": false,
+    "subscription": 9520,
+    "filing_fee": 0,
+    "monthly": 9520,
+    "discount": 0,
+    "monthly_net": 9520,
+    "gst": 1714,
+    "monthly_total": 11234,
+    "setup_due": 15000,
+    "setup_gst": 2700,
+    "annual_total": 134803
+   },
+   "lines": [
+    "base",
+    "minimum",
+    "subtotal",
+    "gst",
+    "total",
+    "setup"
+   ]
+  },
+  {
+   "input": {
+    "headcount": 180,
+    "modules": [
+     "multi_entity"
+    ],
+    "billing": "monthly",
+    "filing": false
+   },
+   "expect": {
+    "status": "ok",
+    "plan": "scale",
+    "base": 30420,
+    "minimum_applies": true,
+    "subscription": 39999,
+    "filing_fee": 0,
+    "monthly": 39999,
+    "discount": 0,
+    "monthly_net": 39999,
+    "gst": 7200,
+    "monthly_total": 47199,
+    "setup_due": 50000,
+    "setup_gst": 9000,
+    "annual_total": 566386
+   },
+   "lines": [
+    "base",
+    "minimum",
+    "subtotal",
+    "gst",
+    "total",
+    "setup"
+   ]
+  },
+  {
+   "input": {
+    "headcount": 410,
+    "modules": [
+     "api",
+     "declarations"
+    ],
+    "billing": "annual",
+    "filing": true
+   },
+   "expect": {
+    "status": "ok",
+    "plan": "scale",
+    "base": 69290,
+    "minimum_applies": false,
+    "subscription": 69290,
+    "filing_fee": 8200,
+    "monthly": 77490,
+    "discount": 11624,
+    "monthly_net": 65866,
+    "gst": 11856,
+    "monthly_total": 77722,
+    "setup_due": 0,
+    "setup_gst": 0,
+    "annual_total": 932663
+   },
+   "lines": [
+    "base",
+    "minimum",
+    "filing",
+    "subtotal",
+    "discount",
+    "gst",
+    "total",
+    "annual",
+    "setup"
+   ]
+  },
+  {
+   "input": {
+    "headcount": 1200,
+    "modules": [],
+    "billing": "monthly",
+    "filing": false
+   },
+   "expect": {
+    "status": "custom",
+    "plan": "",
+    "base": 0,
+    "minimum_applies": false,
+    "subscription": 0,
+    "filing_fee": 0,
+    "monthly": 0,
+    "discount": 0,
+    "monthly_net": 0,
+    "gst": 0,
+    "monthly_total": 0,
+    "setup_due": 0,
+    "setup_gst": 0,
+    "annual_total": 0
+   },
+   "lines": []
+  }
+ ]
+}
