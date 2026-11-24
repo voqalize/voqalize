@@ -794,3 +794,69 @@ async def test_amounts_are_spoken_as_words_and_a_wrong_budget_is_confirmed() -> 
         ]
         assert cues[0]["at"].startswith("Within one point five lakh rupees")
         assert all(c["at"] in turn.text for c in cues)
+
+
+# ─── Whitespace around a rewritten amount ─────────────────────────────────────
+
+#: Amounts as a piece of streamed speech may start or end with them, with and without ₹.
+_WS_AMOUNTS = [
+    ("en", "7.2 lakh"),
+    ("en", "₹7.2 lakh"),
+    ("en", "1.14 crore"),
+    ("en", "₹1.14 crore"),
+    ("en", "₹8 to 12 lakh"),
+    ("en", "Rs 5 lakh"),
+    ("hi", "7.2 लाख"),
+    ("hi", "₹7.2 लाख"),
+    ("hi", "₹1.25 करोड़"),
+    ("hi", "₹8 से 12 लाख"),
+]
+
+
+@pytest.mark.parametrize(("lang", "amount"), _WS_AMOUNTS)
+@pytest.mark.parametrize(("before", "after"), [(" ", ""), ("", " "), (" ", " "), ("Fees: ", ", ")])
+def test_a_rewritten_amount_keeps_the_whitespace_around_it(
+    lang: str, amount: str, before: str, after: str
+) -> None:
+    """The stream is rewritten in pieces, and a piece may start or end with a space: a
+    leading space eaten with the amount ran "It costs" into "seven point two lakh"."""
+    assert speak_text(f"{before}{amount}{after}", lang) == (
+        f"{before}{speak_text(amount, lang)}{after}"
+    )
+
+
+async def _ws_streamed(units: list[list[str]], lang: str) -> str:
+    from voqalize.sdk import SpeechChunk, SpeechEnd, SpeechStart
+
+    async def stream() -> Any:
+        for unit in units:
+            yield SpeechStart()
+            for piece in unit:
+                yield SpeechChunk(piece)
+            yield SpeechEnd()
+
+    out = [e async for e in SpokenAmounts(lambda: lang).wrap(stream())]
+    return "".join(e.text for e in out if isinstance(e, SpeechChunk))
+
+
+@pytest.mark.parametrize(
+    ("lang", "sentence"),
+    [
+        ("en", "It costs 7.2 lakh a year."),
+        ("en", "The flat is ₹1.14 crore now."),
+        ("hi", "यह ₹7.2 लाख का है।"),
+        ("en", "Fees: 7.2 lakh a year."),
+        ("hi", "शुल्क: 7.2 लाख है।"),
+    ],
+)
+async def test_every_two_chunk_split_speaks_like_the_whole_sentence(
+    lang: str, sentence: str
+) -> None:
+    """However the model's tokens fall, the voice hears what the whole sentence rewrites to;
+    so it does when the amount opens a second unit (" 7.2 lakh a year." after "It costs")."""
+    whole = speak_text(sentence, lang)
+    for i in range(1, len(sentence)):
+        head, tail = sentence[:i], sentence[i:]
+        assert await _ws_streamed([[head, tail]], lang) == whole, (head, tail)
+        if tail[0] == " " and tail[1] in "₹0123456789":  # an amount starts the second unit
+            assert await _ws_streamed([[head], [tail]], lang) == whole, (head, tail)
