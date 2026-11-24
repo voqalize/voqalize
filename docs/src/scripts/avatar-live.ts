@@ -56,7 +56,7 @@ const AGENT_ID = (import.meta.env.PUBLIC_AVATAR_AGENT_ID as string | undefined) 
 const PUBLISHABLE_KEY = (import.meta.env.PUBLIC_AVATAR_PK as string | undefined) ?? "";
 const API_BASE =
   location.hostname === "docs.voqalize.com"
-    ? "https://signal.prod.voqalize.com/api/v1"
+    ? "https://signal.voqalize.com/api/v1"
     : location.hostname === "docs.dev.voqalize.com"
       ? "https://signal.dev.voqalize.com/api/v1"
       : "/api/v1";

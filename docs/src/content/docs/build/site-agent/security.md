@@ -14,15 +14,16 @@ If your site sends a `Content-Security-Policy`, add these sources:
 
 ```text
 script-src   https://cdn.voqalize.com
-connect-src  https://app.voqalize.com https://*.prod.voqalize.com https://cdn.voqalize.com
+connect-src  https://app.voqalize.com https://signal.voqalize.com https://*.prod.voqalize.com https://cdn.voqalize.com
 img-src      https://cdn.voqalize.com
 ```
 
 - `cdn.voqalize.com` serves `site.js`, the call code it loads on the first
   click, and the avatar and its pictures.
-- `app.voqalize.com` is the API: the script reads the site's settings from it
-  and starts calls through it.
-- `*.prod.voqalize.com` is where a call's voice connection is set up; the
+- `app.voqalize.com` is the API: the script reads the site's settings from it.
+- `signal.voqalize.com` is where a call starts: the script asks it for the
+  call's voice connection.
+- `*.prod.voqalize.com` is where that voice connection is set up; the
   server is chosen when the call starts, so it is a wildcard.
 
 The voice needs no `media-src`: it arrives over the call itself. The avatar

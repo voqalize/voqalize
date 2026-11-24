@@ -8,7 +8,7 @@
  * that host proxies, as every demo did before.
  */
 export function connectApiBase(host: string = location.hostname): string {
-  if (host === "voqalize.com" || host === "www.voqalize.com") return "https://signal.prod.voqalize.com/api/v1";
+  if (host === "voqalize.com" || host === "www.voqalize.com") return "https://signal.voqalize.com/api/v1";
   if (host === "dev.voqalize.com") return "https://signal.dev.voqalize.com/api/v1";
   return "/api/v1";
 }
