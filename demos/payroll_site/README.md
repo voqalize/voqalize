@@ -87,6 +87,20 @@ the call from `backend/rejoin.py`: same job, language, lead card, held slot and 
 second greeting. Calls are held in process memory for two minutes after the drop, so a redial that
 reaches a freshly deployed process starts over. See `CONTRACT.md`, Redial.
 
+## Amounts in speech
+
+Everything the agent says, model text and its own lines alike, passes through
+`backend/spoken.py` on its way to the voice. Voqalize's TTS reads a rupee amount
+with two decimals before a scale word as rupees and paise ("₹1.25 crore" becomes
+"one rupee and twenty five paisa crore"), so a scaled amount is spelled out in
+English ("sixteen point eight lakh rupees") and, in Hindi, written with ₹ and the
+Devanagari scale (₹7.5 लाख, read डेढ़/ढाई/साढ़े) or as whole rupees (₹16,80,000).
+Plain amounts as the tools write them (₹6,664) are left as they are; the screen keeps
+its own formatting. The other way, the headcount: a count said with a scale ("dedh
+hazaar", "one and a half thousand") is noted to the model as a number, and a
+headcount that lost its scale on the way (15 for "dedh sau") is confirmed back, never
+put on the card or the calculator. Tests: `demos/tests/test_payroll_spoken.py`.
+
 ## Change the character or add a language
 
 The character lives in one file, `persona.json`: the avatar character, the display name, the role,
