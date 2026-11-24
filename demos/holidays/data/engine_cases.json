@@ -1,0 +1,1175 @@
+{
+ "note": "Written by backend/engine.py write_cases(); month_start is computed for today = 2026-11-18.",
+ "cases": [
+  {
+   "brief": {
+    "from_city": "DEL",
+    "destination": "bali",
+    "start_date": "2027-02-12",
+    "nights": 6,
+    "adults": 2,
+    "kids": [],
+    "budget": 0,
+    "style": "honeymoon"
+   },
+   "package": {
+    "from_city": "DEL",
+    "destination": "bali",
+    "start_date": "2027-02-12",
+    "nights": 6,
+    "adults": 2,
+    "kids": [],
+    "budget": 0,
+    "style": "honeymoon",
+    "split": [
+     3,
+     3
+    ],
+    "flight_id": "DEL-bali-2",
+    "hotels": {
+     "ubud": {
+      "hotel_id": "sayan-ridge",
+      "room_id": "pool-villa"
+     },
+     "seminyak": {
+      "hotel_id": "seminyak-shore",
+      "room_id": "ocean"
+     }
+    },
+    "activities": [
+     {
+      "day": 1,
+      "activity_id": "ubud-kecak"
+     },
+     {
+      "day": 2,
+      "activity_id": "ubud-terraces"
+     },
+     {
+      "day": 3,
+      "activity_id": "ubud-cooking"
+     },
+     {
+      "day": 5,
+      "activity_id": "seminyak-nusa-penida"
+     }
+    ]
+   },
+   "price": {
+    "flights": 92580,
+    "hotels": 98100,
+    "transfers": 6200,
+    "activities": 25600,
+    "gst": 6495,
+    "total": 228975,
+    "per_person": 114488
+   },
+   "transfers": [
+    {
+     "id": "bali-arrive",
+     "price": 2400
+    },
+    {
+     "id": "bali-ubud-seminyak",
+     "price": 2200
+    },
+    {
+     "id": "bali-depart",
+     "price": 1600
+    }
+   ],
+   "days": [
+    {
+     "n": 1,
+     "city": "ubud",
+     "kind": "arrival",
+     "date": "2027-02-13"
+    },
+    {
+     "n": 2,
+     "city": "ubud",
+     "kind": "full",
+     "date": "2027-02-14"
+    },
+    {
+     "n": 3,
+     "city": "ubud",
+     "kind": "full",
+     "date": "2027-02-15"
+    },
+    {
+     "n": 4,
+     "city": "seminyak",
+     "kind": "transfer",
+     "date": "2027-02-16"
+    },
+    {
+     "n": 5,
+     "city": "seminyak",
+     "kind": "full",
+     "date": "2027-02-17"
+    },
+    {
+     "n": 6,
+     "city": "seminyak",
+     "kind": "full",
+     "date": "2027-02-18"
+    },
+    {
+     "n": 7,
+     "city": "seminyak",
+     "kind": "departure",
+     "date": "2027-02-19"
+    }
+   ],
+   "month_start": {
+    "1": "2027-01-15",
+    "6": "2027-06-11",
+    "11": "2027-11-12",
+    "12": "2026-12-11"
+   }
+  },
+  {
+   "brief": {
+    "from_city": "BOM",
+    "destination": "kerala",
+    "start_date": "2026-12-18",
+    "nights": 5,
+    "adults": 2,
+    "kids": [
+     6,
+     1
+    ],
+    "budget": 150000,
+    "style": "family"
+   },
+   "package": {
+    "from_city": "BOM",
+    "destination": "kerala",
+    "start_date": "2026-12-18",
+    "nights": 5,
+    "adults": 2,
+    "kids": [
+     6,
+     1
+    ],
+    "budget": 150000,
+    "style": "family",
+    "split": [
+     2,
+     2,
+     1
+    ],
+    "flight_id": "BOM-kerala-2",
+    "hotels": {
+     "munnar": {
+      "hotel_id": "tea-terrace",
+      "room_id": "valley"
+     },
+     "alleppey": {
+      "hotel_id": "kettuvallam",
+      "room_id": "1bhk"
+     },
+     "kochi": {
+      "hotel_id": "marine-grand",
+      "room_id": "seaview"
+     }
+    },
+    "activities": [
+     {
+      "day": 1,
+      "activity_id": "munnar-spice-dinner"
+     },
+     {
+      "day": 2,
+      "activity_id": "munnar-tea-museum"
+     },
+     {
+      "day": 4,
+      "activity_id": "alleppey-cooking"
+     }
+    ]
+   },
+   "price": {
+    "flights": 20390,
+    "hotels": 52400,
+    "transfers": 16800,
+    "activities": 12200,
+    "gst": 4070,
+    "total": 105860,
+    "per_person": 26465
+   },
+   "transfers": [
+    {
+     "id": "kerala-arrive",
+     "price": 5600
+    },
+    {
+     "id": "kerala-munnar-alleppey",
+     "price": 6200
+    },
+    {
+     "id": "kerala-alleppey-kochi",
+     "price": 2600
+    },
+    {
+     "id": "kerala-depart",
+     "price": 2400
+    }
+   ],
+   "days": [
+    {
+     "n": 1,
+     "city": "munnar",
+     "kind": "arrival",
+     "date": "2026-12-18"
+    },
+    {
+     "n": 2,
+     "city": "munnar",
+     "kind": "full",
+     "date": "2026-12-19"
+    },
+    {
+     "n": 3,
+     "city": "alleppey",
+     "kind": "transfer",
+     "date": "2026-12-20"
+    },
+    {
+     "n": 4,
+     "city": "alleppey",
+     "kind": "full",
+     "date": "2026-12-21"
+    },
+    {
+     "n": 5,
+     "city": "kochi",
+     "kind": "transfer",
+     "date": "2026-12-22"
+    },
+    {
+     "n": 6,
+     "city": "kochi",
+     "kind": "departure",
+     "date": "2026-12-23"
+    }
+   ],
+   "month_start": {
+    "1": "2027-01-15",
+    "6": "2027-06-11",
+    "11": "2027-11-12",
+    "12": "2026-12-11"
+   }
+  },
+  {
+   "brief": {
+    "from_city": "BLR",
+    "destination": "thailand",
+    "start_date": "2027-01-15",
+    "nights": 7,
+    "adults": 3,
+    "kids": [
+     10
+    ],
+    "budget": 0,
+    "style": "adventure"
+   },
+   "package": {
+    "from_city": "BLR",
+    "destination": "thailand",
+    "start_date": "2027-01-15",
+    "nights": 7,
+    "adults": 3,
+    "kids": [
+     10
+    ],
+    "budget": 0,
+    "style": "adventure",
+    "split": [
+     3,
+     2,
+     2
+    ],
+    "flight_id": "BLR-thailand-2",
+    "hotels": {
+     "phuket": {
+      "hotel_id": "patong-central",
+      "room_id": "standard"
+     },
+     "krabi": {
+      "hotel_id": "railay-cliff",
+      "room_id": "garden"
+     },
+     "bangkok": {
+      "hotel_id": "sukhumvit-urban",
+      "room_id": "deluxe"
+     }
+    },
+    "activities": [
+     {
+      "day": 2,
+      "activity_id": "phuket-phi-phi"
+     },
+     {
+      "day": 5,
+      "activity_id": "krabi-four-islands"
+     }
+    ]
+   },
+   "price": {
+    "flights": 82240,
+    "hotels": 78600,
+    "transfers": 30400,
+    "activities": 33300,
+    "gst": 7115,
+    "total": 231655,
+    "per_person": 57914
+   },
+   "transfers": [
+    {
+     "id": "th-arrive",
+     "price": 2600
+    },
+    {
+     "id": "th-phuket-krabi",
+     "price": 5700
+    },
+    {
+     "id": "th-krabi-bangkok",
+     "price": 19700
+    },
+    {
+     "id": "th-depart",
+     "price": 2400
+    }
+   ],
+   "days": [
+    {
+     "n": 1,
+     "city": "phuket",
+     "kind": "arrival",
+     "date": "2027-01-16"
+    },
+    {
+     "n": 2,
+     "city": "phuket",
+     "kind": "full",
+     "date": "2027-01-17"
+    },
+    {
+     "n": 3,
+     "city": "phuket",
+     "kind": "full",
+     "date": "2027-01-18"
+    },
+    {
+     "n": 4,
+     "city": "krabi",
+     "kind": "transfer",
+     "date": "2027-01-19"
+    },
+    {
+     "n": 5,
+     "city": "krabi",
+     "kind": "full",
+     "date": "2027-01-20"
+    },
+    {
+     "n": 6,
+     "city": "bangkok",
+     "kind": "transfer",
+     "date": "2027-01-21"
+    },
+    {
+     "n": 7,
+     "city": "bangkok",
+     "kind": "full",
+     "date": "2027-01-22"
+    },
+    {
+     "n": 8,
+     "city": "bangkok",
+     "kind": "departure",
+     "date": "2027-01-23"
+    }
+   ],
+   "month_start": {
+    "1": "2027-01-15",
+    "6": "2027-06-11",
+    "11": "2027-11-12",
+    "12": "2026-12-11"
+   }
+  },
+  {
+   "brief": {
+    "from_city": "AMD",
+    "destination": "rajasthan",
+    "start_date": "2027-03-05",
+    "nights": 6,
+    "adults": 4,
+    "kids": [],
+    "budget": 0,
+    "style": "relaxed"
+   },
+   "package": {
+    "from_city": "AMD",
+    "destination": "rajasthan",
+    "start_date": "2027-03-05",
+    "nights": 6,
+    "adults": 4,
+    "kids": [],
+    "budget": 0,
+    "style": "relaxed",
+    "split": [
+     2,
+     2,
+     2
+    ],
+    "flight_id": "AMD-rajasthan-2",
+    "hotels": {
+     "jaipur": {
+      "hotel_id": "amber-haveli",
+      "room_id": "heritage"
+     },
+     "jodhpur": {
+      "hotel_id": "umaid-gardens",
+      "room_id": "deluxe"
+     },
+     "udaipur": {
+      "hotel_id": "lake-pichola",
+      "room_id": "lake"
+     }
+    },
+    "activities": [
+     {
+      "day": 2,
+      "activity_id": "jaipur-block-print"
+     },
+     {
+      "day": 6,
+      "activity_id": "udaipur-cooking"
+     }
+    ]
+   },
+   "price": {
+    "flights": 16440,
+    "hotels": 143600,
+    "transfers": 18900,
+    "activities": 12800,
+    "gst": 8765,
+    "total": 200505,
+    "per_person": 50126
+   },
+   "transfers": [
+    {
+     "id": "raj-arrive",
+     "price": 1600
+    },
+    {
+     "id": "raj-jaipur-jodhpur",
+     "price": 8200
+    },
+    {
+     "id": "raj-jodhpur-udaipur",
+     "price": 7400
+    },
+    {
+     "id": "raj-depart",
+     "price": 1700
+    }
+   ],
+   "days": [
+    {
+     "n": 1,
+     "city": "jaipur",
+     "kind": "arrival",
+     "date": "2027-03-05"
+    },
+    {
+     "n": 2,
+     "city": "jaipur",
+     "kind": "full",
+     "date": "2027-03-06"
+    },
+    {
+     "n": 3,
+     "city": "jodhpur",
+     "kind": "transfer",
+     "date": "2027-03-07"
+    },
+    {
+     "n": 4,
+     "city": "jodhpur",
+     "kind": "full",
+     "date": "2027-03-08"
+    },
+    {
+     "n": 5,
+     "city": "udaipur",
+     "kind": "transfer",
+     "date": "2027-03-09"
+    },
+    {
+     "n": 6,
+     "city": "udaipur",
+     "kind": "full",
+     "date": "2027-03-10"
+    },
+    {
+     "n": 7,
+     "city": "udaipur",
+     "kind": "departure",
+     "date": "2027-03-11"
+    }
+   ],
+   "month_start": {
+    "1": "2027-01-15",
+    "6": "2027-06-11",
+    "11": "2027-11-12",
+    "12": "2026-12-11"
+   }
+  },
+  {
+   "brief": {
+    "from_city": "CCU",
+    "destination": "maldives",
+    "start_date": "2027-04-09",
+    "nights": 4,
+    "adults": 2,
+    "kids": [],
+    "budget": 0,
+    "style": "honeymoon"
+   },
+   "package": {
+    "from_city": "CCU",
+    "destination": "maldives",
+    "start_date": "2027-04-09",
+    "nights": 4,
+    "adults": 2,
+    "kids": [],
+    "budget": 0,
+    "style": "honeymoon",
+    "split": [
+     4
+    ],
+    "flight_id": "CCU-maldives-2",
+    "hotels": {
+     "maldives-atoll": {
+      "hotel_id": "coral-veli",
+      "room_id": "beach-villa"
+     }
+    },
+    "activities": [
+     {
+      "day": 1,
+      "activity_id": "mv-dolphin-cruise"
+     },
+     {
+      "day": 2,
+      "activity_id": "mv-snorkel-turtles"
+     },
+     {
+      "day": 3,
+      "activity_id": "mv-dive"
+     },
+     {
+      "day": 4,
+      "activity_id": "mv-sandbank-picnic"
+     }
+    ]
+   },
+   "price": {
+    "flights": 82800,
+    "hotels": 87200,
+    "transfers": 0,
+    "activities": 53600,
+    "gst": 7040,
+    "total": 230640,
+    "per_person": 115320
+   },
+   "transfers": [
+    {
+     "id": "mv-arrive",
+     "price": 0
+    },
+    {
+     "id": "mv-depart",
+     "price": 0
+    }
+   ],
+   "days": [
+    {
+     "n": 1,
+     "city": "maldives-atoll",
+     "kind": "arrival",
+     "date": "2027-04-10"
+    },
+    {
+     "n": 2,
+     "city": "maldives-atoll",
+     "kind": "full",
+     "date": "2027-04-11"
+    },
+    {
+     "n": 3,
+     "city": "maldives-atoll",
+     "kind": "full",
+     "date": "2027-04-12"
+    },
+    {
+     "n": 4,
+     "city": "maldives-atoll",
+     "kind": "full",
+     "date": "2027-04-13"
+    },
+    {
+     "n": 5,
+     "city": "maldives-atoll",
+     "kind": "departure",
+     "date": "2027-04-14"
+    }
+   ],
+   "month_start": {
+    "1": "2027-01-15",
+    "6": "2027-06-11",
+    "11": "2027-11-12",
+    "12": "2026-12-11"
+   }
+  },
+  {
+   "brief": {
+    "from_city": "PNQ",
+    "destination": "switzerland",
+    "start_date": "2027-06-11",
+    "nights": 7,
+    "adults": 2,
+    "kids": [
+     8,
+     11
+    ],
+    "budget": 0,
+    "style": "family"
+   },
+   "package": {
+    "from_city": "PNQ",
+    "destination": "switzerland",
+    "start_date": "2027-06-11",
+    "nights": 7,
+    "adults": 2,
+    "kids": [
+     8,
+     11
+    ],
+    "budget": 0,
+    "style": "family",
+    "split": [
+     3,
+     4
+    ],
+    "flight_id": "PNQ-switzerland-1",
+    "hotels": {
+     "lucerne": {
+      "hotel_id": "lakeside-lucerne",
+      "room_id": "lake"
+     },
+     "interlaken": {
+      "hotel_id": "jungfrau-view",
+      "room_id": "mountain"
+     }
+    },
+    "activities": [
+     {
+      "day": 2,
+      "activity_id": "lucerne-pilatus"
+     },
+     {
+      "day": 3,
+      "activity_id": "lucerne-titlis"
+     },
+     {
+      "day": 5,
+      "activity_id": "ilk-jungfraujoch"
+     },
+     {
+      "day": 6,
+      "activity_id": "ilk-first"
+     },
+     {
+      "day": 7,
+      "activity_id": "ilk-brienz-boat"
+     }
+    ]
+   },
+   "price": {
+    "flights": 245780,
+    "hotels": 164800,
+    "transfers": 29800,
+    "activities": 208800,
+    "gst": 20170,
+    "total": 669350,
+    "per_person": 167338
+   },
+   "transfers": [
+    {
+     "id": "ch-arrive",
+     "price": 9200
+    },
+    {
+     "id": "ch-lucerne-interlaken",
+     "price": 7800
+    },
+    {
+     "id": "ch-depart",
+     "price": 12800
+    }
+   ],
+   "days": [
+    {
+     "n": 1,
+     "city": "lucerne",
+     "kind": "arrival",
+     "date": "2027-06-11"
+    },
+    {
+     "n": 2,
+     "city": "lucerne",
+     "kind": "full",
+     "date": "2027-06-12"
+    },
+    {
+     "n": 3,
+     "city": "lucerne",
+     "kind": "full",
+     "date": "2027-06-13"
+    },
+    {
+     "n": 4,
+     "city": "interlaken",
+     "kind": "transfer",
+     "date": "2027-06-14"
+    },
+    {
+     "n": 5,
+     "city": "interlaken",
+     "kind": "full",
+     "date": "2027-06-15"
+    },
+    {
+     "n": 6,
+     "city": "interlaken",
+     "kind": "full",
+     "date": "2027-06-16"
+    },
+    {
+     "n": 7,
+     "city": "interlaken",
+     "kind": "full",
+     "date": "2027-06-17"
+    },
+    {
+     "n": 8,
+     "city": "interlaken",
+     "kind": "departure",
+     "date": "2027-06-18"
+    }
+   ],
+   "month_start": {
+    "1": "2027-01-15",
+    "6": "2027-06-11",
+    "11": "2027-11-12",
+    "12": "2026-12-11"
+   }
+  },
+  {
+   "brief": {
+    "from_city": "HYD",
+    "destination": "dubai",
+    "start_date": "2026-12-11",
+    "nights": 4,
+    "adults": 5,
+    "kids": [
+     3,
+     0
+    ],
+    "budget": 300000,
+    "style": "family"
+   },
+   "package": {
+    "from_city": "HYD",
+    "destination": "dubai",
+    "start_date": "2026-12-11",
+    "nights": 4,
+    "adults": 5,
+    "kids": [
+     3,
+     0
+    ],
+    "budget": 300000,
+    "style": "family",
+    "split": [
+     4
+    ],
+    "flight_id": "HYD-dubai-2",
+    "hotels": {
+     "dubai": {
+      "hotel_id": "deira-city",
+      "room_id": "standard"
+     }
+    },
+    "activities": [
+     {
+      "day": 1,
+      "activity_id": "dubai-skyline"
+     },
+     {
+      "day": 2,
+      "activity_id": "dubai-old-dubai"
+     },
+     {
+      "day": 3,
+      "activity_id": "dubai-waterpark"
+     },
+     {
+      "day": 4,
+      "activity_id": "dubai-abu-dhabi"
+     }
+    ]
+   },
+   "price": {
+    "flights": 135750,
+    "hotels": 55200,
+    "transfers": 9600,
+    "activities": 100300,
+    "gst": 8255,
+    "total": 309105,
+    "per_person": 44158
+   },
+   "transfers": [
+    {
+     "id": "dubai-arrive",
+     "price": 4800
+    },
+    {
+     "id": "dubai-depart",
+     "price": 4800
+    }
+   ],
+   "days": [
+    {
+     "n": 1,
+     "city": "dubai",
+     "kind": "arrival",
+     "date": "2026-12-11"
+    },
+    {
+     "n": 2,
+     "city": "dubai",
+     "kind": "full",
+     "date": "2026-12-12"
+    },
+    {
+     "n": 3,
+     "city": "dubai",
+     "kind": "full",
+     "date": "2026-12-13"
+    },
+    {
+     "n": 4,
+     "city": "dubai",
+     "kind": "full",
+     "date": "2026-12-14"
+    },
+    {
+     "n": 5,
+     "city": "dubai",
+     "kind": "departure",
+     "date": "2026-12-15"
+    }
+   ],
+   "month_start": {
+    "1": "2027-01-15",
+    "6": "2027-06-11",
+    "11": "2027-11-12",
+    "12": "2026-12-11"
+   }
+  },
+  {
+   "brief": {
+    "from_city": "MAA",
+    "destination": "singapore",
+    "start_date": "2027-05-14",
+    "nights": 5,
+    "adults": 1,
+    "kids": [],
+    "budget": 0,
+    "style": "adventure"
+   },
+   "package": {
+    "from_city": "MAA",
+    "destination": "singapore",
+    "start_date": "2027-05-14",
+    "nights": 5,
+    "adults": 1,
+    "kids": [],
+    "budget": 0,
+    "style": "adventure",
+    "split": [
+     3,
+     2
+    ],
+    "flight_id": "MAA-singapore-2",
+    "hotels": {
+     "singapore-city": {
+      "hotel_id": "marina-orchid",
+      "room_id": "bay"
+     },
+     "sentosa": {
+      "hotel_id": "siloso-beach",
+      "room_id": "garden"
+     }
+    },
+    "activities": [
+     {
+      "day": 1,
+      "activity_id": "sg-night-safari"
+     },
+     {
+      "day": 2,
+      "activity_id": "sg-studios"
+     },
+     {
+      "day": 5,
+      "activity_id": "sentosa-luge"
+     }
+    ]
+   },
+   "price": {
+    "flights": 21700,
+    "hotels": 85000,
+    "transfers": 8000,
+    "activities": 13000,
+    "gst": 5300,
+    "total": 133000,
+    "per_person": 133000
+   },
+   "transfers": [
+    {
+     "id": "sg-arrive",
+     "price": 2900
+    },
+    {
+     "id": "sg-city-sentosa",
+     "price": 2200
+    },
+    {
+     "id": "sg-depart",
+     "price": 2900
+    }
+   ],
+   "days": [
+    {
+     "n": 1,
+     "city": "singapore-city",
+     "kind": "arrival",
+     "date": "2027-05-15"
+    },
+    {
+     "n": 2,
+     "city": "singapore-city",
+     "kind": "full",
+     "date": "2027-05-16"
+    },
+    {
+     "n": 3,
+     "city": "singapore-city",
+     "kind": "full",
+     "date": "2027-05-17"
+    },
+    {
+     "n": 4,
+     "city": "sentosa",
+     "kind": "transfer",
+     "date": "2027-05-18"
+    },
+    {
+     "n": 5,
+     "city": "sentosa",
+     "kind": "full",
+     "date": "2027-05-19"
+    },
+    {
+     "n": 6,
+     "city": "sentosa",
+     "kind": "departure",
+     "date": "2027-05-20"
+    }
+   ],
+   "month_start": {
+    "1": "2027-01-15",
+    "6": "2027-06-11",
+    "11": "2027-11-12",
+    "12": "2026-12-11"
+   }
+  },
+  {
+   "brief": {
+    "from_city": "DEL",
+    "destination": "goa",
+    "start_date": "2027-01-08",
+    "nights": 6,
+    "adults": 2,
+    "kids": [],
+    "budget": 0,
+    "style": "relaxed"
+   },
+   "package": {
+    "from_city": "DEL",
+    "destination": "goa",
+    "start_date": "2027-01-08",
+    "nights": 6,
+    "adults": 2,
+    "kids": [],
+    "budget": 0,
+    "style": "relaxed",
+    "split": [
+     3,
+     3
+    ],
+    "flight_id": "DEL-goa-2",
+    "hotels": {
+     "north-goa": {
+      "hotel_id": "candolim-sands",
+      "room_id": "pool"
+     },
+     "south-goa": {
+      "hotel_id": "palolem-palms",
+      "room_id": "cottage"
+     }
+    },
+    "activities": [
+     {
+      "day": 1,
+      "activity_id": "goa-fort-sunset"
+     },
+     {
+      "day": 2,
+      "activity_id": "goa-spice-farm"
+     },
+     {
+      "day": 5,
+      "activity_id": "goa-dolphins"
+     }
+    ]
+   },
+   "price": {
+    "flights": 13040,
+    "hotels": 36000,
+    "transfers": 5800,
+    "activities": 8800,
+    "gst": 2530,
+    "total": 66170,
+    "per_person": 33085
+   },
+   "transfers": [
+    {
+     "id": "goa-arrive",
+     "price": 1900
+    },
+    {
+     "id": "goa-north-south",
+     "price": 2200
+    },
+    {
+     "id": "goa-depart",
+     "price": 1700
+    }
+   ],
+   "days": [
+    {
+     "n": 1,
+     "city": "north-goa",
+     "kind": "arrival",
+     "date": "2027-01-08"
+    },
+    {
+     "n": 2,
+     "city": "north-goa",
+     "kind": "full",
+     "date": "2027-01-09"
+    },
+    {
+     "n": 3,
+     "city": "north-goa",
+     "kind": "full",
+     "date": "2027-01-10"
+    },
+    {
+     "n": 4,
+     "city": "south-goa",
+     "kind": "transfer",
+     "date": "2027-01-11"
+    },
+    {
+     "n": 5,
+     "city": "south-goa",
+     "kind": "full",
+     "date": "2027-01-12"
+    },
+    {
+     "n": 6,
+     "city": "south-goa",
+     "kind": "full",
+     "date": "2027-01-13"
+    },
+    {
+     "n": 7,
+     "city": "south-goa",
+     "kind": "departure",
+     "date": "2027-01-14"
+    }
+   ],
+   "month_start": {
+    "1": "2027-01-15",
+    "6": "2027-06-11",
+    "11": "2027-11-12",
+    "12": "2026-12-11"
+   }
+  }
+ ],
+ "from_prices": {
+  "DEL": {
+   "kerala": 23893,
+   "goa": 18010,
+   "rajasthan": 20593,
+   "bali": 62145,
+   "dubai": 31400,
+   "thailand": 46248,
+   "singapore": 49170,
+   "maldives": 61540,
+   "switzerland": 130765
+  },
+  "BOM": {
+   "kerala": 21843,
+   "goa": 16080,
+   "rajasthan": 21153,
+   "bali": 63845,
+   "dubai": 29950,
+   "thailand": 45768,
+   "singapore": 48690,
+   "maldives": 39460,
+   "switzerland": 130765
+  },
+  "BLR": {
+   "kerala": 20753,
+   "goa": 16200,
+   "rajasthan": 26433,
+   "bali": 59805,
+   "dubai": 32370,
+   "thailand": 44408,
+   "singapore": 45300,
+   "maldives": 35110,
+   "switzerland": 135425
+  }
+ }
+}

@@ -881,6 +881,32 @@
     letter-spacing: 0.5em;
     font-size: 20px;
   }
+  .signin-form {
+    display: grid;
+    gap: 14px;
+    margin-top: 24px;
+  }
+  .signin-form--compact {
+    gap: 10px;
+    margin-top: 0;
+  }
+  .signin-form .field {
+    display: grid;
+    gap: 6px;
+  }
+  .signin-mobile .input {
+    padding-left: 52px;
+  }
+  .signin-prefix {
+    position: absolute;
+    left: 14px;
+    font-weight: 650;
+    color: var(--ink-3);
+    pointer-events: none;
+  }
+  .signin-form .input[aria-invalid="true"] {
+    border-color: var(--bad);
+  }
   .login-demo {
     margin-top: 18px;
     font-size: 13px;

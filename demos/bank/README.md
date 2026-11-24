@@ -20,7 +20,13 @@ On the public pages Arjun sells (few right questions, then a two or three senten
 the one number that matters, one nudge to apply; more only when asked; never pushy). The pitch tools
 return a SAY line (exactly that pitch) above a DETAIL block kept for follow-up questions; in the signed-in app and in account opening he stays a support assistant.
 
-Sign-in is a mock: one tap, no real authentication.
+Sign-in has no real authentication, but the customer does it: they type a 10-digit mobile number
+(starting 6 to 9) and a 4-digit PIN and press Sign in themselves; any such pair opens the sample
+customer, Aditi Sharma. Nothing is pre-filled, and Arjun never asks for, hears, fills or reads back
+either: signed out, a request for her own data opens the sign-in screen and he asks her to sign in;
+digits said aloud are taken out before the model hears them (`backend/credentials.py`); a submit no
+hand made is refused (`frontend/src/state/session.ts`). Once she signs in, he says "Hi Aditi, you're
+signed in" and does what she asked.
 
 ## How it is built
 
@@ -51,7 +57,7 @@ Paynora's widget, in the bank's palette (`frontend/src/voice/`): idle, a pill at
 with the character's still photo (`frontend/src/characters/<character>.webp`), the name, the job on
 this page (`persona.json` `roles`, kept short so it fits a phone), EN / हिंदी and "Talk to Arjun"
 ("Talk" on a phone, where the name is already beside the face). In a call the pill goes away and
-the face becomes a draggable tile with the live avatar (`@voqalize/avatar` 0.6.3), the language
+the face becomes a draggable tile with the live avatar (the latest `@voqalize/avatar`), the language
 toggle, mute, minimise and end. No transcript anywhere. The language is remembered across reloads.
 While the confirmation sheet, a transaction's sheet (phone) or the app's menu is open, the pill and
 the tile move to a top corner above it (`data-overlay` on each overlay). The dock is the page's only

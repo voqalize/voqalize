@@ -1,0 +1,29 @@
+:root {
+  --brand: #0d5c5e;
+  --brand-ink: #083f41;
+  --brand-2: #1f7a76;
+  --brand-soft: #e2efec;
+  --brand-wash: #f0f6f4;
+  --paper: #fbfaf6;
+  --panel: #ffffff;
+  --ink: #16292a;
+  --ink-2: #33494a;
+  --muted: #5d6e6c;
+  --line: #dde3dd;
+  --line-2: #c9d2cb;
+  --accent: #e39a2c;
+  --accent-ink: #8a5300;
+  --accent-soft: #fcf0da;
+  --coral: #c9533c;
+  --coral-soft: #fbe9e4;
+  --ok: #2e7d4f;
+  --danger: #b93a2b;
+  --serif: "Young Serif", "Noto Sans Devanagari", "Iowan Old Style", Georgia, serif;
+  --sans: "Instrument Sans Variable", "Instrument Sans", "Noto Sans Devanagari", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --r-sm: 6px;
+  --r: 10px;
+  --r-lg: 16px;
+  --shadow: 0 1px 2px rgba(22, 41, 42, 0.06), 0 8px 24px -16px rgba(22, 41, 42, 0.25);
+  --header-h: 68px;
+}

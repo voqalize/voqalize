@@ -1,0 +1,6930 @@
+{
+ "brand": {
+  "name": "Kosha Homes",
+  "exchange": "Kosha Exchange",
+  "tagline": "Homes planned around the way you live.",
+  "since": 2009,
+  "helpline": "1800 120 5674",
+  "email": "hello@koshahomes.example",
+  "disclaimer": "Kosha Homes is a fictional developer made for a Voqalize demo. Projects, prices, registration numbers, people, offices, schools, metro stations and distances are invented."
+ },
+ "km_per_unit": 0.25,
+ "cities": [
+  {
+   "id": "bengaluru",
+   "name": "Bengaluru",
+   "code": "BLR",
+   "state": "Karnataka",
+   "water": [
+    {
+     "name": "Bellandur Lake",
+     "points": [
+      [
+       52,
+       50
+      ],
+      [
+       58,
+       47
+      ],
+      [
+       63,
+       50
+      ],
+      [
+       60,
+       54
+      ],
+      [
+       53,
+       54
+      ]
+     ]
+    },
+    {
+     "name": "Hebbal Lake",
+     "points": [
+      [
+       33,
+       9
+      ],
+      [
+       37,
+       7
+      ],
+      [
+       40,
+       10
+      ],
+      [
+       36,
+       12
+      ]
+     ]
+    }
+   ],
+   "roads": [
+    {
+     "name": "Outer Ring Road",
+     "points": [
+      [
+       30,
+       14
+      ],
+      [
+       55,
+       12
+      ],
+      [
+       72,
+       24
+      ],
+      [
+       70,
+       44
+      ],
+      [
+       58,
+       60
+      ],
+      [
+       40,
+       58
+      ],
+      [
+       26,
+       44
+      ],
+      [
+       24,
+       26
+      ],
+      [
+       30,
+       14
+      ]
+     ]
+    },
+    {
+     "name": "Old Airport Road",
+     "points": [
+      [
+       40,
+       38
+      ],
+      [
+       60,
+       34
+      ],
+      [
+       86,
+       30
+      ]
+     ]
+    },
+    {
+     "name": "Sarjapur Road",
+     "points": [
+      [
+       46,
+       46
+      ],
+      [
+       58,
+       56
+      ],
+      [
+       72,
+       66
+      ]
+     ]
+    },
+    {
+     "name": "Bellary Road",
+     "points": [
+      [
+       38,
+       36
+      ],
+      [
+       38,
+       20
+      ],
+      [
+       40,
+       2
+      ]
+     ]
+    }
+   ],
+   "metro": [
+    {
+     "name": "Purple Line",
+     "colour": "#7c3aed",
+     "points": [
+      [
+       14,
+       40
+      ],
+      [
+       32,
+       40
+      ],
+      [
+       46,
+       38
+      ],
+      [
+       62,
+       34
+      ],
+      [
+       76,
+       30
+      ],
+      [
+       90,
+       28
+      ]
+     ]
+    },
+    {
+     "name": "Blue Line",
+     "colour": "#2563eb",
+     "points": [
+      [
+       40,
+       4
+      ],
+      [
+       39,
+       16
+      ],
+      [
+       42,
+       28
+      ],
+      [
+       46,
+       38
+      ],
+      [
+       52,
+       46
+      ],
+      [
+       60,
+       52
+      ],
+      [
+       66,
+       60
+      ]
+     ]
+    }
+   ],
+   "localities": [
+    {
+     "name": "Whitefield",
+     "x": 80,
+     "y": 30
+    },
+    {
+     "name": "Sarjapur Road",
+     "x": 64,
+     "y": 58
+    },
+    {
+     "name": "Hebbal",
+     "x": 38,
+     "y": 12
+    },
+    {
+     "name": "Koramangala",
+     "x": 44,
+     "y": 46
+    },
+    {
+     "name": "HSR Layout",
+     "x": 50,
+     "y": 56
+    },
+    {
+     "name": "Indiranagar",
+     "x": 48,
+     "y": 36
+    }
+   ],
+   "places": [
+    {
+     "id": "cedarline",
+     "name": "Cedarline Tech Park",
+     "kind": "office",
+     "x": 84,
+     "y": 26
+    },
+    {
+     "id": "orbit-bay",
+     "name": "Orbit Business Bay",
+     "kind": "office",
+     "x": 58,
+     "y": 48
+    },
+    {
+     "id": "northgate",
+     "name": "Northgate IT Campus",
+     "kind": "office",
+     "x": 42,
+     "y": 6
+    },
+    {
+     "id": "forum-works",
+     "name": "Forum Works Koramangala",
+     "kind": "office",
+     "x": 44,
+     "y": 42
+    },
+    {
+     "id": "greenwood",
+     "name": "Greenwood International School",
+     "kind": "school",
+     "x": 74,
+     "y": 34
+    },
+    {
+     "id": "banyan",
+     "name": "Banyan Tree Public School",
+     "kind": "school",
+     "x": 60,
+     "y": 62
+    },
+    {
+     "id": "lakeview",
+     "name": "Lakeview Academy",
+     "kind": "school",
+     "x": 34,
+     "y": 16
+    },
+    {
+     "id": "sunrise",
+     "name": "Sunrise Valley School",
+     "kind": "school",
+     "x": 48,
+     "y": 52
+    },
+    {
+     "id": "m-whitefield",
+     "name": "Whitefield Metro",
+     "kind": "metro",
+     "x": 76,
+     "y": 30
+    },
+    {
+     "id": "m-hoodi",
+     "name": "Hoodi Metro",
+     "kind": "metro",
+     "x": 62,
+     "y": 34
+    },
+    {
+     "id": "m-indiranagar",
+     "name": "Indiranagar Metro",
+     "kind": "metro",
+     "x": 46,
+     "y": 38
+    },
+    {
+     "id": "m-hebbal",
+     "name": "Hebbal Metro",
+     "kind": "metro",
+     "x": 39,
+     "y": 16
+    },
+    {
+     "id": "m-agara",
+     "name": "Agara Metro",
+     "kind": "metro",
+     "x": 52,
+     "y": 46
+    },
+    {
+     "id": "m-carmelaram",
+     "name": "Carmelaram Metro",
+     "kind": "metro",
+     "x": 66,
+     "y": 60
+    }
+   ],
+   "exchange": {
+    "contact": "Farhan Siddiqui",
+    "phone": "+91 99000 41250",
+    "slot_minutes": 60,
+    "office": "Kosha Exchange, 3rd floor, Ashwath Arcade, 80 Feet Road, Koramangala, Bengaluru 560034",
+    "hours": {
+     "mon": [
+      "10:00",
+      "19:00"
+     ],
+     "tue": [
+      "10:00",
+      "19:00"
+     ],
+     "wed": [
+      "10:00",
+      "19:00"
+     ],
+     "thu": [
+      "10:00",
+      "19:00"
+     ],
+     "fri": [
+      "10:00",
+      "19:00"
+     ],
+     "sat": [
+      "10:00",
+      "17:00"
+     ],
+     "sun": null
+    },
+    "booked": {
+     "sat": [
+      "10:00",
+      "11:00",
+      "12:00"
+     ],
+     "mon": [
+      "17:00"
+     ],
+     "thu": [
+      "11:00"
+     ]
+    }
+   }
+  },
+  {
+   "id": "pune",
+   "name": "Pune",
+   "code": "PNQ",
+   "state": "Maharashtra",
+   "water": [
+    {
+     "name": "Mula River",
+     "points": [
+      [
+       6,
+       20
+      ],
+      [
+       20,
+       26
+      ],
+      [
+       34,
+       30
+      ],
+      [
+       46,
+       34
+      ],
+      [
+       60,
+       36
+      ],
+      [
+       74,
+       38
+      ],
+      [
+       94,
+       42
+      ]
+     ]
+    }
+   ],
+   "roads": [
+    {
+     "name": "Mumbai-Bengaluru Highway",
+     "points": [
+      [
+       8,
+       6
+      ],
+      [
+       18,
+       24
+      ],
+      [
+       26,
+       44
+      ],
+      [
+       34,
+       66
+      ]
+     ]
+    },
+    {
+     "name": "Nagar Road",
+     "points": [
+      [
+       50,
+       36
+      ],
+      [
+       68,
+       30
+      ],
+      [
+       92,
+       22
+      ]
+     ]
+    },
+    {
+     "name": "University Road",
+     "points": [
+      [
+       24,
+       28
+      ],
+      [
+       40,
+       38
+      ],
+      [
+       50,
+       44
+      ]
+     ]
+    }
+   ],
+   "metro": [
+    {
+     "name": "Line 3",
+     "colour": "#0891b2",
+     "points": [
+      [
+       6,
+       16
+      ],
+      [
+       16,
+       20
+      ],
+      [
+       24,
+       26
+      ],
+      [
+       36,
+       34
+      ],
+      [
+       48,
+       40
+      ]
+     ]
+    },
+    {
+     "name": "Line 2",
+     "colour": "#db2777",
+     "points": [
+      [
+       30,
+       52
+      ],
+      [
+       44,
+       44
+      ],
+      [
+       52,
+       40
+      ],
+      [
+       64,
+       34
+      ],
+      [
+       80,
+       30
+      ]
+     ]
+    }
+   ],
+   "localities": [
+    {
+     "name": "Baner",
+     "x": 22,
+     "y": 24
+    },
+    {
+     "name": "Kharadi",
+     "x": 78,
+     "y": 30
+    },
+    {
+     "name": "Hinjewadi",
+     "x": 8,
+     "y": 16
+    },
+    {
+     "name": "Viman Nagar",
+     "x": 66,
+     "y": 26
+    },
+    {
+     "name": "Kothrud",
+     "x": 26,
+     "y": 50
+    }
+   ],
+   "places": [
+    {
+     "id": "riverbend",
+     "name": "Riverbend IT Park",
+     "kind": "office",
+     "x": 10,
+     "y": 18
+    },
+    {
+     "id": "eastline",
+     "name": "Eastline Business Centre",
+     "kind": "office",
+     "x": 80,
+     "y": 28
+    },
+    {
+     "id": "baner-square",
+     "name": "Baner Square Offices",
+     "kind": "office",
+     "x": 24,
+     "y": 22
+    },
+    {
+     "id": "deccan-hub",
+     "name": "Deccan Innovation Hub",
+     "kind": "office",
+     "x": 64,
+     "y": 30
+    },
+    {
+     "id": "vidyanidhi",
+     "name": "Vidyanidhi International School",
+     "kind": "school",
+     "x": 20,
+     "y": 30
+    },
+    {
+     "id": "orchard",
+     "name": "Orchard Valley School",
+     "kind": "school",
+     "x": 74,
+     "y": 34
+    },
+    {
+     "id": "sahyadri",
+     "name": "Sahyadri Public School",
+     "kind": "school",
+     "x": 28,
+     "y": 46
+    },
+    {
+     "id": "m-baner",
+     "name": "Baner Metro",
+     "kind": "metro",
+     "x": 24,
+     "y": 26
+    },
+    {
+     "id": "m-balewadi",
+     "name": "Balewadi Metro",
+     "kind": "metro",
+     "x": 16,
+     "y": 20
+    },
+    {
+     "id": "m-hinjewadi",
+     "name": "Hinjewadi Metro",
+     "kind": "metro",
+     "x": 6,
+     "y": 16
+    },
+    {
+     "id": "m-kharadi",
+     "name": "Kharadi Metro",
+     "kind": "metro",
+     "x": 80,
+     "y": 30
+    },
+    {
+     "id": "m-viman",
+     "name": "Viman Nagar Metro",
+     "kind": "metro",
+     "x": 64,
+     "y": 34
+    },
+    {
+     "id": "m-kothrud",
+     "name": "Kothrud Metro",
+     "kind": "metro",
+     "x": 32,
+     "y": 50
+    }
+   ],
+   "exchange": {
+    "contact": "Pooja Deshpande",
+    "phone": "+91 99000 42150",
+    "slot_minutes": 60,
+    "office": "Kosha Exchange, Office 204, Sakal Plaza, Baner Road, Pune 411045",
+    "hours": {
+     "mon": [
+      "10:00",
+      "19:00"
+     ],
+     "tue": [
+      "10:00",
+      "19:00"
+     ],
+     "wed": [
+      "10:00",
+      "19:00"
+     ],
+     "thu": [
+      "10:00",
+      "19:00"
+     ],
+     "fri": [
+      "10:00",
+      "19:00"
+     ],
+     "sat": [
+      "10:00",
+      "17:00"
+     ],
+     "sun": null
+    },
+    "booked": {
+     "sat": [
+      "11:00",
+      "12:00"
+     ],
+     "wed": [
+      "16:00"
+     ]
+    }
+   }
+  },
+  {
+   "id": "hyderabad",
+   "name": "Hyderabad",
+   "code": "HYD",
+   "state": "Telangana",
+   "water": [
+    {
+     "name": "Durgam Cheruvu",
+     "points": [
+      [
+       46,
+       30
+      ],
+      [
+       50,
+       28
+      ],
+      [
+       53,
+       31
+      ],
+      [
+       49,
+       34
+      ]
+     ]
+    },
+    {
+     "name": "Gandipet Lake",
+     "points": [
+      [
+       4,
+       48
+      ],
+      [
+       12,
+       44
+      ],
+      [
+       18,
+       50
+      ],
+      [
+       10,
+       56
+      ]
+     ]
+    }
+   ],
+   "roads": [
+    {
+     "name": "Outer Ring Road",
+     "points": [
+      [
+       10,
+       10
+      ],
+      [
+       8,
+       40
+      ],
+      [
+       20,
+       64
+      ],
+      [
+       50,
+       68
+      ],
+      [
+       86,
+       60
+      ]
+     ]
+    },
+    {
+     "name": "Old Mumbai Highway",
+     "points": [
+      [
+       20,
+       40
+      ],
+      [
+       38,
+       34
+      ],
+      [
+       56,
+       30
+      ],
+      [
+       80,
+       24
+      ]
+     ]
+    },
+    {
+     "name": "Botanical Garden Road",
+     "points": [
+      [
+       34,
+       14
+      ],
+      [
+       40,
+       30
+      ],
+      [
+       46,
+       46
+      ]
+     ]
+    }
+   ],
+   "metro": [
+    {
+     "name": "Blue Line",
+     "colour": "#2563eb",
+     "points": [
+      [
+       30,
+       18
+      ],
+      [
+       42,
+       22
+      ],
+      [
+       52,
+       24
+      ],
+      [
+       66,
+       22
+      ],
+      [
+       84,
+       18
+      ]
+     ]
+    },
+    {
+     "name": "Airport Line",
+     "colour": "#ea580c",
+     "points": [
+      [
+       52,
+       24
+      ],
+      [
+       44,
+       34
+      ],
+      [
+       34,
+       44
+      ],
+      [
+       26,
+       58
+      ]
+     ]
+    }
+   ],
+   "localities": [
+    {
+     "name": "Kokapet",
+     "x": 22,
+     "y": 50
+    },
+    {
+     "name": "Kondapur",
+     "x": 38,
+     "y": 20
+    },
+    {
+     "name": "Gachibowli",
+     "x": 34,
+     "y": 34
+    },
+    {
+     "name": "Madhapur",
+     "x": 50,
+     "y": 24
+    },
+    {
+     "name": "Narsingi",
+     "x": 28,
+     "y": 58
+    }
+   ],
+   "places": [
+    {
+     "id": "skyview",
+     "name": "Skyview Financial District",
+     "kind": "office",
+     "x": 26,
+     "y": 44
+    },
+    {
+     "id": "cyberpoint",
+     "name": "Cyberpoint Towers",
+     "kind": "office",
+     "x": 50,
+     "y": 26
+    },
+    {
+     "id": "hitec-one",
+     "name": "Hitec One Campus",
+     "kind": "office",
+     "x": 40,
+     "y": 18
+    },
+    {
+     "id": "raidurg-works",
+     "name": "Raidurg Works",
+     "kind": "office",
+     "x": 42,
+     "y": 30
+    },
+    {
+     "id": "oakridge",
+     "name": "Oakfield International School",
+     "kind": "school",
+     "x": 24,
+     "y": 54
+    },
+    {
+     "id": "meridian",
+     "name": "Meridian Grammar School",
+     "kind": "school",
+     "x": 36,
+     "y": 22
+    },
+    {
+     "id": "glendale",
+     "name": "Glendale Public School",
+     "kind": "school",
+     "x": 46,
+     "y": 36
+    },
+    {
+     "id": "m-raidurg",
+     "name": "Raidurg Metro",
+     "kind": "metro",
+     "x": 44,
+     "y": 30
+    },
+    {
+     "id": "m-hitec",
+     "name": "Hitec City Metro",
+     "kind": "metro",
+     "x": 52,
+     "y": 24
+    },
+    {
+     "id": "m-kondapur",
+     "name": "Kondapur Metro",
+     "kind": "metro",
+     "x": 40,
+     "y": 22
+    },
+    {
+     "id": "m-narsingi",
+     "name": "Narsingi Metro",
+     "kind": "metro",
+     "x": 30,
+     "y": 50
+    },
+    {
+     "id": "m-gachibowli",
+     "name": "Gachibowli Metro",
+     "kind": "metro",
+     "x": 36,
+     "y": 40
+    }
+   ],
+   "exchange": {
+    "contact": "Mohammed Irfan",
+    "phone": "+91 99000 43150",
+    "slot_minutes": 60,
+    "office": "Kosha Exchange, 5th floor, Laxmi Towers, Kondapur Main Road, Hyderabad 500084",
+    "hours": {
+     "mon": [
+      "10:00",
+      "19:00"
+     ],
+     "tue": [
+      "10:00",
+      "19:00"
+     ],
+     "wed": [
+      "10:00",
+      "19:00"
+     ],
+     "thu": [
+      "10:00",
+      "19:00"
+     ],
+     "fri": [
+      "10:00",
+      "19:00"
+     ],
+     "sat": [
+      "10:00",
+      "17:00"
+     ],
+     "sun": null
+    },
+    "booked": {
+     "sat": [
+      "10:00",
+      "13:00"
+     ],
+     "fri": [
+      "15:00"
+     ]
+    }
+   }
+  }
+ ],
+ "projects": [
+  {
+   "id": "kosha-aranya",
+   "name": "Kosha Aranya",
+   "city": "bengaluru",
+   "locality": "Whitefield",
+   "x": 79,
+   "y": 33,
+   "status": "under_construction",
+   "possession": "Dec 2027",
+   "launched": "Mar 2024",
+   "progress": 55,
+   "rera": "KA/DEMO/PRJ/2024/0418",
+   "towers": 4,
+   "floors": 22,
+   "units": 612,
+   "acres": 7.5,
+   "configs": [
+    2,
+    3
+   ],
+   "address": "Kosha Aranya site office, Siddapura Main Road, off ITPL Road, Whitefield, Bengaluru 560066",
+   "pitch": "Four towers around a seven-acre forest garden, a ten-minute walk from Whitefield Metro.",
+   "amenities": [
+    "Clubhouse",
+    "Swimming pool",
+    "Gym",
+    "Kids' play area",
+    "Jogging track",
+    "EV charging",
+    "Co-working lounge",
+    "Forest garden"
+   ],
+   "palette": [
+    "#2f6b4f",
+    "#cfe3d4"
+   ],
+   "milestones": [
+    [
+     "Foundation",
+     "done"
+    ],
+    [
+     "Structure, towers A-B",
+     "done"
+    ],
+    [
+     "Structure, towers C-D",
+     "in progress"
+    ],
+    [
+     "Finishing",
+     "next"
+    ],
+    [
+     "Handover",
+     "Dec 2027"
+    ]
+   ],
+   "team": {
+    "contact": "Divya Menon",
+    "phone": "+91 99000 41201",
+    "slot_minutes": 45,
+    "hours": {
+     "mon": [
+      "10:30",
+      "18:00"
+     ],
+     "tue": [
+      "10:30",
+      "18:00"
+     ],
+     "wed": null,
+     "thu": [
+      "10:30",
+      "18:00"
+     ],
+     "fri": [
+      "10:30",
+      "18:00"
+     ],
+     "sat": [
+      "10:00",
+      "18:30"
+     ],
+     "sun": [
+      "10:00",
+      "18:30"
+     ]
+    },
+    "booked": {
+     "sat": [
+      "10:00",
+      "10:45",
+      "11:30",
+      "16:15"
+     ],
+     "sun": [
+      "10:45",
+      "11:30",
+      "12:15"
+     ],
+     "mon": [
+      "14:15"
+     ],
+     "fri": [
+      "11:15"
+     ]
+    }
+   },
+   "nearby": {
+    "offices": [
+     {
+      "id": "cedarline",
+      "name": "Cedarline Tech Park",
+      "km": 2.2
+     },
+     {
+      "id": "orbit-bay",
+      "name": "Orbit Business Bay",
+      "km": 6.5
+     },
+     {
+      "id": "forum-works",
+      "name": "Forum Works Koramangala",
+      "km": 9.0
+     },
+     {
+      "id": "northgate",
+      "name": "Northgate IT Campus",
+      "km": 11.5
+     }
+    ],
+    "schools": [
+     {
+      "id": "greenwood",
+      "name": "Greenwood International School",
+      "km": 1.3
+     },
+     {
+      "id": "banyan",
+      "name": "Banyan Tree Public School",
+      "km": 8.7
+     },
+     {
+      "id": "sunrise",
+      "name": "Sunrise Valley School",
+      "km": 9.1
+     }
+    ],
+    "metro": [
+     {
+      "id": "m-whitefield",
+      "name": "Whitefield Metro",
+      "km": 1.1
+     },
+     {
+      "id": "m-hoodi",
+      "name": "Hoodi Metro",
+      "km": 4.3
+     }
+    ]
+   },
+   "price_from": 11400000,
+   "price_to": 18400000,
+   "listing_ids": [
+    "BLR-101",
+    "BLR-102",
+    "BLR-103",
+    "BLR-104"
+   ]
+  },
+  {
+   "id": "kosha-meadows",
+   "name": "Kosha Meadows",
+   "city": "bengaluru",
+   "locality": "Sarjapur Road",
+   "x": 64,
+   "y": 61,
+   "status": "ready",
+   "possession": "Ready to move",
+   "launched": "Jan 2021",
+   "progress": 100,
+   "rera": "KA/DEMO/PRJ/2021/0117",
+   "towers": 6,
+   "floors": 18,
+   "units": 840,
+   "acres": 11,
+   "configs": [
+    2,
+    3,
+    4
+   ],
+   "address": "Kosha Meadows sales lounge, Dommasandra Circle, Sarjapur Road, Bengaluru 562125",
+   "pitch": "Occupancy certificate in hand, 840 homes on eleven acres, with a school inside the next block.",
+   "amenities": [
+    "Clubhouse",
+    "Swimming pool",
+    "Gym",
+    "Kids' play area",
+    "Tennis court",
+    "Supermarket",
+    "EV charging",
+    "Amphitheatre"
+   ],
+   "palette": [
+    "#9a5b2e",
+    "#f1dcc6"
+   ],
+   "milestones": [
+    [
+     "Occupancy certificate",
+     "done"
+    ],
+    [
+     "Handover",
+     "done"
+    ]
+   ],
+   "team": {
+    "contact": "Rakesh Gowda",
+    "phone": "+91 99000 41202",
+    "slot_minutes": 45,
+    "hours": {
+     "mon": [
+      "10:00",
+      "18:00"
+     ],
+     "tue": [
+      "10:00",
+      "18:00"
+     ],
+     "wed": [
+      "10:00",
+      "18:00"
+     ],
+     "thu": [
+      "10:00",
+      "18:00"
+     ],
+     "fri": [
+      "10:00",
+      "18:00"
+     ],
+     "sat": [
+      "09:30",
+      "19:00"
+     ],
+     "sun": [
+      "09:30",
+      "19:00"
+     ]
+    },
+    "booked": {
+     "sat": [
+      "09:30",
+      "10:15",
+      "11:00",
+      "11:45"
+     ],
+     "sun": [
+      "11:00",
+      "11:45",
+      "15:30"
+     ],
+     "thu": [
+      "16:15"
+     ]
+    }
+   },
+   "nearby": {
+    "offices": [
+     {
+      "id": "orbit-bay",
+      "name": "Orbit Business Bay",
+      "km": 3.6
+     },
+     {
+      "id": "forum-works",
+      "name": "Forum Works Koramangala",
+      "km": 6.9
+     },
+     {
+      "id": "cedarline",
+      "name": "Cedarline Tech Park",
+      "km": 10.1
+     },
+     {
+      "id": "northgate",
+      "name": "Northgate IT Campus",
+      "km": 14.8
+     }
+    ],
+    "schools": [
+     {
+      "id": "banyan",
+      "name": "Banyan Tree Public School",
+      "km": 1.0
+     },
+     {
+      "id": "sunrise",
+      "name": "Sunrise Valley School",
+      "km": 4.6
+     },
+     {
+      "id": "greenwood",
+      "name": "Greenwood International School",
+      "km": 7.2
+     }
+    ],
+    "metro": [
+     {
+      "id": "m-carmelaram",
+      "name": "Carmelaram Metro",
+      "km": 0.6
+     },
+     {
+      "id": "m-agara",
+      "name": "Agara Metro",
+      "km": 4.8
+     }
+    ]
+   },
+   "price_from": 10500000,
+   "price_to": 23500000,
+   "listing_ids": [
+    "BLR-105",
+    "BLR-106",
+    "BLR-107",
+    "BLR-108"
+   ]
+  },
+  {
+   "id": "kosha-skyline",
+   "name": "Kosha Skyline",
+   "city": "bengaluru",
+   "locality": "Hebbal",
+   "x": 37,
+   "y": 14,
+   "status": "under_construction",
+   "possession": "Jun 2027",
+   "launched": "Aug 2023",
+   "progress": 70,
+   "rera": "KA/DEMO/PRJ/2023/0352",
+   "towers": 2,
+   "floors": 34,
+   "units": 296,
+   "acres": 4,
+   "configs": [
+    3,
+    4
+   ],
+   "address": "Kosha Skyline experience centre, Bellary Road service lane, Hebbal, Bengaluru 560024",
+   "pitch": "Two 34-floor towers over Hebbal Lake, twenty minutes from the airport road.",
+   "amenities": [
+    "Sky lounge",
+    "Infinity pool",
+    "Gym",
+    "Spa",
+    "Kids' play area",
+    "EV charging",
+    "Concierge",
+    "Lake-view deck"
+   ],
+   "palette": [
+    "#2c4a7a",
+    "#d6e1f2"
+   ],
+   "milestones": [
+    [
+     "Foundation",
+     "done"
+    ],
+    [
+     "Structure",
+     "done"
+    ],
+    [
+     "Facade",
+     "in progress"
+    ],
+    [
+     "Finishing",
+     "next"
+    ],
+    [
+     "Handover",
+     "Jun 2027"
+    ]
+   ],
+   "team": {
+    "contact": "Ananya Bhat",
+    "phone": "+91 99000 41203",
+    "slot_minutes": 60,
+    "hours": {
+     "mon": null,
+     "tue": [
+      "11:00",
+      "18:00"
+     ],
+     "wed": [
+      "11:00",
+      "18:00"
+     ],
+     "thu": [
+      "11:00",
+      "18:00"
+     ],
+     "fri": [
+      "11:00",
+      "18:00"
+     ],
+     "sat": [
+      "10:00",
+      "18:00"
+     ],
+     "sun": [
+      "10:00",
+      "18:00"
+     ]
+    },
+    "booked": {
+     "sat": [
+      "11:00",
+      "12:00"
+     ],
+     "sun": [
+      "10:00",
+      "11:00",
+      "12:00"
+     ],
+     "wed": [
+      "15:00"
+     ]
+    }
+   },
+   "nearby": {
+    "offices": [
+     {
+      "id": "northgate",
+      "name": "Northgate IT Campus",
+      "km": 2.4
+     },
+     {
+      "id": "forum-works",
+      "name": "Forum Works Koramangala",
+      "km": 7.2
+     },
+     {
+      "id": "orbit-bay",
+      "name": "Orbit Business Bay",
+      "km": 10.0
+     },
+     {
+      "id": "cedarline",
+      "name": "Cedarline Tech Park",
+      "km": 12.1
+     }
+    ],
+    "schools": [
+     {
+      "id": "lakeview",
+      "name": "Lakeview Academy",
+      "km": 0.9
+     },
+     {
+      "id": "sunrise",
+      "name": "Sunrise Valley School",
+      "km": 9.9
+     },
+     {
+      "id": "greenwood",
+      "name": "Greenwood International School",
+      "km": 10.5
+     }
+    ],
+    "metro": [
+     {
+      "id": "m-hebbal",
+      "name": "Hebbal Metro",
+      "km": 0.7
+     },
+     {
+      "id": "m-indiranagar",
+      "name": "Indiranagar Metro",
+      "km": 6.4
+     }
+    ]
+   },
+   "price_from": 24800000,
+   "price_to": 38500000,
+   "listing_ids": [
+    "BLR-109",
+    "BLR-110",
+    "BLR-111"
+   ]
+  },
+  {
+   "id": "kosha-riverside",
+   "name": "Kosha Riverside",
+   "city": "pune",
+   "locality": "Baner",
+   "x": 21,
+   "y": 27,
+   "status": "ready",
+   "possession": "Ready to move",
+   "launched": "Jun 2020",
+   "progress": 100,
+   "rera": "MH/DEMO/PRJ/2020/2210",
+   "towers": 5,
+   "floors": 16,
+   "units": 520,
+   "acres": 6,
+   "configs": [
+    1,
+    2,
+    3
+   ],
+   "address": "Kosha Riverside sales lounge, Baner-Pashan Link Road, Baner, Pune 411045",
+   "pitch": "Ready homes on the Mula riverfront, five minutes from Baner Metro.",
+   "amenities": [
+    "Clubhouse",
+    "Swimming pool",
+    "Gym",
+    "Kids' play area",
+    "Riverside walk",
+    "Badminton court",
+    "EV charging"
+   ],
+   "palette": [
+    "#24636b",
+    "#cde8ea"
+   ],
+   "milestones": [
+    [
+     "Occupancy certificate",
+     "done"
+    ],
+    [
+     "Handover",
+     "done"
+    ]
+   ],
+   "team": {
+    "contact": "Sneha Kulkarni",
+    "phone": "+91 99000 42101",
+    "slot_minutes": 45,
+    "hours": {
+     "mon": [
+      "10:00",
+      "18:30"
+     ],
+     "tue": [
+      "10:00",
+      "18:30"
+     ],
+     "wed": [
+      "10:00",
+      "18:30"
+     ],
+     "thu": null,
+     "fri": [
+      "10:00",
+      "18:30"
+     ],
+     "sat": [
+      "09:30",
+      "19:00"
+     ],
+     "sun": [
+      "09:30",
+      "19:00"
+     ]
+    },
+    "booked": {
+     "sat": [
+      "10:15",
+      "11:00",
+      "17:00"
+     ],
+     "sun": [
+      "09:30",
+      "10:15",
+      "11:00"
+     ],
+     "tue": [
+      "12:15"
+     ]
+    }
+   },
+   "nearby": {
+    "offices": [
+     {
+      "id": "baner-square",
+      "name": "Baner Square Offices",
+      "km": 1.5
+     },
+     {
+      "id": "riverbend",
+      "name": "Riverbend IT Park",
+      "km": 3.6
+     },
+     {
+      "id": "deccan-hub",
+      "name": "Deccan Innovation Hub",
+      "km": 10.8
+     },
+     {
+      "id": "eastline",
+      "name": "Eastline Business Centre",
+      "km": 14.8
+     }
+    ],
+    "schools": [
+     {
+      "id": "vidyanidhi",
+      "name": "Vidyanidhi International School",
+      "km": 0.8
+     },
+     {
+      "id": "sahyadri",
+      "name": "Sahyadri Public School",
+      "km": 5.1
+     },
+     {
+      "id": "orchard",
+      "name": "Orchard Valley School",
+      "km": 13.4
+     }
+    ],
+    "metro": [
+     {
+      "id": "m-baner",
+      "name": "Baner Metro",
+      "km": 0.8
+     },
+     {
+      "id": "m-balewadi",
+      "name": "Balewadi Metro",
+      "km": 2.2
+     }
+    ]
+   },
+   "price_from": 5600000,
+   "price_to": 13600000,
+   "listing_ids": [
+    "PNQ-101",
+    "PNQ-102",
+    "PNQ-103",
+    "PNQ-104"
+   ]
+  },
+  {
+   "id": "kosha-orchid",
+   "name": "Kosha Orchid",
+   "city": "pune",
+   "locality": "Kharadi",
+   "x": 76,
+   "y": 33,
+   "status": "under_construction",
+   "possession": "Mar 2028",
+   "launched": "Feb 2025",
+   "progress": 30,
+   "rera": "MH/DEMO/PRJ/2025/0961",
+   "towers": 3,
+   "floors": 24,
+   "units": 432,
+   "acres": 5,
+   "configs": [
+    2,
+    3
+   ],
+   "address": "Kosha Orchid site office, Kharadi-Mundhwa Bypass, Kharadi, Pune 411014",
+   "pitch": "New launch in Kharadi, walking distance to Eastline Business Centre.",
+   "amenities": [
+    "Clubhouse",
+    "Swimming pool",
+    "Gym",
+    "Kids' play area",
+    "Co-working lounge",
+    "EV charging",
+    "Pet park"
+   ],
+   "palette": [
+    "#7a3b69",
+    "#efd5e8"
+   ],
+   "milestones": [
+    [
+     "Foundation",
+     "done"
+    ],
+    [
+     "Structure",
+     "in progress"
+    ],
+    [
+     "Finishing",
+     "next"
+    ],
+    [
+     "Handover",
+     "Mar 2028"
+    ]
+   ],
+   "team": {
+    "contact": "Aditya Joshi",
+    "phone": "+91 99000 42102",
+    "slot_minutes": 45,
+    "hours": {
+     "mon": [
+      "10:30",
+      "18:00"
+     ],
+     "tue": [
+      "10:30",
+      "18:00"
+     ],
+     "wed": [
+      "10:30",
+      "18:00"
+     ],
+     "thu": [
+      "10:30",
+      "18:00"
+     ],
+     "fri": [
+      "10:30",
+      "18:00"
+     ],
+     "sat": [
+      "10:00",
+      "18:30"
+     ],
+     "sun": null
+    },
+    "booked": {
+     "sat": [
+      "10:00",
+      "10:45",
+      "11:30",
+      "12:15"
+     ],
+     "fri": [
+      "16:30"
+     ]
+    }
+   },
+   "nearby": {
+    "offices": [
+     {
+      "id": "eastline",
+      "name": "Eastline Business Centre",
+      "km": 1.6
+     },
+     {
+      "id": "deccan-hub",
+      "name": "Deccan Innovation Hub",
+      "km": 3.1
+     },
+     {
+      "id": "baner-square",
+      "name": "Baner Square Offices",
+      "km": 13.3
+     },
+     {
+      "id": "riverbend",
+      "name": "Riverbend IT Park",
+      "km": 16.9
+     }
+    ],
+    "schools": [
+     {
+      "id": "orchard",
+      "name": "Orchard Valley School",
+      "km": 0.6
+     },
+     {
+      "id": "sahyadri",
+      "name": "Sahyadri Public School",
+      "km": 12.4
+     },
+     {
+      "id": "vidyanidhi",
+      "name": "Vidyanidhi International School",
+      "km": 14.0
+     }
+    ],
+    "metro": [
+     {
+      "id": "m-kharadi",
+      "name": "Kharadi Metro",
+      "km": 1.2
+     },
+     {
+      "id": "m-viman",
+      "name": "Viman Nagar Metro",
+      "km": 3.0
+     }
+    ]
+   },
+   "price_from": 8600000,
+   "price_to": 12700000,
+   "listing_ids": [
+    "PNQ-105",
+    "PNQ-106",
+    "PNQ-107"
+   ]
+  },
+  {
+   "id": "kosha-heights",
+   "name": "Kosha Heights",
+   "city": "hyderabad",
+   "locality": "Kokapet",
+   "x": 23,
+   "y": 47,
+   "status": "under_construction",
+   "possession": "Sep 2027",
+   "launched": "Nov 2023",
+   "progress": 60,
+   "rera": "TS/DEMO/PRJ/2023/1184",
+   "towers": 3,
+   "floors": 40,
+   "units": 480,
+   "acres": 6.5,
+   "configs": [
+    3,
+    4
+   ],
+   "address": "Kosha Heights experience centre, Neopolis Road, Kokapet, Hyderabad 500075",
+   "pitch": "Forty floors next to the financial district, with lake views from the twentieth floor up.",
+   "amenities": [
+    "Clubhouse",
+    "Infinity pool",
+    "Gym",
+    "Squash court",
+    "Kids' play area",
+    "EV charging",
+    "Concierge",
+    "Banquet hall"
+   ],
+   "palette": [
+    "#8a6a1f",
+    "#f2e6c4"
+   ],
+   "milestones": [
+    [
+     "Foundation",
+     "done"
+    ],
+    [
+     "Structure, floors 1-28",
+     "done"
+    ],
+    [
+     "Structure, floors 29-40",
+     "in progress"
+    ],
+    [
+     "Handover",
+     "Sep 2027"
+    ]
+   ],
+   "team": {
+    "contact": "Srinivas Reddy",
+    "phone": "+91 99000 43101",
+    "slot_minutes": 60,
+    "hours": {
+     "mon": [
+      "10:00",
+      "18:00"
+     ],
+     "tue": null,
+     "wed": [
+      "10:00",
+      "18:00"
+     ],
+     "thu": [
+      "10:00",
+      "18:00"
+     ],
+     "fri": [
+      "10:00",
+      "18:00"
+     ],
+     "sat": [
+      "10:00",
+      "18:00"
+     ],
+     "sun": [
+      "10:00",
+      "18:00"
+     ]
+    },
+    "booked": {
+     "sat": [
+      "10:00",
+      "11:00",
+      "15:00"
+     ],
+     "sun": [
+      "11:00",
+      "12:00"
+     ],
+     "mon": [
+      "10:00"
+     ]
+    }
+   },
+   "nearby": {
+    "offices": [
+     {
+      "id": "skyview",
+      "name": "Skyview Financial District",
+      "km": 1.1
+     },
+     {
+      "id": "raidurg-works",
+      "name": "Raidurg Works",
+      "km": 6.4
+     },
+     {
+      "id": "hitec-one",
+      "name": "Hitec One Campus",
+      "km": 8.4
+     },
+     {
+      "id": "cyberpoint",
+      "name": "Cyberpoint Towers",
+      "km": 8.6
+     }
+    ],
+    "schools": [
+     {
+      "id": "oakridge",
+      "name": "Oakfield International School",
+      "km": 1.8
+     },
+     {
+      "id": "glendale",
+      "name": "Glendale Public School",
+      "km": 6.4
+     },
+     {
+      "id": "meridian",
+      "name": "Meridian Grammar School",
+      "km": 7.0
+     }
+    ],
+    "metro": [
+     {
+      "id": "m-narsingi",
+      "name": "Narsingi Metro",
+      "km": 1.9
+     },
+     {
+      "id": "m-gachibowli",
+      "name": "Gachibowli Metro",
+      "km": 3.7
+     }
+    ]
+   },
+   "price_from": 21500000,
+   "price_to": 34000000,
+   "listing_ids": [
+    "HYD-101",
+    "HYD-102",
+    "HYD-103"
+   ]
+  },
+  {
+   "id": "kosha-greens",
+   "name": "Kosha Greens",
+   "city": "hyderabad",
+   "locality": "Kondapur",
+   "x": 37,
+   "y": 23,
+   "status": "ready",
+   "possession": "Ready to move",
+   "launched": "Apr 2021",
+   "progress": 100,
+   "rera": "TS/DEMO/PRJ/2021/0533",
+   "towers": 4,
+   "floors": 15,
+   "units": 410,
+   "acres": 5.5,
+   "configs": [
+    2,
+    3
+   ],
+   "address": "Kosha Greens sales lounge, Botanical Garden Road, Kondapur, Hyderabad 500084",
+   "pitch": "Ready homes beside Kondapur Metro, five minutes from Hitec One Campus.",
+   "amenities": [
+    "Clubhouse",
+    "Swimming pool",
+    "Gym",
+    "Kids' play area",
+    "Jogging track",
+    "Supermarket",
+    "EV charging"
+   ],
+   "palette": [
+    "#3d6b2a",
+    "#dcebcf"
+   ],
+   "milestones": [
+    [
+     "Occupancy certificate",
+     "done"
+    ],
+    [
+     "Handover",
+     "done"
+    ]
+   ],
+   "team": {
+    "contact": "Lakshmi Prasanna",
+    "phone": "+91 99000 43102",
+    "slot_minutes": 45,
+    "hours": {
+     "mon": [
+      "10:00",
+      "18:30"
+     ],
+     "tue": [
+      "10:00",
+      "18:30"
+     ],
+     "wed": [
+      "10:00",
+      "18:30"
+     ],
+     "thu": [
+      "10:00",
+      "18:30"
+     ],
+     "fri": [
+      "10:00",
+      "18:30"
+     ],
+     "sat": [
+      "09:30",
+      "19:00"
+     ],
+     "sun": [
+      "09:30",
+      "19:00"
+     ]
+    },
+    "booked": {
+     "sat": [
+      "09:30",
+      "10:15"
+     ],
+     "sun": [
+      "10:15",
+      "11:00",
+      "11:45",
+      "16:15"
+     ],
+     "wed": [
+      "15:15"
+     ]
+    }
+   },
+   "nearby": {
+    "offices": [
+     {
+      "id": "hitec-one",
+      "name": "Hitec One Campus",
+      "km": 1.5
+     },
+     {
+      "id": "raidurg-works",
+      "name": "Raidurg Works",
+      "km": 2.2
+     },
+     {
+      "id": "cyberpoint",
+      "name": "Cyberpoint Towers",
+      "km": 3.3
+     },
+     {
+      "id": "skyview",
+      "name": "Skyview Financial District",
+      "km": 5.9
+     }
+    ],
+    "schools": [
+     {
+      "id": "meridian",
+      "name": "Meridian Grammar School",
+      "km": 0.4
+     },
+     {
+      "id": "glendale",
+      "name": "Glendale Public School",
+      "km": 4.0
+     },
+     {
+      "id": "oakridge",
+      "name": "Oakfield International School",
+      "km": 8.4
+     }
+    ],
+    "metro": [
+     {
+      "id": "m-kondapur",
+      "name": "Kondapur Metro",
+      "km": 0.8
+     },
+     {
+      "id": "m-raidurg",
+      "name": "Raidurg Metro",
+      "km": 2.5
+     }
+    ]
+   },
+   "price_from": 9800000,
+   "price_to": 15100000,
+   "listing_ids": [
+    "HYD-104",
+    "HYD-105",
+    "HYD-106",
+    "HYD-107"
+   ]
+  }
+ ],
+ "listings": [
+  {
+   "id": "BLR-101",
+   "kind": "new",
+   "deal": "buy",
+   "title": "2 BHK in Kosha Aranya",
+   "project_id": "kosha-aranya",
+   "society": "Kosha Aranya",
+   "city": "bengaluru",
+   "locality": "Whitefield",
+   "bhk": 2,
+   "carpet_sqft": 1085,
+   "price": 11400000,
+   "price_per_sqft": 10507,
+   "possession": "under_construction",
+   "possession_date": "Dec 2027",
+   "floor": 7,
+   "total_floors": 22,
+   "facing": "East",
+   "bathrooms": 2,
+   "balconies": 2,
+   "parking": 1,
+   "furnishing": "Unfurnished",
+   "age_years": 0,
+   "amenities": [
+    "Clubhouse",
+    "Swimming pool",
+    "Gym",
+    "Kids' play area",
+    "Jogging track",
+    "EV charging",
+    "Co-working lounge",
+    "Forest garden"
+   ],
+   "rera": "KA/DEMO/PRJ/2024/0418",
+   "address": "Kosha Aranya site office, Siddapura Main Road, off ITPL Road, Whitefield, Bengaluru 560066",
+   "x": 79,
+   "y": 33,
+   "palette": [
+    "#2f6b4f",
+    "#cfe3d4"
+   ],
+   "nearby": {
+    "offices": [
+     {
+      "id": "cedarline",
+      "name": "Cedarline Tech Park",
+      "km": 2.2
+     },
+     {
+      "id": "orbit-bay",
+      "name": "Orbit Business Bay",
+      "km": 6.5
+     },
+     {
+      "id": "forum-works",
+      "name": "Forum Works Koramangala",
+      "km": 9.0
+     },
+     {
+      "id": "northgate",
+      "name": "Northgate IT Campus",
+      "km": 11.5
+     }
+    ],
+    "schools": [
+     {
+      "id": "greenwood",
+      "name": "Greenwood International School",
+      "km": 1.3
+     },
+     {
+      "id": "banyan",
+      "name": "Banyan Tree Public School",
+      "km": 8.7
+     },
+     {
+      "id": "sunrise",
+      "name": "Sunrise Valley School",
+      "km": 9.1
+     }
+    ],
+    "metro": [
+     {
+      "id": "m-whitefield",
+      "name": "Whitefield Metro",
+      "km": 1.1
+     },
+     {
+      "id": "m-hoodi",
+      "name": "Hoodi Metro",
+      "km": 4.3
+     }
+    ]
+   }
+  },
+  {
+   "id": "BLR-102",
+   "kind": "new",
+   "deal": "buy",
+   "title": "2 BHK in Kosha Aranya",
+   "project_id": "kosha-aranya",
+   "society": "Kosha Aranya",
+   "city": "bengaluru",
+   "locality": "Whitefield",
+   "bhk": 2,
+   "carpet_sqft": 1120,
+   "price": 12350000,
+   "price_per_sqft": 11027,
+   "possession": "under_construction",
+   "possession_date": "Dec 2027",
+   "floor": 15,
+   "total_floors": 22,
+   "facing": "North",
+   "bathrooms": 2,
+   "balconies": 2,
+   "parking": 1,
+   "furnishing": "Unfurnished",
+   "age_years": 0,
+   "amenities": [
+    "Clubhouse",
+    "Swimming pool",
+    "Gym",
+    "Kids' play area",
+    "Jogging track",
+    "EV charging",
+    "Co-working lounge",
+    "Forest garden"
+   ],
+   "rera": "KA/DEMO/PRJ/2024/0418",
+   "address": "Kosha Aranya site office, Siddapura Main Road, off ITPL Road, Whitefield, Bengaluru 560066",
+   "x": 80.4,
+   "y": 32.2,
+   "palette": [
+    "#2f6b4f",
+    "#cfe3d4"
+   ],
+   "nearby": {
+    "offices": [
+     {
+      "id": "cedarline",
+      "name": "Cedarline Tech Park",
+      "km": 1.8
+     },
+     {
+      "id": "orbit-bay",
+      "name": "Orbit Business Bay",
+      "km": 6.9
+     },
+     {
+      "id": "forum-works",
+      "name": "Forum Works Koramangala",
+      "km": 9.4
+     },
+     {
+      "id": "northgate",
+      "name": "Northgate IT Campus",
+      "km": 11.6
+     }
+    ],
+    "schools": [
+     {
+      "id": "greenwood",
+      "name": "Greenwood International School",
+      "km": 1.7
+     },
+     {
+      "id": "banyan",
+      "name": "Banyan Tree Public School",
+      "km": 9.0
+     },
+     {
+      "id": "sunrise",
+      "name": "Sunrise Valley School",
+      "km": 9.5
+     }
+    ],
+    "metro": [
+     {
+      "id": "m-whitefield",
+      "name": "Whitefield Metro",
+      "km": 1.2
+     },
+     {
+      "id": "m-hoodi",
+      "name": "Hoodi Metro",
+      "km": 4.6
+     }
+    ]
+   }
+  },
+  {
+   "id": "BLR-103",
+   "kind": "new",
+   "deal": "buy",
+   "title": "3 BHK in Kosha Aranya",
+   "project_id": "kosha-aranya",
+   "society": "Kosha Aranya",
+   "city": "bengaluru",
+   "locality": "Whitefield",
+   "bhk": 3,
+   "carpet_sqft": 1460,
+   "price": 16900000,
+   "price_per_sqft": 11575,
+   "possession": "under_construction",
+   "possession_date": "Dec 2027",
+   "floor": 11,
+   "total_floors": 22,
+   "facing": "East",
+   "bathrooms": 3,
+   "balconies": 2,
+   "parking": 1,
+   "furnishing": "Unfurnished",
+   "age_years": 0,
+   "amenities": [
+    "Clubhouse",
+    "Swimming pool",
+    "Gym",
+    "Kids' play area",
+    "Jogging track",
+    "EV charging",
+    "Co-working lounge",
+    "Forest garden"
+   ],
+   "rera": "KA/DEMO/PRJ/2024/0418",
+   "address": "Kosha Aranya site office, Siddapura Main Road, off ITPL Road, Whitefield, Bengaluru 560066",
+   "x": 77.8,
+   "y": 34.0,
+   "palette": [
+    "#2f6b4f",
+    "#cfe3d4"
+   ],
+   "nearby": {
+    "offices": [
+     {
+      "id": "cedarline",
+      "name": "Cedarline Tech Park",
+      "km": 2.5
+     },
+     {
+      "id": "orbit-bay",
+      "name": "Orbit Business Bay",
+      "km": 6.1
+     },
+     {
+      "id": "forum-works",
+      "name": "Forum Works Koramangala",
+      "km": 8.7
+     },
+     {
+      "id": "northgate",
+      "name": "Northgate IT Campus",
+      "km": 11.4
+     }
+    ],
+    "schools": [
+     {
+      "id": "greenwood",
+      "name": "Greenwood International School",
+      "km": 0.9
+     },
+     {
+      "id": "banyan",
+      "name": "Banyan Tree Public School",
+      "km": 8.3
+     },
+     {
+      "id": "sunrise",
+      "name": "Sunrise Valley School",
+      "km": 8.7
+     }
+    ],
+    "metro": [
+     {
+      "id": "m-whitefield",
+      "name": "Whitefield Metro",
+      "km": 1.1
+     },
+     {
+      "id": "m-hoodi",
+      "name": "Hoodi Metro",
+      "km": 3.9
+     }
+    ]
+   }
+  },
+  {
+   "id": "BLR-104",
+   "kind": "new",
+   "deal": "buy",
+   "title": "3 BHK in Kosha Aranya",
+   "project_id": "kosha-aranya",
+   "society": "Kosha Aranya",
+   "city": "bengaluru",
+   "locality": "Whitefield",
+   "bhk": 3,
+   "carpet_sqft": 1525,
+   "price": 18400000,
+   "price_per_sqft": 12066,
+   "possession": "under_construction",
+   "possession_date": "Dec 2027",
+   "floor": 19,
+   "total_floors": 22,
+   "facing": "North-East",
+   "bathrooms": 3,
+   "balconies": 3,
+   "parking": 2,
+   "furnishing": "Unfurnished",
+   "age_years": 0,
+   "amenities": [
+    "Clubhouse",
+    "Swimming pool",
+    "Gym",
+    "Kids' play area",
+    "Jogging track",
+    "EV charging",
+    "Co-working lounge",
+    "Forest garden"
+   ],
+   "rera": "KA/DEMO/PRJ/2024/0418",
+   "address": "Kosha Aranya site office, Siddapura Main Road, off ITPL Road, Whitefield, Bengaluru 560066",
+   "x": 79.9,
+   "y": 34.3,
+   "palette": [
+    "#2f6b4f",
+    "#cfe3d4"
+   ],
+   "nearby": {
+    "offices": [
+     {
+      "id": "cedarline",
+      "name": "Cedarline Tech Park",
+      "km": 2.3
+     },
+     {
+      "id": "orbit-bay",
+      "name": "Orbit Business Bay",
+      "km": 6.5
+     },
+     {
+      "id": "forum-works",
+      "name": "Forum Works Koramangala",
+      "km": 9.2
+     },
+     {
+      "id": "northgate",
+      "name": "Northgate IT Campus",
+      "km": 11.8
+     }
+    ],
+    "schools": [
+     {
+      "id": "greenwood",
+      "name": "Greenwood International School",
+      "km": 1.5
+     },
+     {
+      "id": "banyan",
+      "name": "Banyan Tree Public School",
+      "km": 8.5
+     },
+     {
+      "id": "sunrise",
+      "name": "Sunrise Valley School",
+      "km": 9.1
+     }
+    ],
+    "metro": [
+     {
+      "id": "m-whitefield",
+      "name": "Whitefield Metro",
+      "km": 1.5
+     },
+     {
+      "id": "m-hoodi",
+      "name": "Hoodi Metro",
+      "km": 4.5
+     }
+    ]
+   }
+  },
+  {
+   "id": "BLR-105",
+   "kind": "new",
+   "deal": "buy",
+   "title": "2 BHK in Kosha Meadows",
+   "project_id": "kosha-meadows",
+   "society": "Kosha Meadows",
+   "city": "bengaluru",
+   "locality": "Sarjapur Road",
+   "bhk": 2,
+   "carpet_sqft": 1040,
+   "price": 10500000,
+   "price_per_sqft": 10096,
+   "possession": "ready",
+   "possession_date": "Ready to move",
+   "floor": 4,
+   "total_floors": 18,
+   "facing": "West",
+   "bathrooms": 2,
+   "balconies": 2,
+   "parking": 1,
+   "furnishing": "Unfurnished",
+   "age_years": 0,
+   "amenities": [
+    "Clubhouse",
+    "Swimming pool",
+    "Gym",
+    "Kids' play area",
+    "Tennis court",
+    "Supermarket",
+    "EV charging",
+    "Amphitheatre"
+   ],
+   "rera": "KA/DEMO/PRJ/2021/0117",
+   "address": "Kosha Meadows sales lounge, Dommasandra Circle, Sarjapur Road, Bengaluru 562125",
+   "x": 64,
+   "y": 61,
+   "palette": [
+    "#9a5b2e",
+    "#f1dcc6"
+   ],
+   "nearby": {
+    "offices": [
+     {
+      "id": "orbit-bay",
+      "name": "Orbit Business Bay",
+      "km": 3.6
+     },
+     {
+      "id": "forum-works",
+      "name": "Forum Works Koramangala",
+      "km": 6.9
+     },
+     {
+      "id": "cedarline",
+      "name": "Cedarline Tech Park",
+      "km": 10.1
+     },
+     {
+      "id": "northgate",
+      "name": "Northgate IT Campus",
+      "km": 14.8
+     }
+    ],
+    "schools": [
+     {
+      "id": "banyan",
+      "name": "Banyan Tree Public School",
+      "km": 1.0
+     },
+     {
+      "id": "sunrise",
+      "name": "Sunrise Valley School",
+      "km": 4.6
+     },
+     {
+      "id": "greenwood",
+      "name": "Greenwood International School",
+      "km": 7.2
+     }
+    ],
+    "metro": [
+     {
+      "id": "m-carmelaram",
+      "name": "Carmelaram Metro",
+      "km": 0.6
+     },
+     {
+      "id": "m-agara",
+      "name": "Agara Metro",
+      "km": 4.8
+     }
+    ]
+   }
+  },
+  {
+   "id": "BLR-106",
+   "kind": "new",
+   "deal": "buy",
+   "title": "3 BHK in Kosha Meadows",
+   "project_id": "kosha-meadows",
+   "society": "Kosha Meadows",
+   "city": "bengaluru",
+   "locality": "Sarjapur Road",
+   "bhk": 3,
+   "carpet_sqft": 1390,
+   "price": 14800000,
+   "price_per_sqft": 10647,
+   "possession": "ready",
+   "possession_date": "Ready to move",
+   "floor": 9,
+   "total_floors": 18,
+   "facing": "East",
+   "bathrooms": 3,
+   "balconies": 2,
+   "parking": 1,
+   "furnishing": "Unfurnished",
+   "age_years": 0,
+   "amenities": [
+    "Clubhouse",
+    "Swimming pool",
+    "Gym",
+    "Kids' play area",
+    "Tennis court",
+    "Supermarket",
+    "EV charging",
+    "Amphitheatre"
+   ],
+   "rera": "KA/DEMO/PRJ/2021/0117",
+   "address": "Kosha Meadows sales lounge, Dommasandra Circle, Sarjapur Road, Bengaluru 562125",
+   "x": 65.4,
+   "y": 60.2,
+   "palette": [
+    "#9a5b2e",
+    "#f1dcc6"
+   ],
+   "nearby": {
+    "offices": [
+     {
+      "id": "orbit-bay",
+      "name": "Orbit Business Bay",
+      "km": 3.6
+     },
+     {
+      "id": "forum-works",
+      "name": "Forum Works Koramangala",
+      "km": 7.0
+     },
+     {
+      "id": "cedarline",
+      "name": "Cedarline Tech Park",
+      "km": 9.7
+     },
+     {
+      "id": "northgate",
+      "name": "Northgate IT Campus",
+      "km": 14.8
+     }
+    ],
+    "schools": [
+     {
+      "id": "banyan",
+      "name": "Banyan Tree Public School",
+      "km": 1.4
+     },
+     {
+      "id": "sunrise",
+      "name": "Sunrise Valley School",
+      "km": 4.8
+     },
+     {
+      "id": "greenwood",
+      "name": "Greenwood International School",
+      "km": 6.9
+     }
+    ],
+    "metro": [
+     {
+      "id": "m-carmelaram",
+      "name": "Carmelaram Metro",
+      "km": 0.2
+     },
+     {
+      "id": "m-agara",
+      "name": "Agara Metro",
+      "km": 4.9
+     }
+    ]
+   }
+  },
+  {
+   "id": "BLR-107",
+   "kind": "new",
+   "deal": "buy",
+   "title": "3 BHK in Kosha Meadows",
+   "project_id": "kosha-meadows",
+   "society": "Kosha Meadows",
+   "city": "bengaluru",
+   "locality": "Sarjapur Road",
+   "bhk": 3,
+   "carpet_sqft": 1450,
+   "price": 15600000,
+   "price_per_sqft": 10759,
+   "possession": "ready",
+   "possession_date": "Ready to move",
+   "floor": 14,
+   "total_floors": 18,
+   "facing": "North",
+   "bathrooms": 3,
+   "balconies": 2,
+   "parking": 2,
+   "furnishing": "Unfurnished",
+   "age_years": 0,
+   "amenities": [
+    "Clubhouse",
+    "Swimming pool",
+    "Gym",
+    "Kids' play area",
+    "Tennis court",
+    "Supermarket",
+    "EV charging",
+    "Amphitheatre"
+   ],
+   "rera": "KA/DEMO/PRJ/2021/0117",
+   "address": "Kosha Meadows sales lounge, Dommasandra Circle, Sarjapur Road, Bengaluru 562125",
+   "x": 62.8,
+   "y": 62.0,
+   "palette": [
+    "#9a5b2e",
+    "#f1dcc6"
+   ],
+   "nearby": {
+    "offices": [
+     {
+      "id": "orbit-bay",
+      "name": "Orbit Business Bay",
+      "km": 3.7
+     },
+     {
+      "id": "forum-works",
+      "name": "Forum Works Koramangala",
+      "km": 6.9
+     },
+     {
+      "id": "cedarline",
+      "name": "Cedarline Tech Park",
+      "km": 10.4
+     },
+     {
+      "id": "northgate",
+      "name": "Northgate IT Campus",
+      "km": 14.9
+     }
+    ],
+    "schools": [
+     {
+      "id": "banyan",
+      "name": "Banyan Tree Public School",
+      "km": 0.7
+     },
+     {
+      "id": "sunrise",
+      "name": "Sunrise Valley School",
+      "km": 4.5
+     },
+     {
+      "id": "greenwood",
+      "name": "Greenwood International School",
+      "km": 7.5
+     }
+    ],
+    "metro": [
+     {
+      "id": "m-carmelaram",
+      "name": "Carmelaram Metro",
+      "km": 0.9
+     },
+     {
+      "id": "m-agara",
+      "name": "Agara Metro",
+      "km": 4.8
+     }
+    ]
+   }
+  },
+  {
+   "id": "BLR-108",
+   "kind": "new",
+   "deal": "buy",
+   "title": "4 BHK in Kosha Meadows",
+   "project_id": "kosha-meadows",
+   "society": "Kosha Meadows",
+   "city": "bengaluru",
+   "locality": "Sarjapur Road",
+   "bhk": 4,
+   "carpet_sqft": 2050,
+   "price": 23500000,
+   "price_per_sqft": 11463,
+   "possession": "ready",
+   "possession_date": "Ready to move",
+   "floor": 12,
+   "total_floors": 18,
+   "facing": "East",
+   "bathrooms": 4,
+   "balconies": 3,
+   "parking": 2,
+   "furnishing": "Unfurnished",
+   "age_years": 0,
+   "amenities": [
+    "Clubhouse",
+    "Swimming pool",
+    "Gym",
+    "Kids' play area",
+    "Tennis court",
+    "Supermarket",
+    "EV charging",
+    "Amphitheatre"
+   ],
+   "rera": "KA/DEMO/PRJ/2021/0117",
+   "address": "Kosha Meadows sales lounge, Dommasandra Circle, Sarjapur Road, Bengaluru 562125",
+   "x": 64.9,
+   "y": 62.3,
+   "palette": [
+    "#9a5b2e",
+    "#f1dcc6"
+   ],
+   "nearby": {
+    "offices": [
+     {
+      "id": "orbit-bay",
+      "name": "Orbit Business Bay",
+      "km": 4.0
+     },
+     {
+      "id": "forum-works",
+      "name": "Forum Works Koramangala",
+      "km": 7.3
+     },
+     {
+      "id": "cedarline",
+      "name": "Cedarline Tech Park",
+      "km": 10.3
+     },
+     {
+      "id": "northgate",
+      "name": "Northgate IT Campus",
+      "km": 15.2
+     }
+    ],
+    "schools": [
+     {
+      "id": "banyan",
+      "name": "Banyan Tree Public School",
+      "km": 1.2
+     },
+     {
+      "id": "sunrise",
+      "name": "Sunrise Valley School",
+      "km": 4.9
+     },
+     {
+      "id": "greenwood",
+      "name": "Greenwood International School",
+      "km": 7.4
+     }
+    ],
+    "metro": [
+     {
+      "id": "m-carmelaram",
+      "name": "Carmelaram Metro",
+      "km": 0.6
+     },
+     {
+      "id": "m-agara",
+      "name": "Agara Metro",
+      "km": 5.2
+     }
+    ]
+   }
+  },
+  {
+   "id": "BLR-109",
+   "kind": "new",
+   "deal": "buy",
+   "title": "3 BHK in Kosha Skyline",
+   "project_id": "kosha-skyline",
+   "society": "Kosha Skyline",
+   "city": "bengaluru",
+   "locality": "Hebbal",
+   "bhk": 3,
+   "carpet_sqft": 1640,
+   "price": 24800000,
+   "price_per_sqft": 15122,
+   "possession": "under_construction",
+   "possession_date": "Jun 2027",
+   "floor": 18,
+   "total_floors": 34,
+   "facing": "North",
+   "bathrooms": 3,
+   "balconies": 3,
+   "parking": 2,
+   "furnishing": "Unfurnished",
+   "age_years": 0,
+   "amenities": [
+    "Sky lounge",
+    "Infinity pool",
+    "Gym",
+    "Spa",
+    "Kids' play area",
+    "EV charging",
+    "Concierge",
+    "Lake-view deck"
+   ],
+   "rera": "KA/DEMO/PRJ/2023/0352",
+   "address": "Kosha Skyline experience centre, Bellary Road service lane, Hebbal, Bengaluru 560024",
+   "x": 37,
+   "y": 14,
+   "palette": [
+    "#2c4a7a",
+    "#d6e1f2"
+   ],
+   "nearby": {
+    "offices": [
+     {
+      "id": "northgate",
+      "name": "Northgate IT Campus",
+      "km": 2.4
+     },
+     {
+      "id": "forum-works",
+      "name": "Forum Works Koramangala",
+      "km": 7.2
+     },
+     {
+      "id": "orbit-bay",
+      "name": "Orbit Business Bay",
+      "km": 10.0
+     },
+     {
+      "id": "cedarline",
+      "name": "Cedarline Tech Park",
+      "km": 12.1
+     }
+    ],
+    "schools": [
+     {
+      "id": "lakeview",
+      "name": "Lakeview Academy",
+      "km": 0.9
+     },
+     {
+      "id": "sunrise",
+      "name": "Sunrise Valley School",
+      "km": 9.9
+     },
+     {
+      "id": "greenwood",
+      "name": "Greenwood International School",
+      "km": 10.5
+     }
+    ],
+    "metro": [
+     {
+      "id": "m-hebbal",
+      "name": "Hebbal Metro",
+      "km": 0.7
+     },
+     {
+      "id": "m-indiranagar",
+      "name": "Indiranagar Metro",
+      "km": 6.4
+     }
+    ]
+   }
+  },
+  {
+   "id": "BLR-110",
+   "kind": "new",
+   "deal": "buy",
+   "title": "3 BHK in Kosha Skyline",
+   "project_id": "kosha-skyline",
+   "society": "Kosha Skyline",
+   "city": "bengaluru",
+   "locality": "Hebbal",
+   "bhk": 3,
+   "carpet_sqft": 1710,
+   "price": 27200000,
+   "price_per_sqft": 15906,
+   "possession": "under_construction",
+   "possession_date": "Jun 2027",
+   "floor": 27,
+   "total_floors": 34,
+   "facing": "East",
+   "bathrooms": 3,
+   "balconies": 3,
+   "parking": 2,
+   "furnishing": "Unfurnished",
+   "age_years": 0,
+   "amenities": [
+    "Sky lounge",
+    "Infinity pool",
+    "Gym",
+    "Spa",
+    "Kids' play area",
+    "EV charging",
+    "Concierge",
+    "Lake-view deck"
+   ],
+   "rera": "KA/DEMO/PRJ/2023/0352",
+   "address": "Kosha Skyline experience centre, Bellary Road service lane, Hebbal, Bengaluru 560024",
+   "x": 38.4,
+   "y": 13.2,
+   "palette": [
+    "#2c4a7a",
+    "#d6e1f2"
+   ],
+   "nearby": {
+    "offices": [
+     {
+      "id": "northgate",
+      "name": "Northgate IT Campus",
+      "km": 2.0
+     },
+     {
+      "id": "forum-works",
+      "name": "Forum Works Koramangala",
+      "km": 7.3
+     },
+     {
+      "id": "orbit-bay",
+      "name": "Orbit Business Bay",
+      "km": 10.0
+     },
+     {
+      "id": "cedarline",
+      "name": "Cedarline Tech Park",
+      "km": 11.8
+     }
+    ],
+    "schools": [
+     {
+      "id": "lakeview",
+      "name": "Lakeview Academy",
+      "km": 1.3
+     },
+     {
+      "id": "sunrise",
+      "name": "Sunrise Valley School",
+      "km": 10.0
+     },
+     {
+      "id": "greenwood",
+      "name": "Greenwood International School",
+      "km": 10.3
+     }
+    ],
+    "metro": [
+     {
+      "id": "m-hebbal",
+      "name": "Hebbal Metro",
+      "km": 0.7
+     },
+     {
+      "id": "m-indiranagar",
+      "name": "Indiranagar Metro",
+      "km": 6.5
+     }
+    ]
+   }
+  },
+  {
+   "id": "BLR-111",
+   "kind": "new",
+   "deal": "buy",
+   "title": "4 BHK in Kosha Skyline",
+   "project_id": "kosha-skyline",
+   "society": "Kosha Skyline",
+   "city": "bengaluru",
+   "locality": "Hebbal",
+   "bhk": 4,
+   "carpet_sqft": 2380,
+   "price": 38500000,
+   "price_per_sqft": 16176,
+   "possession": "under_construction",
+   "possession_date": "Jun 2027",
+   "floor": 31,
+   "total_floors": 34,
+   "facing": "North-East",
+   "bathrooms": 4,
+   "balconies": 3,
+   "parking": 2,
+   "furnishing": "Unfurnished",
+   "age_years": 0,
+   "amenities": [
+    "Sky lounge",
+    "Infinity pool",
+    "Gym",
+    "Spa",
+    "Kids' play area",
+    "EV charging",
+    "Concierge",
+    "Lake-view deck"
+   ],
+   "rera": "KA/DEMO/PRJ/2023/0352",
+   "address": "Kosha Skyline experience centre, Bellary Road service lane, Hebbal, Bengaluru 560024",
+   "x": 35.8,
+   "y": 15.0,
+   "palette": [
+    "#2c4a7a",
+    "#d6e1f2"
+   ],
+   "nearby": {
+    "offices": [
+     {
+      "id": "northgate",
+      "name": "Northgate IT Campus",
+      "km": 2.7
+     },
+     {
+      "id": "forum-works",
+      "name": "Forum Works Koramangala",
+      "km": 7.1
+     },
+     {
+      "id": "orbit-bay",
+      "name": "Orbit Business Bay",
+      "km": 9.9
+     },
+     {
+      "id": "cedarline",
+      "name": "Cedarline Tech Park",
+      "km": 12.4
+     }
+    ],
+    "schools": [
+     {
+      "id": "lakeview",
+      "name": "Lakeview Academy",
+      "km": 0.5
+     },
+     {
+      "id": "sunrise",
+      "name": "Sunrise Valley School",
+      "km": 9.7
+     },
+     {
+      "id": "greenwood",
+      "name": "Greenwood International School",
+      "km": 10.7
+     }
+    ],
+    "metro": [
+     {
+      "id": "m-hebbal",
+      "name": "Hebbal Metro",
+      "km": 0.8
+     },
+     {
+      "id": "m-indiranagar",
+      "name": "Indiranagar Metro",
+      "km": 6.3
+     }
+    ]
+   }
+  },
+  {
+   "id": "PNQ-101",
+   "kind": "new",
+   "deal": "buy",
+   "title": "1 BHK in Kosha Riverside",
+   "project_id": "kosha-riverside",
+   "society": "Kosha Riverside",
+   "city": "pune",
+   "locality": "Baner",
+   "bhk": 1,
+   "carpet_sqft": 520,
+   "price": 5600000,
+   "price_per_sqft": 10769,
+   "possession": "ready",
+   "possession_date": "Ready to move",
+   "floor": 6,
+   "total_floors": 16,
+   "facing": "East",
+   "bathrooms": 1,
+   "balconies": 1,
+   "parking": 1,
+   "furnishing": "Unfurnished",
+   "age_years": 0,
+   "amenities": [
+    "Clubhouse",
+    "Swimming pool",
+    "Gym",
+    "Kids' play area",
+    "Riverside walk",
+    "Badminton court",
+    "EV charging"
+   ],
+   "rera": "MH/DEMO/PRJ/2020/2210",
+   "address": "Kosha Riverside sales lounge, Baner-Pashan Link Road, Baner, Pune 411045",
+   "x": 21,
+   "y": 27,
+   "palette": [
+    "#24636b",
+    "#cde8ea"
+   ],
+   "nearby": {
+    "offices": [
+     {
+      "id": "baner-square",
+      "name": "Baner Square Offices",
+      "km": 1.5
+     },
+     {
+      "id": "riverbend",
+      "name": "Riverbend IT Park",
+      "km": 3.6
+     },
+     {
+      "id": "deccan-hub",
+      "name": "Deccan Innovation Hub",
+      "km": 10.8
+     },
+     {
+      "id": "eastline",
+      "name": "Eastline Business Centre",
+      "km": 14.8
+     }
+    ],
+    "schools": [
+     {
+      "id": "vidyanidhi",
+      "name": "Vidyanidhi International School",
+      "km": 0.8
+     },
+     {
+      "id": "sahyadri",
+      "name": "Sahyadri Public School",
+      "km": 5.1
+     },
+     {
+      "id": "orchard",
+      "name": "Orchard Valley School",
+      "km": 13.4
+     }
+    ],
+    "metro": [
+     {
+      "id": "m-baner",
+      "name": "Baner Metro",
+      "km": 0.8
+     },
+     {
+      "id": "m-balewadi",
+      "name": "Balewadi Metro",
+      "km": 2.2
+     }
+    ]
+   }
+  },
+  {
+   "id": "PNQ-102",
+   "kind": "new",
+   "deal": "buy",
+   "title": "2 BHK in Kosha Riverside",
+   "project_id": "kosha-riverside",
+   "society": "Kosha Riverside",
+   "city": "pune",
+   "locality": "Baner",
+   "bhk": 2,
+   "carpet_sqft": 860,
+   "price": 9200000,
+   "price_per_sqft": 10698,
+   "possession": "ready",
+   "possession_date": "Ready to move",
+   "floor": 8,
+   "total_floors": 16,
+   "facing": "North",
+   "bathrooms": 2,
+   "balconies": 2,
+   "parking": 1,
+   "furnishing": "Unfurnished",
+   "age_years": 0,
+   "amenities": [
+    "Clubhouse",
+    "Swimming pool",
+    "Gym",
+    "Kids' play area",
+    "Riverside walk",
+    "Badminton court",
+    "EV charging"
+   ],
+   "rera": "MH/DEMO/PRJ/2020/2210",
+   "address": "Kosha Riverside sales lounge, Baner-Pashan Link Road, Baner, Pune 411045",
+   "x": 22.4,
+   "y": 26.2,
+   "palette": [
+    "#24636b",
+    "#cde8ea"
+   ],
+   "nearby": {
+    "offices": [
+     {
+      "id": "baner-square",
+      "name": "Baner Square Offices",
+      "km": 1.1
+     },
+     {
+      "id": "riverbend",
+      "name": "Riverbend IT Park",
+      "km": 3.7
+     },
+     {
+      "id": "deccan-hub",
+      "name": "Deccan Innovation Hub",
+      "km": 10.4
+     },
+     {
+      "id": "eastline",
+      "name": "Eastline Business Centre",
+      "km": 14.4
+     }
+    ],
+    "schools": [
+     {
+      "id": "vidyanidhi",
+      "name": "Vidyanidhi International School",
+      "km": 1.1
+     },
+     {
+      "id": "sahyadri",
+      "name": "Sahyadri Public School",
+      "km": 5.1
+     },
+     {
+      "id": "orchard",
+      "name": "Orchard Valley School",
+      "km": 13.0
+     }
+    ],
+    "metro": [
+     {
+      "id": "m-baner",
+      "name": "Baner Metro",
+      "km": 0.4
+     },
+     {
+      "id": "m-balewadi",
+      "name": "Balewadi Metro",
+      "km": 2.2
+     }
+    ]
+   }
+  },
+  {
+   "id": "PNQ-103",
+   "kind": "new",
+   "deal": "buy",
+   "title": "2 BHK in Kosha Riverside",
+   "project_id": "kosha-riverside",
+   "society": "Kosha Riverside",
+   "city": "pune",
+   "locality": "Baner",
+   "bhk": 2,
+   "carpet_sqft": 905,
+   "price": 9850000,
+   "price_per_sqft": 10884,
+   "possession": "ready",
+   "possession_date": "Ready to move",
+   "floor": 13,
+   "total_floors": 16,
+   "facing": "East",
+   "bathrooms": 2,
+   "balconies": 2,
+   "parking": 1,
+   "furnishing": "Unfurnished",
+   "age_years": 0,
+   "amenities": [
+    "Clubhouse",
+    "Swimming pool",
+    "Gym",
+    "Kids' play area",
+    "Riverside walk",
+    "Badminton court",
+    "EV charging"
+   ],
+   "rera": "MH/DEMO/PRJ/2020/2210",
+   "address": "Kosha Riverside sales lounge, Baner-Pashan Link Road, Baner, Pune 411045",
+   "x": 19.8,
+   "y": 28.0,
+   "palette": [
+    "#24636b",
+    "#cde8ea"
+   ],
+   "nearby": {
+    "offices": [
+     {
+      "id": "baner-square",
+      "name": "Baner Square Offices",
+      "km": 1.8
+     },
+     {
+      "id": "riverbend",
+      "name": "Riverbend IT Park",
+      "km": 3.5
+     },
+     {
+      "id": "deccan-hub",
+      "name": "Deccan Innovation Hub",
+      "km": 11.1
+     },
+     {
+      "id": "eastline",
+      "name": "Eastline Business Centre",
+      "km": 15.1
+     }
+    ],
+    "schools": [
+     {
+      "id": "vidyanidhi",
+      "name": "Vidyanidhi International School",
+      "km": 0.5
+     },
+     {
+      "id": "sahyadri",
+      "name": "Sahyadri Public School",
+      "km": 4.9
+     },
+     {
+      "id": "orchard",
+      "name": "Orchard Valley School",
+      "km": 13.6
+     }
+    ],
+    "metro": [
+     {
+      "id": "m-baner",
+      "name": "Baner Metro",
+      "km": 1.2
+     },
+     {
+      "id": "m-balewadi",
+      "name": "Balewadi Metro",
+      "km": 2.2
+     }
+    ]
+   }
+  },
+  {
+   "id": "PNQ-104",
+   "kind": "new",
+   "deal": "buy",
+   "title": "3 BHK in Kosha Riverside",
+   "project_id": "kosha-riverside",
+   "society": "Kosha Riverside",
+   "city": "pune",
+   "locality": "Baner",
+   "bhk": 3,
+   "carpet_sqft": 1210,
+   "price": 13600000,
+   "price_per_sqft": 11240,
+   "possession": "ready",
+   "possession_date": "Ready to move",
+   "floor": 11,
+   "total_floors": 16,
+   "facing": "North-East",
+   "bathrooms": 3,
+   "balconies": 2,
+   "parking": 1,
+   "furnishing": "Unfurnished",
+   "age_years": 0,
+   "amenities": [
+    "Clubhouse",
+    "Swimming pool",
+    "Gym",
+    "Kids' play area",
+    "Riverside walk",
+    "Badminton court",
+    "EV charging"
+   ],
+   "rera": "MH/DEMO/PRJ/2020/2210",
+   "address": "Kosha Riverside sales lounge, Baner-Pashan Link Road, Baner, Pune 411045",
+   "x": 21.9,
+   "y": 28.3,
+   "palette": [
+    "#24636b",
+    "#cde8ea"
+   ],
+   "nearby": {
+    "offices": [
+     {
+      "id": "baner-square",
+      "name": "Baner Square Offices",
+      "km": 1.7
+     },
+     {
+      "id": "riverbend",
+      "name": "Riverbend IT Park",
+      "km": 3.9
+     },
+     {
+      "id": "deccan-hub",
+      "name": "Deccan Innovation Hub",
+      "km": 10.5
+     },
+     {
+      "id": "eastline",
+      "name": "Eastline Business Centre",
+      "km": 14.5
+     }
+    ],
+    "schools": [
+     {
+      "id": "vidyanidhi",
+      "name": "Vidyanidhi International School",
+      "km": 0.6
+     },
+     {
+      "id": "sahyadri",
+      "name": "Sahyadri Public School",
+      "km": 4.7
+     },
+     {
+      "id": "orchard",
+      "name": "Orchard Valley School",
+      "km": 13.1
+     }
+    ],
+    "metro": [
+     {
+      "id": "m-baner",
+      "name": "Baner Metro",
+      "km": 0.8
+     },
+     {
+      "id": "m-balewadi",
+      "name": "Balewadi Metro",
+      "km": 2.5
+     }
+    ]
+   }
+  },
+  {
+   "id": "PNQ-105",
+   "kind": "new",
+   "deal": "buy",
+   "title": "2 BHK in Kosha Orchid",
+   "project_id": "kosha-orchid",
+   "society": "Kosha Orchid",
+   "city": "pune",
+   "locality": "Kharadi",
+   "bhk": 2,
+   "carpet_sqft": 840,
+   "price": 8600000,
+   "price_per_sqft": 10238,
+   "possession": "under_construction",
+   "possession_date": "Mar 2028",
+   "floor": 5,
+   "total_floors": 24,
+   "facing": "West",
+   "bathrooms": 2,
+   "balconies": 2,
+   "parking": 1,
+   "furnishing": "Unfurnished",
+   "age_years": 0,
+   "amenities": [
+    "Clubhouse",
+    "Swimming pool",
+    "Gym",
+    "Kids' play area",
+    "Co-working lounge",
+    "EV charging",
+    "Pet park"
+   ],
+   "rera": "MH/DEMO/PRJ/2025/0961",
+   "address": "Kosha Orchid site office, Kharadi-Mundhwa Bypass, Kharadi, Pune 411014",
+   "x": 76,
+   "y": 33,
+   "palette": [
+    "#7a3b69",
+    "#efd5e8"
+   ],
+   "nearby": {
+    "offices": [
+     {
+      "id": "eastline",
+      "name": "Eastline Business Centre",
+      "km": 1.6
+     },
+     {
+      "id": "deccan-hub",
+      "name": "Deccan Innovation Hub",
+      "km": 3.1
+     },
+     {
+      "id": "baner-square",
+      "name": "Baner Square Offices",
+      "km": 13.3
+     },
+     {
+      "id": "riverbend",
+      "name": "Riverbend IT Park",
+      "km": 16.9
+     }
+    ],
+    "schools": [
+     {
+      "id": "orchard",
+      "name": "Orchard Valley School",
+      "km": 0.6
+     },
+     {
+      "id": "sahyadri",
+      "name": "Sahyadri Public School",
+      "km": 12.4
+     },
+     {
+      "id": "vidyanidhi",
+      "name": "Vidyanidhi International School",
+      "km": 14.0
+     }
+    ],
+    "metro": [
+     {
+      "id": "m-kharadi",
+      "name": "Kharadi Metro",
+      "km": 1.2
+     },
+     {
+      "id": "m-viman",
+      "name": "Viman Nagar Metro",
+      "km": 3.0
+     }
+    ]
+   }
+  },
+  {
+   "id": "PNQ-106",
+   "kind": "new",
+   "deal": "buy",
+   "title": "2 BHK in Kosha Orchid",
+   "project_id": "kosha-orchid",
+   "society": "Kosha Orchid",
+   "city": "pune",
+   "locality": "Kharadi",
+   "bhk": 2,
+   "carpet_sqft": 880,
+   "price": 9400000,
+   "price_per_sqft": 10682,
+   "possession": "under_construction",
+   "possession_date": "Mar 2028",
+   "floor": 16,
+   "total_floors": 24,
+   "facing": "East",
+   "bathrooms": 2,
+   "balconies": 2,
+   "parking": 1,
+   "furnishing": "Unfurnished",
+   "age_years": 0,
+   "amenities": [
+    "Clubhouse",
+    "Swimming pool",
+    "Gym",
+    "Kids' play area",
+    "Co-working lounge",
+    "EV charging",
+    "Pet park"
+   ],
+   "rera": "MH/DEMO/PRJ/2025/0961",
+   "address": "Kosha Orchid site office, Kharadi-Mundhwa Bypass, Kharadi, Pune 411014",
+   "x": 77.4,
+   "y": 32.2,
+   "palette": [
+    "#7a3b69",
+    "#efd5e8"
+   ],
+   "nearby": {
+    "offices": [
+     {
+      "id": "eastline",
+      "name": "Eastline Business Centre",
+      "km": 1.2
+     },
+     {
+      "id": "deccan-hub",
+      "name": "Deccan Innovation Hub",
+      "km": 3.4
+     },
+     {
+      "id": "baner-square",
+      "name": "Baner Square Offices",
+      "km": 13.6
+     },
+     {
+      "id": "riverbend",
+      "name": "Riverbend IT Park",
+      "km": 17.2
+     }
+    ],
+    "schools": [
+     {
+      "id": "orchard",
+      "name": "Orchard Valley School",
+      "km": 1.0
+     },
+     {
+      "id": "sahyadri",
+      "name": "Sahyadri Public School",
+      "km": 12.8
+     },
+     {
+      "id": "vidyanidhi",
+      "name": "Vidyanidhi International School",
+      "km": 14.4
+     }
+    ],
+    "metro": [
+     {
+      "id": "m-kharadi",
+      "name": "Kharadi Metro",
+      "km": 0.9
+     },
+     {
+      "id": "m-viman",
+      "name": "Viman Nagar Metro",
+      "km": 3.4
+     }
+    ]
+   }
+  },
+  {
+   "id": "PNQ-107",
+   "kind": "new",
+   "deal": "buy",
+   "title": "3 BHK in Kosha Orchid",
+   "project_id": "kosha-orchid",
+   "society": "Kosha Orchid",
+   "city": "pune",
+   "locality": "Kharadi",
+   "bhk": 3,
+   "carpet_sqft": 1180,
+   "price": 12700000,
+   "price_per_sqft": 10763,
+   "possession": "under_construction",
+   "possession_date": "Mar 2028",
+   "floor": 12,
+   "total_floors": 24,
+   "facing": "North",
+   "bathrooms": 3,
+   "balconies": 2,
+   "parking": 1,
+   "furnishing": "Unfurnished",
+   "age_years": 0,
+   "amenities": [
+    "Clubhouse",
+    "Swimming pool",
+    "Gym",
+    "Kids' play area",
+    "Co-working lounge",
+    "EV charging",
+    "Pet park"
+   ],
+   "rera": "MH/DEMO/PRJ/2025/0961",
+   "address": "Kosha Orchid site office, Kharadi-Mundhwa Bypass, Kharadi, Pune 411014",
+   "x": 74.8,
+   "y": 34.0,
+   "palette": [
+    "#7a3b69",
+    "#efd5e8"
+   ],
+   "nearby": {
+    "offices": [
+     {
+      "id": "eastline",
+      "name": "Eastline Business Centre",
+      "km": 2.0
+     },
+     {
+      "id": "deccan-hub",
+      "name": "Deccan Innovation Hub",
+      "km": 2.9
+     },
+     {
+      "id": "baner-square",
+      "name": "Baner Square Offices",
+      "km": 13.0
+     },
+     {
+      "id": "riverbend",
+      "name": "Riverbend IT Park",
+      "km": 16.7
+     }
+    ],
+    "schools": [
+     {
+      "id": "orchard",
+      "name": "Orchard Valley School",
+      "km": 0.2
+     },
+     {
+      "id": "sahyadri",
+      "name": "Sahyadri Public School",
+      "km": 12.1
+     },
+     {
+      "id": "vidyanidhi",
+      "name": "Vidyanidhi International School",
+      "km": 13.7
+     }
+    ],
+    "metro": [
+     {
+      "id": "m-kharadi",
+      "name": "Kharadi Metro",
+      "km": 1.6
+     },
+     {
+      "id": "m-viman",
+      "name": "Viman Nagar Metro",
+      "km": 2.7
+     }
+    ]
+   }
+  },
+  {
+   "id": "HYD-101",
+   "kind": "new",
+   "deal": "buy",
+   "title": "3 BHK in Kosha Heights",
+   "project_id": "kosha-heights",
+   "society": "Kosha Heights",
+   "city": "hyderabad",
+   "locality": "Kokapet",
+   "bhk": 3,
+   "carpet_sqft": 1820,
+   "price": 21500000,
+   "price_per_sqft": 11813,
+   "possession": "under_construction",
+   "possession_date": "Sep 2027",
+   "floor": 22,
+   "total_floors": 40,
+   "facing": "West",
+   "bathrooms": 3,
+   "balconies": 3,
+   "parking": 2,
+   "furnishing": "Unfurnished",
+   "age_years": 0,
+   "amenities": [
+    "Clubhouse",
+    "Infinity pool",
+    "Gym",
+    "Squash court",
+    "Kids' play area",
+    "EV charging",
+    "Concierge",
+    "Banquet hall"
+   ],
+   "rera": "TS/DEMO/PRJ/2023/1184",
+   "address": "Kosha Heights experience centre, Neopolis Road, Kokapet, Hyderabad 500075",
+   "x": 23,
+   "y": 47,
+   "palette": [
+    "#8a6a1f",
+    "#f2e6c4"
+   ],
+   "nearby": {
+    "offices": [
+     {
+      "id": "skyview",
+      "name": "Skyview Financial District",
+      "km": 1.1
+     },
+     {
+      "id": "raidurg-works",
+      "name": "Raidurg Works",
+      "km": 6.4
+     },
+     {
+      "id": "hitec-one",
+      "name": "Hitec One Campus",
+      "km": 8.4
+     },
+     {
+      "id": "cyberpoint",
+      "name": "Cyberpoint Towers",
+      "km": 8.6
+     }
+    ],
+    "schools": [
+     {
+      "id": "oakridge",
+      "name": "Oakfield International School",
+      "km": 1.8
+     },
+     {
+      "id": "glendale",
+      "name": "Glendale Public School",
+      "km": 6.4
+     },
+     {
+      "id": "meridian",
+      "name": "Meridian Grammar School",
+      "km": 7.0
+     }
+    ],
+    "metro": [
+     {
+      "id": "m-narsingi",
+      "name": "Narsingi Metro",
+      "km": 1.9
+     },
+     {
+      "id": "m-gachibowli",
+      "name": "Gachibowli Metro",
+      "km": 3.7
+     }
+    ]
+   }
+  },
+  {
+   "id": "HYD-102",
+   "kind": "new",
+   "deal": "buy",
+   "title": "3 BHK in Kosha Heights",
+   "project_id": "kosha-heights",
+   "society": "Kosha Heights",
+   "city": "hyderabad",
+   "locality": "Kokapet",
+   "bhk": 3,
+   "carpet_sqft": 1880,
+   "price": 23200000,
+   "price_per_sqft": 12340,
+   "possession": "under_construction",
+   "possession_date": "Sep 2027",
+   "floor": 33,
+   "total_floors": 40,
+   "facing": "North-West",
+   "bathrooms": 3,
+   "balconies": 3,
+   "parking": 2,
+   "furnishing": "Unfurnished",
+   "age_years": 0,
+   "amenities": [
+    "Clubhouse",
+    "Infinity pool",
+    "Gym",
+    "Squash court",
+    "Kids' play area",
+    "EV charging",
+    "Concierge",
+    "Banquet hall"
+   ],
+   "rera": "TS/DEMO/PRJ/2023/1184",
+   "address": "Kosha Heights experience centre, Neopolis Road, Kokapet, Hyderabad 500075",
+   "x": 24.4,
+   "y": 46.2,
+   "palette": [
+    "#8a6a1f",
+    "#f2e6c4"
+   ],
+   "nearby": {
+    "offices": [
+     {
+      "id": "skyview",
+      "name": "Skyview Financial District",
+      "km": 0.7
+     },
+     {
+      "id": "raidurg-works",
+      "name": "Raidurg Works",
+      "km": 6.0
+     },
+     {
+      "id": "hitec-one",
+      "name": "Hitec One Campus",
+      "km": 8.1
+     },
+     {
+      "id": "cyberpoint",
+      "name": "Cyberpoint Towers",
+      "km": 8.2
+     }
+    ],
+    "schools": [
+     {
+      "id": "oakridge",
+      "name": "Oakfield International School",
+      "km": 2.0
+     },
+     {
+      "id": "glendale",
+      "name": "Glendale Public School",
+      "km": 6.0
+     },
+     {
+      "id": "meridian",
+      "name": "Meridian Grammar School",
+      "km": 6.7
+     }
+    ],
+    "metro": [
+     {
+      "id": "m-narsingi",
+      "name": "Narsingi Metro",
+      "km": 1.7
+     },
+     {
+      "id": "m-gachibowli",
+      "name": "Gachibowli Metro",
+      "km": 3.3
+     }
+    ]
+   }
+  },
+  {
+   "id": "HYD-103",
+   "kind": "new",
+   "deal": "buy",
+   "title": "4 BHK in Kosha Heights",
+   "project_id": "kosha-heights",
+   "society": "Kosha Heights",
+   "city": "hyderabad",
+   "locality": "Kokapet",
+   "bhk": 4,
+   "carpet_sqft": 2600,
+   "price": 34000000,
+   "price_per_sqft": 13077,
+   "possession": "under_construction",
+   "possession_date": "Sep 2027",
+   "floor": 37,
+   "total_floors": 40,
+   "facing": "West",
+   "bathrooms": 4,
+   "balconies": 4,
+   "parking": 3,
+   "furnishing": "Unfurnished",
+   "age_years": 0,
+   "amenities": [
+    "Clubhouse",
+    "Infinity pool",
+    "Gym",
+    "Squash court",
+    "Kids' play area",
+    "EV charging",
+    "Concierge",
+    "Banquet hall"
+   ],
+   "rera": "TS/DEMO/PRJ/2023/1184",
+   "address": "Kosha Heights experience centre, Neopolis Road, Kokapet, Hyderabad 500075",
+   "x": 21.8,
+   "y": 48.0,
+   "palette": [
+    "#8a6a1f",
+    "#f2e6c4"
+   ],
+   "nearby": {
+    "offices": [
+     {
+      "id": "skyview",
+      "name": "Skyview Financial District",
+      "km": 1.4
+     },
+     {
+      "id": "raidurg-works",
+      "name": "Raidurg Works",
+      "km": 6.8
+     },
+     {
+      "id": "hitec-one",
+      "name": "Hitec One Campus",
+      "km": 8.8
+     },
+     {
+      "id": "cyberpoint",
+      "name": "Cyberpoint Towers",
+      "km": 8.9
+     }
+    ],
+    "schools": [
+     {
+      "id": "oakridge",
+      "name": "Oakfield International School",
+      "km": 1.6
+     },
+     {
+      "id": "glendale",
+      "name": "Glendale Public School",
+      "km": 6.8
+     },
+     {
+      "id": "meridian",
+      "name": "Meridian Grammar School",
+      "km": 7.4
+     }
+    ],
+    "metro": [
+     {
+      "id": "m-narsingi",
+      "name": "Narsingi Metro",
+      "km": 2.1
+     },
+     {
+      "id": "m-gachibowli",
+      "name": "Gachibowli Metro",
+      "km": 4.1
+     }
+    ]
+   }
+  },
+  {
+   "id": "HYD-104",
+   "kind": "new",
+   "deal": "buy",
+   "title": "2 BHK in Kosha Greens",
+   "project_id": "kosha-greens",
+   "society": "Kosha Greens",
+   "city": "hyderabad",
+   "locality": "Kondapur",
+   "bhk": 2,
+   "carpet_sqft": 1010,
+   "price": 9800000,
+   "price_per_sqft": 9703,
+   "possession": "ready",
+   "possession_date": "Ready to move",
+   "floor": 3,
+   "total_floors": 15,
+   "facing": "East",
+   "bathrooms": 2,
+   "balconies": 2,
+   "parking": 1,
+   "furnishing": "Unfurnished",
+   "age_years": 0,
+   "amenities": [
+    "Clubhouse",
+    "Swimming pool",
+    "Gym",
+    "Kids' play area",
+    "Jogging track",
+    "Supermarket",
+    "EV charging"
+   ],
+   "rera": "TS/DEMO/PRJ/2021/0533",
+   "address": "Kosha Greens sales lounge, Botanical Garden Road, Kondapur, Hyderabad 500084",
+   "x": 37,
+   "y": 23,
+   "palette": [
+    "#3d6b2a",
+    "#dcebcf"
+   ],
+   "nearby": {
+    "offices": [
+     {
+      "id": "hitec-one",
+      "name": "Hitec One Campus",
+      "km": 1.5
+     },
+     {
+      "id": "raidurg-works",
+      "name": "Raidurg Works",
+      "km": 2.2
+     },
+     {
+      "id": "cyberpoint",
+      "name": "Cyberpoint Towers",
+      "km": 3.3
+     },
+     {
+      "id": "skyview",
+      "name": "Skyview Financial District",
+      "km": 5.9
+     }
+    ],
+    "schools": [
+     {
+      "id": "meridian",
+      "name": "Meridian Grammar School",
+      "km": 0.4
+     },
+     {
+      "id": "glendale",
+      "name": "Glendale Public School",
+      "km": 4.0
+     },
+     {
+      "id": "oakridge",
+      "name": "Oakfield International School",
+      "km": 8.4
+     }
+    ],
+    "metro": [
+     {
+      "id": "m-kondapur",
+      "name": "Kondapur Metro",
+      "km": 0.8
+     },
+     {
+      "id": "m-raidurg",
+      "name": "Raidurg Metro",
+      "km": 2.5
+     }
+    ]
+   }
+  },
+  {
+   "id": "HYD-105",
+   "kind": "new",
+   "deal": "buy",
+   "title": "2 BHK in Kosha Greens",
+   "project_id": "kosha-greens",
+   "society": "Kosha Greens",
+   "city": "hyderabad",
+   "locality": "Kondapur",
+   "bhk": 2,
+   "carpet_sqft": 1060,
+   "price": 10600000,
+   "price_per_sqft": 10000,
+   "possession": "ready",
+   "possession_date": "Ready to move",
+   "floor": 10,
+   "total_floors": 15,
+   "facing": "North",
+   "bathrooms": 2,
+   "balconies": 2,
+   "parking": 1,
+   "furnishing": "Unfurnished",
+   "age_years": 0,
+   "amenities": [
+    "Clubhouse",
+    "Swimming pool",
+    "Gym",
+    "Kids' play area",
+    "Jogging track",
+    "Supermarket",
+    "EV charging"
+   ],
+   "rera": "TS/DEMO/PRJ/2021/0533",
+   "address": "Kosha Greens sales lounge, Botanical Garden Road, Kondapur, Hyderabad 500084",
+   "x": 38.4,
+   "y": 22.2,
+   "palette": [
+    "#3d6b2a",
+    "#dcebcf"
+   ],
+   "nearby": {
+    "offices": [
+     {
+      "id": "hitec-one",
+      "name": "Hitec One Campus",
+      "km": 1.1
+     },
+     {
+      "id": "raidurg-works",
+      "name": "Raidurg Works",
+      "km": 2.1
+     },
+     {
+      "id": "cyberpoint",
+      "name": "Cyberpoint Towers",
+      "km": 3.1
+     },
+     {
+      "id": "skyview",
+      "name": "Skyview Financial District",
+      "km": 6.3
+     }
+    ],
+    "schools": [
+     {
+      "id": "meridian",
+      "name": "Meridian Grammar School",
+      "km": 0.6
+     },
+     {
+      "id": "glendale",
+      "name": "Glendale Public School",
+      "km": 3.9
+     },
+     {
+      "id": "oakridge",
+      "name": "Oakfield International School",
+      "km": 8.7
+     }
+    ],
+    "metro": [
+     {
+      "id": "m-kondapur",
+      "name": "Kondapur Metro",
+      "km": 0.4
+     },
+     {
+      "id": "m-raidurg",
+      "name": "Raidurg Metro",
+      "km": 2.4
+     }
+    ]
+   }
+  },
+  {
+   "id": "HYD-106",
+   "kind": "new",
+   "deal": "buy",
+   "title": "3 BHK in Kosha Greens",
+   "project_id": "kosha-greens",
+   "society": "Kosha Greens",
+   "city": "hyderabad",
+   "locality": "Kondapur",
+   "bhk": 3,
+   "carpet_sqft": 1420,
+   "price": 14200000,
+   "price_per_sqft": 10000,
+   "possession": "ready",
+   "possession_date": "Ready to move",
+   "floor": 8,
+   "total_floors": 15,
+   "facing": "East",
+   "bathrooms": 3,
+   "balconies": 2,
+   "parking": 1,
+   "furnishing": "Unfurnished",
+   "age_years": 0,
+   "amenities": [
+    "Clubhouse",
+    "Swimming pool",
+    "Gym",
+    "Kids' play area",
+    "Jogging track",
+    "Supermarket",
+    "EV charging"
+   ],
+   "rera": "TS/DEMO/PRJ/2021/0533",
+   "address": "Kosha Greens sales lounge, Botanical Garden Road, Kondapur, Hyderabad 500084",
+   "x": 35.8,
+   "y": 24.0,
+   "palette": [
+    "#3d6b2a",
+    "#dcebcf"
+   ],
+   "nearby": {
+    "offices": [
+     {
+      "id": "hitec-one",
+      "name": "Hitec One Campus",
+      "km": 1.8
+     },
+     {
+      "id": "raidurg-works",
+      "name": "Raidurg Works",
+      "km": 2.2
+     },
+     {
+      "id": "cyberpoint",
+      "name": "Cyberpoint Towers",
+      "km": 3.6
+     },
+     {
+      "id": "skyview",
+      "name": "Skyview Financial District",
+      "km": 5.6
+     }
+    ],
+    "schools": [
+     {
+      "id": "meridian",
+      "name": "Meridian Grammar School",
+      "km": 0.5
+     },
+     {
+      "id": "glendale",
+      "name": "Glendale Public School",
+      "km": 3.9
+     },
+     {
+      "id": "oakridge",
+      "name": "Oakfield International School",
+      "km": 8.1
+     }
+    ],
+    "metro": [
+     {
+      "id": "m-kondapur",
+      "name": "Kondapur Metro",
+      "km": 1.2
+     },
+     {
+      "id": "m-raidurg",
+      "name": "Raidurg Metro",
+      "km": 2.5
+     }
+    ]
+   }
+  },
+  {
+   "id": "HYD-107",
+   "kind": "new",
+   "deal": "buy",
+   "title": "3 BHK in Kosha Greens",
+   "project_id": "kosha-greens",
+   "society": "Kosha Greens",
+   "city": "hyderabad",
+   "locality": "Kondapur",
+   "bhk": 3,
+   "carpet_sqft": 1475,
+   "price": 15100000,
+   "price_per_sqft": 10237,
+   "possession": "ready",
+   "possession_date": "Ready to move",
+   "floor": 13,
+   "total_floors": 15,
+   "facing": "North-East",
+   "bathrooms": 3,
+   "balconies": 3,
+   "parking": 2,
+   "furnishing": "Unfurnished",
+   "age_years": 0,
+   "amenities": [
+    "Clubhouse",
+    "Swimming pool",
+    "Gym",
+    "Kids' play area",
+    "Jogging track",
+    "Supermarket",
+    "EV charging"
+   ],
+   "rera": "TS/DEMO/PRJ/2021/0533",
+   "address": "Kosha Greens sales lounge, Botanical Garden Road, Kondapur, Hyderabad 500084",
+   "x": 37.9,
+   "y": 24.3,
+   "palette": [
+    "#3d6b2a",
+    "#dcebcf"
+   ],
+   "nearby": {
+    "offices": [
+     {
+      "id": "hitec-one",
+      "name": "Hitec One Campus",
+      "km": 1.7
+     },
+     {
+      "id": "raidurg-works",
+      "name": "Raidurg Works",
+      "km": 1.8
+     },
+     {
+      "id": "cyberpoint",
+      "name": "Cyberpoint Towers",
+      "km": 3.1
+     },
+     {
+      "id": "skyview",
+      "name": "Skyview Financial District",
+      "km": 5.8
+     }
+    ],
+    "schools": [
+     {
+      "id": "meridian",
+      "name": "Meridian Grammar School",
+      "km": 0.7
+     },
+     {
+      "id": "glendale",
+      "name": "Glendale Public School",
+      "km": 3.6
+     },
+     {
+      "id": "oakridge",
+      "name": "Oakfield International School",
+      "km": 8.2
+     }
+    ],
+    "metro": [
+     {
+      "id": "m-kondapur",
+      "name": "Kondapur Metro",
+      "km": 0.8
+     },
+     {
+      "id": "m-raidurg",
+      "name": "Raidurg Metro",
+      "km": 2.1
+     }
+    ]
+   }
+  },
+  {
+   "id": "BLR-112",
+   "kind": "resale",
+   "deal": "buy",
+   "title": "2 BHK resale in Palm Grove Residency",
+   "project_id": null,
+   "society": "Palm Grove Residency",
+   "city": "bengaluru",
+   "locality": "Whitefield",
+   "bhk": 2,
+   "carpet_sqft": 1020,
+   "price": 9400000,
+   "price_per_sqft": 9216,
+   "possession": "ready",
+   "possession_date": "Ready to move",
+   "floor": 6,
+   "total_floors": 14,
+   "facing": "East",
+   "bathrooms": 2,
+   "balconies": 2,
+   "parking": 1,
+   "furnishing": "Semi-furnished",
+   "age_years": 7,
+   "amenities": [
+    "Lift",
+    "Power backup",
+    "Security",
+    "Covered parking",
+    "Gym",
+    "Swimming pool",
+    "Clubhouse",
+    "Kids' play area"
+   ],
+   "rera": "BLR/DEMO/RES/2019/3100",
+   "address": "Palm Grove Residency, Whitefield, Bengaluru",
+   "x": 82,
+   "y": 34,
+   "palette": [
+    "#5b5f66",
+    "#e4e6ea"
+   ],
+   "nearby": {
+    "offices": [
+     {
+      "id": "cedarline",
+      "name": "Cedarline Tech Park",
+      "km": 2.1
+     },
+     {
+      "id": "orbit-bay",
+      "name": "Orbit Business Bay",
+      "km": 6.9
+     },
+     {
+      "id": "forum-works",
+      "name": "Forum Works Koramangala",
+      "km": 9.7
+     },
+     {
+      "id": "northgate",
+      "name": "Northgate IT Campus",
+      "km": 12.2
+     }
+    ],
+    "schools": [
+     {
+      "id": "greenwood",
+      "name": "Greenwood International School",
+      "km": 2.0
+     },
+     {
+      "id": "banyan",
+      "name": "Banyan Tree Public School",
+      "km": 8.9
+     },
+     {
+      "id": "sunrise",
+      "name": "Sunrise Valley School",
+      "km": 9.6
+     }
+    ],
+    "metro": [
+     {
+      "id": "m-whitefield",
+      "name": "Whitefield Metro",
+      "km": 1.8
+     },
+     {
+      "id": "m-hoodi",
+      "name": "Hoodi Metro",
+      "km": 5.0
+     }
+    ]
+   }
+  },
+  {
+   "id": "BLR-113",
+   "kind": "resale",
+   "deal": "buy",
+   "title": "3 BHK resale in Silver Oak Enclave",
+   "project_id": null,
+   "society": "Silver Oak Enclave",
+   "city": "bengaluru",
+   "locality": "Indiranagar",
+   "bhk": 3,
+   "carpet_sqft": 1500,
+   "price": 21500000,
+   "price_per_sqft": 14333,
+   "possession": "ready",
+   "possession_date": "Ready to move",
+   "floor": 3,
+   "total_floors": 5,
+   "facing": "North",
+   "bathrooms": 3,
+   "balconies": 2,
+   "parking": 1,
+   "furnishing": "Furnished",
+   "age_years": 15,
+   "amenities": [
+    "Lift",
+    "Power backup",
+    "Security",
+    "Covered parking"
+   ],
+   "rera": "BLR/DEMO/RES/2011/3117",
+   "address": "Silver Oak Enclave, Indiranagar, Bengaluru",
+   "x": 49,
+   "y": 34,
+   "palette": [
+    "#5b5f66",
+    "#e4e6ea"
+   ],
+   "nearby": {
+    "offices": [
+     {
+      "id": "forum-works",
+      "name": "Forum Works Koramangala",
+      "km": 2.4
+     },
+     {
+      "id": "orbit-bay",
+      "name": "Orbit Business Bay",
+      "km": 4.2
+     },
+     {
+      "id": "northgate",
+      "name": "Northgate IT Campus",
+      "km": 7.2
+     },
+     {
+      "id": "cedarline",
+      "name": "Cedarline Tech Park",
+      "km": 9.0
+     }
+    ],
+    "schools": [
+     {
+      "id": "sunrise",
+      "name": "Sunrise Valley School",
+      "km": 4.5
+     },
+     {
+      "id": "lakeview",
+      "name": "Lakeview Academy",
+      "km": 5.9
+     },
+     {
+      "id": "greenwood",
+      "name": "Greenwood International School",
+      "km": 6.2
+     }
+    ],
+    "metro": [
+     {
+      "id": "m-indiranagar",
+      "name": "Indiranagar Metro",
+      "km": 1.2
+     },
+     {
+      "id": "m-agara",
+      "name": "Agara Metro",
+      "km": 3.1
+     }
+    ]
+   }
+  },
+  {
+   "id": "BLR-114",
+   "kind": "resale",
+   "deal": "buy",
+   "title": "2 BHK resale in Lakeshore Towers",
+   "project_id": null,
+   "society": "Lakeshore Towers",
+   "city": "bengaluru",
+   "locality": "HSR Layout",
+   "bhk": 2,
+   "carpet_sqft": 980,
+   "price": 10800000,
+   "price_per_sqft": 11020,
+   "possession": "ready",
+   "possession_date": "Ready to move",
+   "floor": 9,
+   "total_floors": 12,
+   "facing": "East",
+   "bathrooms": 2,
+   "balconies": 1,
+   "parking": 1,
+   "furnishing": "Semi-furnished",
+   "age_years": 9,
+   "amenities": [
+    "Lift",
+    "Power backup",
+    "Security",
+    "Covered parking",
+    "Gym",
+    "Kids' play area"
+   ],
+   "rera": "BLR/DEMO/RES/2017/3134",
+   "address": "Lakeshore Towers, HSR Layout, Bengaluru",
+   "x": 51,
+   "y": 53,
+   "palette": [
+    "#5b5f66",
+    "#e4e6ea"
+   ],
+   "nearby": {
+    "offices": [
+     {
+      "id": "orbit-bay",
+      "name": "Orbit Business Bay",
+      "km": 2.2
+     },
+     {
+      "id": "forum-works",
+      "name": "Forum Works Koramangala",
+      "km": 3.3
+     },
+     {
+      "id": "cedarline",
+      "name": "Cedarline Tech Park",
+      "km": 10.7
+     },
+     {
+      "id": "northgate",
+      "name": "Northgate IT Campus",
+      "km": 12.0
+     }
+    ],
+    "schools": [
+     {
+      "id": "sunrise",
+      "name": "Sunrise Valley School",
+      "km": 0.8
+     },
+     {
+      "id": "banyan",
+      "name": "Banyan Tree Public School",
+      "km": 3.2
+     },
+     {
+      "id": "greenwood",
+      "name": "Greenwood International School",
+      "km": 7.5
+     }
+    ],
+    "metro": [
+     {
+      "id": "m-agara",
+      "name": "Agara Metro",
+      "km": 1.8
+     },
+     {
+      "id": "m-indiranagar",
+      "name": "Indiranagar Metro",
+      "km": 4.0
+     }
+    ]
+   }
+  },
+  {
+   "id": "BLR-115",
+   "kind": "resale",
+   "deal": "buy",
+   "title": "3 BHK resale in Amrit Vihar Apartments",
+   "project_id": null,
+   "society": "Amrit Vihar Apartments",
+   "city": "bengaluru",
+   "locality": "Koramangala",
+   "bhk": 3,
+   "carpet_sqft": 1380,
+   "price": 18900000,
+   "price_per_sqft": 13696,
+   "possession": "ready",
+   "possession_date": "Ready to move",
+   "floor": 2,
+   "total_floors": 4,
+   "facing": "West",
+   "bathrooms": 2,
+   "balconies": 2,
+   "parking": 1,
+   "furnishing": "Semi-furnished",
+   "age_years": 18,
+   "amenities": [
+    "Lift",
+    "Power backup",
+    "Security",
+    "Covered parking"
+   ],
+   "rera": "BLR/DEMO/RES/2008/3151",
+   "address": "Amrit Vihar Apartments, Koramangala, Bengaluru",
+   "x": 43,
+   "y": 48,
+   "palette": [
+    "#5b5f66",
+    "#e4e6ea"
+   ],
+   "nearby": {
+    "offices": [
+     {
+      "id": "forum-works",
+      "name": "Forum Works Koramangala",
+      "km": 1.5
+     },
+     {
+      "id": "orbit-bay",
+      "name": "Orbit Business Bay",
+      "km": 3.8
+     },
+     {
+      "id": "northgate",
+      "name": "Northgate IT Campus",
+      "km": 10.5
+     },
+     {
+      "id": "cedarline",
+      "name": "Cedarline Tech Park",
+      "km": 11.6
+     }
+    ],
+    "schools": [
+     {
+      "id": "sunrise",
+      "name": "Sunrise Valley School",
+      "km": 1.6
+     },
+     {
+      "id": "banyan",
+      "name": "Banyan Tree Public School",
+      "km": 5.5
+     },
+     {
+      "id": "lakeview",
+      "name": "Lakeview Academy",
+      "km": 8.3
+     }
+    ],
+    "metro": [
+     {
+      "id": "m-agara",
+      "name": "Agara Metro",
+      "km": 2.3
+     },
+     {
+      "id": "m-indiranagar",
+      "name": "Indiranagar Metro",
+      "km": 2.6
+     }
+    ]
+   }
+  },
+  {
+   "id": "BLR-116",
+   "kind": "resale",
+   "deal": "buy",
+   "title": "2 BHK resale in Mayflower Heights",
+   "project_id": null,
+   "society": "Mayflower Heights",
+   "city": "bengaluru",
+   "locality": "Hebbal",
+   "bhk": 2,
+   "carpet_sqft": 1090,
+   "price": 11900000,
+   "price_per_sqft": 10917,
+   "possession": "ready",
+   "possession_date": "Ready to move",
+   "floor": 11,
+   "total_floors": 16,
+   "facing": "North-East",
+   "bathrooms": 2,
+   "balconies": 2,
+   "parking": 1,
+   "furnishing": "Unfurnished",
+   "age_years": 5,
+   "amenities": [
+    "Lift",
+    "Power backup",
+    "Security",
+    "Covered parking",
+    "Gym",
+    "Swimming pool",
+    "Clubhouse",
+    "Kids' play area"
+   ],
+   "rera": "BLR/DEMO/RES/2021/3168",
+   "address": "Mayflower Heights, Hebbal, Bengaluru",
+   "x": 41,
+   "y": 10,
+   "palette": [
+    "#5b5f66",
+    "#e4e6ea"
+   ],
+   "nearby": {
+    "offices": [
+     {
+      "id": "northgate",
+      "name": "Northgate IT Campus",
+      "km": 1.0
+     },
+     {
+      "id": "forum-works",
+      "name": "Forum Works Koramangala",
+      "km": 8.0
+     },
+     {
+      "id": "orbit-bay",
+      "name": "Orbit Business Bay",
+      "km": 10.4
+     },
+     {
+      "id": "cedarline",
+      "name": "Cedarline Tech Park",
+      "km": 11.5
+     }
+    ],
+    "schools": [
+     {
+      "id": "lakeview",
+      "name": "Lakeview Academy",
+      "km": 2.3
+     },
+     {
+      "id": "greenwood",
+      "name": "Greenwood International School",
+      "km": 10.2
+     },
+     {
+      "id": "sunrise",
+      "name": "Sunrise Valley School",
+      "km": 10.6
+     }
+    ],
+    "metro": [
+     {
+      "id": "m-hebbal",
+      "name": "Hebbal Metro",
+      "km": 1.6
+     },
+     {
+      "id": "m-indiranagar",
+      "name": "Indiranagar Metro",
+      "km": 7.1
+     }
+    ]
+   }
+  },
+  {
+   "id": "BLR-117",
+   "kind": "resale",
+   "deal": "buy",
+   "title": "3 BHK resale in Saffron Court",
+   "project_id": null,
+   "society": "Saffron Court",
+   "city": "bengaluru",
+   "locality": "Sarjapur Road",
+   "bhk": 3,
+   "carpet_sqft": 1420,
+   "price": 12900000,
+   "price_per_sqft": 9085,
+   "possession": "ready",
+   "possession_date": "Ready to move",
+   "floor": 7,
+   "total_floors": 12,
+   "facing": "East",
+   "bathrooms": 3,
+   "balconies": 2,
+   "parking": 2,
+   "furnishing": "Semi-furnished",
+   "age_years": 6,
+   "amenities": [
+    "Lift",
+    "Power backup",
+    "Security",
+    "Covered parking",
+    "Gym",
+    "Swimming pool",
+    "Clubhouse",
+    "Kids' play area"
+   ],
+   "rera": "BLR/DEMO/RES/2020/3185",
+   "address": "Saffron Court, Sarjapur Road, Bengaluru",
+   "x": 60,
+   "y": 56,
+   "palette": [
+    "#5b5f66",
+    "#e4e6ea"
+   ],
+   "nearby": {
+    "offices": [
+     {
+      "id": "orbit-bay",
+      "name": "Orbit Business Bay",
+      "km": 2.1
+     },
+     {
+      "id": "forum-works",
+      "name": "Forum Works Koramangala",
+      "km": 5.3
+     },
+     {
+      "id": "cedarline",
+      "name": "Cedarline Tech Park",
+      "km": 9.6
+     },
+     {
+      "id": "northgate",
+      "name": "Northgate IT Campus",
+      "km": 13.3
+     }
+    ],
+    "schools": [
+     {
+      "id": "banyan",
+      "name": "Banyan Tree Public School",
+      "km": 1.5
+     },
+     {
+      "id": "sunrise",
+      "name": "Sunrise Valley School",
+      "km": 3.2
+     },
+     {
+      "id": "greenwood",
+      "name": "Greenwood International School",
+      "km": 6.5
+     }
+    ],
+    "metro": [
+     {
+      "id": "m-carmelaram",
+      "name": "Carmelaram Metro",
+      "km": 1.8
+     },
+     {
+      "id": "m-agara",
+      "name": "Agara Metro",
+      "km": 3.2
+     }
+    ]
+   }
+  },
+  {
+   "id": "PNQ-108",
+   "kind": "resale",
+   "deal": "buy",
+   "title": "2 BHK resale in Riverstone Apartments",
+   "project_id": null,
+   "society": "Riverstone Apartments",
+   "city": "pune",
+   "locality": "Baner",
+   "bhk": 2,
+   "carpet_sqft": 840,
+   "price": 8700000,
+   "price_per_sqft": 10357,
+   "possession": "ready",
+   "possession_date": "Ready to move",
+   "floor": 5,
+   "total_floors": 11,
+   "facing": "North",
+   "bathrooms": 2,
+   "balconies": 2,
+   "parking": 1,
+   "furnishing": "Semi-furnished",
+   "age_years": 6,
+   "amenities": [
+    "Lift",
+    "Power backup",
+    "Security",
+    "Covered parking",
+    "Gym",
+    "Kids' play area"
+   ],
+   "rera": "PNQ/DEMO/RES/2020/3202",
+   "address": "Riverstone Apartments, Baner, Pune",
+   "x": 25,
+   "y": 22,
+   "palette": [
+    "#5b5f66",
+    "#e4e6ea"
+   ],
+   "nearby": {
+    "offices": [
+     {
+      "id": "baner-square",
+      "name": "Baner Square Offices",
+      "km": 0.2
+     },
+     {
+      "id": "riverbend",
+      "name": "Riverbend IT Park",
+      "km": 3.9
+     },
+     {
+      "id": "deccan-hub",
+      "name": "Deccan Innovation Hub",
+      "km": 10.0
+     },
+     {
+      "id": "eastline",
+      "name": "Eastline Business Centre",
+      "km": 13.8
+     }
+    ],
+    "schools": [
+     {
+      "id": "vidyanidhi",
+      "name": "Vidyanidhi International School",
+      "km": 2.4
+     },
+     {
+      "id": "sahyadri",
+      "name": "Sahyadri Public School",
+      "km": 6.0
+     },
+     {
+      "id": "orchard",
+      "name": "Orchard Valley School",
+      "km": 12.6
+     }
+    ],
+    "metro": [
+     {
+      "id": "m-baner",
+      "name": "Baner Metro",
+      "km": 1.0
+     },
+     {
+      "id": "m-balewadi",
+      "name": "Balewadi Metro",
+      "km": 2.3
+     }
+    ]
+   }
+  },
+  {
+   "id": "PNQ-109",
+   "kind": "resale",
+   "deal": "buy",
+   "title": "2 BHK resale in Tanpura Residency",
+   "project_id": null,
+   "society": "Tanpura Residency",
+   "city": "pune",
+   "locality": "Kothrud",
+   "bhk": 2,
+   "carpet_sqft": 760,
+   "price": 7400000,
+   "price_per_sqft": 9737,
+   "possession": "ready",
+   "possession_date": "Ready to move",
+   "floor": 3,
+   "total_floors": 7,
+   "facing": "East",
+   "bathrooms": 2,
+   "balconies": 1,
+   "parking": 1,
+   "furnishing": "Furnished",
+   "age_years": 12,
+   "amenities": [
+    "Lift",
+    "Power backup",
+    "Security",
+    "Covered parking"
+   ],
+   "rera": "PNQ/DEMO/RES/2014/3219",
+   "address": "Tanpura Residency, Kothrud, Pune",
+   "x": 27,
+   "y": 48,
+   "palette": [
+    "#5b5f66",
+    "#e4e6ea"
+   ],
+   "nearby": {
+    "offices": [
+     {
+      "id": "baner-square",
+      "name": "Baner Square Offices",
+      "km": 6.5
+     },
+     {
+      "id": "riverbend",
+      "name": "Riverbend IT Park",
+      "km": 8.6
+     },
+     {
+      "id": "deccan-hub",
+      "name": "Deccan Innovation Hub",
+      "km": 10.3
+     },
+     {
+      "id": "eastline",
+      "name": "Eastline Business Centre",
+      "km": 14.2
+     }
+    ],
+    "schools": [
+     {
+      "id": "sahyadri",
+      "name": "Sahyadri Public School",
+      "km": 0.6
+     },
+     {
+      "id": "vidyanidhi",
+      "name": "Vidyanidhi International School",
+      "km": 4.8
+     },
+     {
+      "id": "orchard",
+      "name": "Orchard Valley School",
+      "km": 12.3
+     }
+    ],
+    "metro": [
+     {
+      "id": "m-kothrud",
+      "name": "Kothrud Metro",
+      "km": 1.3
+     },
+     {
+      "id": "m-baner",
+      "name": "Baner Metro",
+      "km": 5.6
+     }
+    ]
+   }
+  },
+  {
+   "id": "PNQ-110",
+   "kind": "resale",
+   "deal": "buy",
+   "title": "3 BHK resale in Skyrise Avenue",
+   "project_id": null,
+   "society": "Skyrise Avenue",
+   "city": "pune",
+   "locality": "Viman Nagar",
+   "bhk": 3,
+   "carpet_sqft": 1150,
+   "price": 13900000,
+   "price_per_sqft": 12087,
+   "possession": "ready",
+   "possession_date": "Ready to move",
+   "floor": 10,
+   "total_floors": 14,
+   "facing": "West",
+   "bathrooms": 3,
+   "balconies": 2,
+   "parking": 1,
+   "furnishing": "Semi-furnished",
+   "age_years": 8,
+   "amenities": [
+    "Lift",
+    "Power backup",
+    "Security",
+    "Covered parking",
+    "Gym",
+    "Swimming pool",
+    "Clubhouse",
+    "Kids' play area"
+   ],
+   "rera": "PNQ/DEMO/RES/2018/3236",
+   "address": "Skyrise Avenue, Viman Nagar, Pune",
+   "x": 67,
+   "y": 23,
+   "palette": [
+    "#5b5f66",
+    "#e4e6ea"
+   ],
+   "nearby": {
+    "offices": [
+     {
+      "id": "deccan-hub",
+      "name": "Deccan Innovation Hub",
+      "km": 1.9
+     },
+     {
+      "id": "eastline",
+      "name": "Eastline Business Centre",
+      "km": 3.5
+     },
+     {
+      "id": "baner-square",
+      "name": "Baner Square Offices",
+      "km": 10.8
+     },
+     {
+      "id": "riverbend",
+      "name": "Riverbend IT Park",
+      "km": 14.3
+     }
+    ],
+    "schools": [
+     {
+      "id": "orchard",
+      "name": "Orchard Valley School",
+      "km": 3.3
+     },
+     {
+      "id": "sahyadri",
+      "name": "Sahyadri Public School",
+      "km": 11.3
+     },
+     {
+      "id": "vidyanidhi",
+      "name": "Vidyanidhi International School",
+      "km": 11.9
+     }
+    ],
+    "metro": [
+     {
+      "id": "m-viman",
+      "name": "Viman Nagar Metro",
+      "km": 2.9
+     },
+     {
+      "id": "m-kharadi",
+      "name": "Kharadi Metro",
+      "km": 3.7
+     }
+    ]
+   }
+  },
+  {
+   "id": "PNQ-111",
+   "kind": "resale",
+   "deal": "buy",
+   "title": "1 BHK resale in Hillcrest Park",
+   "project_id": null,
+   "society": "Hillcrest Park",
+   "city": "pune",
+   "locality": "Hinjewadi",
+   "bhk": 1,
+   "carpet_sqft": 560,
+   "price": 4600000,
+   "price_per_sqft": 8214,
+   "possession": "ready",
+   "possession_date": "Ready to move",
+   "floor": 8,
+   "total_floors": 12,
+   "facing": "East",
+   "bathrooms": 1,
+   "balconies": 1,
+   "parking": 1,
+   "furnishing": "Unfurnished",
+   "age_years": 4,
+   "amenities": [
+    "Lift",
+    "Power backup",
+    "Security",
+    "Covered parking",
+    "Gym",
+    "Kids' play area"
+   ],
+   "rera": "PNQ/DEMO/RES/2022/3253",
+   "address": "Hillcrest Park, Hinjewadi, Pune",
+   "x": 10,
+   "y": 13,
+   "palette": [
+    "#5b5f66",
+    "#e4e6ea"
+   ],
+   "nearby": {
+    "offices": [
+     {
+      "id": "riverbend",
+      "name": "Riverbend IT Park",
+      "km": 1.2
+     },
+     {
+      "id": "baner-square",
+      "name": "Baner Square Offices",
+      "km": 4.2
+     },
+     {
+      "id": "deccan-hub",
+      "name": "Deccan Innovation Hub",
+      "km": 14.2
+     },
+     {
+      "id": "eastline",
+      "name": "Eastline Business Centre",
+      "km": 17.9
+     }
+    ],
+    "schools": [
+     {
+      "id": "vidyanidhi",
+      "name": "Vidyanidhi International School",
+      "km": 4.9
+     },
+     {
+      "id": "sahyadri",
+      "name": "Sahyadri Public School",
+      "km": 9.4
+     },
+     {
+      "id": "orchard",
+      "name": "Orchard Valley School",
+      "km": 16.8
+     }
+    ],
+    "metro": [
+     {
+      "id": "m-hinjewadi",
+      "name": "Hinjewadi Metro",
+      "km": 1.2
+     },
+     {
+      "id": "m-balewadi",
+      "name": "Balewadi Metro",
+      "km": 2.3
+     }
+    ]
+   }
+  },
+  {
+   "id": "HYD-108",
+   "kind": "resale",
+   "deal": "buy",
+   "title": "2 BHK resale in Charminar View Residency",
+   "project_id": null,
+   "society": "Charminar View Residency",
+   "city": "hyderabad",
+   "locality": "Madhapur",
+   "bhk": 2,
+   "carpet_sqft": 1050,
+   "price": 9900000,
+   "price_per_sqft": 9429,
+   "possession": "ready",
+   "possession_date": "Ready to move",
+   "floor": 6,
+   "total_floors": 10,
+   "facing": "East",
+   "bathrooms": 2,
+   "balconies": 2,
+   "parking": 1,
+   "furnishing": "Semi-furnished",
+   "age_years": 9,
+   "amenities": [
+    "Lift",
+    "Power backup",
+    "Security",
+    "Covered parking",
+    "Gym",
+    "Kids' play area"
+   ],
+   "rera": "HYD/DEMO/RES/2017/3270",
+   "address": "Charminar View Residency, Madhapur, Hyderabad",
+   "x": 51,
+   "y": 21,
+   "palette": [
+    "#5b5f66",
+    "#e4e6ea"
+   ],
+   "nearby": {
+    "offices": [
+     {
+      "id": "cyberpoint",
+      "name": "Cyberpoint Towers",
+      "km": 1.3
+     },
+     {
+      "id": "hitec-one",
+      "name": "Hitec One Campus",
+      "km": 2.9
+     },
+     {
+      "id": "raidurg-works",
+      "name": "Raidurg Works",
+      "km": 3.2
+     },
+     {
+      "id": "skyview",
+      "name": "Skyview Financial District",
+      "km": 8.5
+     }
+    ],
+    "schools": [
+     {
+      "id": "meridian",
+      "name": "Meridian Grammar School",
+      "km": 3.8
+     },
+     {
+      "id": "glendale",
+      "name": "Glendale Public School",
+      "km": 4.0
+     },
+     {
+      "id": "oakridge",
+      "name": "Oakfield International School",
+      "km": 10.7
+     }
+    ],
+    "metro": [
+     {
+      "id": "m-hitec",
+      "name": "Hitec City Metro",
+      "km": 0.8
+     },
+     {
+      "id": "m-kondapur",
+      "name": "Kondapur Metro",
+      "km": 2.8
+     }
+    ]
+   }
+  },
+  {
+   "id": "HYD-109",
+   "kind": "resale",
+   "deal": "buy",
+   "title": "3 BHK resale in Golconda Greens",
+   "project_id": null,
+   "society": "Golconda Greens",
+   "city": "hyderabad",
+   "locality": "Gachibowli",
+   "bhk": 3,
+   "carpet_sqft": 1560,
+   "price": 15800000,
+   "price_per_sqft": 10128,
+   "possession": "ready",
+   "possession_date": "Ready to move",
+   "floor": 12,
+   "total_floors": 15,
+   "facing": "North",
+   "bathrooms": 3,
+   "balconies": 3,
+   "parking": 2,
+   "furnishing": "Semi-furnished",
+   "age_years": 7,
+   "amenities": [
+    "Lift",
+    "Power backup",
+    "Security",
+    "Covered parking",
+    "Gym",
+    "Swimming pool",
+    "Clubhouse",
+    "Kids' play area"
+   ],
+   "rera": "HYD/DEMO/RES/2019/3287",
+   "address": "Golconda Greens, Gachibowli, Hyderabad",
+   "x": 33,
+   "y": 37,
+   "palette": [
+    "#5b5f66",
+    "#e4e6ea"
+   ],
+   "nearby": {
+    "offices": [
+     {
+      "id": "skyview",
+      "name": "Skyview Financial District",
+      "km": 2.5
+     },
+     {
+      "id": "raidurg-works",
+      "name": "Raidurg Works",
+      "km": 2.9
+     },
+     {
+      "id": "cyberpoint",
+      "name": "Cyberpoint Towers",
+      "km": 5.1
+     },
+     {
+      "id": "hitec-one",
+      "name": "Hitec One Campus",
+      "km": 5.1
+     }
+    ],
+    "schools": [
+     {
+      "id": "glendale",
+      "name": "Glendale Public School",
+      "km": 3.3
+     },
+     {
+      "id": "meridian",
+      "name": "Meridian Grammar School",
+      "km": 3.8
+     },
+     {
+      "id": "oakridge",
+      "name": "Oakfield International School",
+      "km": 4.8
+     }
+    ],
+    "metro": [
+     {
+      "id": "m-gachibowli",
+      "name": "Gachibowli Metro",
+      "km": 1.1
+     },
+     {
+      "id": "m-raidurg",
+      "name": "Raidurg Metro",
+      "km": 3.3
+     }
+    ]
+   }
+  },
+  {
+   "id": "HYD-110",
+   "kind": "resale",
+   "deal": "buy",
+   "title": "3 BHK resale in Banjara Crest",
+   "project_id": null,
+   "society": "Banjara Crest",
+   "city": "hyderabad",
+   "locality": "Narsingi",
+   "bhk": 3,
+   "carpet_sqft": 1610,
+   "price": 13400000,
+   "price_per_sqft": 8323,
+   "possession": "ready",
+   "possession_date": "Ready to move",
+   "floor": 4,
+   "total_floors": 12,
+   "facing": "East",
+   "bathrooms": 3,
+   "balconies": 2,
+   "parking": 2,
+   "furnishing": "Unfurnished",
+   "age_years": 3,
+   "amenities": [
+    "Lift",
+    "Power backup",
+    "Security",
+    "Covered parking",
+    "Gym",
+    "Swimming pool",
+    "Clubhouse",
+    "Kids' play area"
+   ],
+   "rera": "HYD/DEMO/RES/2023/3304",
+   "address": "Banjara Crest, Narsingi, Hyderabad",
+   "x": 29,
+   "y": 61,
+   "palette": [
+    "#5b5f66",
+    "#e4e6ea"
+   ],
+   "nearby": {
+    "offices": [
+     {
+      "id": "skyview",
+      "name": "Skyview Financial District",
+      "km": 4.3
+     },
+     {
+      "id": "raidurg-works",
+      "name": "Raidurg Works",
+      "km": 8.4
+     },
+     {
+      "id": "cyberpoint",
+      "name": "Cyberpoint Towers",
+      "km": 10.2
+     },
+     {
+      "id": "hitec-one",
+      "name": "Hitec One Campus",
+      "km": 11.1
+     }
+    ],
+    "schools": [
+     {
+      "id": "oakridge",
+      "name": "Oakfield International School",
+      "km": 2.2
+     },
+     {
+      "id": "glendale",
+      "name": "Glendale Public School",
+      "km": 7.6
+     },
+     {
+      "id": "meridian",
+      "name": "Meridian Grammar School",
+      "km": 9.9
+     }
+    ],
+    "metro": [
+     {
+      "id": "m-narsingi",
+      "name": "Narsingi Metro",
+      "km": 2.8
+     },
+     {
+      "id": "m-gachibowli",
+      "name": "Gachibowli Metro",
+      "km": 5.5
+     }
+    ]
+   }
+  },
+  {
+   "id": "BLR-118",
+   "kind": "rent",
+   "deal": "rent",
+   "title": "2 BHK for rent in Palm Grove Residency",
+   "project_id": null,
+   "society": "Palm Grove Residency",
+   "city": "bengaluru",
+   "locality": "Whitefield",
+   "bhk": 2,
+   "carpet_sqft": 1010,
+   "rent": 42000,
+   "deposit": 250000,
+   "possession": "ready",
+   "possession_date": "Available now",
+   "floor": 8,
+   "total_floors": 14,
+   "facing": "North",
+   "bathrooms": 2,
+   "balconies": 2,
+   "parking": 1,
+   "furnishing": "Semi-furnished",
+   "age_years": null,
+   "amenities": [
+    "Lift",
+    "Power backup",
+    "Security",
+    "Covered parking",
+    "Gym",
+    "Swimming pool",
+    "Clubhouse",
+    "Kids' play area"
+   ],
+   "rera": "BLR/DEMO/RNT/4200",
+   "address": "Palm Grove Residency, Whitefield, Bengaluru",
+   "x": 81,
+   "y": 35,
+   "palette": [
+    "#476d8a",
+    "#dbe7f0"
+   ],
+   "nearby": {
+    "offices": [
+     {
+      "id": "cedarline",
+      "name": "Cedarline Tech Park",
+      "km": 2.4
+     },
+     {
+      "id": "orbit-bay",
+      "name": "Orbit Business Bay",
+      "km": 6.6
+     },
+     {
+      "id": "forum-works",
+      "name": "Forum Works Koramangala",
+      "km": 9.4
+     },
+     {
+      "id": "northgate",
+      "name": "Northgate IT Campus",
+      "km": 12.2
+     }
+    ],
+    "schools": [
+     {
+      "id": "greenwood",
+      "name": "Greenwood International School",
+      "km": 1.8
+     },
+     {
+      "id": "banyan",
+      "name": "Banyan Tree Public School",
+      "km": 8.6
+     },
+     {
+      "id": "sunrise",
+      "name": "Sunrise Valley School",
+      "km": 9.3
+     }
+    ],
+    "metro": [
+     {
+      "id": "m-whitefield",
+      "name": "Whitefield Metro",
+      "km": 1.8
+     },
+     {
+      "id": "m-hoodi",
+      "name": "Hoodi Metro",
+      "km": 4.8
+     }
+    ]
+   }
+  },
+  {
+   "id": "BLR-119",
+   "kind": "rent",
+   "deal": "rent",
+   "title": "3 BHK for rent in Kosha Meadows",
+   "project_id": "kosha-meadows",
+   "society": "Kosha Meadows",
+   "city": "bengaluru",
+   "locality": "Sarjapur Road",
+   "bhk": 3,
+   "carpet_sqft": 1390,
+   "rent": 52000,
+   "deposit": 300000,
+   "possession": "ready",
+   "possession_date": "Available now",
+   "floor": 6,
+   "total_floors": 18,
+   "facing": "East",
+   "bathrooms": 3,
+   "balconies": 2,
+   "parking": 1,
+   "furnishing": "Semi-furnished",
+   "age_years": null,
+   "amenities": [
+    "Clubhouse",
+    "Swimming pool",
+    "Gym",
+    "Kids' play area",
+    "Tennis court",
+    "Supermarket",
+    "EV charging",
+    "Amphitheatre"
+   ],
+   "rera": "KA/DEMO/PRJ/2021/0117",
+   "address": "Kosha Meadows, Sarjapur Road, Bengaluru",
+   "x": 65,
+   "y": 60,
+   "palette": [
+    "#476d8a",
+    "#dbe7f0"
+   ],
+   "nearby": {
+    "offices": [
+     {
+      "id": "orbit-bay",
+      "name": "Orbit Business Bay",
+      "km": 3.5
+     },
+     {
+      "id": "forum-works",
+      "name": "Forum Works Koramangala",
+      "km": 6.9
+     },
+     {
+      "id": "cedarline",
+      "name": "Cedarline Tech Park",
+      "km": 9.7
+     },
+     {
+      "id": "northgate",
+      "name": "Northgate IT Campus",
+      "km": 14.7
+     }
+    ],
+    "schools": [
+     {
+      "id": "banyan",
+      "name": "Banyan Tree Public School",
+      "km": 1.3
+     },
+     {
+      "id": "sunrise",
+      "name": "Sunrise Valley School",
+      "km": 4.7
+     },
+     {
+      "id": "greenwood",
+      "name": "Greenwood International School",
+      "km": 6.9
+     }
+    ],
+    "metro": [
+     {
+      "id": "m-carmelaram",
+      "name": "Carmelaram Metro",
+      "km": 0.2
+     },
+     {
+      "id": "m-agara",
+      "name": "Agara Metro",
+      "km": 4.8
+     }
+    ]
+   }
+  },
+  {
+   "id": "BLR-120",
+   "kind": "rent",
+   "deal": "rent",
+   "title": "1 BHK for rent in Juniper Homes",
+   "project_id": null,
+   "society": "Juniper Homes",
+   "city": "bengaluru",
+   "locality": "Koramangala",
+   "bhk": 1,
+   "carpet_sqft": 600,
+   "rent": 32000,
+   "deposit": 150000,
+   "possession": "ready",
+   "possession_date": "Available now",
+   "floor": 3,
+   "total_floors": 6,
+   "facing": "East",
+   "bathrooms": 1,
+   "balconies": 1,
+   "parking": 0,
+   "furnishing": "Furnished",
+   "age_years": null,
+   "amenities": [
+    "Lift",
+    "Power backup",
+    "Security",
+    "Covered parking"
+   ],
+   "rera": "BLR/DEMO/RNT/4226",
+   "address": "Juniper Homes, Koramangala, Bengaluru",
+   "x": 46,
+   "y": 47,
+   "palette": [
+    "#476d8a",
+    "#dbe7f0"
+   ],
+   "nearby": {
+    "offices": [
+     {
+      "id": "forum-works",
+      "name": "Forum Works Koramangala",
+      "km": 1.3
+     },
+     {
+      "id": "orbit-bay",
+      "name": "Orbit Business Bay",
+      "km": 3.0
+     },
+     {
+      "id": "northgate",
+      "name": "Northgate IT Campus",
+      "km": 10.3
+     },
+     {
+      "id": "cedarline",
+      "name": "Cedarline Tech Park",
+      "km": 10.9
+     }
+    ],
+    "schools": [
+     {
+      "id": "sunrise",
+      "name": "Sunrise Valley School",
+      "km": 1.3
+     },
+     {
+      "id": "banyan",
+      "name": "Banyan Tree Public School",
+      "km": 5.1
+     },
+     {
+      "id": "greenwood",
+      "name": "Greenwood International School",
+      "km": 7.7
+     }
+    ],
+    "metro": [
+     {
+      "id": "m-agara",
+      "name": "Agara Metro",
+      "km": 1.5
+     },
+     {
+      "id": "m-indiranagar",
+      "name": "Indiranagar Metro",
+      "km": 2.2
+     }
+    ]
+   }
+  },
+  {
+   "id": "BLR-121",
+   "kind": "rent",
+   "deal": "rent",
+   "title": "2 BHK for rent in Mayflower Heights",
+   "project_id": null,
+   "society": "Mayflower Heights",
+   "city": "bengaluru",
+   "locality": "Hebbal",
+   "bhk": 2,
+   "carpet_sqft": 1080,
+   "rent": 45000,
+   "deposit": 270000,
+   "possession": "ready",
+   "possession_date": "Available now",
+   "floor": 12,
+   "total_floors": 16,
+   "facing": "West",
+   "bathrooms": 2,
+   "balconies": 2,
+   "parking": 1,
+   "furnishing": "Furnished",
+   "age_years": null,
+   "amenities": [
+    "Lift",
+    "Power backup",
+    "Security",
+    "Covered parking",
+    "Gym",
+    "Swimming pool",
+    "Clubhouse",
+    "Kids' play area"
+   ],
+   "rera": "BLR/DEMO/RNT/4239",
+   "address": "Mayflower Heights, Hebbal, Bengaluru",
+   "x": 40,
+   "y": 11,
+   "palette": [
+    "#476d8a",
+    "#dbe7f0"
+   ],
+   "nearby": {
+    "offices": [
+     {
+      "id": "northgate",
+      "name": "Northgate IT Campus",
+      "km": 1.3
+     },
+     {
+      "id": "forum-works",
+      "name": "Forum Works Koramangala",
+      "km": 7.8
+     },
+     {
+      "id": "orbit-bay",
+      "name": "Orbit Business Bay",
+      "km": 10.3
+     },
+     {
+      "id": "cedarline",
+      "name": "Cedarline Tech Park",
+      "km": 11.6
+     }
+    ],
+    "schools": [
+     {
+      "id": "lakeview",
+      "name": "Lakeview Academy",
+      "km": 2.0
+     },
+     {
+      "id": "greenwood",
+      "name": "Greenwood International School",
+      "km": 10.3
+     },
+     {
+      "id": "sunrise",
+      "name": "Sunrise Valley School",
+      "km": 10.4
+     }
+    ],
+    "metro": [
+     {
+      "id": "m-hebbal",
+      "name": "Hebbal Metro",
+      "km": 1.3
+     },
+     {
+      "id": "m-indiranagar",
+      "name": "Indiranagar Metro",
+      "km": 6.9
+     }
+    ]
+   }
+  },
+  {
+   "id": "BLR-122",
+   "kind": "rent",
+   "deal": "rent",
+   "title": "3 BHK for rent in Lakeshore Towers",
+   "project_id": null,
+   "society": "Lakeshore Towers",
+   "city": "bengaluru",
+   "locality": "HSR Layout",
+   "bhk": 3,
+   "carpet_sqft": 1360,
+   "rent": 58000,
+   "deposit": 350000,
+   "possession": "ready",
+   "possession_date": "Available now",
+   "floor": 5,
+   "total_floors": 12,
+   "facing": "North",
+   "bathrooms": 3,
+   "balconies": 2,
+   "parking": 1,
+   "furnishing": "Furnished",
+   "age_years": null,
+   "amenities": [
+    "Lift",
+    "Power backup",
+    "Security",
+    "Covered parking",
+    "Gym",
+    "Kids' play area"
+   ],
+   "rera": "BLR/DEMO/RNT/4252",
+   "address": "Lakeshore Towers, HSR Layout, Bengaluru",
+   "x": 50,
+   "y": 54,
+   "palette": [
+    "#476d8a",
+    "#dbe7f0"
+   ],
+   "nearby": {
+    "offices": [
+     {
+      "id": "orbit-bay",
+      "name": "Orbit Business Bay",
+      "km": 2.5
+     },
+     {
+      "id": "forum-works",
+      "name": "Forum Works Koramangala",
+      "km": 3.4
+     },
+     {
+      "id": "cedarline",
+      "name": "Cedarline Tech Park",
+      "km": 11.0
+     },
+     {
+      "id": "northgate",
+      "name": "Northgate IT Campus",
+      "km": 12.2
+     }
+    ],
+    "schools": [
+     {
+      "id": "sunrise",
+      "name": "Sunrise Valley School",
+      "km": 0.7
+     },
+     {
+      "id": "banyan",
+      "name": "Banyan Tree Public School",
+      "km": 3.2
+     },
+     {
+      "id": "greenwood",
+      "name": "Greenwood International School",
+      "km": 7.8
+     }
+    ],
+    "metro": [
+     {
+      "id": "m-agara",
+      "name": "Agara Metro",
+      "km": 2.1
+     },
+     {
+      "id": "m-indiranagar",
+      "name": "Indiranagar Metro",
+      "km": 4.1
+     }
+    ]
+   }
+  },
+  {
+   "id": "PNQ-112",
+   "kind": "rent",
+   "deal": "rent",
+   "title": "2 BHK for rent in Riverstone Apartments",
+   "project_id": null,
+   "society": "Riverstone Apartments",
+   "city": "pune",
+   "locality": "Baner",
+   "bhk": 2,
+   "carpet_sqft": 850,
+   "rent": 31000,
+   "deposit": 150000,
+   "possession": "ready",
+   "possession_date": "Available now",
+   "floor": 7,
+   "total_floors": 11,
+   "facing": "East",
+   "bathrooms": 2,
+   "balconies": 2,
+   "parking": 1,
+   "furnishing": "Semi-furnished",
+   "age_years": null,
+   "amenities": [
+    "Lift",
+    "Power backup",
+    "Security",
+    "Covered parking",
+    "Gym",
+    "Kids' play area"
+   ],
+   "rera": "PNQ/DEMO/RNT/4265",
+   "address": "Riverstone Apartments, Baner, Pune",
+   "x": 24,
+   "y": 23,
+   "palette": [
+    "#476d8a",
+    "#dbe7f0"
+   ],
+   "nearby": {
+    "offices": [
+     {
+      "id": "baner-square",
+      "name": "Baner Square Offices",
+      "km": 0.2
+     },
+     {
+      "id": "riverbend",
+      "name": "Riverbend IT Park",
+      "km": 3.7
+     },
+     {
+      "id": "deccan-hub",
+      "name": "Deccan Innovation Hub",
+      "km": 10.2
+     },
+     {
+      "id": "eastline",
+      "name": "Eastline Business Centre",
+      "km": 14.1
+     }
+    ],
+    "schools": [
+     {
+      "id": "vidyanidhi",
+      "name": "Vidyanidhi International School",
+      "km": 2.0
+     },
+     {
+      "id": "sahyadri",
+      "name": "Sahyadri Public School",
+      "km": 5.8
+     },
+     {
+      "id": "orchard",
+      "name": "Orchard Valley School",
+      "km": 12.8
+     }
+    ],
+    "metro": [
+     {
+      "id": "m-baner",
+      "name": "Baner Metro",
+      "km": 0.8
+     },
+     {
+      "id": "m-balewadi",
+      "name": "Balewadi Metro",
+      "km": 2.1
+     }
+    ]
+   }
+  },
+  {
+   "id": "PNQ-113",
+   "kind": "rent",
+   "deal": "rent",
+   "title": "1 BHK for rent in Kosha Riverside",
+   "project_id": "kosha-riverside",
+   "society": "Kosha Riverside",
+   "city": "pune",
+   "locality": "Baner",
+   "bhk": 1,
+   "carpet_sqft": 520,
+   "rent": 22000,
+   "deposit": 100000,
+   "possession": "ready",
+   "possession_date": "Available now",
+   "floor": 4,
+   "total_floors": 16,
+   "facing": "North",
+   "bathrooms": 1,
+   "balconies": 1,
+   "parking": 1,
+   "furnishing": "Furnished",
+   "age_years": null,
+   "amenities": [
+    "Clubhouse",
+    "Swimming pool",
+    "Gym",
+    "Kids' play area",
+    "Riverside walk",
+    "Badminton court",
+    "EV charging"
+   ],
+   "rera": "MH/DEMO/PRJ/2020/2210",
+   "address": "Kosha Riverside, Baner, Pune",
+   "x": 20,
+   "y": 28,
+   "palette": [
+    "#476d8a",
+    "#dbe7f0"
+   ],
+   "nearby": {
+    "offices": [
+     {
+      "id": "baner-square",
+      "name": "Baner Square Offices",
+      "km": 1.8
+     },
+     {
+      "id": "riverbend",
+      "name": "Riverbend IT Park",
+      "km": 3.5
+     },
+     {
+      "id": "deccan-hub",
+      "name": "Deccan Innovation Hub",
+      "km": 11.0
+     },
+     {
+      "id": "eastline",
+      "name": "Eastline Business Centre",
+      "km": 15.0
+     }
+    ],
+    "schools": [
+     {
+      "id": "vidyanidhi",
+      "name": "Vidyanidhi International School",
+      "km": 0.5
+     },
+     {
+      "id": "sahyadri",
+      "name": "Sahyadri Public School",
+      "km": 4.9
+     },
+     {
+      "id": "orchard",
+      "name": "Orchard Valley School",
+      "km": 13.6
+     }
+    ],
+    "metro": [
+     {
+      "id": "m-baner",
+      "name": "Baner Metro",
+      "km": 1.1
+     },
+     {
+      "id": "m-balewadi",
+      "name": "Balewadi Metro",
+      "km": 2.2
+     }
+    ]
+   }
+  },
+  {
+   "id": "PNQ-114",
+   "kind": "rent",
+   "deal": "rent",
+   "title": "2 BHK for rent in Skyrise Avenue",
+   "project_id": null,
+   "society": "Skyrise Avenue",
+   "city": "pune",
+   "locality": "Viman Nagar",
+   "bhk": 2,
+   "carpet_sqft": 880,
+   "rent": 34000,
+   "deposit": 170000,
+   "possession": "ready",
+   "possession_date": "Available now",
+   "floor": 9,
+   "total_floors": 14,
+   "facing": "East",
+   "bathrooms": 2,
+   "balconies": 2,
+   "parking": 1,
+   "furnishing": "Furnished",
+   "age_years": null,
+   "amenities": [
+    "Lift",
+    "Power backup",
+    "Security",
+    "Covered parking",
+    "Gym",
+    "Swimming pool",
+    "Clubhouse",
+    "Kids' play area"
+   ],
+   "rera": "PNQ/DEMO/RNT/4291",
+   "address": "Skyrise Avenue, Viman Nagar, Pune",
+   "x": 66,
+   "y": 24,
+   "palette": [
+    "#476d8a",
+    "#dbe7f0"
+   ],
+   "nearby": {
+    "offices": [
+     {
+      "id": "deccan-hub",
+      "name": "Deccan Innovation Hub",
+      "km": 1.6
+     },
+     {
+      "id": "eastline",
+      "name": "Eastline Business Centre",
+      "km": 3.6
+     },
+     {
+      "id": "baner-square",
+      "name": "Baner Square Offices",
+      "km": 10.5
+     },
+     {
+      "id": "riverbend",
+      "name": "Riverbend IT Park",
+      "km": 14.1
+     }
+    ],
+    "schools": [
+     {
+      "id": "orchard",
+      "name": "Orchard Valley School",
+      "km": 3.2
+     },
+     {
+      "id": "sahyadri",
+      "name": "Sahyadri Public School",
+      "km": 11.0
+     },
+     {
+      "id": "vidyanidhi",
+      "name": "Vidyanidhi International School",
+      "km": 11.6
+     }
+    ],
+    "metro": [
+     {
+      "id": "m-viman",
+      "name": "Viman Nagar Metro",
+      "km": 2.5
+     },
+     {
+      "id": "m-kharadi",
+      "name": "Kharadi Metro",
+      "km": 3.8
+     }
+    ]
+   }
+  },
+  {
+   "id": "PNQ-115",
+   "kind": "rent",
+   "deal": "rent",
+   "title": "2 BHK for rent in Eastgate Residency",
+   "project_id": null,
+   "society": "Eastgate Residency",
+   "city": "pune",
+   "locality": "Kharadi",
+   "bhk": 2,
+   "carpet_sqft": 870,
+   "rent": 29000,
+   "deposit": 120000,
+   "possession": "ready",
+   "possession_date": "Available now",
+   "floor": 6,
+   "total_floors": 12,
+   "facing": "West",
+   "bathrooms": 2,
+   "balconies": 1,
+   "parking": 1,
+   "furnishing": "Semi-furnished",
+   "age_years": null,
+   "amenities": [
+    "Lift",
+    "Power backup",
+    "Security",
+    "Covered parking",
+    "Gym",
+    "Kids' play area"
+   ],
+   "rera": "PNQ/DEMO/RNT/4304",
+   "address": "Eastgate Residency, Kharadi, Pune",
+   "x": 79,
+   "y": 27,
+   "palette": [
+    "#476d8a",
+    "#dbe7f0"
+   ],
+   "nearby": {
+    "offices": [
+     {
+      "id": "eastline",
+      "name": "Eastline Business Centre",
+      "km": 0.4
+     },
+     {
+      "id": "deccan-hub",
+      "name": "Deccan Innovation Hub",
+      "km": 3.8
+     },
+     {
+      "id": "baner-square",
+      "name": "Baner Square Offices",
+      "km": 13.8
+     },
+     {
+      "id": "riverbend",
+      "name": "Riverbend IT Park",
+      "km": 17.4
+     }
+    ],
+    "schools": [
+     {
+      "id": "orchard",
+      "name": "Orchard Valley School",
+      "km": 2.2
+     },
+     {
+      "id": "sahyadri",
+      "name": "Sahyadri Public School",
+      "km": 13.6
+     },
+     {
+      "id": "vidyanidhi",
+      "name": "Vidyanidhi International School",
+      "km": 14.8
+     }
+    ],
+    "metro": [
+     {
+      "id": "m-kharadi",
+      "name": "Kharadi Metro",
+      "km": 0.8
+     },
+     {
+      "id": "m-viman",
+      "name": "Viman Nagar Metro",
+      "km": 4.1
+     }
+    ]
+   }
+  },
+  {
+   "id": "HYD-111",
+   "kind": "rent",
+   "deal": "rent",
+   "title": "2 BHK for rent in Kosha Greens",
+   "project_id": "kosha-greens",
+   "society": "Kosha Greens",
+   "city": "hyderabad",
+   "locality": "Kondapur",
+   "bhk": 2,
+   "carpet_sqft": 1010,
+   "rent": 36000,
+   "deposit": 150000,
+   "possession": "ready",
+   "possession_date": "Available now",
+   "floor": 7,
+   "total_floors": 15,
+   "facing": "East",
+   "bathrooms": 2,
+   "balconies": 2,
+   "parking": 1,
+   "furnishing": "Semi-furnished",
+   "age_years": null,
+   "amenities": [
+    "Clubhouse",
+    "Swimming pool",
+    "Gym",
+    "Kids' play area",
+    "Jogging track",
+    "Supermarket",
+    "EV charging"
+   ],
+   "rera": "TS/DEMO/PRJ/2021/0533",
+   "address": "Kosha Greens, Kondapur, Hyderabad",
+   "x": 38,
+   "y": 24,
+   "palette": [
+    "#476d8a",
+    "#dbe7f0"
+   ],
+   "nearby": {
+    "offices": [
+     {
+      "id": "hitec-one",
+      "name": "Hitec One Campus",
+      "km": 1.6
+     },
+     {
+      "id": "raidurg-works",
+      "name": "Raidurg Works",
+      "km": 1.8
+     },
+     {
+      "id": "cyberpoint",
+      "name": "Cyberpoint Towers",
+      "km": 3.0
+     },
+     {
+      "id": "skyview",
+      "name": "Skyview Financial District",
+      "km": 5.8
+     }
+    ],
+    "schools": [
+     {
+      "id": "meridian",
+      "name": "Meridian Grammar School",
+      "km": 0.7
+     },
+     {
+      "id": "glendale",
+      "name": "Glendale Public School",
+      "km": 3.6
+     },
+     {
+      "id": "oakridge",
+      "name": "Oakfield International School",
+      "km": 8.3
+     }
+    ],
+    "metro": [
+     {
+      "id": "m-kondapur",
+      "name": "Kondapur Metro",
+      "km": 0.7
+     },
+     {
+      "id": "m-raidurg",
+      "name": "Raidurg Metro",
+      "km": 2.1
+     }
+    ]
+   }
+  },
+  {
+   "id": "HYD-112",
+   "kind": "rent",
+   "deal": "rent",
+   "title": "3 BHK for rent in Charminar View Residency",
+   "project_id": null,
+   "society": "Charminar View Residency",
+   "city": "hyderabad",
+   "locality": "Madhapur",
+   "bhk": 3,
+   "carpet_sqft": 1480,
+   "rent": 48000,
+   "deposit": 200000,
+   "possession": "ready",
+   "possession_date": "Available now",
+   "floor": 4,
+   "total_floors": 10,
+   "facing": "North",
+   "bathrooms": 3,
+   "balconies": 2,
+   "parking": 1,
+   "furnishing": "Furnished",
+   "age_years": null,
+   "amenities": [
+    "Lift",
+    "Power backup",
+    "Security",
+    "Covered parking",
+    "Gym",
+    "Kids' play area"
+   ],
+   "rera": "HYD/DEMO/RNT/4330",
+   "address": "Charminar View Residency, Madhapur, Hyderabad",
+   "x": 52,
+   "y": 22,
+   "palette": [
+    "#476d8a",
+    "#dbe7f0"
+   ],
+   "nearby": {
+    "offices": [
+     {
+      "id": "cyberpoint",
+      "name": "Cyberpoint Towers",
+      "km": 1.1
+     },
+     {
+      "id": "hitec-one",
+      "name": "Hitec One Campus",
+      "km": 3.2
+     },
+     {
+      "id": "raidurg-works",
+      "name": "Raidurg Works",
+      "km": 3.2
+     },
+     {
+      "id": "skyview",
+      "name": "Skyview Financial District",
+      "km": 8.5
+     }
+    ],
+    "schools": [
+     {
+      "id": "glendale",
+      "name": "Glendale Public School",
+      "km": 3.8
+     },
+     {
+      "id": "meridian",
+      "name": "Meridian Grammar School",
+      "km": 4.0
+     },
+     {
+      "id": "oakridge",
+      "name": "Oakfield International School",
+      "km": 10.6
+     }
+    ],
+    "metro": [
+     {
+      "id": "m-hitec",
+      "name": "Hitec City Metro",
+      "km": 0.5
+     },
+     {
+      "id": "m-raidurg",
+      "name": "Raidurg Metro",
+      "km": 2.8
+     }
+    ]
+   }
+  },
+  {
+   "id": "HYD-113",
+   "kind": "rent",
+   "deal": "rent",
+   "title": "2 BHK for rent in Golconda Greens",
+   "project_id": null,
+   "society": "Golconda Greens",
+   "city": "hyderabad",
+   "locality": "Gachibowli",
+   "bhk": 2,
+   "carpet_sqft": 1100,
+   "rent": 38000,
+   "deposit": 150000,
+   "possession": "ready",
+   "possession_date": "Available now",
+   "floor": 10,
+   "total_floors": 15,
+   "facing": "East",
+   "bathrooms": 2,
+   "balconies": 2,
+   "parking": 1,
+   "furnishing": "Unfurnished",
+   "age_years": null,
+   "amenities": [
+    "Lift",
+    "Power backup",
+    "Security",
+    "Covered parking",
+    "Gym",
+    "Swimming pool",
+    "Clubhouse",
+    "Kids' play area"
+   ],
+   "rera": "HYD/DEMO/RNT/4343",
+   "address": "Golconda Greens, Gachibowli, Hyderabad",
+   "x": 34,
+   "y": 36,
+   "palette": [
+    "#476d8a",
+    "#dbe7f0"
+   ],
+   "nearby": {
+    "offices": [
+     {
+      "id": "raidurg-works",
+      "name": "Raidurg Works",
+      "km": 2.5
+     },
+     {
+      "id": "skyview",
+      "name": "Skyview Financial District",
+      "km": 2.8
+     },
+     {
+      "id": "cyberpoint",
+      "name": "Cyberpoint Towers",
+      "km": 4.7
+     },
+     {
+      "id": "hitec-one",
+      "name": "Hitec One Campus",
+      "km": 4.7
+     }
+    ],
+    "schools": [
+     {
+      "id": "glendale",
+      "name": "Glendale Public School",
+      "km": 3.0
+     },
+     {
+      "id": "meridian",
+      "name": "Meridian Grammar School",
+      "km": 3.5
+     },
+     {
+      "id": "oakridge",
+      "name": "Oakfield International School",
+      "km": 5.1
+     }
+    ],
+    "metro": [
+     {
+      "id": "m-gachibowli",
+      "name": "Gachibowli Metro",
+      "km": 1.1
+     },
+     {
+      "id": "m-raidurg",
+      "name": "Raidurg Metro",
+      "km": 2.9
+     }
+    ]
+   }
+  }
+ ],
+ "lenders": [
+  {
+   "id": "kosha-partner",
+   "name": "Kosha partner offer (Sahyadri Bank)",
+   "rate": 8.25,
+   "note": "For Kosha projects only, with a processing fee of ₹10,000."
+  },
+  {
+   "id": "sahyadri",
+   "name": "Sahyadri Bank",
+   "rate": 8.4,
+   "note": "Processing fee 0.25% of the loan."
+  },
+  {
+   "id": "meridian",
+   "name": "Meridian Housing Finance",
+   "rate": 8.65,
+   "note": "Processing fee 0.5% of the loan."
+  },
+  {
+   "id": "deccan",
+   "name": "Deccan Co-operative Bank",
+   "rate": 8.9,
+   "note": "No processing fee."
+  }
+ ],
+ "emi": {
+  "down_pct": 20,
+  "tenure_years": 20,
+  "lender": "sahyadri",
+  "max_tenure_years": 30,
+  "min_down_pct": 10
+ },
+ "bring": {
+  "new": [
+   "A photo ID (Aadhaar, PAN or passport) for the site register",
+   "Your home-loan sanction letter, if you have one, to see the partner offer",
+   "Closed shoes: the visit includes the show flat and a construction walk"
+  ],
+  "ready": [
+   "A photo ID (Aadhaar, PAN or passport) for the site register",
+   "Your home-loan sanction letter, if you have one",
+   "Your floor and facing preferences, so the team can open the right flats"
+  ],
+  "resale": [
+   "A photo ID (Aadhaar, PAN or passport)",
+   "Your home-loan pre-approval, if you have one",
+   "Any questions for the owner: the relationship manager joins you"
+  ],
+  "rent": [
+   "A photo ID (Aadhaar, PAN or passport)",
+   "Your office ID or offer letter, which owners usually ask for",
+   "No money: nothing is collected at a visit"
+  ]
+ }
+}

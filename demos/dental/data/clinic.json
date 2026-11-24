@@ -1,0 +1,484 @@
+{
+  "$comment": "Dantika Dental Studio: a fictional two-branch dental clinic in Bengaluru, and the single source of truth for the demo. The brain and the page both read this file (and bookings.json). Nothing the front desk says about prices, rules, hours, dentists or slots comes from anywhere else. Dates are never written down: a booking names a week relative to the current one (0 = this week, Monday first) and a weekday, so the calendar is full whatever day the demo runs.",
+  "clinic": {
+    "name": "Dantika Dental Studio",
+    "short": "Dantika",
+    "tagline": "Gentle, unhurried dentistry in Bengaluru",
+    "phone": "+91 80 4718 2290",
+    "whatsapp": "+91 98804 71822",
+    "email": "frontdesk@dantika.example",
+    "timezone": "Asia/Kolkata",
+    "since": 2011,
+    "emergency_line": "+91 98804 71800"
+  },
+  "booking": {
+    "slot_step_min": 15,
+    "lead_min": 60,
+    "emergency_lead_min": 30,
+    "horizon_days": 21,
+    "id_prefix": "DT-"
+  },
+  "otp": {
+    "demo_code": "4821",
+    "$comment": "A demo: no SMS is sent. The page shows the code in a 'demo SMS' bubble."
+  },
+  "branches": [
+    {
+      "id": "indiranagar",
+      "name": "Dantika Indiranagar",
+      "short": "Indiranagar",
+      "address": "No. 418, 12th Main Road, HAL 2nd Stage, Indiranagar, Bengaluru 560038",
+      "landmark": "Above the Green Leaf pharmacy, two buildings from the 12th Main signal",
+      "phone": "+91 80 4718 2290",
+      "open_days": ["mon", "tue", "wed", "thu", "fri", "sat"],
+      "open": "09:30",
+      "close": "19:30",
+      "parking": "Four visitor bays in the basement (ramp on the left of the building), free for patients. On busy evenings use the pay-and-park on 13th Main, a two-minute walk.",
+      "chairs": [
+        { "id": "ind-c1", "label": "Chair 1", "kind": "general" },
+        { "id": "ind-c2", "label": "Chair 2", "kind": "general" },
+        { "id": "ind-c3", "label": "Chair 3 · Surgical suite", "kind": "surgical" },
+        { "id": "ind-c4", "label": "Chair 4 · Aesthetic bay", "kind": "aesthetic" }
+      ],
+      "imaging": [
+        {
+          "id": "ind-img",
+          "label": "Imaging suite",
+          "does": ["iopa", "opg", "cbct"],
+          "sessions": [
+            { "start": "09:30", "end": "13:30" },
+            { "start": "14:15", "end": "19:30" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "hsr",
+      "name": "Dantika HSR Layout",
+      "short": "HSR Layout",
+      "address": "2nd floor, 27th Main Road, Sector 1, HSR Layout, Bengaluru 560102",
+      "landmark": "Opposite the BDA complex park gate, lift lobby on the right",
+      "phone": "+91 80 4718 2291",
+      "open_days": ["mon", "tue", "wed", "thu", "fri", "sat"],
+      "open": "09:30",
+      "close": "19:30",
+      "parking": "Building parking in the basement. Take a token at the gate and show it at the front desk; the first two hours are free for patients. Two-wheeler parking is at the back entrance.",
+      "chairs": [
+        { "id": "hsr-c1", "label": "Chair 1", "kind": "general" },
+        { "id": "hsr-c2", "label": "Chair 2", "kind": "general" }
+      ],
+      "imaging": [
+        {
+          "id": "hsr-img",
+          "label": "X-ray bay",
+          "does": ["iopa"],
+          "sessions": [
+            { "start": "09:30", "end": "13:30" },
+            { "start": "14:15", "end": "19:30" }
+          ]
+        }
+      ]
+    }
+  ],
+  "dentists": [
+    {
+      "id": "dr-kavitha",
+      "name": "Dr Kavitha Raman",
+      "short": "Dr Kavitha",
+      "qualification": "BDS, MDS (Conservative Dentistry & Endodontics)",
+      "role": "Endodontist",
+      "years": 14,
+      "languages": ["English", "Hindi", "Tamil", "Kannada"],
+      "bio": "Root canals and saving teeth that look beyond saving. Known for painless single-tooth work and for explaining every step before she starts.",
+      "initials": "KR",
+      "schedule": {
+        "mon": [{ "branch": "indiranagar", "start": "09:30", "end": "13:30" }, { "branch": "indiranagar", "start": "14:30", "end": "18:30" }],
+        "tue": [{ "branch": "hsr", "start": "10:00", "end": "14:00" }, { "branch": "hsr", "start": "15:00", "end": "19:00" }],
+        "wed": [{ "branch": "indiranagar", "start": "09:30", "end": "13:30" }, { "branch": "indiranagar", "start": "14:30", "end": "18:30" }],
+        "thu": [{ "branch": "hsr", "start": "10:00", "end": "14:00" }, { "branch": "hsr", "start": "15:00", "end": "19:00" }],
+        "fri": [{ "branch": "indiranagar", "start": "09:30", "end": "13:30" }, { "branch": "indiranagar", "start": "14:30", "end": "18:30" }]
+      }
+    },
+    {
+      "id": "dr-sameer",
+      "name": "Dr Sameer Kulkarni",
+      "short": "Dr Sameer",
+      "qualification": "BDS, MDS (Oral & Maxillofacial Surgery)",
+      "role": "Oral surgeon & implantologist",
+      "years": 17,
+      "languages": ["English", "Hindi", "Marathi", "Kannada"],
+      "bio": "Wisdom teeth, extractions and implants. Plans every surgery on a 3D scan and keeps sedation options on hand for nervous patients.",
+      "initials": "SK",
+      "schedule": {
+        "tue": [{ "branch": "indiranagar", "start": "10:00", "end": "13:30" }, { "branch": "indiranagar", "start": "14:30", "end": "18:00" }],
+        "wed": [{ "branch": "hsr", "start": "15:00", "end": "19:00" }],
+        "thu": [{ "branch": "indiranagar", "start": "10:00", "end": "13:30" }, { "branch": "indiranagar", "start": "14:30", "end": "18:00" }],
+        "sat": [{ "branch": "indiranagar", "start": "10:00", "end": "13:30" }, { "branch": "indiranagar", "start": "14:30", "end": "17:00" }]
+      }
+    },
+    {
+      "id": "dr-nandini",
+      "name": "Dr Nandini Shetty",
+      "short": "Dr Nandini",
+      "qualification": "BDS, MDS (Orthodontics & Dentofacial Orthopaedics)",
+      "role": "Orthodontist",
+      "years": 11,
+      "languages": ["English", "Hindi", "Kannada", "Tulu"],
+      "bio": "Braces and clear aligners for teenagers and adults. Every first visit includes a digital smile preview.",
+      "initials": "NS",
+      "schedule": {
+        "mon": [{ "branch": "hsr", "start": "10:00", "end": "13:00" }, { "branch": "hsr", "start": "14:00", "end": "18:00" }],
+        "wed": [{ "branch": "hsr", "start": "10:00", "end": "13:00" }, { "branch": "hsr", "start": "14:00", "end": "18:00" }],
+        "sat": [{ "branch": "indiranagar", "start": "10:00", "end": "14:00" }]
+      }
+    },
+    {
+      "id": "dr-rahul",
+      "name": "Dr Rahul Menon",
+      "short": "Dr Rahul",
+      "qualification": "BDS",
+      "role": "General dentist",
+      "years": 8,
+      "languages": ["English", "Hindi", "Malayalam"],
+      "bio": "Check-ups, cleanings, fillings and the toothache that cannot wait. Runs the HSR Layout clinic six days a week.",
+      "initials": "RM",
+      "schedule": {
+        "mon": [{ "branch": "hsr", "start": "09:30", "end": "13:30" }, { "branch": "hsr", "start": "14:15", "end": "19:30" }],
+        "tue": [{ "branch": "hsr", "start": "09:30", "end": "13:30" }, { "branch": "hsr", "start": "14:15", "end": "19:30" }],
+        "wed": [{ "branch": "hsr", "start": "09:30", "end": "13:30" }, { "branch": "hsr", "start": "14:15", "end": "19:30" }],
+        "thu": [{ "branch": "hsr", "start": "09:30", "end": "13:30" }, { "branch": "hsr", "start": "14:15", "end": "19:30" }],
+        "fri": [{ "branch": "hsr", "start": "09:30", "end": "13:30" }, { "branch": "hsr", "start": "14:15", "end": "19:30" }],
+        "sat": [{ "branch": "hsr", "start": "09:30", "end": "14:00" }]
+      }
+    },
+    {
+      "id": "dr-farah",
+      "name": "Dr Farah Siddiqui",
+      "short": "Dr Farah",
+      "qualification": "BDS, MDS (Periodontology)",
+      "role": "Periodontist & cosmetic dentist",
+      "years": 12,
+      "languages": ["English", "Hindi", "Urdu"],
+      "bio": "Gum health, deep cleaning and whitening. Believes a good cleaning is the most underrated treatment in dentistry.",
+      "initials": "FS",
+      "schedule": {
+        "mon": [{ "branch": "indiranagar", "start": "11:00", "end": "14:00" }, { "branch": "indiranagar", "start": "15:00", "end": "19:30" }],
+        "tue": [{ "branch": "indiranagar", "start": "11:00", "end": "14:00" }, { "branch": "indiranagar", "start": "15:00", "end": "19:30" }],
+        "wed": [{ "branch": "indiranagar", "start": "11:00", "end": "14:00" }, { "branch": "indiranagar", "start": "15:00", "end": "19:30" }],
+        "thu": [{ "branch": "indiranagar", "start": "11:00", "end": "14:00" }, { "branch": "indiranagar", "start": "15:00", "end": "19:30" }],
+        "fri": [{ "branch": "indiranagar", "start": "11:00", "end": "14:00" }, { "branch": "indiranagar", "start": "15:00", "end": "19:30" }]
+      }
+    }
+  ],
+  "services": [
+    {
+      "id": "consult",
+      "category": "appointment",
+      "name": "Consultation",
+      "spoken": ["consultation", "consult", "doctor visit", "first visit"],
+      "duration_min": 20,
+      "price": { "min": 500, "max": 500, "note": "adjusted against any treatment started the same day" },
+      "dentists": ["dr-kavitha", "dr-sameer", "dr-nandini", "dr-rahul", "dr-farah"],
+      "chairs": ["general", "surgical", "aesthetic"],
+      "summary": "A sit-down with a dentist to look at a problem, talk through options and get a written plan."
+    },
+    {
+      "id": "checkup",
+      "category": "appointment",
+      "name": "Dental check-up",
+      "spoken": ["check-up", "checkup", "routine check", "six-month check"],
+      "duration_min": 30,
+      "price": { "min": 700, "max": 700, "note": "X-rays, if the dentist needs them, are ₹300 each" },
+      "dentists": ["dr-rahul", "dr-farah", "dr-kavitha"],
+      "chairs": ["general"],
+      "summary": "A full examination of teeth and gums, with a cavity and gum check and advice on what, if anything, needs doing."
+    },
+    {
+      "id": "emergency",
+      "category": "appointment",
+      "name": "Emergency visit (toothache)",
+      "spoken": ["emergency", "toothache", "tooth pain", "urgent", "dard"],
+      "duration_min": 30,
+      "price": { "min": 800, "max": 800, "note": "for the visit; any treatment done is charged separately" },
+      "dentists": ["dr-rahul", "dr-farah", "dr-kavitha", "dr-sameer"],
+      "chairs": ["general", "surgical"],
+      "same_day": true,
+      "summary": "A same-day slot for pain, a broken tooth or a lost filling: the dentist finds the cause and gets you out of pain."
+    },
+    {
+      "id": "scaling",
+      "category": "procedure",
+      "name": "Cleaning & scaling",
+      "spoken": ["cleaning", "scaling", "teeth cleaning", "polishing"],
+      "duration_min": 45,
+      "price": { "min": 1500, "max": 2500, "note": "depends on how much build-up there is" },
+      "dentists": ["dr-farah", "dr-rahul"],
+      "chairs": ["general", "aesthetic"],
+      "summary": "Ultrasonic scaling and polishing to remove tartar and stains."
+    },
+    {
+      "id": "filling",
+      "category": "procedure",
+      "name": "Tooth-coloured filling",
+      "spoken": ["filling", "cavity", "composite filling"],
+      "duration_min": 45,
+      "price": { "min": 1800, "max": 3500, "note": "per tooth, by size of the cavity" },
+      "dentists": ["dr-rahul", "dr-kavitha", "dr-farah"],
+      "chairs": ["general"],
+      "summary": "A composite filling matched to your tooth's shade, done in one sitting."
+    },
+    {
+      "id": "rct",
+      "category": "procedure",
+      "name": "Root canal treatment",
+      "spoken": ["root canal", "RCT", "root canal treatment"],
+      "duration_min": 60,
+      "sittings": 3,
+      "sitting_gap_days": { "min": 7, "max": 14 },
+      "price": { "min": 6500, "max": 12000, "note": "per tooth, for all three sittings; the crown afterwards is extra (₹8,000–₹18,000)" },
+      "dentists": ["dr-kavitha"],
+      "chairs": ["general"],
+      "summary": "Three sittings of an hour each, 7 to 14 days apart, with our endodontist. An X-ray of the tooth is taken at the first sitting if you don't bring one."
+    },
+    {
+      "id": "extraction",
+      "category": "procedure",
+      "name": "Tooth extraction (simple)",
+      "spoken": ["extraction", "tooth removal", "pull a tooth", "remove a tooth"],
+      "duration_min": 30,
+      "price": { "min": 1200, "max": 2500, "note": "per tooth" },
+      "dentists": ["dr-rahul", "dr-sameer"],
+      "chairs": ["general", "surgical"],
+      "summary": "Removal of a loose or badly broken tooth under local anaesthesia."
+    },
+    {
+      "id": "wisdom",
+      "category": "procedure",
+      "name": "Wisdom tooth removal (surgical)",
+      "spoken": ["wisdom tooth", "impacted tooth", "third molar", "akal daad"],
+      "duration_min": 90,
+      "price": { "min": 6000, "max": 12000, "note": "per tooth, by how deep the tooth sits" },
+      "dentists": ["dr-sameer"],
+      "chairs": ["surgical"],
+      "requires": "opg_recent",
+      "summary": "Surgical removal of an impacted wisdom tooth in the surgical suite, with our oral surgeon."
+    },
+    {
+      "id": "aligner",
+      "category": "procedure",
+      "name": "Aligner & braces consultation",
+      "spoken": ["aligners", "braces", "clear aligners", "orthodontic", "teeth straightening"],
+      "duration_min": 30,
+      "price": { "min": 800, "max": 800, "note": "adjusted against your treatment if you go ahead" },
+      "dentists": ["dr-nandini"],
+      "chairs": ["general"],
+      "summary": "A bite assessment and digital smile preview with our orthodontist, and a written plan for braces or aligners."
+    },
+    {
+      "id": "whitening",
+      "category": "procedure",
+      "name": "Teeth whitening (in-chair)",
+      "spoken": ["whitening", "bleaching", "teeth whitening"],
+      "duration_min": 75,
+      "price": { "min": 9000, "max": 14000, "note": "one in-chair session; the take-home kit is ₹4,500" },
+      "dentists": ["dr-farah"],
+      "chairs": ["aesthetic"],
+      "summary": "One in-chair session under the whitening lamp in our aesthetic bay, at Indiranagar only."
+    },
+    {
+      "id": "implant",
+      "category": "procedure",
+      "name": "Implant consultation",
+      "spoken": ["implant", "dental implant", "missing tooth"],
+      "duration_min": 30,
+      "price": { "min": 1000, "max": 1000, "note": "the CBCT scan, if advised, is booked separately" },
+      "dentists": ["dr-sameer"],
+      "chairs": ["surgical", "general"],
+      "summary": "An assessment for replacing a missing tooth with an implant. Most patients are advised a CBCT scan afterwards."
+    },
+    {
+      "id": "iopa",
+      "category": "imaging",
+      "name": "X-ray (IOPA, single tooth)",
+      "spoken": ["x-ray", "IOPA", "tooth x-ray", "single tooth x-ray"],
+      "duration_min": 10,
+      "price": { "min": 300, "max": 300, "note": "per film" },
+      "resource": "iopa",
+      "summary": "A small X-ray of one or two teeth, taken in a couple of minutes. No referral needed."
+    },
+    {
+      "id": "opg",
+      "category": "imaging",
+      "name": "OPG (full-mouth X-ray)",
+      "spoken": ["OPG", "full mouth x-ray", "panoramic x-ray", "OPG x-ray"],
+      "duration_min": 15,
+      "price": { "min": 800, "max": 800, "note": "report and digital copy included" },
+      "resource": "opg",
+      "summary": "One panoramic X-ray of all your teeth and jaws. At Indiranagar only. No referral needed."
+    },
+    {
+      "id": "cbct",
+      "category": "imaging",
+      "name": "CBCT 3D scan",
+      "spoken": ["CBCT", "3D scan", "cone beam", "CT scan"],
+      "duration_min": 20,
+      "price": { "min": 3500, "max": 5500, "note": "₹3,500 for one jaw, ₹5,500 for both" },
+      "resource": "cbct",
+      "requires": "cbct_referral",
+      "summary": "A 3D scan for implants, wisdom teeth and root canals. At Indiranagar only, and only with a dentist's referral or after a consultation with us."
+    }
+  ],
+  "rules": {
+    "cbct_referral": {
+      "title": "CBCT needs a referral or a consultation",
+      "text": "A CBCT scan is taken only with a referral from a dentist, or after a consultation with one of our dentists. If you have neither, we book a consultation first; the dentist decides whether the scan is needed.",
+      "consult_services": ["consult", "implant", "aligner", "emergency", "checkup", "wisdom"],
+      "alternative": "consult"
+    },
+    "opg_recent": {
+      "title": "Wisdom tooth surgery needs a recent OPG",
+      "text": "Surgical wisdom-tooth removal needs an OPG taken in the last six months, so the surgeon can see how the tooth sits. If you don't have one, book the OPG first; it can be on the same day, before the surgery.",
+      "within_days": 180,
+      "alternative": "opg"
+    },
+    "rct_sittings": {
+      "title": "Root canals take three sittings",
+      "text": "A root canal is three sittings of an hour each with Dr Kavitha, 7 to 14 days apart. We book the first sitting and pencil in the next two at the same time of day; you can move them later.",
+      "gap_min_days": 7,
+      "gap_max_days": 14
+    },
+    "same_day_emergency": {
+      "title": "Emergencies are seen the same day",
+      "text": "Emergency slots can be booked for today, from 30 minutes from now. Other appointments need at least an hour's notice. On Sundays the clinic is closed; call the emergency line."
+    }
+  },
+  "policies": {
+    "cancellation": {
+      "free_until_hours": 24,
+      "late_fee": 300,
+      "late_fee_waived_for": ["emergency"],
+      "no_show_fee": 500,
+      "imaging_free_until_hours": 2,
+      "online_changes_max": 2,
+      "text": "You can cancel or reschedule for free up to 24 hours before your appointment. Within 24 hours there is a ₹300 late-change fee, which we waive for emergency visits. A missed appointment without notice is charged ₹500. Scans and X-rays can be cancelled free up to 2 hours before. Each appointment can be changed online twice; after that, please call the desk.",
+      "rct_text": "A root canal's next sitting has to stay within 14 days of the one before it, so the tooth stays sealed. Moving it later needs Dr Kavitha's go-ahead; we arrange a callback."
+    }
+  },
+  "instructions": {
+    "eating": {
+      "title": "Eating before your visit",
+      "general": "Eat normally before most visits. Brush before you come.",
+      "by_service": {
+        "consult": "Eat normally. Bring any previous X-rays or prescriptions.",
+        "checkup": "Eat normally and brush before you come.",
+        "emergency": "Eat if you can; don't skip a meal because of the pain. Bring a list of any painkillers you've taken today.",
+        "scaling": "Eat normally beforehand. Your gums may feel tender for a day or two.",
+        "filling": "Have a light meal 1 to 2 hours before. You may be numb for 2 to 3 hours afterwards.",
+        "rct": "Have a proper meal 1 to 2 hours before: you will be numb for 2 to 3 hours afterwards.",
+        "extraction": "Have a light meal about 2 hours before. Please don't come on an empty stomach.",
+        "wisdom": "Have a light meal about 2 hours before, and arrange for someone to take you home.",
+        "aligner": "Eat normally and brush well; we take digital scans of your teeth.",
+        "whitening": "Eat normally. Skip tea, coffee and other coloured food and drink for 48 hours after.",
+        "implant": "Eat normally. Bring any previous X-rays or scans.",
+        "iopa": "No preparation needed.",
+        "opg": "No preparation needed. Remove earrings, nose pins and hair clips before the scan.",
+        "cbct": "No fasting needed. Remove all jewellery, hair clips and removable dentures before the scan."
+      }
+    },
+    "aftercare": {
+      "title": "Aftercare",
+      "by_service": {
+        "scaling": "Some sensitivity for a few days is normal. Use a sensitivity toothpaste and lukewarm water.",
+        "filling": "Wait until the numbness wears off before eating, about 2 hours. Avoid very hard food on that side for a day.",
+        "rct": "Avoid chewing on that side until your last sitting and crown. A temporary filling may feel rough; that is normal.",
+        "extraction": "Bite on the gauze for 30 to 45 minutes. For 24 hours: no spitting, no straws, no smoking, and cold soft food only.",
+        "wisdom": "Bite on the gauze for 45 minutes. Use cold packs on the cheek for the first day, eat soft cold food, and don't spit, rinse hard or use a straw for 24 hours. Stitches are checked after 7 days.",
+        "whitening": "Follow a 'white diet' for 48 hours: no tea, coffee, red sauces, turmeric curries or colas. Mild sensitivity for a day is normal.",
+        "aligner": "Nothing special; your plan and smile preview are emailed within two working days."
+      }
+    },
+    "payment": {
+      "title": "Payment",
+      "text": "We take UPI, debit and credit cards, and cash. Treatments of ₹10,000 or more can be paid in no-cost EMIs on most major credit cards. You pay at the desk after each visit and get an itemised bill every time."
+    },
+    "insurance": {
+      "title": "Insurance",
+      "text": "We are not on any cashless dental network. We give you an itemised bill, prescription and treatment notes for every visit, so you can claim reimbursement from your insurer if your policy covers outpatient dental care. Check your policy's dental cover before your visit."
+    },
+    "what_to_bring": {
+      "title": "What to bring",
+      "text": "Your phone (we confirm visits by SMS), any previous X-rays, scans or prescriptions, and a list of medicines you take. Please arrive 10 minutes early for your first visit."
+    },
+    "late_arrival": {
+      "title": "Running late",
+      "text": "If you're more than 15 minutes late we may need to move you to the next free slot so the next patient isn't kept waiting. Call the branch if you're running late."
+    },
+    "children": {
+      "title": "Children",
+      "text": "We see children from age 4 for check-ups, cleanings and fillings with Dr Rahul or Dr Farah. A parent must stay with children under 18."
+    },
+    "sunday": {
+      "title": "Sundays and holidays",
+      "text": "Both branches are closed on Sundays. For a dental emergency on a Sunday, call our emergency line, +91 98804 71800, and the on-call dentist calls you back."
+    }
+  },
+  "clinical": {
+    "$comment": "What the front desk must not answer. Anything here goes to a dentist through a callback, never as advice.",
+    "topics": [
+      "bleeding that won't stop",
+      "swelling, especially with fever",
+      "which painkiller or antibiotic to take, or how much",
+      "whether to stop a medicine before treatment (blood thinners, diabetes medicine)",
+      "pregnancy and dental treatment",
+      "pain after a procedure that is getting worse"
+    ],
+    "red_flags": "Swelling spreading to the eye, jaw or neck, difficulty breathing or swallowing, or a high fever: go to the nearest hospital emergency department or call 112 now.",
+    "callback_windows": {
+      "urgent": "within 30 minutes",
+      "today": "before the clinic closes today",
+      "routine": "on the next working day"
+    }
+  },
+  "patients": [
+    {
+      "id": "P-1001",
+      "name": "Rohan Mehta",
+      "phone": "9845031726",
+      "age": 34,
+      "since": 2023,
+      "referral": null,
+      "history": [
+        { "service": "consult", "dentist": "dr-sameer", "branch": "indiranagar", "week": -3, "day": "tue", "start": "11:00" },
+        { "service": "iopa", "branch": "indiranagar", "week": -1, "day": "fri", "start": "10:30" },
+        { "service": "rct", "sitting": 1, "dentist": "dr-kavitha", "branch": "indiranagar", "week": -1, "day": "fri", "start": "11:00" }
+      ]
+    },
+    {
+      "id": "P-1002",
+      "name": "Ishita Banerjee",
+      "phone": "9900048213",
+      "age": 27,
+      "since": 2026,
+      "referral": null,
+      "history": []
+    },
+    {
+      "id": "P-1003",
+      "name": "Suresh Gowda",
+      "phone": "9886055102",
+      "age": 52,
+      "since": 2019,
+      "referral": { "from": "Dr P. Anand, Jayanagar", "for": "cbct", "note": "upper left implant planning" },
+      "history": [
+        { "service": "checkup", "dentist": "dr-rahul", "branch": "hsr", "week": -26, "day": "mon", "start": "10:00" }
+      ]
+    }
+  ],
+  "patient_appointments": [
+    { "id": "DT-24051", "patient_id": "P-1001", "service": "rct", "sitting": 2, "dentist": "dr-kavitha", "branch": "indiranagar", "chair": "ind-c1", "week": 1, "day": "mon", "start": "11:00", "duration_min": 60, "changes": 0 },
+    { "id": "DT-24063", "patient_id": "P-1001", "service": "scaling", "dentist": "dr-farah", "branch": "indiranagar", "chair": "ind-c2", "week": 1, "day": "thu", "start": "16:00", "duration_min": 45, "changes": 0 },
+    { "id": "DT-24070", "patient_id": "P-1002", "service": "aligner", "dentist": "dr-nandini", "branch": "hsr", "chair": "hsr-c1", "week": 1, "day": "wed", "start": "15:00", "duration_min": 30, "changes": 1 },
+    { "id": "DT-24078", "patient_id": "P-1003", "service": "checkup", "dentist": "dr-rahul", "branch": "hsr", "chair": "hsr-c2", "anchor": "next_open_day", "start": "10:00", "duration_min": 30, "changes": 0 },
+    { "id": "DT-24082", "patient_id": "P-1003", "service": "opg", "branch": "indiranagar", "resource": "ind-img", "week": 1, "day": "thu", "start": "10:30", "duration_min": 15, "changes": 0 }
+  ]
+}
