@@ -12,7 +12,7 @@ outcomes) is invented.
 | landing | job | on screen |
 | --- | --- | --- |
 | `/programs` (and `/programs/<id>`, `/schools…`, `/`) | **Course advisor** | leads the learner from a broad wish to one programme: a level alone ticks it and gets the areas to choose from, an area alone lists every programme in it and asks which branch, anything more specific marks two or three picks; then the comparison, a programme's page opened at the part asked about (curriculum, fees, outcomes), the scholarship check and the application. Every reply ends on the next step |
-| `/admissions`, `/apply` (and `/scholarships`, `/campus-life`) | **Admissions counsellor** | answers fees, eligibility, deadlines, scholarships, hostel and loan questions from the authored content, scrolling to each section; walks the family through the five-step application (personal, academics, programme, documents, fee), which fills in as they talk. The applicant presses Pay themselves |
+| `/admissions`, `/apply` (and `/scholarships`, `/campus-life`) | **Admissions counsellor** | answers fees, eligibility, deadlines, scholarships, hostel and loan questions from the authored content, scrolling to each section; walks the family through the five-step application (personal, academics, programme, documents, fee) a group of related details per question, filling everything said at once and moving to the next step on a yes; the applicant types mobile and email into boxes the agent rings. The applicant presses Pay themselves |
 
 The job follows the page: when the visitor moves from the finder to `/apply`, the same call becomes
 the counsellor. `CONTRACT.md` is the UI ↔ brain contract: the Stage moves, the state events and the

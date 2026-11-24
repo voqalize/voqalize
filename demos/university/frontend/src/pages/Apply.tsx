@@ -7,6 +7,9 @@ import { type FormField, STEPS, invalid, missingIn, optionsFor, shown } from "..
 import { SCHOOLS, campusNames, nextRound, programById, programsOf, rupees, schoolById } from "../data/catalogue";
 import { useApplication } from "../state/application";
 
+/** Typed by the applicant (U2, X9): personal and slow to dictate. The agent rings their boxes with `site.show`. */
+const TYPED_FIELDS = new Set(["mobile", "email"]);
+
 export function Apply() {
   const [params] = useSearchParams();
   const app = useApplication();
@@ -243,7 +246,12 @@ function TextField({ f, label, help, err }: { f: FormField; label: React.ReactNo
   };
   const id = `f-${f.name}`;
   return (
-    <label className={`field${err ? " is-flagged" : ""}`} htmlFor={id} data-stage-group>
+    <label
+      className={`field${err ? " is-flagged" : ""}`}
+      htmlFor={id}
+      data-stage-group
+      {...(TYPED_FIELDS.has(f.name) ? { "data-stage-thing": f.name, "data-stage-label": f.label } : {})}
+    >
       {label}
       <span className={f.type === "percent" ? "input-suffix" : undefined}>
         <input

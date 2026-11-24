@@ -75,7 +75,7 @@ Generated with, from `demos/`:
 | `catalogue.compare` | compare | look | `first, second, third?` | opens the comparison panel (rows below), rings it. |
 | `site.open` | open | navigate | `program, section?` | navigates to `/programs/<id>` (or stays, when it is open), then scrolls the `section` (overview, eligibility, selection, fees, scholarships, deadlines, outcomes, curriculum, highlights) fully into view and rings it, or rings the title. Refuses an unknown section with the list. The brain also sends it from `program_details` (a `stage_move`), so "show me the curriculum of …" lands on the curriculum. |
 | `site.go` | go | navigate | `page` | `home, programs, admissions, scholarships, campus-life, apply, schools, schools/<id>`. |
-| `site.show` | show | look | `target` | scrolls to and rings `[data-stage-thing="<target>"]` on the page in front; refuses with the names on the page. |
+| `site.show` | show | look | `target` | scrolls to and rings `[data-stage-thing="<target>"]` on the page in front; refuses with the names on the page. On `/apply` step 1 the `mobile` and `email` boxes are things too: the brain rings them for the applicant to type into (U2, X9). |
 | `apply.fill` | fill | reversible | `field, value` | on `/apply` (navigates there first): opens the field's step, rings the input, sets it. Validates against `application.json` (choice ids or labels; percent 0–100; `program` a catalogue id; `campus` one of the programme's campuses; `intake` the programme's intake label; `scholarship` one of the programme's scholarship ids or `none`; documents `uploaded|later`). |
 | `apply.step` | step | look | `step` 1..5 | opens and rings that step. |
 | `apply.next` | next | reversible | — | as Continue: refuses naming required fields still empty. |
@@ -84,6 +84,17 @@ The brain keeps what the voice promises on screen (U1): a sentence that promises
 something with no cue of its own opens the programme it names, or the one in focus, through Stage's
 backstop; on a programme page a sentence naming one of its sections outright rings it (once a turn);
 on `/admissions` the same for its sections.
+
+The application is filled by the brain's `fill_application` tool, never by `{fill}` / `{next}` cues
+(U2): it sends one `apply.fill` per detail said, in the form's order, after checking each against
+`application.json` and the catalogue (a refusal is told in the same turn), plus what a value implies
+(a city's state, a programme's intake and only campus). A detail for a later step waits for it, since a
+fill opens its own step. When a step has everything it needs the agent asks "shall we go to the next
+step?"; a plain yes or "next" sends `apply.next` from the brain itself, and answering the next step's
+question counts as a yes. Mobile and email are typed by the applicant (the boxes are rung); said
+anyway, they are filled once and never confirmed twice. Arriving at the programme step fills the
+programme the conversation was about. While the visitor browses on their own the agent says nothing
+unless spoken to (U3).
 
 Paying is never a move: the applicant presses **Pay ₹<fee> and submit** themselves. The page then shows
 the application number `VRN-27-<5 digits>` and stores the application in localStorage.

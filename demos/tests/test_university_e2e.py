@@ -14,6 +14,11 @@ tool arguments). Each landing page's main flow:
   reference and fills the application with ``apply.fill`` cues (values resolved
   to the form's option ids); a refused cue reaches the model; the family
   presses Pay and the counsellor congratulates them in the next quiet spell.
+- U2 (the owner's call of 25 Nov, replayed): an admission question leads to
+  the admission process, not a comparison; ``fill_application`` fills a group
+  of details at once, rings the mobile and email boxes for typing, tells a
+  refusal, keeps a later step's details for it, and a yes or "next" moves the
+  form on. U3: no offer of help while the visitor browses.
 - A route change (Stage ``hello``) switches the job; Hindi heard, the toggle
   and ``set_language`` move both legs and the page's toggle follows.
 - A dropped brain socket (redial, SDK 0.15.0): the next socket for the same
@@ -868,7 +873,8 @@ async def test_every_two_chunk_split_speaks_like_the_whole_sentence(
 # these pin what the brain now does around it: what the reads return (lead,
 # never pick from a bare area, skip ticks already on screen), the screen
 # moving for "show me", a promise with no cue kept, a read never ending silent,
-# a section talked about ringed, and a page opened by hand offered help once.
+# a section talked about ringed. (Its seventh fix, one offer of help after the
+# visitor opened a page by hand, was removed in U3: see below.)
 
 U1_EXPLORE = "Uh I'm and wanted to explore few undergraduate programs. What else do you have?"
 U1_ENGINEERING = "Engineering."
@@ -1158,44 +1164,6 @@ async def test_u1_pointing_unasked_is_once_and_only_at_a_section_named() -> None
         assert _moves(rig) == [("site.open", {"program": "btech-ai-ml", "section": "scholarships"})]
 
 
-async def test_u1_a_page_opened_by_hand_is_offered_help_once() -> None:
-    """After the fees he clicked through admissions, scholarships and campus
-    life and heard nothing until he hung up. A page the visitor opens by hand
-    now gets one short offer in the next quiet spell; the agent's own
-    navigation does not."""
-    llm = ScriptedOpenAI(
-        {
-            "opened /scholarships": reply(
-                "Shall I check which scholarship you could get for the AI and ML B.Tech?"
-            ),
-            U1_CURRICULUM: [
-                call("program_details", program="btech-ai-ml", section="curriculum"),
-                reply("Here it is. Shall I show you the fees?"),
-            ],
-        }
-    )
-    async with demo("university", llm) as rig:
-        await rig.driver.start_session(init={"landing": "/programs", "lang": "en"})
-        brain = rig.brain
-        assert isinstance(brain, UniversityBrain)
-        await _hello(rig, "/scholarships")
-        assert brain._talk is not None  # pyright: ignore[reportPrivateUsage]
-        idle = await rig.driver.user_idle()
-        check_turn(rig, idle, units=1)
-        assert "opened /scholarships themselves" in _last_input(llm)
-
-        # Once a page: back on it later, no second offer.
-        await _hello(rig, "/campus-life")
-        await rig.driver.user_says("hmm")
-        await _hello(rig, "/scholarships")
-        assert brain._talk is None  # pyright: ignore[reportPrivateUsage]
-
-        # The agent's own move: the page it opened is not "opened by hand".
-        await rig.driver.user_says(U1_CURRICULUM)
-        await _hello(rig, "/programs/btech-ai-ml")
-        assert brain._talk is None  # pyright: ignore[reportPrivateUsage]
-
-
 async def test_the_form_note_lists_what_is_filled_so_nothing_is_asked_twice() -> None:
     """The insurance lesson (I1) on /apply: what the form holds reaches the model
     before its turn, with the rule to ask only for one thing still empty."""
@@ -1220,6 +1188,7 @@ async def test_the_form_note_lists_what_is_filled_so_nothing_is_asked_twice() ->
         await rig.driver.user_says("What next?")
         sent = _last_input(llm)
         assert "class12_percent" in sent and "Never ask again for anything filled" in sent
+        assert "step 2 of 5" in sent
         await rig.driver.user_says("Okay.")
         assert _last_input(llm).count("Never ask again for anything filled") == 1
 
@@ -1240,3 +1209,426 @@ def test_an_area_or_level_is_not_an_interest() -> None:
     assert interest_words("engineering") == set()
     assert interest_words("undergraduate programs B.Tech") == set()
     assert interest_words("computer science engineering") == {"computer", "science"}
+
+
+# ─── U2: the owner's call of 25 Nov, replayed ───────────────────────────────
+#
+# "One of the most disastrous demos." Asking about admission led to a
+# comparison; the application went one field per question, "noted" with
+# nothing filled, the email confirmed twice, and the form never moved on. His
+# words, as the recognizer wrote them, through the real brain.
+
+U2_ADMISSION = (
+    "I'm looking for an undergraduate admission into uh computer science and artificial "
+    "intelligence uh program"
+)
+U2_NOT_COMPARE = (
+    "Why do you want to compare? I I need exactly need to go to my uh process for admission "
+    "for big tech CSC. in artificial intelligence and machine learning."
+)
+U2_START = "Yes, please."
+U2_NAME = "S A M K E E T J A I N, twenty second October nineteen ninety six, and I'm male."
+U2_CONTACT = "Mobile number is 8147-514179 and email is samkeit.jane 2210.gmail.com."
+U2_CITY = "Bangalore. My father's name is Gathenja Kumara."
+U2_TYPED = "I've typed the email in now."
+U2_YES = "Yeah."
+U2_ACADEMICS = (
+    "State board for both, fifty four percent in class ten, physics chemistry maths, passed "
+    "with ninety eight percent, and I'll take VUSAT."
+)
+U2_CAMPUS = "Banglaru, and yes I need a hostel, twin sharing AC."
+U2_NEXT = "Next."
+
+
+async def _form_reports(rig: DemoRig, by: str, step: int, filled: list[str], **shared: str) -> None:
+    await rig.driver.send_ui_event(
+        "stage_event",
+        {
+            "name": "application.changed",
+            "by": by,
+            "data": {"filled": filled, "missing": [], "step": step, **shared},
+        },
+    )
+    await asyncio.sleep(0.1)
+
+
+def _fills(rig: DemoRig) -> list[tuple[str, str]]:
+    return [(a["field"], a["value"]) for m, a in _moves(rig) if m == "apply.fill"]
+
+
+async def test_u2_an_admission_question_goes_to_admission_never_to_a_comparison() -> None:
+    """Turns 1-2: "undergraduate admission into computer science and AI" picked
+    three programmes and offered to compare them."""
+    llm = ScriptedOpenAI(
+        {
+            U2_ADMISSION: [
+                call(
+                    "find_programs",
+                    level="ug",
+                    school="engineering",
+                    interests="computer science and artificial intelligence",
+                ),
+                reply(
+                    "{pick: btech-ai-ml} B.Tech CSE in AI and Machine Learning is the one. "
+                    "{open: btech-ai-ml | selection} You apply online, then take VUSAT or send a "
+                    "JEE Main score. Shall we start your application now?"
+                ),
+            ],
+            U2_NOT_COMPARE: [
+                call("program_details", program="btech-ai-ml", section="selection"),
+                reply("Shall we start your application now?"),
+            ],
+        }
+    )
+    async with demo("university", llm) as rig:
+        await rig.driver.start_session(init={"landing": "/", "lang": "en"})
+        turn = await rig.driver.user_says(U2_ADMISSION)
+        check_turn(rig, turn, units=1)
+        sent = _last_input(llm)
+        assert "They are asking about ADMISSION" in sent and "never to a comparison" in sent
+        found = "".join(tool_results_of(llm.captured_inputs[-1], "find_programs"))
+        assert "Do not offer a comparison" in found and "{open: id | selection}" in found
+        assert ("site.open", ["btech-ai-ml", "selection"]) in _cues(rig)
+        assert not [c for c in _cues(rig) if c[0] == "catalogue.compare"]
+
+        turn = await rig.driver.user_says(U2_NOT_COMPARE)
+        check_turn(rig, turn, units=1)
+        assert "They are asking about ADMISSION" in _last_input(llm)
+
+
+async def test_u2_the_application_goes_a_group_at_a_time_and_moves_on() -> None:
+    """Turns 5-29: every detail filled the moment it is said, a group per
+    question, mobile and email typed into ringed boxes, a refused value told,
+    and a yes (or "next") moving the form on."""
+    llm = ScriptedOpenAI(
+        {
+            U2_START: reply(
+                "{go: apply} Let's start your application. Tell me your full name, date of birth "
+                "and gender, and please type your mobile number and email in the two highlighted "
+                "boxes."
+            ),
+            U2_NAME: [
+                call(
+                    "fill_application",
+                    values=[
+                        {"field": "full_name", "value": "Samkeet Jain"},
+                        {"field": "date_of_birth", "value": "22 Oct 1996"},
+                        {"field": "gender", "value": "male"},
+                    ],
+                ),
+                reply("Done. Which city do you live in, and what is a parent's name?"),
+            ],
+            U2_CONTACT: [
+                call(
+                    "fill_application",
+                    values=[
+                        {"field": "mobile", "value": "8147-514179"},
+                        {"field": "email", "value": "samkeit.jane2210.gmail.com"},
+                    ],
+                ),
+                reply("Your mobile is in; the email needs an @, so please type it in its box."),
+            ],
+            U2_CITY: [
+                call(
+                    "fill_application",
+                    values=[
+                        {"field": "city", "value": "Bangalore"},
+                        {"field": "parent_name", "value": "Gathenja Kumara"},
+                    ],
+                ),
+                reply("Bangalore, Karnataka and your father's name are in."),
+            ],
+            U2_TYPED: reply("Thanks. If that looks right, shall we go to the next step?"),
+            U2_YES: [
+                reply("Which boards were your Class 10 and 12, and what did you score?"),
+                reply("Bengaluru or Pune, and do you need a hostel room?"),
+            ],
+            U2_ACADEMICS: [
+                call(
+                    "fill_application",
+                    values=[
+                        {"field": "class10_board", "value": "State board"},
+                        {"field": "class10_percent", "value": "54"},
+                        {"field": "class12_board", "value": "state"},
+                        {"field": "class12_stream", "value": "Science (PCM)"},
+                        {"field": "class12_status", "value": "passed"},
+                        {"field": "class12_percent", "value": "98%"},
+                        {"field": "entrance_exam", "value": "vusat"},
+                    ],
+                ),
+                reply("All filled. If that looks right, shall we go to the next step?"),
+            ],
+            U2_CAMPUS: [
+                call(
+                    "fill_application",
+                    values=[
+                        {"field": "campus", "value": "Bengaluru"},
+                        {"field": "hostel", "value": "yes"},
+                        {"field": "room_type", "value": "Twin sharing, AC"},
+                    ],
+                ),
+                reply("Bengaluru with a twin AC room. Shall we go to the next step?"),
+            ],
+            U2_NEXT: reply("Will you upload your documents now, or later?"),
+        }
+    )
+    async with demo("university", llm) as rig:
+        await rig.driver.start_session(init={"landing": "/programs/btech-ai-ml", "lang": "en"})
+        brain = rig.brain
+        assert isinstance(brain, UniversityBrain) and brain.focus == "btech-ai-ml"
+
+        # Starting: the form opens and the two boxes they type into are ringed.
+        await rig.driver.user_says(U2_START)
+        await _hello(rig, "/apply")
+        assert ("site.show", {"target": "mobile"}) in _moves(rig)
+        assert ("site.show", {"target": "email"}) in _moves(rig)
+
+        # Three details in one answer: all three filled at once.
+        turn = await rig.driver.user_says(U2_NAME)
+        check_turn(rig, turn, units=1)
+        assert _fills(rig) == [
+            ("full_name", "Samkeet Jain"),
+            ("date_of_birth", "22 Oct 1996"),
+            ("gender", "male"),
+        ]
+        result = "".join(tool_results_of(llm.captured_inputs[-1], "fill_application"))
+        assert "Filled on their screen now" in result
+        assert "together in ONE natural question: city and a parent's or guardian's name" in result
+        assert "mobile number and email: ask them to type it themselves" in result
+        await _form_reports(rig, "agent", 1, ["full_name", "date_of_birth", "gender"])
+
+        # Dictated anyway: the mobile goes in once, the email the form would
+        # refuse is not sent and is told, never confirmed twice.
+        turn = await rig.driver.user_says(U2_CONTACT)
+        check_turn(rig, turn, units=1)
+        assert _fills(rig)[-1] == ("mobile", "8147514179")
+        assert "email" not in dict(_fills(rig))
+        result = "".join(tool_results_of(llm.captured_inputs[-1], "fill_application"))
+        assert "NOT filled" in result and "not an email address" in result
+        assert "never ask them to confirm one" in result
+
+        # A city fills its state: never "which state is Bangalore in?".
+        await rig.driver.user_says(U2_CITY)
+        assert _fills(rig)[-3:] == [
+            ("city", "Bangalore"),
+            ("state", "karnataka"),
+            ("parent_name", "Gathenja Kumara"),
+        ]
+        step1 = ["full_name", "date_of_birth", "gender", "mobile", "city", "state", "parent_name"]
+        await _form_reports(rig, "agent", 1, step1)
+        await _form_reports(rig, "visitor", 1, [*step1, "email"])
+
+        # Step 1 complete: the note says so and asks the confirm question.
+        await rig.driver.user_says(U2_TYPED)
+        sent = _last_input(llm)
+        assert "Step 1 is complete" in sent and "shall we go to the next step?" in sent
+
+        # "Yeah." moves the form on in the brain, before the model says a word.
+        before = len(_moves(rig))
+        turn = await rig.driver.user_says(U2_YES)
+        check_turn(rig, turn, units=1)
+        assert ("apply.next", {}) in _moves(rig)[before:]
+        sent = _last_input(llm)
+        assert "They said yes: the form moved on to step 2 of 5, Academics" in sent
+        assert "Class 10 board, Class 10 percentage, Class 12 board" in sent
+
+        # Step 2 in one answer, every value as the form names it.
+        await rig.driver.user_says(U2_ACADEMICS)
+        assert _fills(rig)[-7:] == [
+            ("class10_board", "state"),
+            ("class10_percent", "54"),
+            ("class12_board", "state"),
+            ("class12_stream", "science_pcm"),
+            ("class12_status", "passed"),
+            ("class12_percent", "98"),
+            ("entrance_exam", "vusat"),
+        ]
+        result = "".join(tool_results_of(llm.captured_inputs[-1], "fill_application"))
+        assert "Step 2 is complete" in result
+
+        # Yes again: on to the programme step, with the programme they chose and
+        # its only intake filled on arrival.
+        before = len(_moves(rig))
+        await rig.driver.user_says(U2_YES)
+        assert ("apply.next", {}) in _moves(rig)[before:]
+        assert _fills(rig)[-2:] == [("program", "btech-ai-ml"), ("intake", "July 2027")]
+        sent = _last_input(llm)
+        assert "step 3 of 5, Programme choice" in sent
+        assert "campus and whether they need a hostel room" in sent
+
+        await rig.driver.user_says(U2_CAMPUS)
+        assert _fills(rig)[-3:] == [
+            ("campus", "bengaluru"),
+            ("hostel", "yes"),
+            ("room_type", "twin_ac"),
+        ]
+
+        # "Next." moves it on too.
+        before = len(_moves(rig))
+        await rig.driver.user_says(U2_NEXT)
+        assert ("apply.next", {}) in _moves(rig)[before:]
+        assert "step 4 of 5, Documents" in _last_input(llm)
+
+
+async def test_u2_a_fill_claimed_and_not_made_is_told_to_the_model() -> None:
+    """Turns 15-19: "State board, noted." "Passed, noted." with an empty form."""
+    llm = ScriptedOpenAI(
+        {"Air past.": reply("Passed, noted. Have you taken VUSAT or JEE Main, or neither?")}
+    )
+    async with demo("university", llm) as rig:
+        await rig.driver.start_session(init={"landing": "/apply", "lang": "en"})
+        await rig.driver.user_says("Air past.")
+        await rig.driver.user_says("Neither.")
+        sent = _last_input(llm)
+        assert 'You said "Passed, noted."' in sent and "it is NOT on their form" in sent
+
+
+async def test_u2_a_step_with_something_empty_does_not_move_on() -> None:
+    """A yes while the form still needs something: it stays, and the model is
+    told what is missing, never that it moved."""
+    llm = ScriptedOpenAI()
+    async with demo("university", llm) as rig:
+        await rig.driver.start_session(init={"landing": "/apply", "lang": "en"})
+        await _form_reports(rig, "visitor", 1, ["full_name", "gender"])
+        await rig.driver.user_says("Next.")
+        assert ("apply.next", {}) not in _moves(rig)
+        sent = _last_input(llm)
+        assert "still needs" in sent and "date of birth" in sent
+
+
+def test_u2_the_prompt_groups_questions_and_fills_with_the_tool() -> None:
+    from voqalize_demos._loaded.university.prompt import system_instruction
+
+    text = system_instruction()
+    assert "ONE thing at a time" not in text
+    assert "Ask for a GROUP of related details in ONE natural question" in text
+    assert "{fill:" not in text and "{next}" not in text
+    assert "ADMISSION is not a comparison" in text
+    assert "they type them" in text
+
+
+# ─── U3: quiet while the visitor browses ────────────────────────────────────
+
+
+async def test_u3_a_page_opened_by_hand_gets_no_offer_of_help() -> None:
+    """U1 added one offer of help seven seconds after the visitor opened a page
+    by hand; it spoke into his quiet browsing, and is gone."""
+    llm = ScriptedOpenAI()
+    async with demo("university", llm) as rig:
+        await rig.driver.start_session(init={"landing": "/programs", "lang": "en"})
+        brain = rig.brain
+        assert isinstance(brain, UniversityBrain)
+        before = len(llm.captured_inputs)
+        for route in ("/scholarships", "/campus-life", "/admissions"):
+            await _hello(rig, route)
+            assert brain._talk is None  # pyright: ignore[reportPrivateUsage]
+        await rig.driver.user_idle()
+        assert len(llm.captured_inputs) == before
+        idles = [
+            r.config.idle.timeout_ms
+            for r in rig.driver.requests
+            if isinstance(r, ConfigureFrame) and r.config.idle is not None
+        ]
+        assert 7000 not in idles
+
+
+async def test_u2_details_for_a_later_step_wait_for_it_and_neither_exam_is_told() -> None:
+    """The real-model check: with his name it also filled his Class 12 marks and
+    the programme, and the form jumped to step 3 with step 1 half done. A detail
+    for a later step now waits for that step. And turn 19: "Neither." went in
+    as "not needed" for a B.Tech that needs VUSAT or JEE Main."""
+    llm = ScriptedOpenAI(
+        {
+            U2_NAME: [
+                call(
+                    "fill_application",
+                    values=[
+                        {"field": "full_name", "value": "Samkeet Jain"},
+                        {"field": "class12_percent", "value": "98"},
+                        {"field": "program", "value": "btech-ai-ml"},
+                    ],
+                ),
+                reply("Done. Your city and a parent's name?"),
+            ],
+            "Neither.": [
+                call("fill_application", values=[{"field": "entrance_exam", "value": "none"}]),
+                reply("This programme needs VUSAT or JEE Main: shall I put down VUSAT?"),
+            ],
+        }
+    )
+    async with demo("university", llm) as rig:
+        await rig.driver.start_session(init={"landing": "/programs/btech-ai-ml", "lang": "en"})
+        await _hello(rig, "/apply")
+        await rig.driver.user_says(U2_NAME)
+        assert _fills(rig) == [("full_name", "Samkeet Jain")]
+        result = "".join(tool_results_of(llm.captured_inputs[-1], "fill_application"))
+        assert "Kept for a later step" in result and "Class 12 percentage and programme" in result
+        assert "step 1 of 5" in result
+
+        # Step 1 done (the rest typed by them): "Next." moves on, and the kept
+        # marks go in on arriving at step 2 (the programme waits for step 3).
+        step1 = ["full_name", "date_of_birth", "gender", "mobile", "email", "city", "state"]
+        await _form_reports(rig, "visitor", 1, [*step1, "parent_name"])
+        await rig.driver.user_says(U2_NEXT)
+        assert ("apply.next", {}) in _moves(rig)
+        assert _fills(rig)[-1] == ("class12_percent", "98")
+        assert ("program", "btech-ai-ml") not in _fills(rig)
+
+        # "none" for the exam of a programme that needs one is refused, with its tests.
+        await rig.driver.user_says("Neither.")
+        result = "".join(tool_results_of(llm.captured_inputs[-1], "fill_application"))
+        assert "NOT filled" in result and "VUSAT 2027 or JEE Main" in result
+        assert ("entrance_exam", "none") not in _fills(rig)
+
+
+async def test_u2_answering_the_next_steps_question_moves_the_form_on() -> None:
+    """The real-model check: to "shall we go to the next step?" he answered the
+    next step's question ("Banglaru, and a hostel"). With this step complete,
+    that is a yes: the form moves on and the answers go in."""
+    llm = ScriptedOpenAI(
+        {
+            U2_CAMPUS: [
+                call(
+                    "fill_application",
+                    values=[
+                        {"field": "campus", "value": "bengaluru"},
+                        {"field": "hostel", "value": "yes"},
+                    ],
+                ),
+                reply("Bengaluru with a hostel room, done."),
+            ],
+        }
+    )
+    async with demo("university", llm) as rig:
+        await rig.driver.start_session(init={"landing": "/programs/btech-ai-ml", "lang": "en"})
+        await _hello(rig, "/apply")
+        step2 = ["class10_board", "class10_percent", "class12_board", "class12_stream"]
+        done = ["full_name", "date_of_birth", "gender", "mobile", "email", "city", "state"]
+        await _form_reports(
+            rig, "visitor", 2, [*done, "parent_name", *step2, "class12_status", "entrance_exam"]
+        )
+        await rig.driver.user_says(U2_CAMPUS)
+        assert ("apply.next", {}) in _moves(rig)
+        assert _fills(rig) == [
+            ("program", "btech-ai-ml"),
+            ("campus", "bengaluru"),
+            ("intake", "July 2027"),
+            ("hostel", "yes"),
+        ]
+        result = "".join(tool_results_of(llm.captured_inputs[-1], "fill_application"))
+        assert "the form moved on to step 3 of 5" in result
+
+
+def test_u2_the_fill_tool_names_every_field_of_the_form() -> None:
+    from typing import get_args
+
+    from voqalize_demos._loaded.university.brain import FieldName
+    from voqalize_demos._loaded.university.data import application
+    from voqalize_demos._loaded.university.form import GROUPS, SAID
+
+    names = [f.name for s in application().steps for f in s.fields]
+    assert list(get_args(FieldName)) == names
+    assert set(SAID) == set(names)
+    assert {n for g in GROUPS.values() for grp in g for n in grp} | {"mobile", "email"} == set(
+        names
+    )

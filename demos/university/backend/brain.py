@@ -36,15 +36,25 @@ the same turn (U1).
 the visitor asked to hear owes a written answer (``owe``), said by the brain
 when the model's turn says nothing after the tool ran; a sentence promising the
 screen with no cue is kept by Stage's backstop (``_auto_cues``) or, failing
-that, at the end of the turn (``_keep``); a page the visitor opens by hand gets
-one offer of help in the next quiet spell.
+that, at the end of the turn (``_keep``). While the visitor browses on their
+own the agent stays quiet unless spoken to (U3).
+
+**The application, a step at a time** (U2, the owner's call of 25 Nov):
+``fill_application`` fills every detail said in one go, checks each against
+the form first, fills what a value implies (a city's state, a programme's
+intake), and returns what landed, what was refused and what the step still
+needs, with the next question to ask (a group of related details, never one
+field at a time). A finished step is offered as "shall we go to the next
+step?", and a plain yes moves the form on (the brain does it, so it never
+waits on the model). Mobile and email are typed by the applicant in boxes the
+agent rings (X9). An admission question goes to the admission process, never
+to a comparison (``backend/form.py``).
 """
 
 from __future__ import annotations
 
 import contextlib
 import re
-import time
 from collections.abc import AsyncGenerator, Sequence
 from contextvars import ContextVar
 from dataclasses import dataclass, field
@@ -72,15 +82,14 @@ from voqalize.sdk import (
 from voqalize.sdk.openai import OpenAIBrain
 from voqalize.sdk.stage import AutoCue, Dropped, Mirror, Move, RawCue, Stage, match_label
 from voqalize.sdk.stage.wire import (
-    StageCue,
     StageEvent,
     StageHello,
-    StageMove,
     StageProgress,
     StageResult,
 )
 from voqalize.sdk.wire import Config, IdleConfig, RedialConfig, SttConfig, TtsConfig
 
+from . import form
 from .data import CampusId, Level, Mode, SchoolId, Stream, application, catalogue, persona
 from .finder import (
     SECTIONS,
@@ -108,11 +117,6 @@ REASONING = "medium"
 
 #: A quiet spell this long is not spoken into: a family reading the screen is not nudged.
 _IDLE_MS = 15000
-#: The quiet spell after the visitor opened another page by hand: one offer of help
-#: there, tied to what they asked for (X4: lead).
-_NAV_IDLE_MS = 7000
-#: A route change this soon after one of the agent's own moves is the agent's.
-_AGENT_NAV_S = 12.0
 #: The quiet spell after the applicant submitted: the congratulation comes now.
 _REACT_IDLE_MS = 1500
 
@@ -222,6 +226,65 @@ class EligibilityRequest(BaseModel):
 
 class LanguageRequest(BaseModel):
     language: Literal["en", "hi"]
+
+
+FieldName = Literal[
+    "full_name",
+    "date_of_birth",
+    "gender",
+    "mobile",
+    "email",
+    "city",
+    "state",
+    "parent_name",
+    "class10_board",
+    "class10_percent",
+    "class12_board",
+    "class12_stream",
+    "class12_status",
+    "class12_percent",
+    "graduation_degree",
+    "graduation_percent",
+    "entrance_exam",
+    "entrance_score",
+    "program",
+    "campus",
+    "intake",
+    "hostel",
+    "room_type",
+    "scholarship",
+    "doc_class10",
+    "doc_class12",
+    "doc_graduation",
+    "doc_score",
+    "doc_photo_id",
+    "doc_photo",
+    "doc_income",
+    "pay_method",
+    "declaration",
+]
+
+
+class FieldValue(BaseModel):
+    field: FieldName
+    value: str = Field(
+        description="As they said it, or the option id: 'Samkeet Jain', '22 Oct 1996', 'male', "
+        "'state', '93.5', 'science_pcm', 'passed', 'btech-ai-ml', 'bengaluru', 'yes', 'later'."
+    )
+
+
+class FillRequest(BaseModel):
+    """Every application detail they just gave, and whether to move on a step."""
+
+    values: list[FieldValue] = Field(
+        default_factory=list,
+        description="One entry per field they gave in this turn (all of them, never one at a "
+        "time), plus any they gave earlier in the call that the form does not hold yet.",
+    )
+    next_step: bool = Field(
+        False,
+        description="True when they said yes to going to the next step, or asked for next.",
+    )
 
 
 # ─── Hindi heard ────────────────────────────────────────────────────────────
@@ -494,6 +557,47 @@ def _program_named(sentence: str) -> str | None:
     return max(hits, key=lambda p: len(p.name)).id if hits else None
 
 
+# ─── The application flow (U2) ──────────────────────────────────────────────
+
+#: An admission question: "undergraduate admission into computer science",
+#: "how do I apply", "the process for admission".
+_ADMISSION = re.compile(
+    r"\b(?:admissions?|admit|apply|applying|application|enrol+|enrol+ment|get(?:ting)? in(?:to)?)\b",
+    re.IGNORECASE,
+)
+
+ADMISSION_NOTE = (
+    "[They are asking about ADMISSION: lead to the admission process and the application, "
+    "never to a comparison. With one programme in mind, call program_details for it with "
+    "section selection (its admission process opens on screen), say the steps in one or two "
+    "sentences, and offer to start the application now. If the programme is not clear yet, "
+    "find it with find_programs and name the one that fits.]"
+)
+
+#: A plain yes to "shall we go to the next step?", and asking to move on outright.
+_YES = re.compile(
+    r"^(?:yes|yeah|yep|yup|ya|ok|okay|sure|correct|right|fine|perfect|done|go ahead|"
+    r"haan|haan ji|ha|ji|theek hai|looks (?:right|good|fine)|that(?:'s| is) (?:right|correct|fine))"
+    r"(?:[ ,]+(?:please|go ahead|let's go|sure|yes|ji|it is|it does|looks good))*[.!]*$"
+)
+_NEXT = re.compile(
+    r"^(?:(?:yes|yeah|ok|okay)[ ,]+)?(?:let's |please )?(?:go to the |move to the |on to the )?"
+    r"(?:next(?: step| page)?|continue|move on|proceed|aage (?:chalo|chaliye|badho))(?: please)?[.!]*$"
+)
+
+#: A sentence that says a value went into the form.
+_CLAIM = re.compile(
+    r"\b(?:noted|filled|entered|recorded|selected|marked|saved|updated|put (?:it|that|this) down|"
+    r"added)\b",
+    re.IGNORECASE,
+)
+
+
+def _said_list(names: Sequence[str]) -> str:
+    said = [form.SAID.get(n, n) for n in names]
+    return said[0] if len(said) == 1 else f"{', '.join(said[:-1])} and {said[-1]}"
+
+
 # ─── The brain ──────────────────────────────────────────────────────────────
 
 #: What a brain holds for one socket only: the session object and the speech
@@ -526,13 +630,27 @@ class UniversityBrain(OpenAIBrain):
         )
         #: The programme the conversation is about: what "show me that" opens.
         self.focus: str | None = None
-        #: When the agent last sent a move: a route change soon after is its own.
-        self._moved_at = 0.0
         #: Programme pages opened (or asked to open) this turn, as (id, section):
         #: a second open of the same one, from a cue or the backstop, is not sent.
         self._opened: set[tuple[str, str | None]] = set()
-        #: Pages the visitor opened by hand that were offered help once already.
-        self._offered: set[str] = set()
+        #: The application as this brain knows it (U2): the values it filled (and
+        #: the non-personal ones the page reports), the step in front, the fill
+        #: each pending ``apply.fill`` carries, the step it offered to move on
+        #: from, and whether the boxes they type into were rung.
+        self._form: dict[str, str] = {}
+        self._step = 1
+        self._fill_refs: dict[str, str] = {}
+        #: Details given for a later step, filled when the form reaches it: a
+        #: fill opens its own step, and the form must not jump ahead (U2).
+        self._later: dict[str, str] = {}
+        self._ready: int | None = None
+        self._rung_typed = False
+        #: This user turn: the form moved on already; something was filled.
+        self._advanced = False
+        self._filled = False
+        #: They asked about admission: lead to the process and the application,
+        #: never to a comparison (U2).
+        self._admission = False
         #: The application as last told to the model, so a note goes only on a change.
         self._form_told: str | None = None
         self._fallback = FallbackLine()
@@ -580,6 +698,8 @@ class UniversityBrain(OpenAIBrain):
                 self.lang = "hi" if lang == "hi" else "en"
             self.path = route_of(str(init.get("landing") or "/"))
             self.job = job_for(self.path)
+            if self.path.startswith("/programs/") and catalogue().program(self.path[10:]):
+                self.focus = self.path[10:]
         REJOIN.hold(session.id, self)
         self._unheard_greeting = greeting(self.job, self.lang) if rejoined else None
         config = self._config(self.lang)
@@ -644,13 +764,21 @@ class UniversityBrain(OpenAIBrain):
                 "[They are speaking Hindi: the call is now in Hindi. Answer in Hindi.]"
             )
         self._heard_recent = [*self._heard_recent[-2:], msg.text]
-        if self.path == "/apply" and (form := self._form_note()) is not None:
-            self.append_note(form)
+        self._advanced = False
+        self._filled = False
+        moved = self._yes_moves_on(msg.text) if self.path == "/apply" else None
+        if self.path == "/apply" and (note := self._form_note()) is not None and moved is None:
+            self.append_note(note)
         # The turn is in the history once this returns; the model reads it lazily,
         # so a note added now comes right after the visitor's words.
         turn = super().on_user_message(session, msg)
         if (said := amounts_note(msg.text)) is not None:
             self.append_note(said)
+        if moved is not None:
+            self.append_note(moved)
+        if self.path != "/apply" and _ADMISSION.search(msg.text):
+            self._admission = True
+            self.append_note(ADMISSION_NOTE)
         async for event in turn:
             yield event
 
@@ -686,6 +814,7 @@ class UniversityBrain(OpenAIBrain):
                 _TURN.reset(token)
         for unkept in self.stage.end_turn():
             self._keep(unkept.move.id, unkept.sentence)
+        self._claimed_unfilled(record.said)
 
     async def _scripted(
         self, session: Session, turn: AsyncGenerator[Speech, None]
@@ -716,10 +845,7 @@ class UniversityBrain(OpenAIBrain):
     # ─── Keeping what the voice promised on screen ──────────────────────
 
     def _dispatch(self, action: Action) -> None:
-        """Every Stage move goes out here: noted, so a route change soon after
-        is known as the agent's, and a programme page opened is not opened twice."""
-        if isinstance(action, StageMove | StageCue):
-            self._moved_at = time.monotonic()
+        """Every Stage move goes out here."""
         self.session.dispatch(action)
 
     def _send(self, move: str, args: dict[str, Any]) -> str | None:
@@ -734,6 +860,8 @@ class UniversityBrain(OpenAIBrain):
         """``resolve_cue``, and the programme in focus followed: a programme page
         the voice opens is what "show me that" means next."""
         out = resolve_cue(move, args)
+        if out is not None and move.id == "apply.fill":
+            self._filled = True
         if out is not None and move.id == "site.open":
             self.focus = out[0]
             self._opened.add((out[0], out[1] if len(out) > 1 else None))
@@ -804,21 +932,216 @@ class UniversityBrain(OpenAIBrain):
             "with the cue or tool, or say plainly that you cannot.]"
         )
 
+    # ─── The application, a step at a time (U2) ─────────────────────────
+
+    def _known(self) -> set[str]:
+        """The fields that hold something: as the page last reported them, and
+        what this brain filled since (its fills are on their way)."""
+        shown = self.stage.mirror.value("application") if self.stage.mirror else None
+        return {str(f) for f in (shown or {}).get("filled") or []} | set(self._form)
+
+    def _page_form(self, data: dict[str, Any]) -> None:
+        """An ``application.*`` event folded into what this brain knows: the step
+        in front, the non-personal values, and a field emptied on the page."""
+        step = data.get("step")
+        if isinstance(step, int):
+            self._step = step
+        for k, v in data.items():
+            if application().field(k) is not None and v not in (None, ""):
+                self._form[k] = str(v)
+        filled = data.get("filled")
+        if isinstance(filled, list):
+            pending = set(self._fill_refs.values())
+            for k in [k for k in self._form if k not in filled and k not in pending]:
+                del self._form[k]
+
+    def _fill(
+        self, said: dict[str, str], *, defer: bool = True
+    ) -> tuple[list[tuple[str, str]], list[tuple[str, str]]]:
+        """Fill every value said, in the form's order, each checked first (so a
+        refusal is known now) and with what it implies (a city's state, a
+        programme's intake). A value for a later step is kept for it (``defer``),
+        never sent now: a fill opens its own step. Returns what was sent and
+        what was refused, why."""
+        filled: list[tuple[str, str]] = []
+        refused: list[tuple[str, str]] = []
+        known = self._known()
+        queue = sorted(said.items(), key=lambda kv: form.order(kv[0]))
+        i = 0
+        while i < len(queue):
+            raw_name, raw = queue[i]
+            i += 1
+            resolved = resolve_fill(raw_name, raw)
+            if resolved is None:
+                refused.append((raw_name, f"the application has no field {raw_name!r}"))
+                continue
+            name, value = resolved
+            if name == "mobile":
+                value = re.sub(r"[^\d+]", "", value)
+            if defer and (application().step_of(name) or 0) > self._step:
+                self._later[name] = value
+                continue
+            self._later.pop(name, None)
+            focus = self._later.get("program") or self.focus
+            if (why := form.check(name, value, self._form, focus)) is not None:
+                refused.append((name, why))
+                continue
+            if name in known and self._form.get(name) == value:
+                continue
+            ref = self._send("apply.fill", {"field": name, "value": value})
+            if ref is not None:
+                self._fill_refs[ref] = name
+            self._form[name] = value
+            known.add(name)
+            filled.append((name, value))
+            self._step = application().step_of(name) or self._step
+            extra = [(k, v) for k, v in form.implied(name, value, known).items() if k not in said]
+            if extra:
+                queue[i:] = sorted([*queue[i:], *extra], key=lambda kv: form.order(kv[0]))
+        if filled:
+            self._filled = True
+            logger.info("university: filled {}", [n for n, _ in filled])
+        if refused:
+            logger.info("university: refused {}", refused)
+        return filled, refused
+
+    def _advance(self) -> tuple[bool, list[str], list[tuple[str, str]]]:
+        """Move the form on from the step in front, when nothing it needs is
+        empty: whether it moved, what is still empty, and what was filled on
+        arriving (the programme in focus, on the programme step)."""
+        if self._advanced:
+            return True, [], []
+        missing = form.needs(self._step, self._known(), self._form)
+        if missing or self._step >= form.last_step():
+            return False, missing, []
+        self._send("apply.next", {})
+        self._step += 1
+        self._ready = None
+        self._advanced = True
+        logger.info("university: application on to step {}", self._step)
+        due = {k: v for k, v in self._later.items() if application().step_of(k) == self._step}
+        if self._step == 3 and "program" not in self._known() and self.focus is not None:
+            due.setdefault("program", self.focus)
+        auto, refused = self._fill(due) if due else ([], [])
+        if refused:
+            self.append_note(
+                "[Kept from earlier and NOT filled: "
+                + "; ".join(f"{form.SAID.get(n, n)}: {why}" for n, why in refused)
+                + ". Ask for it again.]"
+            )
+        return True, [], auto
+
+    def _ring_typed(self) -> None:
+        """Ring the mobile and email boxes, once a call, for the applicant to type
+        into themselves (X9)."""
+        if self._rung_typed or self._step != 1:
+            return
+        todo = [f for f in form.TYPED if f not in self._known()]
+        if not todo:
+            return
+        self._rung_typed = True
+        for name in todo:
+            self._send("site.show", {"target": name})
+
+    def _yes_moves_on(self, text: str) -> str | None:
+        """On /apply, "yes" to "shall we go to the next step?" (or "next") moves
+        the form on now, in the brain, so it never waits on the model; the
+        note for the model says where the form is and what to ask."""
+        words = text.strip().lower()
+        nxt = _NEXT.search(words) is not None
+        yes = self._ready == self._step and _YES.match(words) is not None
+        if not (yes or nxt):
+            return None
+        moved, missing, auto = self._advance()
+        if not moved:
+            if not missing:
+                return None
+            return (
+                f"[They want to move on, but step {self._step} still needs: "
+                f"{_said_list(missing)}. Ask for those (they type mobile and email "
+                "themselves).]"
+            )
+        return f"[They said yes: {self._where(moved=True, auto=auto)}]"
+
+    def _where(self, *, moved: bool, auto: list[tuple[str, str]]) -> str:
+        """Where the form is now and the one question to ask next."""
+        known = self._known()
+        step = self._step
+        parts = [
+            f"{'the form moved on to' if moved else 'The form is on'} step {step} of "
+            f"{form.last_step()}, {form.title(step)}, on their screen"
+            + (" (write no next or step cue)." if moved else ".")
+        ]
+        if auto:
+            parts.append(
+                "Filled with it: "
+                + "; ".join(f"{form.SAID[n]}: {form.said_value(n, v)}" for n, v in auto)
+                + "."
+            )
+        parts.append(self._ask_line(step, known))
+        return " ".join(parts)
+
+    def _ask_line(self, step: int, known: set[str]) -> str:
+        missing = form.needs(step, known, self._form)
+        ask = form.ask_next(step, known | set(self._later), self._form, self.focus)
+        typed = [f for f in form.TYPED if f in missing]
+        if step == form.last_step() and not missing:
+            return "Everything is filled: tell them to press the Pay button themselves."
+        if not missing and not ask:
+            self._ready = step
+            return (
+                f'Step {step} is complete. Ask: "If that looks right, shall we go to the next '
+                'step?" On yes or "next", call fill_application with next_step true.'
+            )
+        out: list[str] = []
+        if ask:
+            out.append(f"Ask next, together in ONE natural question: {_said_list(ask)}.")
+        if step == 4:
+            out.append(
+                "Documents: ask whether they will upload them now or later; for later, fill "
+                "each document field with later in one call."
+            )
+        if typed:
+            out.append(
+                f"Their {_said_list(typed)}: ask them to type it themselves in the box ringed "
+                "on screen; never ask them to say it or confirm it."
+            )
+        if not ask and not typed and missing:
+            out.append(f"Still empty on this step: {_said_list(missing)}.")
+        return " ".join(out)
+
     def _form_note(self) -> str | None:
         """On /apply, what the form holds and still needs, when it changed since
-        the model was last told: it asks only for what is missing, one thing at
-        a time, and never again for what is filled (insurance I1)."""
-        mirror = self.stage.mirror
-        if mirror is None or mirror.value("application") is None:
-            return None
-        text = mirror.read("application")
+        the model was last told: the next group of details to ask together,
+        and never again what is filled (insurance I1, U2)."""
+        known = self._known()
+        filled = sorted(known, key=form.order)
+        text = (
+            f"[The application is on step {self._step} of {form.last_step()}, "
+            f"{form.title(self._step)}. Filled: {', '.join(filled) or 'nothing yet'}. "
+            "Never ask again for anything filled; fill what they say with fill_application. "
+            + self._ask_line(self._step, known)
+            + "]"
+        )
         if text == self._form_told:
             return None
         self._form_told = text
-        return (
-            f"[{text}\nNever ask again for anything filled. Ask for ONE thing still empty, the "
-            "next in the form's order.]"
-        )
+        return text
+
+    def _claimed_unfilled(self, said: list[str]) -> None:
+        """On /apply, a turn that said it filled something and filled nothing
+        (the owner's call: "Passed, noted." with an empty form) is told so."""
+        if self.path != "/apply" or self._filled:
+            return
+        for sentence in re.split(r"(?<=[.!])\s+", "".join(said)):
+            if _CLAIM.search(sentence) and not sentence.rstrip().endswith("?"):
+                logger.warning("university: claimed a fill and filled nothing: {!r}", sentence)
+                self.append_note(
+                    f'[You said "{sentence.strip()}" but nothing was filled this turn: it is NOT '
+                    "on their form. Fill it now with fill_application, never say it is filled "
+                    "otherwise.]"
+                )
+                return
 
     def on_user_idle(self, session: Session, idle: UserIdle) -> AsyncGenerator[Speech, None]:
         return self._idle(session)
@@ -868,7 +1191,9 @@ class UniversityBrain(OpenAIBrain):
             self.path = path
             if path.startswith("/programs/") and catalogue().program(path[10:]) is not None:
                 self.focus = path[10:]
-            self._offer_help(path)
+            if path == "/apply":
+                self._admission = False
+                self._ring_typed()
             job = job_for(path)
             if job == self.job:
                 return f"[They are now on {path}.]"
@@ -879,6 +1204,8 @@ class UniversityBrain(OpenAIBrain):
             return None
         if isinstance(event, StageEvent):
             folded = self.stage.handle(event)
+            if event.name.startswith("application."):
+                self._page_form(event.data)
             if folded is None:
                 return None
             if event.by == "visitor" and (ask := self.stage.take_reaction()):
@@ -886,25 +1213,11 @@ class UniversityBrain(OpenAIBrain):
                 configure_soon(self.session, Config(idle=IdleConfig(timeout_ms=_REACT_IDLE_MS)))
             return folded.note if event.by == "visitor" else None
         result = self.stage.handle(event)
+        field = self._fill_refs.pop(event.call_ref, None)
+        if field is not None and event.outcome not in ("applied", "partial"):
+            # The page refused a fill: it is not on the form, whatever was sent.
+            self._form.pop(field, None)
         return None if result is None else self._settle(result)
-
-    def _offer_help(self, path: str) -> None:
-        """The visitor opened a page by hand: if they stay quiet there, one short
-        offer of help on it, tied to what they asked for (X4: lead). Once a
-        page; never on the form they are typing into; never for the agent's own
-        navigation."""
-        agent = time.monotonic() - self._moved_at < _AGENT_NAV_S or any(
-            r.move.id.startswith(("site.", "catalogue.", "apply.")) for r in self.stage.running()
-        )
-        if agent or path == "/apply" or path in self._offered:
-            return
-        self._offered.add(path)
-        self._talk = (
-            f"They opened {path} themselves and have gone quiet. In one short sentence, offer "
-            "the one most useful thing you can do for them on this page, tied to what they "
-            "told you earlier, as a question. Do not describe the page."
-        )
-        configure_soon(self.session, Config(idle=IdleConfig(timeout_ms=_NAV_IDLE_MS)))
 
     def _settle(self, result: StageResult) -> str | None:
         """A move that landed needs no line: the voice already said it. One
@@ -943,6 +1256,7 @@ class UniversityBrain(OpenAIBrain):
             self.program_details,
             self.compare_programs,
             self.check_eligibility,
+            self.fill_application,
             self.read_screen,
             self.set_language,
         ]
@@ -975,7 +1289,15 @@ class UniversityBrain(OpenAIBrain):
         picks = [str(p) for p in (shown or {}).get("picks") or []]
         if found:
             owe(self._found_line(profile, found))
-        return find_text(profile, ticked, picks)
+        text = find_text(profile, ticked, picks)
+        if self._admission and found:
+            text += (
+                "\nBut they asked about ADMISSION, not a choice between programmes: name the ONE "
+                "that fits what they said with {pick: id}, then {open: id | selection} as you say "
+                "how admission works for it (one or two sentences from its facts), and offer to "
+                "start the application now. Do not offer a comparison."
+            )
+        return text
 
     def _found_line(self, profile: Profile, found: list[Any]) -> str:
         """What the brain says if the model says nothing after find_programs."""
@@ -986,6 +1308,11 @@ class UniversityBrain(OpenAIBrain):
             areas = ", ".join(dict.fromkeys(c.school(p.school).short for p in found))
             return f"We have programmes in {areas}. Which area interests you most?"
         names = ", ".join(p.name for p in found[:3])
+        if self._admission:
+            return (
+                f"{found[0].name} is the closest fit. Shall I show you how admission works for "
+                "it and start your application?"
+            )
         return f"The closest fits are {names}. Shall I compare them, or open one of them?"
 
     @needs_result_now
@@ -1077,6 +1404,83 @@ class UniversityBrain(OpenAIBrain):
             else f"{p.name} के लिए मैंने आपकी eligibility check कर ली है। क्या मैं पूरा हिसाब बताऊँ?"
         )
         return text
+
+    @needs_result_now
+    async def fill_application(self, request: FillRequest) -> str:
+        """Fill the application on their screen with every detail they just gave,
+        all at once, and move it to the next step when they say yes or "next".
+        Returns what was filled, what the form refused and why, and what to ask
+        next. Call it the moment they give details, before you say anything."""
+        said: dict[str, str] = {}
+        for v in request.values:
+            said[v.field] = v.value
+        held = set(self._later)
+        filled, refused = self._fill(said) if said else ([], [])
+        kept = [n for n in self._later if n not in held]
+        moved, missing, auto = (False, [], [])
+        ahead = kept and min(application().step_of(n) or 0 for n in kept) == self._step + 1
+        if request.next_step or (
+            # Answering the next step's question is a yes to moving on, when this
+            # step has everything it needs (the real-model check: "Bengaluru, and a
+            # hostel" said to "shall we go to the next step?").
+            ahead and not form.needs(self._step, self._known(), self._form)
+        ):
+            moved, missing, auto = self._advance()
+            kept = [n for n in kept if n in self._later]
+        self._ring_typed()
+        lines: list[str] = []
+        if filled or auto:
+            lines.append(
+                "Filled on their screen now: "
+                + "; ".join(f"{form.SAID[n]}: {form.said_value(n, v)}" for n, v in [*filled, *auto])
+                + "."
+            )
+        if refused:
+            lines.append(
+                "NOT filled (say so plainly and ask again; for mobile or email, ask them to type "
+                "it in the box): "
+                + "; ".join(f"{form.SAID.get(n, n)}: {why}" for n, why in refused)
+                + "."
+            )
+        if kept:
+            lines.append(
+                f"Kept for a later step (it goes in when the form gets there; do not ask for it "
+                f"again): {_said_list(sorted(kept, key=form.order))}."
+            )
+        if request.next_step and not moved and missing:
+            lines.append(
+                f"It cannot move on yet: step {self._step} still needs {_said_list(missing)}."
+            )
+        lines.append(self._where(moved=moved, auto=[]))
+        lines.append(
+            "Say in one short sentence what you filled (never read back a mobile number or "
+            "email, never ask them to confirm one), then the question above. Write no fill or "
+            "next cue: the tool did it."
+        )
+        owe(self._filled_line(filled + auto, refused, moved))
+        return "\n".join(lines)
+
+    def _filled_line(
+        self, filled: list[tuple[str, str]], refused: list[tuple[str, str]], moved: bool
+    ) -> str:
+        """What the brain says if the model says nothing after fill_application."""
+        known = self._known()
+        if self.lang == "hi":
+            if refused:
+                return f"{_said_list([n for n, _ in refused])} नहीं भर पाया, क्या आप दोबारा बताएँगे?"
+            return "मैंने form में भर दिया है। अगर सब सही है, तो क्या अगले step पर चलें?"
+        head = (
+            f"I've filled in your {_said_list([n for n, _ in filled])}."
+            if filled
+            else f"We're on step {self._step}, {form.title(self._step)}."
+        )
+        if refused:
+            return f"{head} I couldn't fill your {_said_list([n for n, _ in refused])}: could you give it again?"
+        if not form.needs(self._step, known, self._form) and self._step < form.last_step():
+            self._ready = self._step
+            return f"{head} If that looks right, shall we go to the next step?"
+        ask = form.ask_next(self._step, known | set(self._later), self._form, self.focus)
+        return f"{head} Could you tell me your {_said_list(ask)}?" if ask else head
 
     @needs_result_now
     async def read_screen(self, request: ReadRequest) -> str:
