@@ -106,7 +106,9 @@ You have FOUR jobs, one per part of the site. A note tells you which part the vi
 2. account (/open-account): help a NEW customer open a savings account. Six steps: personal details, address, KYC (PAN, Aadhaar), nominee, account variant, review. Ask for one or two things at a time, explain briefly why each step is asked (one clause), and put every answer into the form with fill_account_form as soon as you hear it. PAN and Aadhaar here are sample inputs and are shown masked; never read them back in full. At review, ask for a yes, then submit_application.
 3. cards (/cards, a card's page, compare, apply, EMI): you SELL cards here (see "Selling", below). The questions that matter: their monthly take-home income, and how they spend a month (dining, online shopping, groceries, travel, fuel; a total and where most of it goes is enough). Then recommend_card (only with an income they told you, never a guess), and pitch the ONE card it names. If they ask to see several, rank_cards puts them side by side. To apply: open_screen cards_apply with the card id, fill_card_application with what you already know (the card, their income), ask only for what is missing, then on a yes submit_application. EMI conversion of a card spend: plan_emi shows every tenure; to convert, request_change(kind=emi_convert) then confirm.
 4. loans (/loans and each loan's page): you SELL loans here (see "Selling"). The questions that matter: which loan and what for (if their page does not already say), their monthly take-home income and the EMIs they already pay, and how much they need (home: the property's price is enough; car: the on-road price; gold: the grams instead of income); the tenure only if they have one in mind. Then recommend_loan (only with figures they told you), and pitch the plan it returns. To apply: fill_loan_application with what you already know, ask only for what is missing (name, mobile, city, a time to call), then on a yes submit_application: it ends in a qualified lead card for the bank's team. loan_eligibility and loan_emi are there when they ask for just one of those.
-home (/): you are the bank's adviser at the front door, and you sell too. Find out in one question what they are here for. A card or a loan: take them there with open_screen (cards, or loan with its id) and go straight on with that job's questions. A savings account: open_account. Their own banking: open_screen dashboard.
+home (/): you are the bank's adviser at the front door, and you sell too. Find out in one question what they are here for. A card or a loan: take them there with open_screen (cards, or loan with its id) and go straight on with that job's questions. A savings account: open_account. Their own banking: the tool for what they asked (my_accounts, find_transactions…), which opens the sign-in screen while they are signed out.
+
+Signing in. Her own data (balances, transactions, cards, spends, dues, any change) is only for a customer who is signed in; a note says "Signed in: yes/no". Signed out, you never answer from her data and never open her banking for her: call the tool for what she asked anyway; it opens the sign-in screen and tells you so. Then ask her, in one or two short sentences, to sign in there: she types her 10-digit mobile number and 4-digit PIN and presses Sign in herself. You never ask for, hear, fill in or read back her mobile number or PIN; if she says them aloud, they are not kept, and you kindly ask her to type them instead. A note tells you when she has signed in: then welcome her by first name and do what she asked.
 
 Selling (cards, loans and home; NOT the signed-in banking app and NOT account opening, which stay as above). You are a warm, sharp salesperson, not a brochure:
 - Ask few, right questions: at most two in one turn, only what the pick needs, never a form read aloud. Use what they already said; never ask twice.
@@ -144,7 +146,9 @@ def greeting(mode: str, lang: str, signed_in: bool) -> str:
     name = spoken_name(lang)
     if lang == "hi":
         return {
-            "banking": f"नमस्ते {first} जी, मैं {name}, {BRAND['name']} से। आपके accounts और cards मेरे सामने हैं — कोई charge समझना हो, खर्च देखना हो या card block करना हो, बस बोलिए।",
+            "banking": f"नमस्ते {first} जी, मैं {name}, {BRAND['name']} से। आपके accounts और cards मेरे सामने हैं — कोई charge समझना हो, खर्च देखना हो या card block करना हो, बस बोलिए।"
+            if signed_in
+            else f"नमस्ते! मैं {name}, {BRAND['name']} से। आपकी banking के लिए पहले sign in कीजिए: screen पर अपना mobile number और PIN type करके Sign in दबाइए, फिर मैं आगे सँभाल लूँगा।",
             "account": f"नमस्ते! मैं {name}, {BRAND['name']} से। Savings account खोलने में मैं आपकी मदद करूँगा — आप बोलते जाइए, form मैं भरता जाऊँगा। चलिए, आपका पूरा नाम क्या है, जैसा PAN पर लिखा है?",
             "cards": f"नमस्ते! मैं {name}, {BRAND['name']} से। दो सवाल, और मैं आपके लिए सबसे फ़ायदेमंद card बता दूँगा। हर महीने card पर लगभग कितना खर्च होता है, और ज़्यादातर किस पर — खाना, online shopping, travel या fuel?",
             "loans": f"नमस्ते! मैं {name}, {BRAND['name']} से। कौन सा loan चाहिए — home, car, personal या gold? बताइए, मैं आपके लिए सही EMI वाला plan अभी निकाल देता हूँ।",
@@ -156,7 +160,9 @@ def greeting(mode: str, lang: str, signed_in: bool) -> str:
         else f"Hi, I'm {name} from {BRAND['name']}."
     )
     return {
-        "banking": f"Hi {first}, I'm {name} from {BRAND['name']}. I can see your accounts and cards, so ask me anything: what a charge was, what you spent, or block a card.",
+        "banking": f"Hi {first}, I'm {name} from {BRAND['name']}. I can see your accounts and cards, so ask me anything: what a charge was, what you spent, or block a card."
+        if signed_in
+        else f"{hello} Your banking is behind the sign-in on your screen: type your mobile number and PIN there and press Sign in, and I'll take it from there.",
         "account": f"{hello} I'll help you open a savings account: you talk, I fill in the form. Let's start with your full name, as it is on your PAN.",
         "cards": f"{hello} Two quick questions and I'll find the card that pays you back the most. Roughly how much do you put on a card each month, and where does most of it go: food, online shopping, travel or fuel?",
         "loans": f"{hello} Which loan are you after: home, car, personal or gold? Tell me a little and I'll work out the plan and EMI that fit you.",
@@ -191,6 +197,10 @@ LINES: dict[str, dict[str, str]] = {
         "and": ", and your ",
         "screen_open": "It's open on your screen now.",
         "not_shown": "Sorry, that didn't come up on your screen.",
+        "welcome": "Hi {first}, you're signed in.",
+        "welcome_ask": "Hi {first}, you're signed in. What would you like to do?",
+        "sign_in_mobile": "That mobile number doesn't look right: it's 10 digits, starting with 6, 7, 8 or 9. Please check it and type it again.",
+        "sign_in_pin": "The PIN is 4 digits. Please type it again and press Sign in.",
     },
     "hi": {
         "switched": "ज़रूर, अब हम हिंदी में बात करते हैं।",
@@ -218,6 +228,10 @@ LINES: dict[str, dict[str, str]] = {
         "and": ", और ",
         "screen_open": "यह आपकी screen पर खुल गया है।",
         "not_shown": "माफ़ कीजिए, यह आपकी screen पर नहीं आ पाया।",
+        "welcome": "नमस्ते {first} जी, आप sign in हो गए हैं।",
+        "welcome_ask": "नमस्ते {first} जी, आप sign in हो गए हैं। बताइए, क्या करना है?",
+        "sign_in_mobile": "Mobile number सही नहीं लग रहा: 10 अंक, जो 6, 7, 8 या 9 से शुरू हों। एक बार देखकर फिर से type कीजिए।",
+        "sign_in_pin": "PIN 4 अंकों का है। फिर से type करके Sign in दबाइए।",
     },
 }
 
