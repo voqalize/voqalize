@@ -110,6 +110,11 @@
       "name": "holidays",
       "title": "Wanderloom Holidays",
       "tagline": "An Indian holiday-package site where a trip planner builds your whole holiday by voice: flights, hotels per city, activities day by day and a priced package you edit item by item."
+    },
+    {
+      "name": "property",
+      "title": "Kosha Homes",
+      "tagline": "A residential property site where Karthik, a property guide, narrows homes by budget, BHK and commute as the filters and map move, compares them, works out the EMI and books a site visit, in English or Hindi."
     }
   ]
 }

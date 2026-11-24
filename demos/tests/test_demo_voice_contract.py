@@ -252,6 +252,12 @@ DEMOS: dict[str, Expected] = {
     # holidays/persona.json): English only, Kasia's voice, whatever the page
     # asks. Asserted in test_holidays_e2e.py.
     "holidays": Expected(voice="omnivoice/kasia", language="en", provider="openai"),
+    # Karthik, Kosha Homes' property guide and visit booker: the persona file
+    # (demos/property/persona.json) names his voice and languages; with no `lang`
+    # in the payload he opens in its default, English, and the toggle or the
+    # visitor's Hindi moves both legs — karthik in both. Asserted in
+    # test_property_e2e.py.
+    "property": Expected(voice="omnivoice/karthik", language="en", provider="openai"),
 }
 
 
