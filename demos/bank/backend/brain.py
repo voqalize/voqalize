@@ -91,6 +91,7 @@ from .app_events import (
 from .forms import FIELDS, STEP_OF, check, missing
 from .prompt import MODES, TIMES, greeting, line, system_instruction
 from .rejoin import Rejoin
+from .spoken import SpokenAmounts, amounts_note, implausible, speak_text
 from .stage_gen import MOVES
 
 MODEL = "gpt-6.1-terra"
@@ -565,6 +566,10 @@ class BankBrain(OpenAIBrain):
         self.submitting: dict[str, str] = {}  # call_ref → form
         self.opened_txn: str | None = None
         self._last_heard = ""
+        #: The customer's last few turns, as heard: what an amount is checked against.
+        self._heard_recent: list[str] = []
+        #: Every amount spoken in the form the voice reads right (spoken.py, B6).
+        self._spoken = SpokenAmounts(lambda: self.lang)
         #: A line of the brain's own for the next quiet spell (a page's answer).
         self._say_next: str | None = None
         #: The customer's turns so far: a rejoined call past its first is not greeted.
@@ -651,7 +656,7 @@ class BankBrain(OpenAIBrain):
         call that dropped before her first word still is)."""
         if self.rejoined and self.turns:
             return ""
-        return greeting(self.mode, self.lang, self.signed_in)
+        return speak_text(greeting(self.mode, self.lang, self.signed_in), self.lang)
 
     def _language_note(self) -> str:
         name = b.PERSONA["language_names"].get(self.lang, self.lang)
@@ -678,16 +683,19 @@ class BankBrain(OpenAIBrain):
     # ─── Turns ──────────────────────────────────────────────────────────
 
     def on_user_message(self, session: Session, msg: UserMessage) -> AsyncGenerator[Speech, None]:
-        return self._answer(session, msg)
+        return self._spoken.wrap(self._answer(session, msg))
 
     async def _answer(self, session: Session, msg: UserMessage) -> AsyncGenerator[Speech, None]:
         self.turns += 1
         self._last_heard = msg.text
+        self._heard_recent = [*self._heard_recent[-2:], msg.text]
         self._say_next = None
         self._settle_expired()
         if self._screen_told != self._screen_told_key():
             self.append_note(self._screen_note())
         self.append_note(msg.text)
+        if (said := amounts_note(msg.text)) is not None:
+            self.append_note(said)
         if self.awaiting is not None and (said := classify(msg.text)) is not None:
             # A plain yes or no to the sheet on screen: pressed here, with no
             # model turn, and the brain's own line says so.
@@ -732,7 +740,7 @@ class BankBrain(OpenAIBrain):
             logger.info("bank: unkept promise {} in {!r}", unkept.move.id, unkept.sentence)
 
     def on_user_idle(self, session: Session, idle: UserIdle) -> AsyncGenerator[Speech, None]:
-        return self._idle(session)
+        return self._spoken.wrap(self._idle(session))
 
     async def _idle(self, session: Session) -> AsyncGenerator[Speech, None]:
         """A quiet spell: say the page's answer if one is owed; never nag."""
@@ -743,6 +751,11 @@ class BankBrain(OpenAIBrain):
             return
         async for s in self.say_line(say, remember=True):
             yield s
+
+    def _check_amounts(self, **values: float | None) -> str | None:
+        """A tool's guard on the amounts it was given: one no customer would mean (₹15 for
+        a loan, a mis-heard "one and a half lakh") is confirmed back, never used (B6, I2)."""
+        return implausible(values, self._heard_recent[::-1])
 
     def _say_soon(self, text: str) -> None:
         self._say_next = text
@@ -1652,11 +1665,22 @@ class BankBrain(OpenAIBrain):
     @needs_result_now
     async def fill_card_application(self, f: CardForm) -> str:
         """Put what the customer said into the credit card application."""
+        if (why := self._check_amounts(monthly_income=f.monthly_income)) is not None:
+            return why
         return self._fill("card_apply", f.model_dump())
 
     @needs_result_now
     async def fill_loan_application(self, f: LoanForm) -> str:
         """Put what the customer said into the loan application."""
+        why = self._check_amounts(
+            monthly_income=f.monthly_income,
+            existing_emis=f.existing_emis,
+            amount=f.amount,
+            property_value=f.property_value,
+            car_price=f.car_price,
+        )
+        if why is not None:
+            return why
         return self._fill("loan_apply", f.model_dump())
 
     async def submit_application(self, req: SubmitRequest) -> str:
@@ -1685,6 +1709,8 @@ class BankBrain(OpenAIBrain):
             profile = {c: float(getattr(req, c) or 0) for c in b.CARD_CATEGORIES}
             if not any(profile.values()):
                 return _not_done("ask how much they spend a month, by category")
+            if (why := self._check_amounts(**profile)) is not None:
+                return why
         # Signed in, her salary is known: the page ranks the cards she qualifies for first
         # and marks the rest "Income below requirement" (same rule, bankmath.rank_cards).
         income = float(b.CUSTOMER["profile"]["monthly_income"]) if self.signed_in else None
@@ -1757,6 +1783,8 @@ class BankBrain(OpenAIBrain):
         """Work out a loan's EMI and put it in the calculator with the maths on screen."""
         loan = b.loan_product(req.loan_type)
         assert loan is not None
+        if (why := self._check_amounts(amount=req.amount)) is not None:
+            return why
         if not loan["amount_min"] <= req.amount <= loan["amount_max"]:
             return _not_done(
                 f"the {loan['short']} is {b.inr(loan['amount_min'])} to {b.inr(loan['amount_max'])}"
@@ -1799,6 +1827,10 @@ class BankBrain(OpenAIBrain):
                 return _not_done(why)
             income = float(b.CUSTOMER["profile"]["monthly_income"])
             existing = float(sum(x["emi"] for x in b.CUSTOMER["loans"]))
+        elif (
+            why := self._check_amounts(monthly_income=income, existing_emis=existing)
+        ) is not None:
+            return why
         if req.loan_type == "gold":
             if not req.gold_grams:
                 return _not_done("ask how many grams of gold (22 carat)")
@@ -1854,6 +1886,13 @@ class BankBrain(OpenAIBrain):
         else:
             profile = {c: float(getattr(req, c) or 0) for c in b.CARD_CATEGORIES}
             income = req.monthly_income
+            why = self._check_amounts(
+                monthly_income=income,
+                total_monthly=None if req.total_monthly is None else float(req.total_monthly),
+                **profile,
+            )
+            if why is not None:
+                return why
         assumed = ""
         if not any(profile.values()) and req.total_monthly:
             total = float(req.total_monthly)
@@ -1956,6 +1995,16 @@ class BankBrain(OpenAIBrain):
                 return _not_done(why)
             income = float(b.CUSTOMER["profile"]["monthly_income"])
             existing = float(sum(x["emi"] for x in b.CUSTOMER["loans"]))
+        else:
+            why = self._check_amounts(
+                monthly_income=income,
+                existing_emis=existing,
+                amount=req.amount,
+                property_value=req.property_value,
+                car_price=req.car_price,
+            )
+            if why is not None:
+                return why
         asset = req.property_value if req.loan_type == "home" else req.car_price
         if req.loan_type == "gold":
             if not req.gold_grams:

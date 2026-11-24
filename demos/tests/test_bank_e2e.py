@@ -1076,3 +1076,170 @@ async def test_no_redial_is_asked_of_a_voqalize_that_does_not_offer_it() -> None
         check_greeting(rig, greeting_turn)
         assert _redials(rig.driver) == []
         check_voice_pair(rig, voice=PERSONA["voices"]["en"], language="en")
+
+
+# ─── Amounts in speech, both ways (B6, X8) ────────────────────────────────────
+
+from voqalize_demos._loaded.bank.spoken import (  # noqa: E402
+    SpokenAmounts,
+    amounts_note,
+    implausible,
+    parse_amounts,
+    speak_text,
+)
+
+
+@pytest.mark.parametrize(
+    ("written", "lang", "spoken"),
+    [
+        # The owner's call (24 Nov): Voqalize's TTS read this "one rupee and twenty five
+        # paisa crore". Spelled out, it passes the TTS's text chain untouched.
+        (
+            "Certainly, ₹1.25 crore is within our home loan range.",
+            "en",
+            "Certainly, one point two five crore rupees is within our home loan range.",
+        ),
+        (
+            "Your estimated eligibility is up to ₹1.85 crore, so ₹1.25 crore is within that.",
+            "en",
+            "Your estimated eligibility is up to one point eight five crore rupees, so one point "
+            "two five crore rupees is within that.",
+        ),
+        ("You can borrow ₹1.25 Cr.", "en", "You can borrow one point two five crore rupees."),
+        ("Up to ₹2.25 lakh.", "en", "Up to two point two five lakh rupees."),
+        ("Two FDs: ₹2 lakh and ₹1 lakh.", "en", "Two FDs: two lakh rupees and one lakh rupees."),
+        ("Loans of ₹8\u201312 lakh.", "en", "Loans of eight to twelve lakh rupees."),
+        ("₹8 lakh\u2013₹12 lakh.", "en", "eight lakh rupees to twelve lakh rupees."),
+        ("Rates of 8.65\u20139.4% a year.", "en", "Rates of 8.65% to 9.4% a year."),
+        # Plain amounts are left to the TTS, which reads them in lakh and thousand.
+        ("An EMI of ₹1,57,332 a month, ₹15,000 cap.", "en", None),
+        ("A 5L pressure cooker.", "en", None),
+        ("A well-known bank.", "en", None),
+        # Hindi: the scale in Devanagari, with the ₹ mark, so the TTS says सवा / डेढ़.
+        ("जी हाँ, ₹1.25 crore तक।", "hi", "जी हाँ, ₹1.25 करोड़ तक।"),
+        ("आप ₹1.5 Cr तक ले सकते हैं।", "hi", "आप ₹1.5 करोड़ तक ले सकते हैं।"),
+        # Any other decimal is whole rupees: एक करोड़ पचासी लाख, not एक दशमलव आठ पाँच करोड़.
+        ("eligibility ₹1.85 करोड़ तक है।", "hi", "eligibility ₹1,85,00,000 तक है।"),
+        ("Loan ₹1.25\u20131.5 करोड़ तक।", "hi", "Loan ₹1.25 करोड़ से ₹1.5 करोड़ तक।"),
+        ("आप 1.25 करोड़ रुपये ले सकते हैं।", "hi", "आप ₹1.25 करोड़ ले सकते हैं।"),
+        ("Rate 8.65\u20139.4% सालाना है।", "hi", "Rate 8.65% से 9.4% सालाना है।"),
+    ],
+)
+def test_amounts_are_written_the_way_the_voice_reads_them(
+    written: str, lang: str, spoken: str | None
+) -> None:
+    assert speak_text(written, lang) == (written if spoken is None else spoken)
+
+
+@pytest.mark.parametrize(
+    ("heard", "values"),
+    [
+        # As the recogniser wrote the owner's own words (23 and 24 Nov calls).
+        ("I'm looking to borrow uh 1.25 Cr.", [12500000]),
+        ("I get a net salary of uh three lakhs rupees and no existing EMI.", [300000]),
+        ("for dining I usually spend like ten thousand.", [10000]),
+        (
+            "Fuel would be ten thousand, uh bills would be Around two thousand and eighty.",
+            [10000, 2080],
+        ),
+        ("around 1 and half lakhs", [150000]),
+        ("one and a half lakh", [150000]),
+        ("half a lakh", [50000]),
+        ("1 crore 25 lakh", [12500000]),
+        ("one point two five crore", [12500000]),
+        ("15k a month", [15000]),
+        ("15 hazaar", [15000]),
+        ("dedh lakh", [150000]),
+        ("dhai lakh", [250000]),
+        ("sava do lakh", [225000]),
+        ("डेढ़ लाख", [150000]),
+        ("सवा करोड़", [12500000]),
+        ("साढ़े तीन लाख", [350000]),
+        ("पौने दो लाख", [175000]),
+        ("एक लाख पचास हज़ार", [150000]),
+        ("पंद्रह हज़ार", [15000]),
+        ("लगभग ₹\u0967,\u0968\u096b,\u0966\u0966\u0966 का", [125000]),
+    ],
+)
+def test_spoken_amounts_parse_to_rupees(heard: str, values: list[float]) -> None:
+    assert [h.value for h in parse_amounts(heard)] == values
+
+
+async def test_an_amount_split_across_streamed_chunks_is_still_said_whole() -> None:
+    """A model streams tokens: "₹1." then "25 cr" then "ore". The rewrite waits for the
+    amount to finish, and the unit's start and end pass through as they came."""
+    from voqalize.sdk import SpeechChunk, SpeechEnd, SpeechStart
+
+    async def stream() -> Any:
+        yield SpeechStart()
+        for piece in [
+            "Certainly, ₹1.",
+            "25 cr",
+            "ore is within",
+            " range; ₹8",
+            "\u201312 lakh too.",
+        ]:
+            yield SpeechChunk(piece)
+        yield SpeechEnd()
+
+    out = [e async for e in SpokenAmounts(lambda: "en").wrap(stream())]
+    assert isinstance(out[0], SpeechStart) and isinstance(out[-1], SpeechEnd)
+    text = "".join(e.text for e in out if isinstance(e, SpeechChunk))
+    assert text == (
+        "Certainly, one point two five crore rupees is within range; eight to twelve lakh rupees too."
+    )
+
+
+def test_an_implausible_amount_is_confirmed_back_never_used() -> None:
+    """I2's case on a bank field: "around 1 and half lakhs" reached a tool as ₹15."""
+    why = implausible({"amount": 15}, ["around 1 and half lakhs"])
+    assert why is not None and why.startswith("Not done")
+    assert "₹1,50,000" in why and "₹1.5 lakh, right?" in why
+    assert implausible({"amount": 150000, "existing_emis": 0}, ["1.5 lakh"]) is None
+    assert implausible({"monthly_income": 300000}, ["three lakhs"]) is None
+    note = amounts_note("around 1 and half lakhs")
+    assert note == "[Amounts they said, in rupees: '1 and half lakhs' = about 150000 rupees.]"
+    assert amounts_note("yes please") is None
+
+
+async def test_amounts_are_spoken_as_words_and_a_wrong_one_is_confirmed() -> None:
+    """The owner's B6 call over the wire: "1.25 Cr" heard, "₹1.25 crore" written, and the
+    voice is given "one point two five crore rupees"; the model is told what the amount
+    he said is in rupees. A mis-heard ₹15 for "around 1 and half lakhs" never reaches
+    the calculator: the tool asks the model to confirm "₹1.5 lakh" back first."""
+    llm = ScriptedOpenAI(
+        {
+            "I'm looking to borrow uh 1.25 Cr.": reply(
+                "Certainly, ₹1.25 crore is within our home loan range. What is your monthly income?"
+            ),
+            "A personal loan of around 1 and half lakhs, over two years.": [
+                reply_and_call(
+                    "Let me work that out.",
+                    "loan_emi",
+                    loan_type="personal",
+                    amount=15,
+                    tenure_months=24,
+                ),
+                reply("Just to check, ₹1.5 lakh, right?"),
+            ],
+        }
+    )
+    async with demo("bank", llm) as rig:
+        await rig.driver.start_session(
+            init={"landing": "loans", "path": "/loans/home", "lang": "en"}
+        )
+        turn = await rig.driver.user_says("I'm looking to borrow uh 1.25 Cr.")
+        check_turn(rig, turn)
+        said = " ".join(u.text for u in turn.units)
+        assert "one point two five crore rupees" in said and "₹" not in said
+        told = json.dumps(llm.captured_inputs[-1], ensure_ascii=False)
+        assert "'1.25 Cr' = 12500000 rupees" in told
+
+        turn = await rig.driver.user_says(
+            "A personal loan of around 1 and half lakhs, over two years."
+        )
+        result = _results(llm, "loan_emi")[-1]
+        assert result.startswith("Not done") and "₹1,50,000" in result
+        assert not [p for p in _moves(rig) if p["move"] == "loan.calc"]
+        said = " ".join(u.text for u in turn.units)
+        assert "one point five lakh rupees, right?" in said

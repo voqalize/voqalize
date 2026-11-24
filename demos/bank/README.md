@@ -49,7 +49,8 @@ yes, her cards and balances) and does not greet again. Details in `CONTRACT.md`,
 
 Paynora's widget, in the bank's palette (`frontend/src/voice/`): idle, a pill at the bottom right
 with the character's still photo (`frontend/src/characters/<character>.webp`), the name, the job on
-this page (`persona.json` `roles`), EN / हिंदी and "Talk to Arjun". In a call the pill goes away and
+this page (`persona.json` `roles`, kept short so it fits a phone), EN / हिंदी and "Talk to Arjun"
+("Talk" on a phone, where the name is already beside the face). In a call the pill goes away and
 the face becomes a draggable tile with the live avatar (`@voqalize/avatar` 0.6.3), the language
 toggle, mute, minimise and end. No transcript anywhere. The language is remembered across reloads.
 While the confirmation sheet, a transaction's sheet (phone) or the app's menu is open, the pill and
@@ -70,6 +71,31 @@ cd demos/bank/frontend && pnpm install --ignore-workspace && pnpm dev --port 540
 For a live call, set `VITE_AGENT_ID` and `VITE_PUBLISHABLE_KEY` (see `frontend/.env.example`) for an
 agent whose brain URL points at `wss://<brain host>/bank`. Without them the site works fully by click,
 and the dock says voice is not configured in this build.
+
+## Amounts in speech
+
+The screen shows ₹1,25,000 and ₹1.25 crore; the voice has to say them as an Indian banker
+would. Voqalize's TTS normalises text before the voice model reads it, and in English it reads
+a rupee amount with two decimals before a scale word as rupees and paise: "₹1.25 crore" became
+"one rupee and twenty five paisa crore". `backend/spoken.py` rewrites every amount the brain
+speaks (the model's words and the brain's own lines) before it goes out, and keeps the screen's
+formatting as it is:
+
+- English: an amount with lakh or crore is spelled out ("one point two five crore rupees",
+  "eight to twelve lakh rupees"). Plain amounts (₹1,57,332, ₹3,42,815.40) go as written; the
+  TTS reads them in lakh and thousand.
+- Hindi: lakh and crore in Devanagari with the ₹ mark ("₹1.25 करोड़"), which the TTS says as
+  सवा करोड़ / डेढ़ लाख / ढाई लाख. Any other decimal becomes whole rupees ("₹1.85 करोड़" is said
+  एक करोड़ पचासी लाख, not एक दशमलव आठ पाँच करोड़).
+- Ranges say both ends ("8.65% to 9.4%").
+
+The other way, `parse_amounts` reads what the recogniser heard: digits with either grouping,
+lakh / crore / thousand / hazaar / k, number words in English and Hindi (Devanagari or Latin),
+"one and a half", dedh, dhai, sava, saade, paune, decimals and Devanagari digits. When the
+customer says an amount in words or with a scale, the model gets a note with it in rupees.
+Every tool that takes a customer's amount (income, EMIs, loan amount, property or car price,
+monthly spends) refuses one no customer would mean (₹15 for a loan) and tells the model to
+confirm it back first ("Just to check, ₹1.5 lakh, right?").
 
 ## Change the character or add a language
 
