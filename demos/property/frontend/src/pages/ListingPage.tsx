@@ -78,10 +78,10 @@ function Listing_({ l }: { l: Listing }) {
               <b>{l.deal === "rent" ? `${inr(l.rent ?? 0)}/mo` : inr(l.price ?? 0)}</b>
               <span>{l.deal === "rent" ? `Deposit ${inr(l.deposit ?? 0)}` : `${inrShort(l.price ?? 0)} · ${inr(l.price_per_sqft ?? 0)}/sq ft carpet`}</span>
               <div className="lpage-actions">
-                <button type="button" className={`btn ghost${hearted ? " is-on" : ""}`} data-stage-part={`heart:${l.id}`} onClick={() => useStore.getState().toggleShortlist(l.id)}>
+                <button type="button" className={`btn ghost${hearted ? " is-on" : ""}`} data-stage-part={`heart:${l.id}`} data-dock-avoid onClick={() => useStore.getState().toggleShortlist(l.id)}>
                   <Heart size={16} fill={hearted ? "currentColor" : "none"} /> {hearted ? "Shortlisted" : "Shortlist"}
                 </button>
-                <button type="button" className={`btn ghost${compared ? " is-on" : ""}`} data-stage-part={`compare:${l.id}`} onClick={() => useStore.getState().toggleCompare(l.id)}>
+                <button type="button" className={`btn ghost${compared ? " is-on" : ""}`} data-stage-part={`compare:${l.id}`} data-dock-avoid onClick={() => useStore.getState().toggleCompare(l.id)}>
                   <Scale size={16} /> {compared ? "In compare" : "Compare"}
                 </button>
               </div>
@@ -284,7 +284,7 @@ function VisitPanel({ l }: { l: Listing }) {
         </div>
       </div>
       {latest ? <VisitCard b={latest} /> : null}
-      <div className="visit-days" role="tablist" aria-label="Day">
+      <div className="visit-days" role="tablist" aria-label="Day" data-stage-group>
         {days.map((d) => {
           const s = slotsFor(l, d, taken);
           const free = s ? s.filter((x) => x.free).length : 0;
@@ -307,7 +307,7 @@ function VisitPanel({ l }: { l: Listing }) {
         })}
       </div>
       {slots ? (
-        <div className="visit-slots">
+        <div className="visit-slots" data-stage-group>
           {(["morning", "afternoon", "evening"] as const).map((p) => {
             const list = slots.filter((s) => s.part === p);
             if (!list.length) return null;

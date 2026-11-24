@@ -5,7 +5,7 @@
   "role": "Property guide",
   "roles": {
     "guide": "Property guide",
-    "booker": "Site visit booking"
+    "booker": "Site visits"
   },
   "voices": {
     "en": "omnivoice/karthik",

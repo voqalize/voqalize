@@ -2136,14 +2136,11 @@ textarea {
     overflow-x: auto;
     grid-template-columns: 110px repeat(2, minmax(150px, 1fr)) !important;
   }
-  /* The filter sheet is the whole screen: its head starts past the raised
-     face (the bubble, top left) or below the raised pill (the full width). */
-  body:has(.call-tile.is-raised) .filters-sheet-head {
-    padding-left: 76px;
-    min-height: 92px;
-  }
+  /* The filter sheet is the whole screen: its head starts below the raised
+     agent (the bubble, top left, or the pill across the top). */
+  body:has(.call-tile.is-raised) .filters-sheet-head,
   body:has(.dock.is-raised) .filters-sheet-head {
-    margin-top: 64px;
+    padding-top: 84px;
   }
   .debug {
     width: auto;
