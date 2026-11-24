@@ -891,9 +891,7 @@ brain-connection token**: a short-lived RS256 JWT, sent as a bare token or as
 `Authorization: Bearer <jwt>` and verified against Voqalize's public key.
 Required claims: `iss="pygato"`, `aud="brain"`, `sub == session_id`, and `exp`.
 `agent_id` and `organization_id` are informational: the recipient decides from them
-whether it serves this agent. For two weeks after the organization switch the
-token also carries `tenant_id`, the organization's name before the rename, with
-the same value.
+whether it serves this agent.
 
 The path is yours and is used verbatim; the session rides as a query parameter.
 A brain is therefore one ordinary WebSocket route rather than a wildcard path

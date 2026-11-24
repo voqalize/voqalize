@@ -193,10 +193,8 @@ async def test_wrong_key_is_rejected_directly() -> None:
     assert code == 4000
 
 
-# RENAME-CLEANUP: 0.17.0 asserts tenant_id is absent and drops the tenant_id= keyword cases.
-def test_minted_tokens_carry_organization_id_and_its_deprecated_twin():
-    """Voqalize's brain token carries both claims during the two-week grace, so the kit's
-    does too: a brain on an SDK older than 0.16.0 reads ``tenant_id``."""
+def test_minted_tokens_carry_organization_id_only():
+    """Since 0.17.0 the kit's token, like Voqalize's, names the organization once."""
     import jwt
 
     from voqalize.conformance import mint_voqalize_token
@@ -211,7 +209,7 @@ def test_minted_tokens_carry_organization_id_and_its_deprecated_twin():
         private_key_pem=kp.private_pem, session_id="s", agent_id="a", organization_id="o"
     )
     assert claims(token)["organization_id"] == "o"
-    assert claims(token)["tenant_id"] == "o"
+    assert "tenant_id" not in claims(token)
 
     default = mint_voqalize_token(private_key_pem=kp.private_pem, session_id="s", agent_id="a")
     assert claims(default)["organization_id"] == "organization_conformance"
@@ -219,14 +217,3 @@ def test_minted_tokens_carry_organization_id_and_its_deprecated_twin():
         ScenarioContext("ws://x", private_key_pem=None).organization_id
         == "organization_conformance"
     )
-
-    with pytest.warns(DeprecationWarning, match="mint_voqalize_token"):
-        legacy = mint_voqalize_token(
-            private_key_pem=kp.private_pem, session_id="s", agent_id="a", tenant_id="old"
-        )
-    assert claims(legacy)["organization_id"] == "old"
-    assert claims(legacy)["tenant_id"] == "old"
-
-    with pytest.warns(DeprecationWarning, match="ScenarioContext"):
-        ctx = ScenarioContext("ws://x", private_key_pem=None, tenant_id="old")
-    assert ctx.organization_id == "old"

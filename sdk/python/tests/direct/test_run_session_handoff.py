@@ -13,7 +13,6 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import uuid
-import warnings
 from datetime import UTC, datetime, timedelta
 
 import jwt
@@ -235,8 +234,7 @@ def _token(
     organization: dict[str, str] | None = None,
     **headers,
 ) -> str:
-    """``organization`` is the organization claim(s) to sign: ``organization_id`` alone by
-    default, or ``tenant_id`` (a token from before the rename), or both."""
+    """``organization`` is the organization claim to sign (``organization_id`` by default)."""
     now = datetime.now(UTC)
     return jwt.encode(
         {
@@ -360,21 +358,17 @@ async def test_unverified_sessions_carry_no_identity():
     assert text == "for None/None"
 
 
-# ─── tenant → organization: the claim and its deprecated twin ──────────────────
-# RENAME-CLEANUP: this whole section covers the tenant_id fallback and aliases;
-# 0.17.0 keeps only the organization_id-only case.
+# ─── organization: the one claim ─────────────────────────────────────────────
 
 
 @pytest.mark.parametrize(
     ("claims", "expected"),
     [
-        ({"organization_id": "o-1"}, "o-1"),  # a token minted after the rename
-        ({"tenant_id": "o-1"}, "o-1"),  # a token from a platform before the rename
-        ({"organization_id": "o-1", "tenant_id": "o-1"}, "o-1"),  # the brain token, in the grace
-        ({"organization_id": "o-new", "tenant_id": "o-old"}, "o-new"),  # organization_id wins
+        ({"organization_id": "o-1"}, "o-1"),
+        ({"tenant_id": "o-1"}, ""),  # the pre-rename name is no longer read
     ],
 )
-async def test_the_organization_is_read_from_organization_id_then_tenant_id(claims, expected):
+async def test_the_organization_is_read_from_organization_id_only(claims, expected):
     priv, pub = _keypair()
     sid = str(uuid.uuid4())
     text = await _greeting(
@@ -386,63 +380,12 @@ async def test_the_organization_is_read_from_organization_id_then_tenant_id(clai
     assert text == f"for {expected}/agent-mine"
 
 
-class _TenantAliasBrain(_IdentityBrain):
-    """A brain written against 0.15: it reads ``session.tenant_id``."""
-
-    async def greet(self, session) -> str:
-        return f"for {session.tenant_id}/{session.agent_id}"
-
-
-@pytest.mark.parametrize(
-    "claims",
-    [
-        {"organization_id": "o-1", "tenant_id": "o-1"},  # the brain token, in the grace
-        {"organization_id": "o-1"},  # a platform that dropped tenant_id
-        {"tenant_id": "o-1"},  # a platform from before the rename
-    ],
-    ids=["both-claims", "organization-only", "tenant-only"],
-)
-async def test_a_015_brain_reading_session_tenant_id_gets_the_id_and_one_warning(claims):
-    """The customer guarantee: brain code written for 0.15 runs unchanged on 0.16,
-    whatever the token carries, and is told once that the name is going."""
-    priv, pub = _keypair()
-    sid = str(uuid.uuid4())
-    server_ch, client_ch = _pipe()
-    token = _token(priv, sid, agent_id="agent-mine", organization=claims)
-    with warnings.catch_warnings(record=True) as caught:
-        warnings.simplefilter("always")
-        task = asyncio.create_task(
-            run_session(
-                server_ch,
-                brain=_TenantAliasBrain,
-                session_id=sid,
-                token=f"Bearer {token}",
-                public_keys=pub,
-                expect_agent="agent-mine",
-            )
-        )
-        client = _Client(client_ch)
-        try:
-            await client.send(SessionStartFrame(turn_id=1, session_id=sid))
-            frames = await client.collect_until(_has_text("for "))
-        finally:
-            await client_ch.close()
-            with contextlib.suppress(*_TEARDOWN_ERRORS):
-                await asyncio.wait_for(task, timeout=2.0)
-    assert any(isinstance(f, SpeechChunkFrame) and f.text == "for o-1/agent-mine" for f in frames)
-    deprecations = [w for w in caught if issubclass(w.category, DeprecationWarning)]
-    assert len(deprecations) == 1, [str(w.message) for w in deprecations]
-    assert "Session.tenant_id" in str(deprecations[0].message)
-    assert "organization_id" in str(deprecations[0].message)
-    assert "removed in 0.17.0" in str(deprecations[0].message)
-
-
-def test_verified_identity_tenant_id_is_a_deprecated_alias():
+def test_the_tenant_id_aliases_are_gone():
+    from voqalize.sdk import Session
     from voqalize.sdk._identity import VerifiedIdentity
 
-    identity = VerifiedIdentity(organization_id="o-1", agent_id="a-1")
-    with pytest.warns(DeprecationWarning, match="removed in 0.17.0"):
-        assert identity.tenant_id == "o-1"
+    assert not hasattr(Session, "tenant_id")
+    assert not hasattr(VerifiedIdentity(organization_id="o-1", agent_id="a-1"), "tenant_id")
 
 
 # ─── kid: the token names its key; old tokens without one still verify ──────

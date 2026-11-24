@@ -79,7 +79,7 @@ from typing import Any
 
 from loguru import logger
 
-from ._identity import verified_identity, warn_tenant_alias
+from ._identity import verified_identity
 from .actions import Action
 from .engine import Emitter, SessionAdapter, SessionFactory
 from .events import (
@@ -285,14 +285,6 @@ class Session:
         self._finals: dict[int, asyncio.Future[Finalize]] = {}
         # When each recent turn's stimulus arrived, on the monotonic clock.
         self._turn_began: OrderedDict[int, float] = OrderedDict()
-
-    # RENAME-CLEANUP: drop the Session.tenant_id alias
-    @property
-    def tenant_id(self) -> str | None:
-        """Deprecated alias for :attr:`organization_id` (the tenant is now called
-        an organization). Warns; removed in 0.17.0."""
-        warn_tenant_alias("Session.tenant_id")
-        return self.organization_id
 
     # ─── The app ────────────────────────────────────────────────────────
 

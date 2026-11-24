@@ -195,9 +195,7 @@ def verify_token(
     ``iss="pygato"``, ``aud="brain"`` (a wire constant — all brain connections
     share it), and ``sub == session_id`` (scoped to exactly one session). The
     recipient then decides from the token's ``organization_id`` / ``agent_id`` whether it
-    serves that agent. (Tokens minted before the tenant → organization rename carry
-    ``tenant_id`` instead; :func:`run_session` reads ``organization_id`` and falls
-    back to ``tenant_id``.) ``token`` may be a bare JWT or an
+    serves that agent. ``token`` may be a bare JWT or an
     ``"Authorization: Bearer <jwt>"`` header value; ``allow_unverified`` skips the
     check entirely (local dev only)."""
     if allow_unverified:

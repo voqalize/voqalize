@@ -21,7 +21,6 @@ import uuid
 from datetime import UTC, datetime, timedelta
 
 import jwt
-import pytest
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from loguru import logger
@@ -62,7 +61,7 @@ async def test_context_reaches_tasks_spawned_inside_it():
     inside, outside = cap.records[0], cap.records[1]
     assert inside["session_id"] == "sid-1"
     assert inside["organization_id"] == "t1"
-    assert inside["tenant_id"] == "t1"  # RENAME-CLEANUP: the grace-period log field
+    assert "tenant_id" not in inside
     assert inside["agent_id"] == "a1"
     assert inside["service"] == "brain"
     assert "session_id" not in outside
@@ -150,7 +149,7 @@ def _signed(session_id: str, **claims) -> tuple[str, str]:
 async def test_brain_lines_carry_the_identity_from_the_verified_token():
     """The customer's own ``logger.info`` inside a callback is tagged for free."""
     sid = str(uuid.uuid4())
-    token, pub = _signed(sid, organization_id="org-7", tenant_id="org-7", agent_id="agent-9")
+    token, pub = _signed(sid, organization_id="org-7", agent_id="agent-9")
     server_ch, client_ch = _pipe()
 
     with _Capture() as cap:
@@ -182,8 +181,7 @@ async def test_brain_lines_carry_the_identity_from_the_verified_token():
     tagged = [r for r in cap.records if r.get("session_id") == sid]
     assert tagged, "the brain's own log lines were not tagged with the session"
     assert all(r["organization_id"] == "org-7" for r in tagged)
-    # RENAME-CLEANUP: the grace-period tenant_id log field; assert it is absent after.
-    assert all(r["tenant_id"] == "org-7" for r in tagged), "log shippers still index tenant_id"
+    assert not any("tenant_id" in r for r in tagged), "the log field is organization_id only"
     assert all(r["agent_id"] == "agent-9" for r in tagged)
 
 
@@ -199,8 +197,7 @@ def test_json_sink_promotes_identity_and_keeps_custom_fields(capsys):
 
     assert line["session_id"] == "sid-3"
     assert line["organization_id"] == "t3"
-    assert line["tenant_id"] == "t3"  # RENAME-CLEANUP: the grace-period log field
-    assert "fields" not in line or "tenant_id" not in line["fields"]
+    assert "tenant_id" not in line
     assert line["service"] == "brain"
     assert line["message"] == "scored"
     assert line["fields"] == {"candidate": "c-1"}
@@ -217,20 +214,3 @@ def test_console_sink_renders_a_line_logged_outside_any_session(capsys):
         logger.remove()
 
     assert "no session here" in out
-
-
-# RENAME-CLEANUP: covers only the tenant_id= alias.
-def test_session_context_tenant_id_keyword_is_a_deprecated_alias():
-    with _Capture() as cap:
-        with pytest.warns(DeprecationWarning, match="session_context.*organization_id") as rec:
-            ctx = session_context("sid-4", tenant_id="t4")
-        assert rec[0].filename == __file__, "the warning points at the caller"
-        with ctx:
-            logger.info("hello")
-    assert cap.records[0]["organization_id"] == "t4"
-
-
-# RENAME-CLEANUP: covers only the tenant_id= alias.
-def test_session_context_refuses_two_different_organizations():
-    with pytest.warns(DeprecationWarning), pytest.raises(TypeError, match="not two different"):
-        session_context("sid-5", organization_id="a", tenant_id="b")

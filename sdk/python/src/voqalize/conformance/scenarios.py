@@ -30,7 +30,6 @@ import uuid
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 
-from voqalize.sdk._identity import resolve_organization_kwarg
 from voqalize.sdk.wire import SpeechChunkFrame, SpeechEndFrame
 
 from . import checks
@@ -69,16 +68,13 @@ class ScenarioContext:
         *,
         private_key_pem: bytes | None,
         agent_id: str = "agent_conformance",
-        organization_id: str | None = None,
+        organization_id: str = "organization_conformance",
         default_timeout: float = 5.0,
-        tenant_id: str | None = None,  # RENAME-CLEANUP: drop the deprecated tenant_id= keyword
     ) -> None:
         self.brain_url = brain_url
         self.private_key_pem = private_key_pem
         self.agent_id = agent_id
-        self.organization_id = resolve_organization_kwarg(
-            "ScenarioContext", organization_id, tenant_id, "organization_conformance"
-        )
+        self.organization_id = organization_id
         self.default_timeout = default_timeout
         self._drivers: list[VoqalizeDriver] = []
 

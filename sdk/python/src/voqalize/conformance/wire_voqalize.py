@@ -10,8 +10,7 @@ Two pieces the driver builds on:
 
 2. :func:`generate_keypair` / :func:`mint_voqalize_token` — the RS256 brain token
    Voqalize presents, claim for claim (``iss=pygato``, ``aud=brain``,
-   ``sub=session_id``, plus ``agent_id`` / ``organization_id`` and its deprecated
-   twin ``tenant_id``). A conformance run mints
+   ``sub=session_id``, plus ``agent_id`` / ``organization_id``). A conformance run mints
    with an ephemeral keypair and hands the public half to the brain under test.
 
 Decoding is not one of them: ``WireSerializer`` decodes every body in the
@@ -29,7 +28,6 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from websockets.asyncio.client import ClientConnection, connect
 
-from voqalize.sdk._identity import resolve_organization_kwarg
 from voqalize.sdk.session import key_id
 
 # Same wire constant every brain verifies (voqalize.sdk.session.BRAIN_AUDIENCE).
@@ -130,9 +128,8 @@ def mint_voqalize_token(
     private_key_pem: bytes,
     session_id: str,
     agent_id: str,
-    organization_id: str | None = None,
+    organization_id: str = "organization_conformance",
     ttl_seconds: int = 60,
-    tenant_id: str | None = None,  # RENAME-CLEANUP: drop the deprecated tenant_id= keyword
 ) -> str:
     """Mint the short-lived RS256 token Voqalize presents on a brain connection.
 
@@ -141,17 +138,10 @@ def mint_voqalize_token(
 
     Claims: ``iss=pygato``, ``aud=brain`` (a wire constant),
     ``sub=session_id``, ``kind=pygato``, plus ``agent_id`` / ``organization_id`` for
-    the recipient to decide. The token also carries ``tenant_id`` with the same
-    value, as Voqalize's brain token does for two weeks after the organization
-    switch, so a brain on an SDK older than 0.16.0 still reads its
-    organization. The ``tenant_id=`` keyword is a deprecated alias for
-    ``organization_id=``. The header names the signing key as ``kid``
+    the recipient to decide. The header names the signing key as ``kid``
     (:func:`voqalize.sdk.session.key_id`). The same shape Voqalize signs in
     production, so a brain that accepts this one accepts production.
     """
-    organization = resolve_organization_kwarg(
-        "mint_voqalize_token", organization_id, tenant_id, "organization_conformance"
-    )
     now = datetime.now(UTC)
     claims = {
         "iss": "pygato",
@@ -159,8 +149,7 @@ def mint_voqalize_token(
         "sub": session_id,
         "kind": "pygato",
         "agent_id": agent_id,
-        "organization_id": organization,
-        "tenant_id": organization,  # RENAME-CLEANUP: drop the tenant_id claim
+        "organization_id": organization_id,
         "iat": now,
         "exp": now + timedelta(seconds=ttl_seconds),
     }

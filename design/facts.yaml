@@ -167,13 +167,17 @@ facts:
       pattern: '^name = "(.+)"$'
 
   sdk.python.version.tree:
-    value: '0.16.0'
+    value: '0.17.0'
     source: sdk/python/pyproject.toml:3
     verified: 2026-11-24
     derive:
       file: sdk/python/pyproject.toml
       pattern: '^version = "(.+)"$'
     note: >-
+      Bumped to 0.17.0 two weeks after the organization switch: every
+      tenant_id alias, the tenant_id claim fallback, the tenant_id log field
+      and the conformance kit's tenant_id claim are removed. The wire is
+      unchanged.
       Bumped to 0.16.0 on 2026-11-24: the tenant is renamed organization —
       Session.organization_id, VerifiedIdentity.organization_id,
       session_context(organization_id=), the organization_id log field and

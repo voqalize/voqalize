@@ -25,8 +25,6 @@ import time
 import traceback
 from dataclasses import dataclass, field
 
-from voqalize.sdk._identity import resolve_organization_kwarg
-
 from .scenarios import CATALOG, Scenario, ScenarioContext
 
 # The probe: a brain that speaks the reference grammar answers `say <text>` by
@@ -181,8 +179,7 @@ async def run_suite(
     only: list[str] | None = None,
     default_timeout: float = 5.0,
     agent_id: str = "agent_conformance",
-    organization_id: str | None = None,
-    tenant_id: str | None = None,  # RENAME-CLEANUP: drop the deprecated tenant_id= keyword
+    organization_id: str = "organization_conformance",
 ) -> Report:
     """Run the catalog against ``brain_url`` and return a :class:`Report`.
 
@@ -202,18 +199,15 @@ async def run_suite(
     restricts to named scenarios.
 
     ``organization_id`` names the organization the minted tokens carry (default
-    ``"organization_conformance"``); ``tenant_id=`` is its deprecated alias.
+    ``"organization_conformance"``).
     """
-    organization = resolve_organization_kwarg(
-        "run_suite", organization_id, tenant_id, "organization_conformance"
-    )
 
     def _ctx() -> ScenarioContext:
         return ScenarioContext(
             brain_url,
             private_key_pem=private_key_pem,
             agent_id=agent_id,
-            organization_id=organization,
+            organization_id=organization_id,
             default_timeout=default_timeout,
         )
 

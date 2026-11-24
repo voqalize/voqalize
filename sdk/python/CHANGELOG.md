@@ -15,6 +15,29 @@ The public series has now caught up to them, so **a heading carrying
 are different releases that happen to share a number; the pre-restart entries are
 kept for the history, and nothing installable was ever cut from them.
 
+## 0.17.0
+
+Released two weeks after the organization switch. **Breaking:** every
+`tenant_id` alias that 0.16.0 deprecated is gone; the organization is
+`organization_id` everywhere. Nothing on the wire changes.
+
+Before upgrading, a brain must already read `organization_id` (0.16.0 told it
+so with a `DeprecationWarning` on every `tenant_id`). From now on Voqalize's
+brain token carries `organization_id` only, so a brain still on 0.15.0 or older
+gets an empty `session.tenant_id`.
+
+### Removed
+
+- `Session.tenant_id` and `VerifiedIdentity.tenant_id`. Read `organization_id`.
+- The `tenant_id=` keyword on `session_context`, `run_suite`,
+  `ScenarioContext` and `mint_voqalize_token`. Pass `organization_id=`.
+- The `tenant_id` claim fallback: token verification reads `organization_id`
+  only.
+- The `tenant_id` log field: session log lines (and
+  `configure_logging(json_logs=True)`'s top level) carry `organization_id` only.
+  Move any log query or dashboard still filtering on `tenant_id`.
+- The `tenant_id` claim in tokens the conformance kit mints.
+
 ## 0.16.0
 
 The tenant is now called an **organization**, in the SDK as everywhere else in
