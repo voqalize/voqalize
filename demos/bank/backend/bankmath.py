@@ -204,6 +204,124 @@ def loan_eligibility(
     return Eligibility(loan["id"], rate, n, rnd(max_emi), int(max(0.0, top)))
 
 
+# ─── A loan pitch: the best plan for one person (B2) ──────────────────────────
+
+#: Home loans lend 90% of a property's value up to ₹30 lakh of loan, 80% above
+#: (products.json ``ltv``); car loans 90% of the on-road price (``ltv_pct``).
+_HOME_LTV_SMALL = 0.9
+_HOME_LTV_SMALL_UPTO = 3_000_000
+_HOME_LTV = 0.8
+
+
+def ltv_cap(loan: dict[str, Any], value: float) -> int:
+    """The most this loan lends against a property or a car worth ``value``."""
+    if loan["id"] == "home":
+        small = value * _HOME_LTV_SMALL
+        top = small if small <= _HOME_LTV_SMALL_UPTO else value * _HOME_LTV
+    else:
+        top = value * float(loan.get("ltv_pct") or 100) / 100
+    return int(min(float(loan["amount_max"]), math.floor(top / 10000) * 10000))
+
+
+@dataclass(frozen=True)
+class LoanPlan:
+    """The plan the brain pitches: the amount and tenure that fit this person, the
+    EMI and its cost, and a cheaper option when one fits."""
+
+    loan_type: str
+    rate: float
+    amount: int
+    tenure_months: int
+    emi: int
+    total_interest: int
+    max_emi: int | None
+    max_amount: int
+    #: True when the EMI fits the affordable EMI (and the income minimum is met).
+    fits: bool
+    below_min_income: bool
+    #: The amount was cut to the most this person can borrow (or the LTV allows).
+    capped_by: str | None
+    #: The tenure was stretched so the EMI fits.
+    stretched_from: int | None
+    #: A shorter tenure that still fits: (months, emi, interest saved).
+    shorter: tuple[int, int, int] | None
+
+
+def _interest(amount: float, rate: float, n: int) -> tuple[int, int]:
+    e = rnd(emi(amount, rate, n))
+    return e, e * n - int(amount)
+
+
+def loan_plan(
+    loan: dict[str, Any],
+    *,
+    amount: float | None = None,
+    tenure_months: int | None = None,
+    monthly_income: float | None = None,
+    existing_emis: float | None = None,
+    asset_value: float | None = None,
+    gold_grams: float | None = None,
+) -> LoanPlan:
+    """The best plan for one person: the amount they asked for (or the most the
+    asset allows), capped at what they can borrow; the tenure they asked for (or
+    the product's default), stretched to the shortest that makes the EMI fit;
+    and, when it fits with room, a tenure five years shorter (one year for short
+    loans) and the interest it saves."""
+    rate = float(loan["rate_typical"])
+    lo, hi = int(loan["tenure_min_months"]), int(loan["tenure_max_months"])
+    n = min(hi, max(lo, tenure_months or int(loan["tenure_default_months"])))
+    capped_by: str | None = None
+    if loan["id"] == "gold":
+        el = loan_eligibility(loan, tenure_months=n, gold_grams=gold_grams)
+        want = float(amount) if amount else float(el.max_amount)
+        if want > el.max_amount:
+            want, capped_by = float(el.max_amount), "gold"
+        want = max(float(loan["amount_min"]), want)
+        e, interest = _interest(want, rate, n)
+        return LoanPlan("gold", rate, int(want), n, e, interest, None, el.max_amount,
+                        el.max_amount >= loan["amount_min"], False, capped_by, None, None)  # fmt: skip
+    want = float(amount) if amount else None
+    if asset_value:
+        cap = ltv_cap(loan, asset_value)
+        if want is None or want > cap:
+            want, capped_by = float(cap), ("ltv" if want is not None else None)
+    income = float(monthly_income or 0)
+    below = income < float(loan["min_income_monthly"])
+    el = loan_eligibility(loan, monthly_income=income, existing_emis=existing_emis, tenure_months=n)
+    max_emi = el.max_emi or 0
+    if want is None:
+        want = float(el.max_amount)
+    want = max(float(loan["amount_min"]), min(float(loan["amount_max"]), want))
+    stretched: int | None = None
+    if rnd(emi(want, rate, n)) > max_emi:
+        fit = next((k for k in range(n, hi + 1, 12) if rnd(emi(want, rate, k)) <= max_emi), None)
+        if fit is None and rnd(emi(want, rate, hi)) <= max_emi:
+            fit = hi
+        if fit is not None:
+            stretched, n = n, fit
+        else:
+            top = loan_eligibility(
+                loan, monthly_income=income, existing_emis=existing_emis, tenure_months=hi
+            )
+            if n != hi:
+                stretched, n = n, hi
+            want, capped_by = float(top.max_amount), "income"
+            el = top
+    e, interest = _interest(want, rate, n)
+    fits = not below and want >= loan["amount_min"] and e <= max_emi
+    shorter = None
+    step = 60 if hi >= 240 else 12
+    if fits and n - step >= lo:
+        e2, i2 = _interest(want, rate, n - step)
+        if e2 <= max_emi:
+            shorter = (n - step, e2, interest - i2)
+    top = loan_eligibility(
+        loan, monthly_income=income, existing_emis=existing_emis, tenure_months=n
+    )
+    return LoanPlan(loan["id"], rate, int(want), n, e, interest, rnd(max_emi), top.max_amount, fits,
+                    below, capped_by, stretched, shorter)  # fmt: skip
+
+
 # ─── Fixed deposits ───────────────────────────────────────────────────────────
 
 

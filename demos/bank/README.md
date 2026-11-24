@@ -12,9 +12,12 @@ It replaces three older demos (aura, kiosk, lead_qual) with one suite.
 |---|---|
 | `/demos/bank/app` | **Banking assistant.** Answers from the customer's own accounts, cards and transactions and opens the screen the answer lives on: "what was this ₹4,999 charge?" opens that transaction; "how much did I spend on food last month?" opens Insights on that category; "block my debit card" puts a confirmation sheet on screen and acts only after a yes (spoken or tapped). Bills, transfers, FDs, card limits and controls, EMI conversion and the pre-approved loan go through the same sheet. Cross-sell offers (a pre-approved personal loan, a card upgrade) sit in the app, and the assistant switches into card or loan mode when the customer goes there. |
 | `/demos/bank/open-account` | **Account opening guide.** A six-step savings application (personal details, address, KYC with masked sample PAN and Aadhaar, nominee, account variant, review) that fills in as the customer talks, with a one-line reason for each step. |
-| `/demos/bank/cards` | **Credit card advisor.** Five authored cards; ranks them by yearly value from how the customer spends (or, signed in, from her real last-three-months spend), compares side by side, takes an application, and converts a card spend to EMI with every tenure's EMI on screen. |
-| `/demos/bank/loans` | **Loan advisor.** Home, personal, gold and car loans: eligibility from income and existing EMIs, an EMI calculator that shows its working, the documents list, and an application that ends in a qualified lead card for the bank's team. |
-| `/demos/bank/` | The front desk: finds out what the visitor wants and takes them there. |
+| `/demos/bank/cards` | **Card salesperson.** Asks the few questions that matter (monthly income, how they spend), then `recommend_card` puts the one best card for this person beside the runner-up and he says what it is worth to them a year after fees, that they qualify and how much more than the runner-up, then offers to start the application (prefilled). Also ranks all cards side by side, takes the application, and converts a card spend to EMI with every tenure's EMI on screen. |
+| `/demos/bank/loans` (and each loan's page) | **Loan salesperson.** Home, personal, gold and car loans: asks which loan (unless the page says), income and existing EMIs, and the amount or the price, then `recommend_loan` puts the eligibility check and the EMI calculator on screen with their numbers and he pitches the plan that fits (amount, tenure stretched if the EMI needs it, EMI, total interest, their own share of the price, the interest a shorter tenure saves), then offers to apply; the application ends in a qualified lead card for the bank's team. |
+| `/demos/bank/` | The adviser at the front door: finds out what the visitor came for, takes them there, and sells. |
+
+On the public pages Arjun sells (few right questions, the best option with its money, one nudge to
+apply, never pushy); in the signed-in app and in account opening he stays a support assistant.
 
 Sign-in is a mock: one tap, no real authentication.
 
@@ -41,6 +44,17 @@ it). The live brain is held by session id in `backend/rejoin.py` for two minutes
 brain Voqalize's redial starts adopts the whole call (screen, language, history, a sheet awaiting a
 yes, her cards and balances) and does not greet again. Details in `CONTRACT.md`, Redial.
 
+## The assistant widget
+
+Paynora's widget, in the bank's palette (`frontend/src/voice/`): idle, a pill at the bottom right
+with the character's still photo (`frontend/src/characters/<character>.webp`), the name, the job on
+this page (`persona.json` `roles`), EN / हिंदी and "Talk to Arjun". In a call the pill goes away and
+the face becomes a draggable tile with the live avatar (`@voqalize/avatar` 0.6.3), the language
+toggle, mute, minimise and end. No transcript anywhere. The language is remembered across reloads.
+While the confirmation sheet, a transaction's sheet (phone) or the app's menu is open, the pill and
+the tile move to a top corner above it (`data-overlay` on each overlay). The dock is the page's only
+way to start a call.
+
 ## Run it
 
 ```sh
@@ -60,7 +74,8 @@ and the dock says voice is not configured in this build.
 
 Edit **`persona.json`** only:
 
-- `character` — the avatar character id; `name` — the display name the page shows ("Talk to Arjun");
+- `character` — the avatar character id (add its still photo at `frontend/src/characters/<character>.webp`);
+  `name` — the display name the page shows ("Talk to Arjun"); `roles` — the dock's label per landing;
   `spoken_names` — the name as the voice says it in each language.
 - `voices` — the voice id per language; `languages` — the languages the toggle offers;
   `default_language`; `language_labels` (the toggle's labels) and `language_names`.

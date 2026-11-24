@@ -610,6 +610,205 @@ async def test_loan_advisor_works_out_eligibility_emi_and_ends_in_a_lead() -> No
         )
 
 
+# ─── Selling on the public pages (B2): few questions, the best option, a nudge ─
+
+
+async def test_home_loan_sales_asks_then_pitches_the_plan_with_its_money() -> None:
+    """On the home loan page Arjun knows the product, asks only income and EMIs,
+    then the property price; recommend_loan puts the eligibility check and the
+    calculator on screen with her numbers and returns the plan: the amount the
+    LTV allows, the EMI, the interest, eligibility and a shorter tenure's saving.
+    A yes to applying fills the application with everything already said."""
+    llm = ScriptedOpenAI(
+        {
+            "I want a home loan.": reply(
+                "Happy to help. What's your monthly take-home, and do you pay any EMIs now?"
+            ),
+            "1.5 lakh a month, a 10,000 car EMI.": reply(
+                "Got it. And roughly what does the flat cost?"
+            ),
+            "About 75 lakh.": [
+                reply_and_call(
+                    "Let me work out the best plan for you.",
+                    "recommend_loan",
+                    loan_type="home",
+                    monthly_income=150000,
+                    existing_emis=10000,
+                    property_value=7500000,
+                ),
+                reply(
+                    "We can lend sixty lakh over twenty years at 8.85%, an EMI of about fifty-three "
+                    "thousand, well within your budget. Shall I start your application?"
+                ),
+            ],
+            "Yes, I'm Kavya Iyer, 9812345678, Bengaluru, call me in the morning.": [
+                reply_and_call(
+                    "Putting that in.",
+                    "fill_loan_application",
+                    loan_type="home",
+                    full_name="Kavya Iyer",
+                    mobile="9812345678",
+                    city="Bengaluru",
+                    employment="salaried",
+                    monthly_income=150000,
+                    existing_emis=10000,
+                    amount=6000000,
+                    tenure_months=240,
+                    property_value=7500000,
+                    preferred_time="morning",
+                ),
+                reply("All filled in. Shall I submit it?"),
+            ],
+        }
+    )
+    async with demo("bank", llm) as rig:
+        await rig.driver.start_session(
+            init={"landing": "loans", "path": "/loans/home", "lang": "en"}
+        )
+        await rig.driver.user_says("I want a home loan.")
+        first = json.dumps(llm.captured_inputs[-1], ensure_ascii=False)
+        assert "the Home loan page" in first and "loan salesperson" in first
+        await rig.driver.user_says("1.5 lakh a month, a 10,000 car EMI.")
+        assert not [p for p in _moves(rig) if p["move"].startswith("loan.")]  # asks first
+
+        await rig.driver.user_says("About 75 lakh.")
+        home = b.loan_product("home") or {}
+        plan = m.loan_plan(home, monthly_income=150000, existing_emis=10000, asset_value=7500000)
+        assert plan.amount == 6000000 and plan.tenure_months == 240 and plan.fits  # 80% of 75 lakh
+        el = _move(rig, "loan.eligibility")["args"]
+        assert el["monthly_income"] == 150000 and el["existing_emis"] == 10000
+        assert _move(rig, "loan.calc")["args"] == {
+            "loan_type": "home", "amount": 6000000, "tenure_months": 240, "rate": home["rate_typical"]
+        }  # fmt: skip
+        pitch = _results(llm, "recommend_loan")[-1]
+        assert f"EMI {b.inr(plan.emi)}" in pitch
+        assert f"total interest {b.inr(plan.total_interest)}" in pitch
+        assert f"up to {b.inr(plan.max_emi or 0)}" in pitch  # eligibility
+        assert plan.shorter is not None and f"save {b.inr(plan.shorter[2])}" in pitch
+        assert "their own share is" not in pitch and "own share ₹15,00,000" in pitch
+        assert "offer to start the application" in pitch
+
+        await rig.driver.user_says(
+            "Yes, I'm Kavya Iyer, 9812345678, Bengaluru, call me in the morning."
+        )
+        assert "Everything is filled" in _results(llm, "fill_loan_application")[-1]
+
+
+async def test_a_loan_pitch_asks_for_what_is_missing_before_any_number() -> None:
+    """recommend_loan without the income (or the amount) refuses, naming the one
+    question to ask, and puts nothing on screen: no invented numbers."""
+    llm = ScriptedOpenAI(
+        {
+            "Car loan please.": [
+                reply_and_call("Sure.", "recommend_loan", loan_type="car"),
+                reply("What's your monthly take-home and any EMIs?"),
+            ],
+            "80,000 a month, no EMIs.": [
+                reply_and_call("Thanks.", "recommend_loan", loan_type="car", monthly_income=80000),
+                reply("And the car's on-road price?"),
+            ],
+        }
+    )
+    async with demo("bank", llm) as rig:
+        await rig.driver.start_session(init={"landing": "loans", "path": "/loans", "lang": "en"})
+        await rig.driver.user_says("Car loan please.")
+        assert "monthly take-home income" in _results(llm, "recommend_loan")[-1]
+        await rig.driver.user_says("80,000 a month, no EMIs.")
+        assert "on-road price" in _results(llm, "recommend_loan")[-1]
+        assert not [p for p in _moves(rig) if p["move"].startswith("loan.")]
+
+
+async def test_card_sales_asks_income_and_spend_then_pitches_one_card() -> None:
+    """On /cards Arjun asks how they spend and what they earn, then
+    recommend_card shows the pick beside the runner-up, best first, and returns
+    what it is worth to them a year after fees, that they qualify, how much more
+    than the runner-up, and the nudge to apply. A card above their income is not
+    pitched. A yes opens that card's application, prefilled."""
+    llm = ScriptedOpenAI(
+        {
+            "I'm looking for a credit card.": reply(
+                "Lovely. Roughly how much do you put on a card a month, and on what? And your "
+                "monthly take-home?"
+            ),
+            "About 40,000, mostly online shopping. I earn 70,000.": [
+                reply_and_call(
+                    "Let me find the one that pays you back most.",
+                    "recommend_card",
+                    monthly_income=70000,
+                    total_monthly=40000,
+                    mostly_on="online",
+                ),
+                reply(
+                    "Daily Cashback suits you best, worth about thirteen thousand a year with the "
+                    "fee waived. Shall I start your application? It takes two minutes."
+                ),
+            ],
+            "Yes, go on.": [
+                reply_and_call("Opening it.", "open_screen", screen="cards_apply", id="daily"),
+                reply_and_call(
+                    "Putting in what I know.",
+                    "fill_card_application",
+                    card_id="daily",
+                    monthly_income=70000,
+                ),
+                reply("Your name as on your PAN?"),
+            ],
+        }
+    )
+    async with demo("bank", llm) as rig:
+        await rig.driver.start_session(init={"landing": "cards", "path": "/cards", "lang": "en"})
+        await rig.driver.user_says("I'm looking for a credit card.")
+        assert not [p for p in _moves(rig) if p["move"] == "cards.compare"]  # asks first
+
+        await rig.driver.user_says("About 40,000, mostly online shopping. I earn 70,000.")
+        profile = dict.fromkeys(b.CARD_CATEGORIES, 0.0) | {"online": 20000.0, "other": 20000.0}
+        ranked = [v for v in m.rank_cards(profile, 70000) if not v.below_income]
+        best, second = ranked[0], ranked[1]
+        compare = _move(rig, "cards.compare")["args"]
+        assert compare["card_ids"][0] == best.card_id and compare["online"] == 20000
+        pitch = _results(llm, "recommend_card")[-1]
+        name = (b.card_product(best.card_id) or {})["name"]
+        assert f"RECOMMEND: {name}" in pitch
+        assert f"about {b.inr(best.net_yearly)} a year" in pitch
+        assert f"{b.inr(best.yearly_rewards)} in rewards" in pitch
+        assert f"they earn {b.inr(70000)}" in pitch  # eligibility
+        assert f"{b.inr(best.net_yearly - second.net_yearly)} more" in pitch
+        assert "half on online" in pitch
+        assert "Prism" not in pitch.split("Not offered")[0]  # needs ₹2,00,000 a month
+        assert f"open_screen cards_apply id {best.card_id}" in pitch
+
+        await rig.driver.user_says("Yes, go on.")
+        assert _move(rig, "nav.open")["args"] == {"screen": "cards_apply", "id": "daily"}
+        filled = [p["args"] for p in _moves(rig) if p["move"] == "form.fill"]
+        assert {"form": "card_apply", "field": "card_id", "value": "daily"} in filled
+
+
+async def test_a_card_pitch_needs_the_income_first() -> None:
+    llm = ScriptedOpenAI(
+        {
+            "I spend 15,000 on fuel a month.": [
+                reply_and_call("Nice.", "recommend_card", fuel=15000),
+                reply("And your monthly take-home?"),
+            ],
+        }
+    )
+    async with demo("bank", llm) as rig:
+        await rig.driver.start_session(init={"landing": "cards", "path": "/cards", "lang": "en"})
+        await rig.driver.user_says("I spend 15,000 on fuel a month.")
+        assert "monthly take-home income" in _results(llm, "recommend_card")[-1]
+        assert not [p for p in _moves(rig) if p["move"] == "cards.compare"]
+
+
+def test_the_signed_in_app_job_is_untouched_by_selling() -> None:
+    """B2 changed the public pages only: the banking job's note is the one it was."""
+    brain = BankBrain.__new__(BankBrain)
+    brain.screen, brain.signed_in, brain.mode, brain.path = "dashboard", True, "banking", "/app"
+    assert brain._screen_note() == (
+        "[On screen: dashboard. Signed in: yes. You are the banking assistant, answering from "
+        "her own accounts and cards.]"
+    )
+
+
 # ─── Languages ───────────────────────────────────────────────────────────────
 
 
@@ -642,7 +841,7 @@ async def test_page_moves_switch_the_job() -> None:
         await asyncio.sleep(0.1)
         await rig.driver.user_says("hello")
         text = json.dumps(llm.captured_inputs[-1], ensure_ascii=False)
-        assert "the credit-card advisor" in text
+        assert "the card salesperson" in text
 
 
 # ─── Redial: a call outlives a dropped socket ────────────────────────────────

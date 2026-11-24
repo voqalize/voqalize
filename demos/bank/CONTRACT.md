@@ -54,6 +54,14 @@ This file is the agreement between `frontend/` and `backend/`. Change it only in
   `card_category`, ÷ 3, rounded to ₹100.
 - **Loan eligibility**: max EMI = income·FOIR − existing EMIs; max loan = max EMI·((1+r)^n − 1)/(r(1+r)^n)
   at the typical rate, floored to ₹10,000, capped at `amount_max`. Gold: grams·₹7,200·75%, floored to ₹1,000.
+- **The pitch** (brain only; the page shows it through `cards.compare`, `loan.eligibility` and
+  `loan.calc`): `recommend_card` picks the card with the highest yearly net value among those the
+  visitor's stated income qualifies for. `recommend_loan` (`bankmath.loan_plan`) takes the amount asked
+  for, or the most the asset allows (home: 90% of the price up to ₹30 lakh of loan, else 80%; car: 90%),
+  at the tenure asked for or the product default; if the EMI is above the affordable EMI it stretches the
+  tenure a year at a time to the shortest that fits, and failing that offers the most they can borrow at
+  the longest tenure; when the plan fits with room, it adds the tenure five years shorter (one year for
+  short loans) and the interest that saves.
 - **FD**: cumulative = P·(1 + rate/400)^(4·months/12); monthly / quarterly payout = P·rate/100/12 (or /4).
 
 ## Routes (base `/demos/bank/`) and the `nav.open` screens

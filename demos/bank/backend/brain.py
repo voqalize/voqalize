@@ -130,10 +130,40 @@ def mode_of(screen: str) -> str:
 _MODE_NOTE = {
     "banking": "the banking assistant, answering from her own accounts and cards",
     "account": "the account-opening guide, filling the savings application as they talk",
-    "cards": "the credit-card advisor",
-    "loans": "the loan advisor",
-    "home": "the front desk, taking them to the right part of the site",
+    "cards": "the card salesperson: a few right questions (income, how they spend), then "
+    "recommend_card with the money it is worth to them, then a nudge to apply",
+    "loans": "the loan salesperson: a few right questions (which loan, income and EMIs, how much), "
+    "then recommend_loan with the EMI and what they save, then a nudge to apply",
+    "home": "the adviser at the front door: find what they came for, take them there, and sell",
 }
+
+
+def product_on(path: str) -> str | None:
+    """The product a public page is about, from its path (``/loans/home``,
+    ``/cards/voyage``, ``/loans/apply?type=car``), in words; None elsewhere."""
+    p, _, query = path.partition("?")
+    p = p.rstrip("/")
+    q = dict(kv.split("=", 1) for kv in query.split("&") if "=" in kv)
+    loan_id = (
+        q.get("type")
+        if p == "/loans/apply"
+        else p.removeprefix("/loans/")
+        if p.startswith("/loans/")
+        else None
+    )
+    if loan_id and (loan := b.loan_product(loan_id)):
+        return f"the {loan['short']} page"
+    card_id = (
+        q.get("card")
+        if p == "/cards/apply"
+        else p.removeprefix("/cards/")
+        if p.startswith("/cards/")
+        else None
+    )
+    if card_id and (card := b.card_product(card_id)):
+        return f"the {card['name']} page"
+    return None
+
 
 # ─── Yes and no, heard by the brain itself ────────────────────────────────────
 
@@ -369,6 +399,50 @@ class EligibilityRequest(BaseModel):
     )
 
 
+class CardPitchRequest(BaseModel):
+    """What the visitor told you: their monthly income and how they spend. Spend by
+    category in rupees a month; or only a total and where most of it goes."""
+
+    monthly_income: float | None = Field(
+        default=None,
+        description="Take-home a month, rupees, as THEY said it. Never a guess: leave it out "
+        "until they tell you.",
+    )
+    dining: int | None = None
+    online: int | None = None
+    groceries: int | None = None
+    travel: int | None = None
+    fuel: int | None = None
+    utilities: int | None = None
+    other: int | None = None
+    total_monthly: int | None = Field(
+        default=None,
+        description="Only when they gave a total, not a split: all card spend a month.",
+    )
+    mostly_on: Literal["dining", "online", "groceries", "travel", "fuel", "utilities"] | None = (
+        Field(default=None, description="With total_monthly: where most of it goes.")
+    )
+    use_my_data: bool = Field(
+        default=False, description="Signed in: her real salary and last-3-months spend."
+    )
+
+
+class LoanPitchRequest(BaseModel):
+    """What the visitor told you, for the loan they want."""
+
+    loan_type: Literal["home", "personal", "gold", "car"]
+    monthly_income: float | None = Field(default=None, description="Take-home a month, rupees.")
+    existing_emis: float | None = Field(default=None, description="EMIs they already pay a month.")
+    amount: float | None = Field(default=None, description="How much they want to borrow.")
+    tenure_months: int | None = Field(default=None, description="Only if they said one.")
+    property_value: float | None = Field(
+        default=None, description="Home loans: the property's price."
+    )
+    car_price: float | None = Field(default=None, description="Car loans: on-road price.")
+    gold_grams: float | None = Field(default=None, description="Gold loans: grams of 22 carat.")
+    use_my_data: bool = Field(default=False, description="Signed in: her real salary and EMIs.")
+
+
 class LanguageRequest(BaseModel):
     language: Literal["en", "hi"]
 
@@ -465,6 +539,7 @@ class BankBrain(OpenAIBrain):
         self.lang: str = b.DEFAULT_LANGUAGE
         self.mode = "home"
         self.screen = "home"
+        self.path = "/"
         self.signed_in = False
         self._screen_told = ""
         self.stage = Stage(dispatch=lambda a: self.session.dispatch(a), moves=MOVES)
@@ -534,6 +609,7 @@ class BankBrain(OpenAIBrain):
         landing = str(init.get("landing") or "")
         self.mode = landing if landing in MODES else "home"
         self.signed_in = bool(init.get("signed_in")) or self.mode == "banking"
+        self.path = str(init.get("path") or "/")
         self.screen = {
             "banking": "dashboard",
             "account": "open_account",
@@ -586,10 +662,16 @@ class BankBrain(OpenAIBrain):
         )
         return f"[Speak {name} from now on.{extra}]"
 
+    def _screen_told_key(self) -> str:
+        product = product_on(self.path) if self.mode in ("cards", "loans") else None
+        return f"{self.screen}|{self.signed_in}|{self.mode}|{product or ''}"
+
     def _screen_note(self) -> str:
-        self._screen_told = f"{self.screen}|{self.signed_in}|{self.mode}"
+        self._screen_told = self._screen_told_key()
+        product = product_on(self.path) if self.mode in ("cards", "loans") else None
+        about = f" ({product}: they are looking at it, do not ask which one)" if product else ""
         return (
-            f"[On screen: {self.screen}. Signed in: {'yes' if self.signed_in else 'no'}. "
+            f"[On screen: {self.screen}{about}. Signed in: {'yes' if self.signed_in else 'no'}. "
             f"You are {_MODE_NOTE[self.mode]}.]"
         )
 
@@ -603,7 +685,7 @@ class BankBrain(OpenAIBrain):
         self._last_heard = msg.text
         self._say_next = None
         self._settle_expired()
-        if self._screen_told != f"{self.screen}|{self.signed_in}|{self.mode}":
+        if self._screen_told != self._screen_told_key():
             self.append_note(self._screen_note())
         self.append_note(msg.text)
         if self.awaiting is not None and (said := classify(msg.text)) is not None:
@@ -693,6 +775,7 @@ class BankBrain(OpenAIBrain):
         match event:
             case PageViewed():
                 self.screen = event.screen
+                self.path = event.path
                 self.signed_in = event.signed_in
                 mode = mode_of(event.screen)
                 if mode != self.mode:
@@ -912,7 +995,9 @@ class BankBrain(OpenAIBrain):
             self.fill_card_application,
             self.fill_loan_application,
             self.submit_application,
+            self.recommend_card,
             self.rank_cards,
+            self.recommend_loan,
             self.plan_emi,
             self.loan_emi,
             self.loan_eligibility,
@@ -933,6 +1018,16 @@ class BankBrain(OpenAIBrain):
             self.signed_in = True
         self.screen = req.screen
         self.mode = mode_of(req.screen)
+        self.path = (
+            {
+                "card_detail": f"/cards/{req.id}",
+                "cards_apply": f"/cards/apply?card={req.id}",
+                "loan": f"/loans/{req.id}",
+                "loan_apply": f"/loans/apply?type={req.id}",
+            }.get(req.screen, self.path)
+            if req.id
+            else self.path
+        )
         facts = self._screen_facts(req.screen, req.id)
         owe(self._screen_line(req.screen, req.id))
         return (
@@ -1743,6 +1838,223 @@ class BankBrain(OpenAIBrain):
             f"Affordable EMI {b.inr(el.max_emi or 0)} ({foir}% of {b.inr(income or 0)} minus {b.inr(existing or 0)} existing EMIs). "
             f"At {el.rate}% for {el.tenure_months} months: up to {b.inr(el.max_amount)}.{note}"
         )
+
+    # ─── The pitch (public pages, B2): the best option for this person ──
+
+    @needs_result_now
+    async def recommend_card(self, req: CardPitchRequest) -> str:
+        """The ONE card to recommend to this person, once you know their income and how
+        they spend: puts it side by side with the runner-up on screen, best first, and
+        returns what it is worth to them a year, what it costs, and that they qualify."""
+        if req.use_my_data:
+            if (why := self._need_sign_in()) is not None:
+                return _not_done(why)
+            profile = m.customer_profile()
+            income: float | None = float(b.CUSTOMER["profile"]["monthly_income"])
+        else:
+            profile = {c: float(getattr(req, c) or 0) for c in b.CARD_CATEGORIES}
+            income = req.monthly_income
+        assumed = ""
+        if not any(profile.values()) and req.total_monthly:
+            total = float(req.total_monthly)
+            if req.mostly_on:
+                profile[req.mostly_on] = round(total / 2 / 100) * 100
+                profile["other"] = total - profile[req.mostly_on]
+                assumed = (
+                    f"Split assumed from what they said: half on {req.mostly_on}, half elsewhere. "
+                )
+            else:
+                profile["other"] = total
+                assumed = "No split given: all counted as everyday spend; ask where most goes if it matters. "
+        if not any(profile.values()):
+            return _not_done(
+                "ask roughly how much they put on a card a month, and where most of it goes"
+            )
+        if not income:
+            return _not_done(
+                "ask their monthly take-home income (each card has an income minimum), in one short question"
+            )
+        ranked = m.rank_cards(profile, monthly_income=income)
+        ok = [v for v in ranked if not v.below_income]
+        if not ok:
+            lowest = min(b.PRODUCTS["credit_cards"], key=lambda c: c["min_income_monthly"])
+            return _not_done(
+                f"no card fits an income of {b.inr(income)} a month; the lowest minimum is "
+                f"{b.inr(lowest['min_income_monthly'])} ({lowest['name']}). Say so kindly and offer "
+                "a savings account instead"
+            )
+        best = ok[0]
+        shown = [v.card_id for v in ok[:3]]
+        if len(shown) < 2:
+            shown.append(next(v.card_id for v in ranked if v.card_id not in shown))
+        self._send("cards.compare", {"card_ids": shown, **{k: int(v) for k, v in profile.items()}})
+        self.screen, self.mode = "cards_compare", "cards"
+        landed(line(self.lang, "compare"))
+        card = b.card_product(best.card_id) or {}
+        fee = (
+            f"annual fee {b.inr(best.fee)} waived at their spend"
+            if best.fee_waived
+            else f"annual fee {b.inr(best.fee)} (waived on {b.inr(card['fee_waiver_spend'])} a year)"
+        )
+        out = [
+            assumed
+            + "Monthly spend: "
+            + ", ".join(f"{k} {b.inr(v)}" for k, v in profile.items() if v)
+            + f"; income {b.inr(income)} a month.",
+            f"RECOMMEND: {card['name']} ({card['tier']}). Worth about {b.inr(best.net_yearly)} a year to "
+            f"them: {b.inr(best.yearly_rewards)} in rewards"
+            + (
+                f", {b.inr(best.fuel_saving_yearly)} fuel surcharge saved"
+                if best.fuel_saving_yearly
+                else ""
+            )
+            + (f", lounge visits worth {b.inr(best.lounge_value)}" if best.lounge_value else "")
+            + f"; {fee}; joining fee {b.inr(card['joining_fee'])}. "
+            f"Eligible: needs {b.inr(card['min_income_monthly'])} a month, they earn {b.inr(income)}. "
+            f"Why: {card['highlights'][0]}.",
+        ]
+        if len(ok) > 1:
+            nxt = ok[1]
+            out.append(
+                f"Runner-up: {(b.card_product(nxt.card_id) or {}).get('name')}, about "
+                f"{b.inr(nxt.net_yearly)} a year: the pick gives them {b.inr(best.net_yearly - nxt.net_yearly)} more."
+            )
+        above = [v for v in ranked if v.below_income and v.net_yearly > best.net_yearly]
+        if above:
+            c2 = b.card_product(above[0].card_id) or {}
+            out.append(
+                f"Not offered: {c2.get('name')} needs {b.inr(c2.get('min_income_monthly', 0))} a month; "
+                "do not pitch it."
+            )
+        out.append(
+            "Say it in two or three short sentences: the card, what it is worth to them a year and "
+            "why, that they qualify. Then ONE nudge: offer to start the application now, it takes a "
+            f"couple of minutes (on yes: open_screen cards_apply id {best.card_id}, then "
+            "fill_card_application with what you already know)."
+        )
+        return "\n".join(out)
+
+    @needs_result_now
+    async def recommend_loan(self, req: LoanPitchRequest) -> str:
+        """The best plan for this person, once you know the loan, their income (gold: the
+        grams) and the amount or the price: the amount and tenure that fit, the EMI, the
+        interest, eligibility, and a cheaper option when one fits. Puts the eligibility
+        check and the EMI calculator on screen with their numbers."""
+        loan = b.loan_product(req.loan_type)
+        assert loan is not None
+        income, existing = req.monthly_income, req.existing_emis
+        if req.use_my_data:
+            if (why := self._need_sign_in()) is not None:
+                return _not_done(why)
+            income = float(b.CUSTOMER["profile"]["monthly_income"])
+            existing = float(sum(x["emi"] for x in b.CUSTOMER["loans"]))
+        asset = req.property_value if req.loan_type == "home" else req.car_price
+        if req.loan_type == "gold":
+            if not req.gold_grams:
+                return _not_done("ask how many grams of gold (22 carat) they would pledge")
+        else:
+            if not income:
+                return _not_done("ask their monthly take-home income and any EMIs they already pay")
+            if not req.amount and not asset:
+                what = {"home": "the property's price", "car": "the car's on-road price"}.get(
+                    req.loan_type, "the amount they need"
+                )
+                return _not_done(f"ask how much they need to borrow (or {what})")
+        p = m.loan_plan(
+            loan,
+            amount=req.amount,
+            tenure_months=req.tenure_months,
+            monthly_income=income,
+            existing_emis=existing,
+            asset_value=asset,
+            gold_grams=req.gold_grams,
+        )
+        if req.loan_type == "gold":
+            self._send("loan.eligibility", {"loan_type": "gold", "gold_grams": req.gold_grams})
+        else:
+            self._send(
+                "loan.eligibility",
+                {
+                    "loan_type": req.loan_type,
+                    "monthly_income": income,
+                    "existing_emis": existing or 0,
+                    "tenure_months": p.tenure_months,
+                },
+            )
+        self._send(
+            "loan.calc",
+            {
+                "loan_type": req.loan_type,
+                "amount": p.amount,
+                "tenure_months": p.tenure_months,
+                "rate": p.rate,
+            },
+        )
+        self.screen, self.mode = "loan", "loans"
+        landed(line(self.lang, "loan_emi"))
+        years = p.tenure_months / 12
+        span = f"{years:g} years" if p.tenure_months % 12 == 0 else f"{p.tenure_months} months"
+        out: list[str] = []
+        if p.below_min_income:
+            out.append(
+                f"NOT ELIGIBLE: the {loan['short']} needs {b.inr(loan['min_income_monthly'])} a month, "
+                f"they earn {b.inr(income or 0)}. Say so kindly; offer a gold loan (no income proof) if it fits."
+            )
+        elif not p.fits:
+            out.append(
+                f"Cannot fit: at {b.inr(income or 0)} a month with {b.inr(existing or 0)} in EMIs the most "
+                f"is {b.inr(p.max_amount)}, below this loan's minimum. Say so kindly."
+            )
+        out.append(
+            f"PLAN: {loan['short']} of {b.inr(p.amount)} over {span} at {p.rate}% (typical rate; "
+            f"{loan['rate_min']}% for the best profiles): EMI {b.inr(p.emi)} a month, total interest "
+            f"{b.inr(p.total_interest)}. Processing fee: {loan['processing_fee']}."
+        )
+        if p.max_emi is not None:
+            out.append(
+                f"Eligibility: affordable EMI up to {b.inr(p.max_emi)} "
+                f"({int(float(loan['foir']) * 100)}% of income less existing EMIs); "
+                f"at {span} they can borrow up to {b.inr(p.max_amount)}."
+            )
+        else:
+            out.append(
+                f"Against {req.gold_grams} g of gold they can borrow up to {b.inr(p.max_amount)}."
+            )
+        if p.capped_by == "ltv" and asset:
+            out.append(
+                f"The loan covers at most {b.inr(p.amount)} of the {b.inr(asset)} price "
+                f"({loan['ltv']}); their own share is {b.inr(asset - p.amount)}."
+            )
+        elif asset and req.amount is None:
+            out.append(
+                f"No amount given: this is the most the loan lends on {b.inr(asset)} ({loan['ltv']}); "
+                f"their own share {b.inr(asset - p.amount)}. Ask if they need less."
+            )
+        if p.capped_by == "income" and req.amount:
+            out.append(
+                f"They asked for {b.inr(req.amount)}: more than their income supports; this is the most."
+            )
+        if p.capped_by == "gold" and req.amount:
+            out.append(
+                f"They asked for {b.inr(req.amount)}: more than the gold covers; this is the most."
+            )
+        if p.stretched_from:
+            out.append(
+                f"Tenure stretched from {p.stretched_from} months so the EMI fits their income; say why."
+            )
+        if p.shorter:
+            n2, e2, saved = p.shorter
+            out.append(
+                f"SAVES: over {n2 // 12 if n2 % 12 == 0 else n2} {'years' if n2 % 12 == 0 else 'months'} "
+                f"the EMI is {b.inr(e2)} (still within budget) and they save {b.inr(saved)} in interest."
+            )
+        out.append(
+            "Say it in two or three short sentences: the plan with its EMI, that they are eligible, and "
+            "the saving if there is one (let them choose). Then ONE nudge: offer to start the "
+            f"application now (on yes: fill_loan_application with loan_type {req.loan_type} and "
+            "what you already know, then ask only for what is missing)."
+        )
+        return "\n".join(out)
 
     async def set_language(self, req: LanguageRequest) -> str:
         """Switch the call's language (both what you hear and how you speak)."""
