@@ -134,8 +134,8 @@ job: `/welcome` → onboarding; `/` and `/help` → support; anything else → c
   admin asks to leave it (`view_as_admin`, or `view_as_employee` for another) or leaves it by hand
   (a `screen.viewed` off `/me/` by the visitor): payslips and the regime open in the employee view,
   and admin tools are refused there with the reason.
-- Round 2, R5/R6/R7: the idle dock shows the character's still photo; `@voqalize/avatar` (`^0.6.3`,
-  Fernhollow's release and runtime, with its default gains) mounts only while a call is up. The
+- Round 2, R5/R6/R7: the idle dock shows the character's still photo; `@voqalize/avatar` (the
+  latest release, as in Fernhollow, with its default gains; owner 2026-11-24) mounts only while a call is up. The
   toggle's language is kept in `localStorage` (`payroll-app-lang`) and starts the next page load.
 
 ## Redial: a call outlives a dropped brain socket (SDK 0.15.0, owner 2026-11-23)
