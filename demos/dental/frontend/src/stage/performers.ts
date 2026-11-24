@@ -11,6 +11,7 @@ import { type Slot, changeTerms, daysBetween, addDays, shortDate, sittingWindow,
 import { actions, inWindow, patientById, signedInPatient, useStore } from "../state/store";
 import { PATH, type Page, currentPage, navigate } from "./nav";
 import type { scene } from "./scene.gen";
+import { ringAll, wholeView } from "./view";
 
 type Spec = typeof scene.spec;
 
@@ -204,7 +205,12 @@ function sameChange(args: ChangeArgs, slot: Slot | null): boolean {
   return !!ch.slot && ch.slot.date === slot.date && ch.slot.start === slot.start && ch.slot.branch === slot.branch;
 }
 
+/** Every performer, each `c.scrollTo` showing its target's whole group (X1, `view.ts`). */
 export function performers(): Performers<Spec> {
+  return wholeView(rawPerformers());
+}
+
+function rawPerformers(): Performers<Spec> {
   return {
     "site.go": async ({ page }, c) => {
       if (!(page in PATH)) return c.refuse("page", `no page ${page}`, Object.keys(PATH));
@@ -285,7 +291,7 @@ export function performers(): Performers<Spec> {
       c.after(async () => {
         await frame();
         const els = [...document.querySelectorAll<HTMLElement>(`.cal [data-slot^="${day}"]`)].slice(0, 16);
-        if (els.length) await c.ring(els, "Free times");
+        await ringAll(c, els, "Free times");
       });
       return line;
     },
