@@ -819,3 +819,38 @@ async def test_amounts_are_spoken_as_words_and_a_wrong_budget_is_confirmed() -> 
         assert _brain(rig).search.budget_max == 15000000
         said = " ".join(u.text for u in turn.units)
         assert "one point five crore rupees, right?" in said
+
+
+#: A Hindi sentence ends in the danda (U+0964/U+0965, inside the Devanagari block); an
+#: amount right before it, or before "?" or ",", is said as it is mid-sentence.
+_SENTENCE_END_AMOUNTS = [
+    ("hi", "आपका लोन ", "₹13.6 लाख"),
+    ("hi", "कुल ", "₹1.25 करोड़"),
+    ("hi", "", "₹13.6 लाख"),
+    ("hi", "कवर ", "₹10 लाख"),
+    ("en", "Your cover is ", "₹10 lakh"),
+    ("en", "The total is ", "₹1.5 crore"),
+]
+
+
+@pytest.mark.parametrize(("lang", "before", "amount"), _SENTENCE_END_AMOUNTS)
+@pytest.mark.parametrize("end", ["।", "॥", "?", ","])
+def test_an_amount_before_the_danda_is_said_as_mid_sentence(
+    lang: str, before: str, amount: str, end: str
+) -> None:
+    rest = " बाकी" if lang == "hi" else " left"
+    mid = speak_text(f"{before}{amount}{rest}", lang)
+    assert mid.endswith(rest)
+    assert speak_text(f"{before}{amount}{end}", lang) == mid.removesuffix(rest) + end
+
+
+@pytest.mark.parametrize(
+    ("written", "spoken"),
+    [
+        ("₹13.6 लाख।", "₹13,60,000।"),
+        ("आपका लोन ₹13.6 लाख॥", "आपका लोन ₹13,60,000॥"),
+        ("Your cover is ₹10 lakh।", "Your cover is ten lakh rupees।"),
+    ],
+)
+def test_amounts_before_the_danda(written: str, spoken: str) -> None:
+    assert speak_text(written, "hi" if "लाख" in written else "en") == spoken
