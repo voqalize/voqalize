@@ -25,6 +25,10 @@ propose_change. Everything else is an act whose line is said with the call.
 confirm_change are refused unless the patient's last words were a yes (or they
 pressed Confirm themselves), whatever the model believes.
 
+**Amounts are spoken the way the voice reads them right** (:mod:`.spoken`,
+FEEDBACK X8): everything the brain says (the model's words, its greeting and its
+own lines) passes through :class:`~.spoken.SpokenAmounts`; the screen keeps ₹6,500.
+
 **Clinical questions go to a dentist.** A note in front of any message that
 sounds clinical keeps the model on the callback path; nothing here advises.
 """
@@ -73,6 +77,7 @@ from .clinic import Appt, Calendar, Patient, Service, Slot
 from .persona import PERSONA, Lang
 from .prompt import LANDINGS, LINES, greeting, system_instruction
 from .rejoin import Rejoin
+from .spoken import SpokenAmounts, amounts_note, speak_text
 from .stage_gen import MOVES
 
 #: GPT-6.1 Terra at medium reasoning: the repo's rule for a new demo (at low,
@@ -297,6 +302,8 @@ class DentalBrain(OpenAIBrain):
         self._say_next: str | None = None
         self._new_name: str | None = None
         self._fallback = FallbackLine()
+        #: Every amount spoken in a form the voice reads right (spoken.py, X8).
+        self._spoken = SpokenAmounts(lambda: self.lang)
         self.stage = Stage(dispatch=lambda a: self.session.dispatch(a), moves=MOVES)
         # This socket's brain took over a call a dropped socket had (rejoin.py).
         self._rejoined = False
@@ -372,7 +379,7 @@ class DentalBrain(OpenAIBrain):
         and the model must not read a second greeting in its history)."""
         if self._rejoined:
             return None
-        return greeting(self.lang, self.page)
+        return speak_text(greeting(self.lang, self.page), self.lang)
 
     def _line(self, key: str, **kw: str) -> str:
         return LINES[self.lang][key].format(**kw)
@@ -385,9 +392,10 @@ class DentalBrain(OpenAIBrain):
         }
         return jobs[self.page]
 
-    async def on_user_message(
-        self, session: Session, msg: UserMessage
-    ) -> AsyncGenerator[Speech, None]:
+    def on_user_message(self, session: Session, msg: UserMessage) -> AsyncGenerator[Speech, None]:
+        return self._spoken.wrap(self._answer(session, msg))
+
+    async def _answer(self, session: Session, msg: UserMessage) -> AsyncGenerator[Speech, None]:
         self.heard = msg.text
         self.confirm_pressed = False
         self.stage.visitor_spoke()
@@ -404,6 +412,8 @@ class DentalBrain(OpenAIBrain):
             self.append_note(
                 "[They spoke Hindi: offer to continue in Hindi, or call set_language.]"
             )
+        if (said := amounts_note(msg.text)) is not None:
+            self.append_note(said)
         async for speech in super().on_user_message(session, msg):
             yield speech
 
@@ -437,7 +447,7 @@ class DentalBrain(OpenAIBrain):
         self.stage.end_turn()
 
     def on_user_idle(self, session: Session, idle: UserIdle) -> AsyncGenerator[Speech, None]:
-        return self._idle(session)
+        return self._spoken.wrap(self._idle(session))
 
     async def _idle(self, session: Session) -> AsyncGenerator[Speech, None]:
         self._settle_expired()

@@ -56,6 +56,18 @@ first scrolled fully into view with the group around it (`frontend/src/stage/vie
   patient, held slot, pending change, the call's calendar and the model's history are kept in
   memory by session id for two minutes (`backend/rejoin.py`, `CONTRACT.md` "Redial").
 
+- **Amounts in speech** (`backend/spoken.py`, from the bank demo's): the screen shows ₹6,500 to
+  ₹12,000, and everything she says (the model's words, the greeting, her own lines) is rewritten
+  before it reaches the voice. Voqalize's TTS reads a rupee amount with exactly two decimals as
+  rupees and paise ("₹1.25 crore" became "one rupee and twenty five paisa crore"), so: plain
+  rupees go as written (the TTS reads them in thousand and lakh); a dash between two amounts
+  becomes "to" / से with ₹ on both ends; "₹1.5k" or "₹15 thousand" becomes whole rupees; lakh and
+  crore are spelled out in English and said the Hindi way in Hindi (सवा करोड़, डेढ़ लाख); paise
+  are said in words. The prompt tells her to write ₹ with Indian grouping and never k/L/Cr.
+  No tool takes an amount from the patient, so nothing is filled from speech; when a patient says
+  one in words ("dedh hazaar", "10k", "पंद्रह हज़ार"), `parse_amounts` puts it in rupees in a note
+  for the model.
+
 Dates are never stored: bookings name a week relative to the current one and a weekday, so the
 calendar is full whatever day the demo runs.
 
@@ -70,8 +82,9 @@ calendar is full whatever day the demo runs.
   `frontend/src/stage/scene.gen.ts` are generated from it.
 - `backend/brain.py` (an `OpenAIBrain`), `backend/clinic.py` (data and calendar),
   `backend/prompt.py` (instructions, greetings, written lines), `backend/app_events.py` (page →
-  brain events).
+  brain events), `backend/spoken.py` (amounts in speech, both ways).
 - `demos/tests/test_dental_e2e.py`: the e2e, one storyline per landing page.
+  `demos/tests/test_dental_amounts.py`: the speech formatter and the parser.
 
 ## Run it
 

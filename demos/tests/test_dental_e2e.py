@@ -54,7 +54,7 @@ from voqalize.sdk.stage import load_spec
 from voqalize.sdk.stage.gen import render_python, render_typescript
 from voqalize.sdk.wire import Capability, ConfigureFrame
 
-from ._harness import DemoRig, _configs, check_greeting, check_voice_pair, demo
+from ._harness import DemoRig, _configs, check_greeting, check_turn, check_voice_pair, demo
 
 discover()
 
@@ -409,6 +409,39 @@ async def test_home_in_hindi_parking_and_a_clinical_callback() -> None:
         assert cb["args"]["window"] == "within 30 minutes"
         # The clinical note reached the model before its answer.
         assert "This sounds clinical" in input_texts(llm.captured_inputs[-1])
+
+
+async def test_amounts_are_said_the_way_the_voice_reads_them() -> None:
+    """X8 over the wire: the model writes the screen's figures (a dashed range,
+    "₹4.5k", "₹1.25 lakh") and the voice is given forms its text stage reads right
+    (no ₹ with two decimals, no dash between amounts); a patient's "dedh hazaar"
+    reaches the model in rupees. In Hindi a lakh amount is said the Hindi way."""
+    llm = ScriptedOpenAI(
+        {
+            "Is a root canal with a crown under dedh hazaar?": reply(
+                "No: a root canal is ₹6,500 to ₹12,000, and the crown is ₹8,000\u2013₹18,000. "
+                "A take-home whitening kit is ₹4.5k; a full plan can reach ₹1.25 lakh."
+            ),
+            "पूरा कितना होगा?": reply("पूरा plan ₹1.25 लाख तक जा सकता है।"),
+        }
+    )
+    async with demo("dental", llm) as rig:
+        await rig.driver.start_session(init={"landing": "home", "lang": "en"})
+        turn = await rig.driver.user_says("Is a root canal with a crown under dedh hazaar?")
+        check_turn(rig, turn)
+        said = " ".join(u.text for u in turn.units)
+        assert "₹6,500 to ₹12,000" in said
+        assert "₹8,000 to ₹18,000" in said and "\u2013" not in said
+        assert "₹4,500" in said and "₹4.5k" not in said
+        assert "one point two five lakh rupees" in said
+        told = input_texts(llm.captured_inputs[-1])
+        assert "'dedh hazaar' = 1500 rupees" in told
+
+        await rig.driver.send_ui_event("language_requested", {"language": "hi", "by": "visitor"})
+        await asyncio.sleep(0.2)
+        turn = await rig.driver.user_says("पूरा कितना होगा?")
+        said = " ".join(u.text for u in turn.units)
+        assert "सवा लाख रुपये" in said and "₹1.25" not in said
 
 
 async def test_the_toggle_moves_both_legs_mid_call() -> None:
