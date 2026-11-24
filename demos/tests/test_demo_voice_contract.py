@@ -220,6 +220,13 @@ DEMOS: dict[str, Expected] = {
     # a gallery card (the page is Uno Salud's own site). Asserted in
     # test_unosalud_e2e.py.
     "unosalud": Expected(voice="omnivoice/javier", language="es", provider="openai"),
+    # Paynora's two demos read their character from demos/<name>/persona.json;
+    # these rows name the voice outright, so a persona edit that changes it is
+    # seen here (round 2, R4: the site's character became Aditya). Both open in
+    # English, the default, and speak en and hi; the Hindi toggle is asserted in
+    # test_payroll_site_e2e.py / test_payroll_app_e2e.py.
+    "payroll_site": Expected(voice="omnivoice/aditya", language="en", provider="openai"),
+    "payroll_app": Expected(voice="omnivoice/priya", language="en", provider="openai"),
     # Meera, Dantika Dental's front desk (demos/dental/persona.json): the page's
     # EN / Hindi toggle rides `init.lang` and the brain configures both legs from
     # it; nothing in the payload means English. Hindi, and the toggle mid-call,

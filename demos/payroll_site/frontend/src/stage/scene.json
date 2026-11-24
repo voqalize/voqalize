@@ -1,0 +1,171 @@
+{
+  "$schema": "../../../../../sdk/js/stage/stage.schema.json",
+  "stage": 1,
+  "id": "paynora_site",
+  "languages": ["en", "hi"],
+  "moves": [
+    {
+      "id": "site.go",
+      "class": "navigate",
+      "args": [{ "name": "path", "doc": "A page of the site: /, /modules, /modules/<module id>, /tax, /customers, /pricing, /book-demo." }],
+      "claims": ["taking you to", "opening the * page", "आपको * पेज पर"],
+      "objects": ["page", "pricing", "calendar", "पेज", "प्राइसिंग"],
+      "doc": "Open a page of the site, ringing the link that leads there first."
+    },
+    {
+      "id": "site.show",
+      "verb": "show",
+      "class": "look",
+      "args": [{ "name": "thing", "doc": "A section by its spoken name: pain points, modules, tax showcase, customer quotes, new regime slabs, old regime slabs, worked example, deductions, PF ESI PT, TDS and Form 16, plans, calculator, FAQ, calendar, booking form." }],
+      "say": "{show: tax showcase} at the start of the sentence about a section of the page in front; it scrolls there and is ringed.",
+      "claims": ["showing you the", "let me show you the", "दिखाता हूँ"],
+      "objects": ["section", "example", "slab", "table"],
+      "doc": "Scroll to a section of the page in front and ring it. Refused with the sections the page has."
+    },
+    {
+      "id": "modules.show",
+      "verb": "module",
+      "class": "look",
+      "args": [{ "name": "id", "doc": "A module id: payroll, employees, leave, payslips, tax, compliance, reimbursements, declarations, multi_entity, api." }],
+      "say": "{module: declarations} at the start of the sentence about one module; its card is ringed.",
+      "doc": "Ring one module card on the page in front (the home page's grid or the modules page)."
+    },
+    {
+      "id": "modules.highlight",
+      "class": "reversible",
+      "args": [{ "name": "ids", "type": "array", "doc": "Module ids that fit what the visitor said, in the order they came up." }],
+      "claims": ["highlighting the modules", "marking the modules"],
+      "objects": ["module", "मॉड्यूल"],
+      "doc": "Ring each module card in turn and mark it 'Fits your team'. Replaces the marked set."
+    },
+    {
+      "id": "lead.fill",
+      "class": "reversible",
+      "args": [
+        { "name": "field", "enum": ["company", "name", "headcount", "states", "current_tool", "pains", "recommended_plan", "email"] },
+        { "name": "value", "optional": true, "doc": "The field's value: a name, a number, a tool id, a plan id, an email the visitor confirmed." },
+        { "name": "items", "type": "array", "optional": true, "doc": "For states and pains: the full list, state names or pain ids." }
+      ],
+      "claims": ["noting that down", "adding that to your", "putting that on your"],
+      "objects": ["lead card", "brief", "card"],
+      "doc": "Fill one field of the lead card on the home page, ringing it first. Opens the card when it is closed."
+    },
+    {
+      "id": "pricing.set",
+      "class": "reversible",
+      "args": [
+        { "name": "headcount", "type": "integer" },
+        { "name": "modules", "type": "array", "doc": "Module ids beyond the plan's core six, ticked on the calculator." },
+        { "name": "billing", "enum": ["monthly", "annual"], "default": "monthly" },
+        { "name": "filing", "type": "boolean", "default": false }
+      ],
+      "claims": ["setting the calculator", "putting * into the calculator", "working out the price"],
+      "objects": ["calculator", "price", "कैलकुलेटर"],
+      "doc": "Set the pricing calculator's controls one by one (headcount, each module checkbox, billing, the filing add-on), ringing each control that changes, then ring the breakdown. Opens /pricing first when the visitor is elsewhere."
+    },
+    {
+      "id": "pricing.line",
+      "verb": "line",
+      "class": "look",
+      "args": [{ "name": "item", "enum": ["base", "minimum", "filing", "subtotal", "discount", "gst", "total", "annual", "setup"] }],
+      "say": "{line: minimum} at the start of the sentence about one line of the price breakdown; that line is ringed.",
+      "doc": "Ring one line of the calculator's breakdown."
+    },
+    {
+      "id": "calendar.show",
+      "class": "reversible",
+      "args": [{ "name": "day", "doc": "A business day on the calendar, YYYY-MM-DD." }],
+      "claims": ["opening the * calendar", "pulling up the slots"],
+      "objects": ["calendar", "slot", "कैलेंडर", "स्लॉट"],
+      "doc": "Select a day on the sales calendar (opening /book-demo first when needed) and ring its free slots."
+    },
+    {
+      "id": "booking.pick",
+      "class": "reversible",
+      "args": [{ "name": "slot_id", "doc": "A free slot's id, 2026-11-19-1030-kavya." }],
+      "claims": ["picking the * slot", "holding the * slot"],
+      "objects": ["slot", "स्लॉट"],
+      "doc": "Select one free slot on the calendar, ringing it first. Refused for a taken slot, with the free ones."
+    },
+    {
+      "id": "booking.fill",
+      "class": "reversible",
+      "args": [
+        { "name": "field", "enum": ["company", "name", "headcount", "topic", "email"] },
+        { "name": "value" }
+      ],
+      "claims": ["filling in the", "putting your * on the form"],
+      "objects": ["form", "booking form", "फ़ॉर्म"],
+      "doc": "Fill one field of the booking form, ringing it first."
+    },
+    {
+      "id": "booking.confirm",
+      "class": "confirmed",
+      "args": [],
+      "claims": ["booking it now", "confirming your demo"],
+      "objects": ["booking", "बुकिंग"],
+      "doc": "Press Confirm booking, after the visitor said yes. Refused, naming what is missing, while the form is incomplete."
+    }
+  ],
+  "slices": [
+    {
+      "id": "screen",
+      "doc": "the page the visitor is on",
+      "fields": [{ "name": "path" }, { "name": "title" }]
+    },
+    {
+      "id": "lead",
+      "doc": "the lead card on the home page, as filled so far",
+      "fields": [
+        { "name": "company", "optional": true },
+        { "name": "name", "optional": true },
+        { "name": "headcount", "type": "integer", "optional": true },
+        { "name": "states", "type": "array" },
+        { "name": "current_tool", "optional": true },
+        { "name": "pains", "type": "array" },
+        { "name": "recommended_plan", "optional": true },
+        { "name": "modules", "type": "array", "doc": "Module cards marked as a fit." },
+        { "name": "has_email", "type": "boolean" },
+        { "name": "email", "optional": true, "private": true },
+        { "name": "field", "optional": true, "doc": "The field that just changed." }
+      ]
+    },
+    {
+      "id": "pricing",
+      "doc": "the pricing calculator's controls and the plan they give",
+      "fields": [
+        { "name": "headcount", "type": "integer" },
+        { "name": "modules", "type": "array" },
+        { "name": "billing" },
+        { "name": "filing", "type": "boolean" },
+        { "name": "plan" },
+        { "name": "monthly", "type": "integer", "doc": "The monthly fee before GST, in rupees." }
+      ]
+    },
+    {
+      "id": "booking",
+      "doc": "the demo booking: the day in front, the slot picked, which form fields hold something, and the reference once confirmed",
+      "fields": [
+        { "name": "day", "optional": true },
+        { "name": "slot_id", "optional": true },
+        { "name": "filled", "type": "array" },
+        { "name": "status" },
+        { "name": "reference", "optional": true }
+      ]
+    }
+  ],
+  "events": [
+    { "id": "screen.viewed", "slice": "screen", "op": "set", "react": "silent", "note": "{by} opened {title}" },
+    { "id": "lead.changed", "slice": "lead", "op": "merge", "note": "{by} changed the lead card: {field}" },
+    { "id": "pricing.changed", "slice": "pricing", "op": "set", "note": "{by} set the calculator to {headcount} employees, {billing} billing: {plan}, {monthly} a month before GST" },
+    { "id": "booking.changed", "slice": "booking", "op": "merge", "note": "{by} changed the booking: {status}" },
+    {
+      "id": "booking.confirmed",
+      "slice": "booking",
+      "op": "merge",
+      "react": "speak",
+      "ask": "The visitor confirmed the demo booking themselves. Thank them, say the reference and that an invite is on its way, in one line.",
+      "note": "{by} confirmed the demo booking, reference {reference}"
+    }
+  ]
+}

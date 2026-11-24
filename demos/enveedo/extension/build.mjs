@@ -74,7 +74,7 @@ if (avatarRuntime) unreleasedRuntime(avatarRuntime);
 const wiring = testBuild
   ? { apiBase: "https://api.voqalize.test/api/v1", agentId: "test-agent", publishableKey: "pk_test" }
   : {
-      apiBase: env.VOQALIZE_API_BASE || "https://app.dev.voqalize.com/api/v1",
+      apiBase: env.VOQALIZE_API_BASE || "https://signal.dev.voqalize.com/api/v1",
       agentId: env.VOQALIZE_AGENT_ID || "",
       publishableKey: env.VOQALIZE_PUBLISHABLE_KEY || "",
     };

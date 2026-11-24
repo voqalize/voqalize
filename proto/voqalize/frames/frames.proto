@@ -470,7 +470,9 @@ message IdleConfig {
 // begun, chosen from what the caller said. It is said only in the languages
 // the runtime has a vocabulary for, and otherwise nothing is said. A brain that
 // opens its replies with its own nod should turn this off, or the caller hears
-// two.
+// two. The same switch covers the continuer: the "Mm-hm." the runtime says,
+// with the avatar's nod, when the caller pauses mid-turn and the runtime cannot
+// yet tell whether they are done. Neither line reaches the brain.
 message AckConfig {
   // On or off. Unset at session creation is on; on the wire, unset leaves it
   // alone. Applies from the next turn.
