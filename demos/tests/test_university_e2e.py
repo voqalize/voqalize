@@ -523,7 +523,8 @@ async def test_a_dropped_socket_rejoins_the_call_where_it_was() -> None:
         assert turn.units[0].text == "ज़रूर, अब हिंदी में बात करते हैं।", "the pending line"
         sent = input_texts(llm.captured_inputs[-1])
         assert sent.count("[The call starts on /apply.") == 1
-        assert FEE_ASK in sent and "1 lakh 45 thousand" in sent, "the model's history came across"
+        # The history holds the words as the voice was given them (amounts spelled, X8).
+        assert FEE_ASK in sent and "one lakh 45 thousand" in sent, "the model's history came across"
         assert "filled mobile" in sent
         assert greeting("counsellor", "hi") not in sent, "no second greeting"
         assert "45% of tuition" in "".join(
@@ -594,3 +595,202 @@ async def test_no_redial_is_asked_of_a_voqalize_that_does_not_offer_it() -> None
         check_greeting(rig, hello)
         assert _redials(rig.driver) == []
         check_voice_pair(rig, voice=VOICE_EN, language="en")
+
+
+# ─── Amounts in speech, both ways (X8) ──────────────────────────────────────
+
+from voqalize_demos._loaded.university.spoken import (  # noqa: E402
+    SpokenAmounts,
+    amounts_note,
+    implausible,
+    parse_amounts,
+    speak_text,
+)
+
+
+@pytest.mark.parametrize(
+    ("written", "lang", "spoken"),
+    [
+        # Voqalize's TTS reads a rupee amount with two decimals as rupees and paise even
+        # before lakh ("one rupee and seventy five paisa lakh"): spelled out, it passes.
+        (
+            "The B.Tech in AI is ₹1.75 lakh a year.",
+            "en",
+            "The B.Tech in AI is one point seven five lakh rupees a year.",
+        ),
+        ("That is ₹13.6 lakh in all.", "en", "That is thirteen point six lakh rupees in all."),
+        (
+            "Fees run ₹1.75 lakh to ₹2.25 lakh.",
+            "en",
+            "Fees run one point seven five lakh rupees to two point two five lakh rupees.",
+        ),
+        (
+            "Both are in the ₹1\u20132 lakh band.",
+            "en",
+            "Both are in the one to two lakh rupees band.",
+        ),
+        (
+            "Udaan gives 60% below ₹4 lakh a year.",
+            "en",
+            "Udaan gives 60% below four lakh rupees a year.",
+        ),
+        ("A median of 8.4 LPA.", "en", "A median of eight point four lakh a year."),
+        (
+            "A median salary of 12.5 lakh a year.",
+            "en",
+            "A median salary of twelve point five lakh a year.",
+        ),
+        (
+            "Scholarship tiers: 90\u201394.99% gets 25%.",
+            "en",
+            "Scholarship tiers: 90% to 94.99% gets 25%.",
+        ),
+        # Plain amounts are left to the TTS, which reads them in lakh and thousand.
+        ("₹3,40,000 a year, ₹13,60,000 in all; application fee ₹1,500.", "en", None),
+        ("A seat is confirmed with ₹75,000; the guest house is ₹1,800 a night.", "en", None),
+        # A cue is the page's label, never rewritten; the words after it are.
+        (
+            "{filter: Fee | ₹1\u20132 lakh} Under ₹2 lakh a year.",
+            "en",
+            "{filter: Fee | ₹1\u20132 lakh} Under two lakh rupees a year.",
+        ),
+        # Hindi: the scale in Devanagari with ₹, so the TTS says डेढ़ / पौने दो; any
+        # other decimal is whole rupees (तीन लाख चालीस हज़ार, not तीन दशमलव चार).
+        ("फ़ीस ₹1.5 lakh सालाना है।", "hi", "फ़ीस ₹1.5 लाख सालाना है।"),
+        ("फ़ीस ₹1.75 लाख है।", "hi", "फ़ीस ₹1.75 लाख है।"),
+        ("फ़ीस ₹3.4 लाख सालाना, कुल ₹13.6 लाख।", "hi", "फ़ीस ₹3,40,000 सालाना, कुल ₹13,60,000।"),
+        ("फ़ीस ₹1\u20132 लाख के बीच है।", "hi", "फ़ीस ₹1 लाख से ₹2 लाख के बीच है।"),
+        ("बी.टेक सीएसई की फ़ीस 3 लाख 40 हज़ार रुपये प्रति वर्ष है।", "hi", None),
+    ],
+)
+def test_amounts_are_written_the_way_the_voice_reads_them(
+    written: str, lang: str, spoken: str | None
+) -> None:
+    assert speak_text(written, lang) == (written if spoken is None else spoken)
+
+
+@pytest.mark.parametrize(
+    ("heard", "values"),
+    [
+        ("about 1.5 lakh a year", [(150000, None)]),
+        ("around 1 and half lakhs", [(150000, None)]),
+        ("one and a half lakh", [(150000, None)]),
+        ("my budget is 2 lakh 50 thousand", [(250000, None)]),
+        ("three lakh forty thousand", [(340000, None)]),
+        ("3,40,000 a year", [(340000, None)]),
+        ("340000", [(340000, None)]),
+        ("80k a year", [(80000, None)]),
+        ("80 hazaar", [(80000, None)]),
+        ("dedh lakh", [(150000, None)]),
+        ("dhai lakh tak", [(250000, None)]),
+        ("sava lakh", [(125000, None)]),
+        ("paune do lakh", [(175000, None)]),
+        ("साढ़े तीन लाख", [(350000, None)]),
+        ("डेढ़ लाख सालाना", [(150000, None)]),
+        ("लगभग ₹\u0967,\u096b\u0966,\u0966\u0966\u0966", [(150000, None)]),
+        ("one point two crore", [(12000000, None)]),
+        # Ranges: the top is the budget; the scale said once belongs to both ends.
+        ("1 to 2 lakh a year", [(200000, 100000)]),
+        ("between 1 and 2 lakh", [(200000, 100000)]),
+        ("1-1.5 lakh", [(150000, 100000)]),
+        ("एक से दो लाख", [(200000, 100000)]),
+        # Two amounts in one breath: the budget and the family income.
+        ("budget 1.5 lakh, family income 6 lakh", [(150000, None), (600000, None)]),
+    ],
+)
+def test_spoken_amounts_parse_to_rupees(
+    heard: str, values: list[tuple[float, float | None]]
+) -> None:
+    assert [(h.value, h.low) for h in parse_amounts(heard)] == values
+
+
+async def test_an_amount_split_across_streamed_chunks_is_still_said_whole() -> None:
+    """A model streams tokens: "₹1." then "75 la" then "kh". The rewrite waits for the
+    amount (and for a cue to close), and the unit's start and end pass as they came."""
+    from voqalize.sdk import SpeechChunk, SpeechEnd, SpeechStart
+
+    async def stream() -> Any:
+        yield SpeechStart()
+        for piece in [
+            "{filter: Fee | ₹1",
+            "\u20132 lakh} It is ₹1.",
+            "75 la",
+            "kh a year; ₹2",
+            "\u20133.5 lakh too.",
+        ]:
+            yield SpeechChunk(piece)
+        yield SpeechEnd()
+
+    out = [e async for e in SpokenAmounts(lambda: "en").wrap(stream())]
+    assert isinstance(out[0], SpeechStart) and isinstance(out[-1], SpeechEnd)
+    text = "".join(e.text for e in out if isinstance(e, SpeechChunk))
+    assert text == (
+        "{filter: Fee | ₹1\u20132 lakh} It is one point seven five lakh rupees a year; "
+        "two to three point five lakh rupees too."
+    )
+
+
+def test_an_implausible_amount_is_confirmed_back_never_used() -> None:
+    """A budget of "around 1 and half lakhs" reaching the finder as ₹15, or an income
+    in rupees where lakh was asked: neither is used; the model confirms it back."""
+    why = implausible({"max_fee_per_year": 15}, ["around 1 and half lakhs a year"])
+    assert why is not None and why.startswith("Not done")
+    assert "₹1,50,000" in why and "₹1.5 lakh, right?" in why
+    why = implausible({"family_income_lakh": 600000}, ["about six lakh"])
+    assert why is not None and "₹6 lakh, right?" in why and "in lakh" in why
+    assert implausible({"max_fee_per_year": 150000, "family_income_lakh": 6}, []) is None
+    assert implausible({"max_fee_per_year": None}, []) is None
+    note = amounts_note("I can spend 1 to 1.5 lakh a year")
+    assert note == "[Amounts they said, in rupees: '1 to 1.5 lakh' = 100000 to 150000 rupees.]"
+    assert amounts_note("We are from Pune.") is None
+
+
+BUDGET_ASK = (
+    "I finished Class 12, I like computers, and we can spend around 1 and half lakhs a year."
+)
+
+
+async def test_amounts_are_spoken_as_words_and_a_wrong_budget_is_confirmed() -> None:
+    """Over the wire: the model is told the budget in rupees, a mis-read ₹15 never
+    reaches the finder (the tool asks for a confirmation first), and "₹1.75 lakh" is
+    given to the voice as "one point seven five lakh rupees", with the cue in front
+    of it anchored to those very words and still naming the page's label."""
+    llm = ScriptedOpenAI(
+        {
+            BUDGET_ASK: [
+                call("find_programs", level="ug", interests="computers", max_fee_per_year=15),
+                reply("Just to check, ₹1.5 lakh a year, right?"),
+            ],
+            "Yes, one and a half lakh.": [
+                call("find_programs", level="ug", interests="computers", max_fee_per_year=150000),
+                reply(
+                    "{filter: Fee | ₹1-2 lakh} Within ₹1.5 lakh a year, "
+                    "{pick: btech-cse} the B.Tech CSE is ₹1.75 lakh, just above it."
+                ),
+            ],
+        }
+    )
+    async with demo("university", llm) as rig:
+        await rig.driver.start_session(init={"landing": "/programs", "lang": "en"})
+        turn = await rig.driver.user_says(BUDGET_ASK)
+        check_turn(rig, turn, units=1)
+        told = _last_input(llm)
+        assert "'1 and half lakhs' = about 150000 rupees" in told
+        refused = "".join(tool_results_of(llm.captured_inputs[-1], "find_programs"))
+        assert refused.startswith("Not done") and "₹1,50,000" in refused
+        assert _cues(rig) == []
+        assert "one point five lakh rupees a year, right?" in turn.text
+        assert "₹" not in turn.text
+
+        turn = await rig.driver.user_says("Yes, one and a half lakh.")
+        check_turn(rig, turn, units=1)
+        found = "".join(tool_results_of(llm.captured_inputs[-1], "find_programs"))
+        assert "programmes meet the limits" in found
+        assert "one point seven five lakh" in turn.text and "₹" not in turn.text
+        cues = _raw_cues(rig)
+        assert [(c["move"], c["args"]) for c in cues] == [
+            ("catalogue.filter", ["Fee", "₹1\u20132 lakh"]),
+            ("catalogue.pick", ["btech-cse"]),
+        ]
+        assert cues[0]["at"].startswith("Within one point five lakh rupees")
+        assert all(c["at"] in turn.text for c in cues)

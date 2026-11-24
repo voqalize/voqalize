@@ -75,6 +75,7 @@ from .finder import (
 )
 from .prompt import JOB_NOTE, Job, Lang, greeting, job_for, system_instruction
 from .rejoin import Rejoin
+from .spoken import SpokenAmounts, amounts_note, implausible, speak_text
 from .stage_gen import MOVES, SPEC, ReadRequest
 
 MODEL = "gpt-6.1-terra"
@@ -132,7 +133,10 @@ class FindRequest(BaseModel):
         None, description="full_time (on campus), online, weekend (executive) or hybrid."
     )
     campus: CampusId | None = None
-    max_fee_per_year: int | None = Field(None, description="Their budget a year, in rupees.")
+    max_fee_per_year: int | None = Field(
+        None,
+        description="Their budget a year, in rupees: 1.5 lakh or dedh lakh is 150000.",
+    )
     hours_per_week: int | None = Field(
         None,
         description="Hours a week they can give; under 16 rules out full-time programmes.",
@@ -156,7 +160,9 @@ class EligibilityRequest(BaseModel):
     graduation_percent: float | None = None
     experience_years: float | None = None
     vusat_rank: int | None = None
-    family_income_lakh: float | None = Field(None, description="Annual family income in lakh.")
+    family_income_lakh: float | None = Field(
+        None, description="Annual family income in lakh: ₹6,00,000 or six lakh is 6."
+    )
     gender: Literal["female", "male", "other"] | None = None
     sports: Literal["national", "state"] | None = Field(
         None, description="The level of a sports medal in the last three years."
@@ -381,6 +387,10 @@ class UniversityBrain(OpenAIBrain):
         #: The greeting a redialled brain returns, which the caller never hears:
         #: kept out of the model's history if it comes back finalized.
         self._unheard_greeting: str | None = None
+        #: The visitor's last few turns, as heard: what an amount is checked against.
+        self._heard_recent: list[str] = []
+        #: Every amount spoken in the form the voice reads right (spoken.py, X8).
+        self._spoken = SpokenAmounts(lambda: self.lang)
 
     # ─── Session ────────────────────────────────────────────────────────
 
@@ -444,7 +454,7 @@ class UniversityBrain(OpenAIBrain):
         prior.__dict__ = self.__dict__
 
     async def greet(self, session: Session) -> str:
-        return greeting(self.job, self.lang)
+        return speak_text(greeting(self.job, self.lang), self.lang)
 
     async def on_finalize(self, session: Session, fin: Finalize) -> None:
         """A redialled brain's greeting is not spoken (SDK 0.15.0): should a
@@ -477,20 +487,27 @@ class UniversityBrain(OpenAIBrain):
             self.append_note(
                 "[They are speaking Hindi: the call is now in Hindi. Answer in Hindi.]"
             )
-        async for event in super().on_user_message(session, msg):
+        self._heard_recent = [*self._heard_recent[-2:], msg.text]
+        # The turn is in the history once this returns; the model reads it lazily,
+        # so a note added now comes right after the visitor's words.
+        turn = super().on_user_message(session, msg)
+        if (said := amounts_note(msg.text)) is not None:
+            self.append_note(said)
+        async for event in turn:
             yield event
 
     async def respond(self, session: Session) -> AsyncGenerator[Speech, None]:
-        """The model's turn: cues taken out and sent to the page, a unit in
-        Devanagari spoken by the Hindi legs, and a written line if it acted in
-        silence."""
+        """The model's turn: amounts written the way the voice reads them, cues
+        taken out and sent to the page, a unit in Devanagari spoken by the Hindi
+        legs, and a written line if it acted in silence."""
         if (line := self._confirm) is not None:
             self._confirm = None
-            async for event in self.say_line(line):
+            async for event in self.say_line(speak_text(line, self.lang)):
                 yield event
-        turn = self._fallback.speak_if_silent(
-            self, self._scripted(session, self.stage.cued(super().respond(session)))
-        )
+        # Amounts are rewritten for the voice before the cues come out, so a cue's
+        # anchor words are the words the voice says (spoken.py).
+        model = self._spoken.wrap(super().respond(session))
+        turn = self._fallback.speak_if_silent(self, self._scripted(session, self.stage.cued(model)))
         async for event in turn:
             yield event
         self.stage.end_turn()
@@ -627,11 +644,18 @@ class UniversityBrain(OpenAIBrain):
             self.set_language,
         ]
 
+    def _check_amounts(self, **values: float | None) -> str | None:
+        """A tool's guard on the amounts it was given: one no family would mean (a ₹15
+        budget, a mis-heard "one and a half lakh") is confirmed back, never used (X8)."""
+        return implausible(values, self._heard_recent[::-1])
+
     @needs_result_now
     async def find_programs(self, request: FindRequest) -> str:
         """Match what the learner said to the catalogue: the programmes that fit,
         best first, with the finder filters to tick as you explain. Call it as
         soon as you know two or three of level, interests, budget, hours, mode."""
+        if (why := self._check_amounts(max_fee_per_year=request.max_fee_per_year)) is not None:
+            return why
         profile = Profile(
             level=request.level,
             school=request.school,
@@ -674,6 +698,8 @@ class UniversityBrain(OpenAIBrain):
         p = catalogue().program(pid) if pid else None
         if p is None:
             return f"No programme called {request.program!r}. Use an id from the catalogue."
+        if (why := self._check_amounts(family_income_lakh=request.family_income_lakh)) is not None:
+            return why
         return eligibility_text(
             p,
             Applicant(
