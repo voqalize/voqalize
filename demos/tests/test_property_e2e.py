@@ -129,6 +129,18 @@ async def test_hindi_asked_mid_call_moves_both_legs_and_the_toggle() -> None:
         assert rig.command("language_changed") == {"language": "hi"}
 
 
+async def test_the_tile_toggle_switches_mid_call_and_says_so() -> None:
+    async with demo("property", ScriptedOpenAI()) as rig:
+        await rig.driver.start_session(init={"page": "/", "lang": "en"})
+        await rig.driver.send_ui_event("language_requested", {"language": "hi", "by": "visitor"})
+        await asyncio.sleep(0.1)
+        check_voice_pair(rig, voice=PERSONA.voices["hi"], language="hi")
+        assert rig.command("language_changed") == {"language": "hi"}
+        assert _brain(rig).lang == "hi"
+        said = await rig.driver.user_idle()
+        assert said.text.startswith("ज़रूर")
+
+
 # ─── The guide ────────────────────────────────────────────────────────────────
 
 _ASK = "Two or three BHK in Bengaluru under 1.5 crore, I work at Cedarline Tech Park."

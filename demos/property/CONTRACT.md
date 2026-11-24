@@ -66,7 +66,10 @@ on filter controls (`bhk:2`, `deal:buy`, `possession:ready`, `locality:Whitefiel
 `city:pune`), `data-stage-thing="visit-day:<YYYY-MM-DD>"`, `data-stage-part="slot:<slot id>"`.
 
 One plain action besides Stage: `language_changed {language: "en"|"hi"}` (ui-command) moves the page's
-language toggle when the call changes language.
+language toggle when the call changes language. Its other half is one typed app event (not Stage):
+`language_requested {language: "en"|"hi"}`, sent when the visitor presses the other language on the call
+tile's toggle mid-call. The brain moves both legs in one awaited request, says a written line in the new
+language at the next quiet spell, and answers `language_changed` (or the old language, if refused).
 
 ## Page → brain
 

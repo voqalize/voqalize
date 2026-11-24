@@ -31,7 +31,17 @@ from openai import AsyncOpenAI
 from pydantic import BaseModel, Field
 from voqalize_demos import PATIENCE, FallbackLine, configure_soon, landed, needs_result_now
 
-from voqalize.sdk import Action, AppEvents, RTVIMessage, Session, Speech, UserIdle, UserMessage
+from voqalize.sdk import (
+    Action,
+    AppEvent,
+    AppEvents,
+    RequestRejected,
+    RTVIMessage,
+    Session,
+    Speech,
+    UserIdle,
+    UserMessage,
+)
 from voqalize.sdk.openai import OpenAIBrain
 from voqalize.sdk.stage import Mirror, Move, Stage, match_label
 from voqalize.sdk.stage.wire import StageEvent, StageHello, StageProgress, StageResult
@@ -47,8 +57,6 @@ from .stage_gen import SPEC, ReadRequest
 
 MODEL = "gpt-6.1-terra"
 REASONING = "medium"
-
-_EVENTS = AppEvents(StageResult, StageHello, StageProgress, StageEvent)
 
 #: The quiet spell before the agent may speak up by itself, and how short it gets
 #: while it has a line to say (a booking's outcome, a visitor's booking).
@@ -68,6 +76,17 @@ class LanguageChanged(Action):
     """The call's language moved: the page's EN / हिंदी toggle follows."""
 
     language: str
+
+
+class LanguageRequested(AppEvent):
+    """The visitor pressed the other language on the call tile's EN / हिंदी
+    toggle mid-call."""
+
+    language: str = "en"
+    by: str = "visitor"
+
+
+_EVENTS = AppEvents(LanguageRequested, StageResult, StageHello, StageProgress, StageEvent)
 
 
 # ─── Tool parameters ──────────────────────────────────────────────────────────
@@ -384,6 +403,9 @@ class PropertyBrain(OpenAIBrain):
     async def on_rtvi(self, session: Session, msg: RTVIMessage) -> None:
         event = _EVENTS.parse(msg)
         if event is None:
+            return
+        if isinstance(event, LanguageRequested):
+            await self._requested(session, event.language)
             return
         if isinstance(event, StageEvent):
             note = self._event(event)
@@ -776,6 +798,23 @@ class PropertyBrain(OpenAIBrain):
         tag = self.persona.tag(request.language)
         configure_soon(self.session, self._speaking(tag))
         return f"the call is now in {self.persona.language_names[tag]}"
+
+    async def _requested(self, session: Session, tag: str) -> None:
+        """The toggle: both legs in one awaited request, then a written line in
+        the new language at the next quiet spell."""
+        if tag == self.lang or tag not in self.persona.languages:
+            return
+        was = self.lang
+        try:
+            await session.configure(self._speaking(tag))
+        except RequestRejected as rejected:
+            logger.warning("property: switch to {} refused: {}", tag, rejected)
+            self.lang = was
+            self.session.dispatch(LanguageChanged(language=was))
+            return
+        name = self.persona.language_names[tag]
+        self.append_note(f"[They switched the call to {name} on the toggle; speak {name} now.]")
+        self._say_soon(lambda: BOOKING["switched"][tag])
 
     def _speaking(self, tag: str) -> Config:
         """Both legs in ``tag``, and the page's toggle moved to it."""
