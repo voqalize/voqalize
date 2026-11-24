@@ -245,7 +245,8 @@ def hi_quarter(raw: str) -> str | None:
 # ─── Brain → voice ────────────────────────────────────────────────────────────
 
 _NUM = r"\d[\d,]*(?:\.\d+)?"
-_DEVANAGARI = "ऀ-ॿ"
+#: Devanagari letters and digits, not the danda (।, ॥) that ends a Hindi sentence.
+_DEVANAGARI_WORD = "ऀ-ॣ०-ॿ"
 _CUR = r"₹|(?<![A-Za-z])Rs\.?|(?<![A-Za-z])INR"
 #: Scale words as a model writes them; "L" (lakh) and "k" only right after a digit.
 _SCALE = (
@@ -255,7 +256,7 @@ _SCALE = (
 _SCALED = re.compile(
     rf"(?<![\w.,])(?P<cur>{_CUR})?[ \t]*(?P<a>{_NUM})"
     rf"(?:[ \t]*(?:[-\u2013\u2014]|\bto\b|से)[ \t]*(?P<cur2>₹)?[ \t]*(?P<b>{_NUM}))?"
-    rf"[ \t]*(?:(?P<scale>{_SCALE})|(?<=\d)(?P<L>L)|(?<=\d)(?P<k>k))(?![A-Za-z{_DEVANAGARI}])"
+    rf"[ \t]*(?:(?P<scale>{_SCALE})|(?<=\d)(?P<L>L)|(?<=\d)(?P<k>k))(?![A-Za-z{_DEVANAGARI_WORD}])"
     rf"(?:[ \t]+(?P<word>rupees|रुपये|रुपए))?",
     re.IGNORECASE,
 )
