@@ -33,6 +33,13 @@ opens a console that fires every Stage move by hand.
   `uv run voqalize stage gen holidays/frontend/src/stage/scene.json --py holidays/backend/stage_gen.py --ts holidays/frontend/src/stage/scene.gen.ts`
 - `backend/brain.py` — `HolidaysBrain`, an `OpenAIBrain` (GPT-6.1 Terra, medium reasoning). Tools read
   the engine and send Stage moves; the model's words carry `{go:}`, `{step:}` and `{show:}` cues.
+- `backend/lead.py` — Aaliyah leads (H1): brief, flights, a hotel per city, activities, package,
+  checkout. Choosing a flight opens the first city's hotels, choosing a hotel opens the next city or
+  the days with activities that fit, and each tool returns those options with a `NEXT:` for the model.
+  Nothing is chosen for the visitor; they pick by voice or click (a click is followed by a spoken
+  offer of the next step, moving nothing). Each step also owes a written line with the next choice
+  (`owe` in `brain.py`), said when the model says nothing after the tool ran, so a step never ends
+  silent. English and Hindi.
 - `backend/rejoin.py` — redial (SDK 0.15.0): when the brain's socket drops without a hang-up and
   Voqalize dials again for the same session, the new brain adopts the call held in this process for two
   minutes (trip, page, language, the model's history, the Stage director) and does not greet again.

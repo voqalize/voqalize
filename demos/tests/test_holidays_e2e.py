@@ -709,3 +709,251 @@ async def test_a_budget_is_heard_in_rupees_and_amounts_are_said_the_indian_way()
         check_turn(rig, t3)
         said = " ".join(u.text for u in t3.units)
         assert "₹1.5 लाख से ₹2 लाख" in said and "₹2,30,000" in said, said
+
+
+# ─── H1: she leads, and no step ends silent (the owner's call, 24 Nov) ────────
+
+#: His call's utterances as the recognizer wrote them, in order. In the call she
+#: answered "I'll add Banyan Air to your trip." and "I'll add Azure Atoll Resort
+#: & Spa to your trip." and stopped; he had to say "Okay, go ahead." and
+#: "Continue." Here the model is scripted at its worst — a one-line preamble and
+#: a silent second hop — and every turn must still end on the next choice.
+_H1_SILENT = reply("")
+
+
+async def test_his_call_moves_forward_at_every_step_without_a_nudge() -> None:
+    llm = ScriptedOpenAI(
+        {
+            "honeymoon trip with my wife": replies(
+                call("set_trip", style="honeymoon", adults=2), _H1_SILENT
+            ),
+            "For at least five days": replies(call("set_trip", nights=5), _H1_SILENT),
+            "Maldives and I would f fly from Bengalou": replies(
+                reply_and_call(
+                    "Let me add Maldives and Bengaluru.",
+                    "set_trip",
+                    destination="Maldives",
+                    from_city="Bengalou",
+                ),
+                _H1_SILENT,
+            ),
+            "month of February": replies(call("set_trip", month="February"), _H1_SILENT),
+            "show me the flakes": replies(
+                reply_and_call("Let me pull up your flights from Bengaluru.", "show_flights"),
+                _H1_SILENT,
+            ),
+            "Banyan air": replies(
+                reply_and_call(
+                    "I'll add Banyan Air to your trip.", "choose_flight", choice="Banyan Air"
+                ),
+                _H1_SILENT,
+            ),
+            "Azure Adult Resort": replies(
+                reply_and_call(
+                    "I'll add Azure Atoll Resort & Spa to your trip.",
+                    "choose_hotel",
+                    hotel="Azure Adult Resort and Spa",
+                    room="Overwater Villa",
+                ),
+                _H1_SILENT,
+            ),
+            "turtle": replies(
+                reply_and_call(
+                    "Adding the turtle snorkel.",
+                    "add_activity",
+                    activity="turtle reef snorkel trip",
+                ),
+                _H1_SILENT,
+            ),
+        }
+    )
+    answered: set[str] = set()
+    async with _rig(llm) as rig:
+        await rig.driver.start_session(init={"page": "home", "lang": "en"})
+        brain = _brain(rig)
+
+        t = await rig.driver.user_says("I am planning to go on a honeymoon trip with my wife.")
+        check_turn(rig, t)
+        assert "Just tell me which city you'll fly from" in t.text, t.text
+
+        t = await rig.driver.user_says("For at least five days.")
+        check_turn(rig, t)
+        assert brain.trip.nights == 5
+
+        t = await rig.driver.user_says(
+            "I would like to go to Maldives and I would f fly from Bengalou."
+        )
+        check_turn(rig, t, units=2)
+        assert "when you'd like to travel" in t.units[-1].text
+        assert "how many nights" not in t.text  # he said it already
+
+        # The brief is complete: the two ways forward, said with life in it.
+        t = await rig.driver.user_says("Uh I'm flexible to travel in the month of February.")
+        check_turn(rig, t)
+        assert "Maldives it is, overwater villas" in t.text, t.text
+        assert "flights from Bengaluru first, or build the whole package" in t.text
+        result = tool_results_of(llm.captured_inputs[-1], "set_trip")[-1]
+        assert "NEXT, in this same reply" in result
+        await _page_answers(rig, answered)
+
+        t = await rig.driver.user_says("First show me the flakes.")
+        check_turn(rig, t, units=2)
+        assert "My pick is" in t.units[-1].text and "Which one shall I add?" in t.units[-1].text
+        await _page_answers(rig, answered)
+
+        # Was: "I'll add Banyan Air to your trip." and nothing. Now the hotels
+        # open on screen and she offers two, each with a detail from the data.
+        t = await rig.driver.user_says("Banyan air, I think it is good one. Let's go with that.")
+        check_turn(rig, t, units=2)
+        assert eng.FLIGHTS[brain.trip.flight_id or ""]["airline_name"] == "Banyan Air"
+        await _page_answers(rig, answered)  # the hotels wait behind the flight
+        assert _move(rig, "trip.hotels")["args"] == {
+            "city": "maldives-atoll",
+            "want": "honeymoon",
+        }
+        said = t.units[-1].text
+        assert said.startswith("Lovely, Banyan Air is in.")
+        assert "Coral Veli Island Resort, a friendly island with a house reef" in said
+        assert "Azure Atoll Resort & Spa" in said and "Which one catches your eye?" in said
+        assert "Sandbank Retreat" not in said  # not a honeymoon hotel
+        assert (
+            "NEXT, in this same reply"
+            in tool_results_of(llm.captured_inputs[-1], "choose_flight")[0]
+        )
+        await _page_answers(rig, answered)
+
+        # Was: "I'll add Azure Atoll Resort & Spa to your trip." and nothing.
+        # Now the days open and she suggests the first thing to do.
+        t = await rig.driver.user_says("I think Azure Adult Resort and Spa.")
+        check_turn(rig, t, units=2)
+        assert brain.trip.hotels["maldives-atoll"] == ("azure-atoll", "overwater")
+        await _page_answers(rig, answered)
+        assert _move(rig, "trip.step")["args"] == {"step": "days"}
+        said = t.units[-1].text
+        assert said.startswith("Azure Atoll Resort & Spa is in")
+        assert "Now let's fill your days." in said and "Shall I add it" in said
+        result = tool_results_of(llm.captured_inputs[-1], "choose_hotel")[0]
+        assert "Turtle reef snorkel trip" in result  # the activities that fit, to offer
+        await _page_answers(rig, answered)
+
+        t = await rig.driver.user_says("Yes, add the turtle one.")
+        check_turn(rig, t, units=2)
+        assert any(a == "mv-snorkel-turtles" for _, a in brain.trip.activities)
+        said = t.units[-1].text
+        assert said.startswith("Turtle reef snorkel trip is on day")
+        assert "Shall I add it, or hear another idea?" in said
+        await _page_answers(rig, answered)
+
+
+async def test_a_step_she_speaks_after_needs_no_floor() -> None:
+    """When the model does speak from the result, the brain adds nothing."""
+    llm = ScriptedOpenAI(
+        {
+            "Bali": replies(
+                call(
+                    "set_trip",
+                    from_city="Delhi",
+                    destination="Bali",
+                    month="February",
+                    nights=6,
+                    style="honeymoon",
+                ),
+                reply("Bali for your honeymoon, how lovely! Flights first, or the whole package?"),
+            ),
+            "flights": replies(call("show_flights"), reply("Lagoon Air is my pick. Which one?")),
+            "first one": replies(
+                reply_and_call("Lovely choice.", "choose_flight", choice="1"),
+                reply("Now Ubud: Sayan Ridge looks over the jungle. Which hotel?"),
+            ),
+        }
+    )
+    answered: set[str] = set()
+    async with _rig(llm) as rig:
+        await rig.driver.start_session(init={"page": "plan", "lang": "en"})
+        for said in ("Delhi to Bali in February", "Show me the flights"):
+            check_turn(rig, await rig.driver.user_says(said))
+            await _page_answers(rig, answered)
+        t = await rig.driver.user_says("The first one")
+        check_turn(rig, t, units=2)
+        assert [u.text for u in t.units] == [
+            "Lovely choice.",
+            "Now Ubud: Sayan Ridge looks over the jungle. Which hotel?",
+        ]
+        await _page_answers(rig, answered)
+        assert _move(rig, "trip.hotels")["args"]["city"] == "ubud"
+
+
+async def test_a_pick_by_click_is_followed_by_the_next_choice() -> None:
+    """The visitor stays in control by click: their pick is the choice, and in
+    the next quiet moment she offers the step after it, moving nothing."""
+    llm = ScriptedOpenAI(
+        {
+            "Maldives": replies(
+                call(
+                    "set_trip",
+                    from_city="Bengaluru",
+                    destination="Maldives",
+                    month="February",
+                    nights=5,
+                    style="honeymoon",
+                ),
+                reply("The Maldives! Flights first, or the whole package?"),
+            ),
+        }
+    )
+    answered: set[str] = set()
+    async with _rig(llm) as rig:
+        await rig.driver.start_session(init={"page": "plan", "lang": "en"})
+        check_turn(rig, await rig.driver.user_says("Bengaluru to the Maldives in February"))
+        await _page_answers(rig, answered)
+        brain = _brain(rig)
+        before = len(_moves(rig))
+        await rig.driver.send_ui_event(
+            "stage_event",
+            {
+                "name": "trip.flight_picked",
+                "by": "visitor",
+                "data": {"flight_id": "BLR-maldives-2", "label": "Lagoon Air"},
+            },
+        )
+        await asyncio.sleep(0.1)
+        assert brain.trip.flight_id == "BLR-maldives-2"
+        assert brain._say_next is not None  # pyright: ignore[reportPrivateUsage]
+        assert brain._say_next() == (  # pyright: ignore[reportPrivateUsage]
+            "Lovely, Lagoon Air is in. Shall I show you where to stay in Maldives resort island?"
+        )
+        assert len(_moves(rig)) == before  # her offer moves nothing
+
+
+async def test_in_hindi_she_leads_on_in_hindi() -> None:
+    llm = ScriptedOpenAI(
+        {
+            "मालदीव": replies(
+                call(
+                    "set_trip",
+                    from_city="Bengaluru",
+                    destination="Maldives",
+                    month="February",
+                    nights=5,
+                    style="honeymoon",
+                ),
+                _H1_SILENT,
+            ),
+            "बनयान": replies(
+                reply_and_call("बनयान एयर जोड़ रही हूँ।", "choose_flight", choice="Banyan Air"),
+                _H1_SILENT,
+            ),
+        }
+    )
+    answered: set[str] = set()
+    async with _rig(llm) as rig:
+        await rig.driver.start_session(init={"page": "plan", "lang": "hi"})
+        t = await rig.driver.user_says("फ़रवरी में बेंगलुरु से मालदीव, पाँच रातें, हनीमून")
+        check_turn(rig, t)
+        assert "वाह, Maldives!" in t.text and "पूरा पैकेज" in t.text, t.text
+        await _page_answers(rig, answered)
+        t = await rig.driver.user_says("बनयान एयर ठीक है")
+        check_turn(rig, t, units=2)
+        said = t.units[-1].text
+        assert said.startswith("बढ़िया, Banyan Air जुड़ गई।"), said
+        assert "कौन सा पसंद आया?" in said
