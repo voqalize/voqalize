@@ -84,6 +84,10 @@ substitutions:
   _BANK_PK: ''
   _INSURANCE_AGENT: ''
   _INSURANCE_PK: ''
+  _DENTAL_AGENT: ''
+  _DENTAL_PK: ''
+  _UNIVERSITY_AGENT: ''
+  _UNIVERSITY_PK: ''
   _HOLIDAYS_AGENT: ''
   _HOLIDAYS_PK: ''
   # Empty in prod, so every prod page loads the runtime its npm release pins.
@@ -147,6 +151,10 @@ steps:
       - 'VITE_BANK_PK=${_BANK_PK}'
       - 'VITE_INSURANCE_AGENT=${_INSURANCE_AGENT}'
       - 'VITE_INSURANCE_PK=${_INSURANCE_PK}'
+      - 'VITE_DENTAL_AGENT=${_DENTAL_AGENT}'
+      - 'VITE_DENTAL_PK=${_DENTAL_PK}'
+      - 'VITE_UNIVERSITY_AGENT=${_UNIVERSITY_AGENT}'
+      - 'VITE_UNIVERSITY_PK=${_UNIVERSITY_PK}'
       - 'VITE_HOLIDAYS_AGENT=${_HOLIDAYS_AGENT}'
       - 'VITE_HOLIDAYS_PK=${_HOLIDAYS_PK}'
 

@@ -32,6 +32,16 @@ brain hears a plain yes or no itself and presses the button, with no model
 turn) or taps Confirm. The outcome is the page's: the brain says "done" only
 when the page's result says so, with its reference.
 
+**The customer signs in herself** (FEEDBACK B7, X9). Signed out, no tool reads
+her data and no screen of her banking opens: the tool she needed opens the
+sign-in screen instead (``nav.open`` to an app screen, which the page answers
+with its sign-in form in place) and tells the model to ask her to sign in. She
+types a 10-digit mobile number and a 4-digit PIN and presses Sign in with her own
+hand; the page refuses any other hand and sends ``signed_in`` with her name,
+never the number. The brain then says "Hi Aditi, you're signed in" itself and
+hands the model what she asked for before. A number or PIN said aloud while she
+is signing in is taken out before the model hears it (``credentials.py``).
+
 **Persona and languages** come from ``persona.json``: both speech legs are set in
 ``on_session_start`` from the language the visitor picked, and move together on
 the toggle or ``set_language``.
@@ -86,8 +96,10 @@ from .app_events import (
     PageViewed,
     SignedIn,
     SignedOut,
+    SignInFailed,
     TxnOpened,
 )
+from .credentials import withhold
 from .forms import FIELDS, STEP_OF, check, missing
 from .prompt import MODES, TIMES, greeting, line, system_instruction
 from .rejoin import Rejoin
@@ -101,6 +113,8 @@ REASONING = "medium"
 _IDLE_MS = 20_000
 #: A line the brain already knows (a page's answer): said as soon as the voice is free.
 _SAY_NOW_MS = 400
+#: After she signs in: the welcome, and what she asked for, once the voice is free.
+_WELCOME_MS = 600
 
 _EVENTS = AppEvents(*BANK_EVENTS, StageResult, StageHello, StageProgress)
 
@@ -575,6 +589,10 @@ class BankBrain(OpenAIBrain):
         #: The customer's turns so far: a rejoined call past its first is not greeted.
         self.turns = 0
         self.rejoined = False
+        #: What she asked for while signed out (her words): done once she signs in.
+        self.pending: str | None = None
+        #: The welcome after her own sign-in, for the next quiet spell (her first name).
+        self._welcome_next: str | None = None
 
     # ─── Session ────────────────────────────────────────────────────────
 
@@ -613,7 +631,9 @@ class BankBrain(OpenAIBrain):
         self.lang = lang if lang in b.LANGUAGES else b.DEFAULT_LANGUAGE
         landing = str(init.get("landing") or "")
         self.mode = landing if landing in MODES else "home"
-        self.signed_in = bool(init.get("signed_in")) or self.mode == "banking"
+        # Only the page says she is signed in: landing on /app signed out shows
+        # the sign-in screen, never her banking (B7).
+        self.signed_in = bool(init.get("signed_in"))
         self.path = str(init.get("path") or "/")
         self.screen = {
             "banking": "dashboard",
@@ -671,8 +691,18 @@ class BankBrain(OpenAIBrain):
         product = product_on(self.path) if self.mode in ("cards", "loans") else None
         return f"{self.screen}|{self.signed_in}|{self.mode}|{product or ''}"
 
+    def _signing_in(self) -> bool:
+        """The sign-in screen is up: /login, or a banking screen asked for while signed out."""
+        return not self.signed_in and (self.screen == "login" or self.screen in _APP_SCREENS)
+
     def _screen_note(self) -> str:
         self._screen_told = self._screen_told_key()
+        if self._signing_in():
+            return (
+                "[On screen: the sign-in screen. Signed in: no. Her banking stays closed until she "
+                "signs in herself: ask her to type her mobile number and PIN there and press Sign "
+                "in. Never ask her to say them.]"
+            )
         product = product_on(self.path) if self.mode in ("cards", "loans") else None
         about = f" ({product}: they are looking at it, do not ask which one)" if product else ""
         return (
@@ -686,6 +716,15 @@ class BankBrain(OpenAIBrain):
         return self._spoken.wrap(self._answer(session, msg))
 
     async def _answer(self, session: Session, msg: UserMessage) -> AsyncGenerator[Speech, None]:
+        kept = None
+        if not self.signed_in and (
+            self._signing_in() or self.pending is not None or self.mode in ("home", "banking")
+        ):
+            kept = withhold(msg.text, expecting_code=self._signing_in())
+            if kept.kinds:
+                # A mobile number or PIN said aloud: the model reads only that it was said.
+                msg = UserMessage(text=kept.text)
+                logger.info("bank: withheld a spoken {} from the model", " and ".join(kept.kinds))
         self.turns += 1
         self._last_heard = msg.text
         self._heard_recent = [*self._heard_recent[-2:], msg.text]
@@ -693,7 +732,14 @@ class BankBrain(OpenAIBrain):
         self._settle_expired()
         if self._screen_told != self._screen_told_key():
             self.append_note(self._screen_note())
+        if (welcome := self._welcome_next) is not None:
+            # She spoke before the quiet spell the welcome was waiting for: this
+            # reply carries it.
+            self._welcome_next = None
+            self.append_note(self._welcome_note(welcome, said_already=False))
         self.append_note(msg.text)
+        if kept is not None and kept.kinds:
+            self.append_note(self._spoken_credential_note(kept.kinds))
         if (said := amounts_note(msg.text)) is not None:
             self.append_note(said)
         if self.awaiting is not None and (said := classify(msg.text)) is not None:
@@ -743,14 +789,59 @@ class BankBrain(OpenAIBrain):
         return self._spoken.wrap(self._idle(session))
 
     async def _idle(self, session: Session) -> AsyncGenerator[Speech, None]:
-        """A quiet spell: say the page's answer if one is owed; never nag."""
+        """A quiet spell: say the page's answer if one is owed, or welcome her
+        after her own sign-in and do what she asked for; never nag."""
         self._settle_expired()
         say, self._say_next = self._say_next, None
+        welcome, self._welcome_next = self._welcome_next, None
         configure_soon(session, Config(idle=IdleConfig(timeout_ms=_IDLE_MS)))
+        if welcome is not None:
+            async for s in self._welcome(session, welcome):
+                yield s
+            return
         if say is None:
             return
         async for s in self.say_line(say, remember=True):
             yield s
+
+    async def _welcome(self, session: Session, first: str) -> AsyncGenerator[Speech, None]:
+        """She signed in herself: "Hi Aditi, you're signed in", in the brain's own
+        words, then the model does what she asked before signing in (if anything)."""
+        if self.pending is None:
+            async for s in self.say_line(
+                line(self.lang, "welcome_ask", first=first), remember=True
+            ):
+                yield s
+            return
+        async for s in self.say_line(line(self.lang, "welcome", first=first), remember=True):
+            yield s
+        self.append_note(self._welcome_note(first, said_already=True))
+        async for s in self.respond(session):
+            yield s
+
+    def _welcome_note(self, first: str, *, said_already: bool) -> str:
+        """What the model reads once she has signed in: the welcome, and her request."""
+        pending, self.pending = self.pending, None
+        hello = (
+            f'You have just said "{line(self.lang, "welcome", first=first)}": do not welcome her again.'
+            if said_already
+            else f'Start your reply with "{line(self.lang, "welcome", first=first)}".'
+        )
+        todo = (
+            f' Then do what she asked before signing in, now, with the tool for it: "{pending}".'
+            if pending
+            else ""
+        )
+        return f"[She has signed in herself, as {b.CUSTOMER['profile']['name']}. {hello}{todo}]"
+
+    def _spoken_credential_note(self, kinds: tuple[str, ...]) -> str:
+        what = " and ".join({"phone": "her mobile number", "code": "her PIN"}[k] for k in kinds)
+        return (
+            f"[She said {what} aloud. It was not kept and you cannot use it: never repeat it and "
+            "never ask her to say it. In one short, kind sentence ask her to type it into the "
+            "sign-in box on her screen and press Sign in herself; a note tells you when she is "
+            "signed in.]"
+        )
 
     def _check_amounts(self, **values: float | None) -> str | None:
         """A tool's guard on the amounts it was given: one no customer would mean (₹15 for
@@ -787,19 +878,35 @@ class BankBrain(OpenAIBrain):
         """Fold one page event into the brain's picture; the line the model reads."""
         match event:
             case PageViewed():
+                was_signing_in = self._signing_in()
                 self.screen = event.screen
                 self.path = event.path
                 self.signed_in = event.signed_in
                 mode = mode_of(event.screen)
-                if mode != self.mode:
+                if mode != self.mode or self._signing_in() != was_signing_in:
                     self.mode = mode
                     return self._screen_note()
                 return None
+            case SignedIn() if event.by == "agent":
+                # Only her own hand signs in; the page refuses any other (X9).
+                logger.warning("bank: a sign-in not by the customer's hand was ignored")
+                return None
             case SignedIn():
                 self.signed_in = True
-                return "[The customer signed in.]"
+                first = event.first_name or b.CUSTOMER["profile"]["first_name"]
+                self._welcome_next = first
+                configure_soon(self.session, Config(idle=IdleConfig(timeout_ms=_WELCOME_MS)))
+                return None
+            case SignInFailed():
+                self._say_soon(line(self.lang, f"sign_in_{event.problem}"))
+                return (
+                    f"[Her sign-in did not go through: the {event.problem} she typed is not the "
+                    "right length. You are saying so; she types it again herself.]"
+                )
             case SignedOut():
                 self.signed_in = False
+                self.pending = None
+                self._welcome_next = None
                 return "[The customer signed out: do not discuss her accounts any more.]"
             case TxnOpened():
                 self.opened_txn = event.txn_id
@@ -1017,18 +1124,34 @@ class BankBrain(OpenAIBrain):
             self.set_language,
         ]
 
-    def _need_sign_in(self) -> str | None:
+    def _need_sign_in(self, screen: str = "dashboard") -> str | None:
+        """Signed out: open the sign-in screen (the banking ``screen`` she needs, which
+        the page shows as its sign-in form, or ``login`` from a public page), keep
+        what she asked for, and tell the model to ask her to sign in (B7)."""
         if self.signed_in:
             return None
-        return "she is not signed in. Offer to open her banking (open_screen dashboard), which signs her in."
+        self.pending = self._last_heard or self.pending
+        if not self._signing_in():
+            self._send("nav.open", {"screen": screen})
+            self.screen = screen
+            self.mode = mode_of(screen)
+            self._screen_told = self._screen_told_key()
+        return (
+            "she is not signed in, so nothing of hers is shown or said. The sign-in screen is "
+            "open on her screen now. Ask her, in one or two short sentences, to sign in there: "
+            "she types her 10-digit mobile number and 4-digit PIN and presses Sign in herself. "
+            "Never ask her to say them. Say nothing about her accounts. When she has signed in, "
+            "a note tells you and you do what she asked."
+        )
 
     @needs_result_now
     async def open_screen(self, req: ScreenRequest) -> str:
-        """Open a screen of the bank's site or app (an app screen signs a demo visitor in).
-        Returns what is on it, from her data: answer from that. Her balances: my_accounts."""
+        """Open a screen of the bank's site or app. Signed out, a banking screen opens the
+        sign-in screen instead. Returns what is on it, from her data: answer from that.
+        Her balances: my_accounts."""
+        if req.screen in _APP_SCREENS and (why := self._need_sign_in(req.screen)) is not None:
+            return _not_done(why)
         self._send("nav.open", {"screen": req.screen, "id": req.id})
-        if req.screen in _APP_SCREENS:
-            self.signed_in = True
         self.screen = req.screen
         self.mode = mode_of(req.screen)
         self.path = (
@@ -1055,7 +1178,7 @@ class BankBrain(OpenAIBrain):
     async def my_accounts(self, req: AccountsRequest) -> str:
         """Her bank accounts and balances ("my accounts", "my balance", "how much money do I
         have"): both accounts on the dashboard, ringed; or one account's screen."""
-        if (why := self._need_sign_in()) is not None:
+        if (why := self._need_sign_in("dashboard")) is not None:
             return _not_done(why)
         self._send("accounts.show", {"account": req.account})
         if req.account is None:
@@ -1247,7 +1370,7 @@ class BankBrain(OpenAIBrain):
     @needs_result_now
     async def find_transactions(self, q: TxnQuery) -> str:
         """Find her transactions and show them on the transactions screen: totals, by category, the top ones."""
-        if (why := self._need_sign_in()) is not None:
+        if (why := self._need_sign_in("transactions")) is not None:
             return _not_done(why)
         if q.category and q.category not in b.CATEGORY_IDS:
             return _not_done(f"no category {q.category}; use one of {', '.join(b.CATEGORY_IDS)}")
@@ -1341,7 +1464,7 @@ class BankBrain(OpenAIBrain):
     async def explain_transaction(self, req: ExplainRequest) -> str:
         """Explain one transaction (a charge she asks about) and open it on screen. With no
         arguments: the one she has open."""
-        if (why := self._need_sign_in()) is not None:
+        if (why := self._need_sign_in("transactions")) is not None:
             return _not_done(why)
         t: dict[str, Any] | None = None
         if req.txn_id:
@@ -1394,7 +1517,7 @@ class BankBrain(OpenAIBrain):
     async def spending(self, req: SpendingRequest) -> str:
         """Her spending for a month by category (sb and card debits, not transfers or
         investments), compared with the month before; opens Insights."""
-        if (why := self._need_sign_in()) is not None:
+        if (why := self._need_sign_in("insights")) is not None:
             return _not_done(why)
         this = b.month_key(b.today())
         key = {"this_month": this, "last_month": b.shift_month(this, -1), None: this}.get(
@@ -1447,7 +1570,7 @@ class BankBrain(OpenAIBrain):
     async def card_details(self, req: CardRequest) -> str:
         """Her debit or credit card: status, controls, limits, and for the credit card its
         limit, dues and reward points. Opens the card's screen."""
-        if (why := self._need_sign_in()) is not None:
+        if (why := self._need_sign_in(f"{req.card}_card")) is not None:
             return _not_done(why)
         self._send("nav.open", {"screen": f"{req.card}_card"})
         self.screen, self.mode = f"{req.card}_card", "banking"
@@ -1702,7 +1825,7 @@ class BankBrain(OpenAIBrain):
         """Rank all the bank's cards by yearly value for a monthly spend profile and show the
         top three side by side."""
         if req.use_my_spend:
-            if (why := self._need_sign_in()) is not None:
+            if (why := self._need_sign_in("login")) is not None:
                 return _not_done(why)
             profile = m.customer_profile()
         else:
@@ -1749,6 +1872,8 @@ class BankBrain(OpenAIBrain):
         """Show the EMI for every tenure for a card spend (or an amount), this tenure selected."""
         amount = req.amount
         if req.txn_id:
+            if (why := self._need_sign_in("login")) is not None:
+                return _not_done(why)
             t = b.txn(req.txn_id)
             if t is None or not t.get("emi_eligible"):
                 ok = [x["id"] for x in b.CUSTOMER["transactions"] if x.get("emi_eligible")]
@@ -1823,7 +1948,7 @@ class BankBrain(OpenAIBrain):
         assert loan is not None
         income, existing = req.monthly_income, req.existing_emis
         if req.use_my_data:
-            if (why := self._need_sign_in()) is not None:
+            if (why := self._need_sign_in("login")) is not None:
                 return _not_done(why)
             income = float(b.CUSTOMER["profile"]["monthly_income"])
             existing = float(sum(x["emi"] for x in b.CUSTOMER["loans"]))
@@ -1879,7 +2004,7 @@ class BankBrain(OpenAIBrain):
         they spend: puts it side by side with the runner-up on screen, best first, and
         returns what it is worth to them a year, what it costs, and that they qualify."""
         if req.use_my_data:
-            if (why := self._need_sign_in()) is not None:
+            if (why := self._need_sign_in("login")) is not None:
                 return _not_done(why)
             profile = m.customer_profile()
             income: float | None = float(b.CUSTOMER["profile"]["monthly_income"])
@@ -1991,7 +2116,7 @@ class BankBrain(OpenAIBrain):
         assert loan is not None
         income, existing = req.monthly_income, req.existing_emis
         if req.use_my_data:
-            if (why := self._need_sign_in()) is not None:
+            if (why := self._need_sign_in("login")) is not None:
                 return _not_done(why)
             income = float(b.CUSTOMER["profile"]["monthly_income"])
             existing = float(sum(x["emi"] for x in b.CUSTOMER["loans"]))

@@ -1,0 +1,479 @@
+/* ── Meera's dock and call tile (Paynora's widget) ───────────────────── */
+/* Idle: a pill at the bottom right with her still photo, her name, the job on
+   this page, EN / हिंदी and Talk. In a call the pill fades out and the face
+   (one fixed `.call-tile` for the page's life) becomes a floating call card. */
+.dock {
+  position: fixed;
+  right: 20px;
+  bottom: calc(20px + env(safe-area-inset-bottom));
+  z-index: 55;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px;
+  max-width: calc(100vw - 32px);
+  background: rgba(255, 255, 255, 0.97);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  box-shadow: 0 16px 40px -14px rgba(22, 41, 42, 0.35);
+  transition: opacity 0.25s ease, translate 0.3s var(--ease);
+}
+/* A primary action under the pill's place: bottom left. */
+.dock.is-left {
+  right: auto;
+  left: 20px;
+}
+.dock.is-hidden,
+.dock.is-calling {
+  opacity: 0;
+  translate: 0 24px;
+  pointer-events: none;
+}
+/* An overlay reaches the pill's place: it moves to a top corner, under the header. */
+.dock.is-raised {
+  top: calc(var(--header-h) + 12px);
+  bottom: auto;
+  z-index: 72;
+}
+.dock.is-raised-tl {
+  left: 16px;
+  right: auto;
+}
+.dock.is-raised-tr {
+  right: 16px;
+  left: auto;
+}
+.dock-face {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  flex: none;
+}
+.dock-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  max-width: 200px;
+  line-height: 1.25;
+}
+.dock-name {
+  margin: 0;
+  font-weight: 650;
+  font-size: 14px;
+}
+.dock-status {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dock.is-error .dock-status {
+  color: var(--danger);
+  white-space: normal;
+}
+.dock-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 44px;
+  padding: 0 18px;
+  border-radius: 999px;
+  background: var(--brand);
+  color: #fff;
+  font-weight: 600;
+  font-size: 14px;
+  white-space: nowrap;
+  flex: none;
+}
+.dock-cta:hover:not(:disabled) {
+  background: var(--brand-ink);
+}
+.dock-cta:disabled {
+  background: #eef1ec;
+  color: var(--muted);
+  cursor: not-allowed;
+}
+
+/* The face: one element, docked on the pill's slot, a tile in a call, or a bubble. */
+.call-tile {
+  position: fixed;
+  z-index: 57;
+  display: flex;
+  flex-direction: column;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--brand-soft);
+  transition:
+    left 0.45s var(--ease),
+    top 0.45s var(--ease),
+    width 0.45s var(--ease),
+    height 0.45s var(--ease),
+    border-radius 0.45s var(--ease),
+    opacity 0.25s ease;
+  touch-action: none;
+  outline: none;
+}
+.call-tile.is-docked {
+  pointer-events: none;
+}
+.call-tile.is-parked {
+  opacity: 0;
+}
+.call-tile.is-snap {
+  transition: none;
+}
+/* Raised above an open overlay; docked, it rides the raised pill. */
+.call-tile.is-raised,
+body:has(.dock.is-raised) .call-tile.is-docked {
+  z-index: 73;
+}
+.call-tile.is-tile {
+  border-radius: 14px;
+  background: var(--brand-ink);
+  color: #fff;
+  box-shadow:
+    0 0 0 4px var(--brand-ink),
+    0 0 0 5px rgba(255, 255, 255, 0.2),
+    0 26px 50px -18px rgba(22, 41, 42, 0.6);
+  cursor: grab;
+}
+.call-tile.is-speaking.is-tile {
+  box-shadow:
+    0 0 0 4px var(--brand-ink),
+    0 0 0 6px var(--accent),
+    0 26px 50px -18px rgba(22, 41, 42, 0.6);
+}
+.call-tile.is-mini {
+  border-radius: 50%;
+  cursor: grab;
+  box-shadow: 0 16px 34px -12px rgba(22, 41, 42, 0.5), 0 0 0 2px #fff, 0 0 0 4px var(--brand-2);
+}
+.call-tile.is-dragging {
+  cursor: grabbing;
+  transition: width 0.45s, height 0.45s, border-radius 0.45s;
+}
+.call-tile:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+.call-face {
+  position: relative;
+  flex: none;
+  width: 100%;
+  overflow: hidden;
+  background: linear-gradient(180deg, #eef4f2 0%, #dfeae7 100%);
+  transition: height 0.45s var(--ease);
+}
+.call-tile.is-tile .call-face {
+  border-radius: 10px;
+}
+.call-tile.is-docked .call-face,
+.call-tile.is-mini .call-face {
+  height: 100% !important;
+}
+.call-face > .dock-avatar,
+.call-face > .face-placeholder,
+.call-face > .face-still {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.dock-avatar {
+  display: block;
+}
+/* The idle face: her still photo; the live avatar replaces it only in a call. */
+.face-still {
+  display: block;
+  object-fit: cover;
+  object-position: 50% 30%;
+  user-select: none;
+}
+/* With no photo for the character: her initial. */
+.face-placeholder {
+  display: grid;
+  place-items: center;
+  background: radial-gradient(circle at 50% 36%, #fff 0%, var(--brand-soft) 60%, #cfe2de 100%);
+}
+.face-placeholder span {
+  font-family: var(--serif);
+  color: var(--brand);
+  line-height: 1;
+  font-size: 21px;
+}
+.call-tile.is-tile .face-placeholder span {
+  font-size: 64px;
+}
+.call-tile.is-mini .face-placeholder span {
+  font-size: 26px;
+}
+.call-tag {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(8, 63, 65, 0.78);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 650;
+}
+.call-state {
+  position: absolute;
+  left: 6px;
+  bottom: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 22px;
+  padding: 0 9px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.94);
+  color: var(--ink-2);
+  font-size: 11px;
+  font-weight: 620;
+  white-space: nowrap;
+}
+.call-state::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--muted);
+}
+.call-state.is-listening::before {
+  background: var(--brand-2);
+  animation: blink 1.4s ease-in-out infinite;
+}
+.call-state.is-speaking::before {
+  background: var(--accent);
+  animation: blink 0.7s ease-in-out infinite;
+}
+.call-state.is-muted::before {
+  background: var(--danger);
+}
+@keyframes blink {
+  50% {
+    opacity: 0.3;
+  }
+}
+.call-bar {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 4px 4px;
+  min-height: 0;
+}
+/* The language toggle on the tile's dark bar. */
+.call-bar .lang {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: transparent;
+  padding: 2px;
+}
+.call-bar .lang-opt {
+  height: 24px;
+  min-width: 34px;
+  padding: 0 8px;
+  font-size: 12px;
+  color: #b7cdca;
+}
+.call-bar .lang-opt.is-on {
+  background: #fff;
+  color: var(--brand-ink);
+}
+.call-controls {
+  display: flex;
+  gap: 8px;
+}
+.call-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+}
+.call-btn:hover {
+  background: rgba(255, 255, 255, 0.28);
+}
+.call-btn[aria-pressed="true"] {
+  background: #fff;
+  color: var(--ink);
+}
+.call-end,
+.call-end:hover {
+  background: var(--danger);
+}
+.call-expand {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: end center;
+  padding-bottom: 6px;
+  background: transparent;
+  color: #fff;
+  opacity: 0;
+}
+.call-tile.is-mini:hover .call-expand,
+.call-expand:focus-visible {
+  opacity: 1;
+}
+@media (max-width: 640px) {
+  .dock {
+    left: 12px;
+    right: 12px;
+    bottom: calc(12px + env(safe-area-inset-bottom));
+    gap: 8px;
+    padding: 5px;
+    max-width: none;
+  }
+  .dock.is-left {
+    left: 12px;
+  }
+  .dock-text {
+    flex: 1;
+    max-width: none;
+  }
+  .dock-face {
+    width: 40px;
+    height: 40px;
+  }
+  .dock-cta {
+    height: 40px;
+    padding: 0 12px;
+    font-size: 13px;
+  }
+  .call-controls {
+    gap: 6px;
+  }
+  .call-btn {
+    width: 28px;
+    height: 28px;
+  }
+  .call-tile.is-tile .face-placeholder span {
+    font-size: 48px;
+  }
+}
+
+/* ── ?debug=1 move console ──────────────────────────────────────────── */
+.debug {
+  position: fixed;
+  top: calc(var(--header-h) + 10px);
+  right: 10px;
+  z-index: 70;
+  width: 340px;
+  max-height: calc(100vh - var(--header-h) - 120px);
+  overflow: auto;
+  background: #10201f;
+  color: #dfeae7;
+  border-radius: 10px;
+  padding: 10px;
+  font-size: 12px;
+  box-shadow: 0 20px 50px -20px rgba(0, 0, 0, 0.6);
+}
+.debug-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.debug-head span {
+  flex: 1;
+  color: #8fb0aa;
+}
+.debug .icon-btn {
+  color: #dfeae7;
+}
+.debug-moves {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.debug-move,
+.debug button:not(.icon-btn) {
+  padding: 3px 7px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #dfeae7;
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+}
+.debug-move.is-on {
+  background: var(--accent);
+  color: #1a1000;
+}
+.debug-args {
+  width: 100%;
+  height: 150px;
+  margin: 8px 0;
+  background: #0a1716;
+  color: #cfe3de;
+  border: 1px solid #284241;
+  border-radius: 6px;
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+  padding: 6px;
+}
+.debug-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 6px 0;
+}
+.debug .debug-run {
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
+  background: var(--brand-2) !important;
+  color: #fff !important;
+}
+.debug-result {
+  white-space: pre-wrap;
+  background: #0a1716;
+  border-radius: 6px;
+  padding: 6px;
+  font-size: 11px;
+  max-height: 140px;
+  overflow: auto;
+}
+.debug-events p {
+  margin: 6px 0 4px;
+  color: #8fb0aa;
+}
+.debug-events ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 3px;
+}
+.debug-events li {
+  word-break: break-all;
+}
+.debug-events code {
+  color: var(--accent);
+}
+.debug-fab {
+  position: fixed;
+  top: calc(var(--header-h) + 10px);
+  right: 10px;
+  z-index: 70;
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  padding: 7px 11px;
+  border-radius: 999px;
+  background: #10201f;
+  color: #dfeae7;
+  font-size: 12px;
+}
+

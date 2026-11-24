@@ -10,7 +10,10 @@ export type By = "visitor" | "agent";
 
 export interface UiEvents {
   page_viewed: { path: string; screen: string; signed_in: boolean };
-  signed_in: { customer_id: string };
+  /** The customer's own sign-in: who they are, never the mobile number or PIN. */
+  signed_in: { name: string; first_name: string };
+  /** Sign in pressed with a number or PIN of the wrong shape (never the digits). */
+  sign_in_failed: { problem: "mobile" | "pin" };
   signed_out: Record<string, never>;
   txn_opened: { txn_id: string };
   card_control_changed: { card: "debit" | "credit"; control: string; value: string };
