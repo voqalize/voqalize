@@ -97,6 +97,11 @@
       "tagline": "A bilingual insurance guide for a fictional Indian insurer: quotes built from a few sentences with a live premium breakdown, the exact clause that answers \"am I covered if…\", and a long claim form filled in as the customer talks."
     },
     {
+      "name": "dental",
+      "title": "Dantika Dental Front Desk",
+      "tagline": "A dental clinic's front desk that books check-ups, root canals and scans on each dentist's real calendar, moves or cancels appointments under the clinic's policy, and sends clinical questions to a dentist, in English or Hindi."
+    },
+    {
       "name": "university",
       "title": "Varenya University Admissions",
       "tagline": "A university course advisor and admissions counsellor, in English or Hindi: it narrows 54 programmes to the two or three that fit, compares them side by side, and fills the application as the family talks."

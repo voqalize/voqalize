@@ -237,6 +237,11 @@ DEMOS: dict[str, Expected] = {
     # set_language or for Hindi heard — ananya in both. Asserted in
     # test_insurance_e2e.py.
     "insurance": Expected(voice="omnivoice/ananya", language="en", provider="openai"),
+    # Meera, Dantika Dental's front desk (demos/dental/persona.json): the page's
+    # EN / Hindi toggle rides `init.lang` and the brain configures both legs from
+    # it; nothing in the payload means English. Hindi, and the toggle mid-call,
+    # are asserted in test_dental_e2e.py.
+    "dental": Expected(voice="omnivoice/meera", language="en", provider="openai"),
     # Varenya University's course advisor and admissions counsellor: the
     # voice per language lives in demos/university/persona.json. With no `lang`
     # in the payload it opens in English, and moves both legs to Hindi for the

@@ -27,9 +27,21 @@ class PageViewed(AppEvent):
 
 
 class SignedIn(AppEvent):
-    """The mock sign-in was pressed."""
+    """The customer signed in with their own hand: typed a 10-digit mobile number
+    and a 4-digit PIN and pressed Sign in. Carries who they are, never the number
+    or the PIN (FEEDBACK X9, B7). The page refuses any other hand, so ``by`` is
+    always the visitor's; one that says ``agent`` is not believed."""
 
-    customer_id: str = ""
+    name: str = ""
+    first_name: str = ""
+    by: By = "visitor"
+
+
+class SignInFailed(AppEvent):
+    """The customer pressed Sign in and what they typed was not the right shape:
+    ``mobile`` (not 10 digits) or ``pin`` (not 4 digits). Never the digits."""
+
+    problem: Literal["mobile", "pin"]
     by: By = "visitor"
 
 
@@ -114,6 +126,7 @@ class LanguageRequested(AppEvent):
 BankEvent = (
     PageViewed
     | SignedIn
+    | SignInFailed
     | SignedOut
     | TxnOpened
     | CardControlChanged
@@ -128,6 +141,7 @@ BankEvent = (
 BANK_EVENTS: tuple[type[AppEvent], ...] = (
     PageViewed,
     SignedIn,
+    SignInFailed,
     SignedOut,
     TxnOpened,
     CardControlChanged,
@@ -151,6 +165,7 @@ __all__ = [
     "LanguageRequested",
     "LoanCalcChanged",
     "PageViewed",
+    "SignInFailed",
     "SignedIn",
     "SignedOut",
     "TxnOpened",

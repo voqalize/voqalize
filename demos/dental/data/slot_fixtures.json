@@ -1,0 +1,1329 @@
+{
+ "$comment": "Written by backend/clinic.py write_fixtures(); the page's slot engine must give the same answers.",
+ "now": "2026-11-18T10:07:00+05:30",
+ "cases": [
+  {
+   "service": "consult",
+   "branch": null,
+   "dentist": null,
+   "date": "2026-11-18",
+   "slots": [
+    {
+     "time": "11:15",
+     "branch": "indiranagar",
+     "dentist": "dr-farah",
+     "chair": "ind-c1",
+     "resource": null
+    },
+    {
+     "time": "11:15",
+     "branch": "indiranagar",
+     "dentist": "dr-kavitha",
+     "chair": "ind-c1",
+     "resource": null
+    },
+    {
+     "time": "11:15",
+     "branch": "hsr",
+     "dentist": "dr-rahul",
+     "chair": "hsr-c2",
+     "resource": null
+    },
+    {
+     "time": "11:30",
+     "branch": "indiranagar",
+     "dentist": "dr-farah",
+     "chair": "ind-c1",
+     "resource": null
+    },
+    {
+     "time": "11:30",
+     "branch": "indiranagar",
+     "dentist": "dr-kavitha",
+     "chair": "ind-c1",
+     "resource": null
+    },
+    {
+     "time": "11:30",
+     "branch": "hsr",
+     "dentist": "dr-rahul",
+     "chair": "hsr-c2",
+     "resource": null
+    },
+    {
+     "time": "11:45",
+     "branch": "indiranagar",
+     "dentist": "dr-farah",
+     "chair": "ind-c1",
+     "resource": null
+    },
+    {
+     "time": "11:45",
+     "branch": "indiranagar",
+     "dentist": "dr-kavitha",
+     "chair": "ind-c1",
+     "resource": null
+    },
+    {
+     "time": "11:45",
+     "branch": "hsr",
+     "dentist": "dr-nandini",
+     "chair": "hsr-c2",
+     "resource": null
+    },
+    {
+     "time": "12:00",
+     "branch": "indiranagar",
+     "dentist": "dr-farah",
+     "chair": "ind-c1",
+     "resource": null
+    },
+    {
+     "time": "12:00",
+     "branch": "indiranagar",
+     "dentist": "dr-kavitha",
+     "chair": "ind-c1",
+     "resource": null
+    },
+    {
+     "time": "12:00",
+     "branch": "hsr",
+     "dentist": "dr-nandini",
+     "chair": "hsr-c2",
+     "resource": null
+    },
+    {
+     "time": "12:15",
+     "branch": "indiranagar",
+     "dentist": "dr-farah",
+     "chair": "ind-c1",
+     "resource": null
+    },
+    {
+     "time": "12:15",
+     "branch": "indiranagar",
+     "dentist": "dr-kavitha",
+     "chair": "ind-c1",
+     "resource": null
+    },
+    {
+     "time": "12:15",
+     "branch": "hsr",
+     "dentist": "dr-nandini",
+     "chair": "hsr-c2",
+     "resource": null
+    },
+    {
+     "time": "12:30",
+     "branch": "indiranagar",
+     "dentist": "dr-farah",
+     "chair": "ind-c1",
+     "resource": null
+    },
+    {
+     "time": "12:30",
+     "branch": "indiranagar",
+     "dentist": "dr-kavitha",
+     "chair": "ind-c1",
+     "resource": null
+    },
+    {
+     "time": "12:45",
+     "branch": "indiranagar",
+     "dentist": "dr-farah",
+     "chair": "ind-c1",
+     "resource": null
+    },
+    {
+     "time": "12:45",
+     "branch": "indiranagar",
+     "dentist": "dr-kavitha",
+     "chair": "ind-c1",
+     "resource": null
+    },
+    {
+     "time": "12:45",
+     "branch": "hsr",
+     "dentist": "dr-rahul",
+     "chair": "hsr-c2",
+     "resource": null
+    },
+    {
+     "time": "13:00",
+     "branch": "indiranagar",
+     "dentist": "dr-kavitha",
+     "chair": "ind-c2",
+     "resource": null
+    },
+    {
+     "time": "13:00",
+     "branch": "hsr",
+     "dentist": "dr-rahul",
+     "chair": "hsr-c1",
+     "resource": null
+    },
+    {
+     "time": "15:00",
+     "branch": "indiranagar",
+     "dentist": "dr-farah",
+     "chair": "ind-c2",
+     "resource": null
+    },
+    {
+     "time": "15:00",
+     "branch": "hsr",
+     "dentist": "dr-nandini",
+     "chair": "hsr-c2",
+     "resource": null
+    },
+    {
+     "time": "15:00",
+     "branch": "hsr",
+     "dentist": "dr-sameer",
+     "chair": "hsr-c2",
+     "resource": null
+    },
+    {
+     "time": "15:15",
+     "branch": "indiranagar",
+     "dentist": "dr-farah",
+     "chair": "ind-c2",
+     "resource": null
+    },
+    {
+     "time": "15:15",
+     "branch": "hsr",
+     "dentist": "dr-sameer",
+     "chair": "hsr-c2",
+     "resource": null
+    },
+    {
+     "time": "15:30",
+     "branch": "indiranagar",
+     "dentist": "dr-kavitha",
+     "chair": "ind-c1",
+     "resource": null
+    },
+    {
+     "time": "15:30",
+     "branch": "hsr",
+     "dentist": "dr-rahul",
+     "chair": "hsr-c2",
+     "resource": null
+    },
+    {
+     "time": "15:30",
+     "branch": "hsr",
+     "dentist": "dr-sameer",
+     "chair": "hsr-c2",
+     "resource": null
+    },
+    {
+     "time": "15:45",
+     "branch": "hsr",
+     "dentist": "dr-rahul",
+     "chair": "hsr-c2",
+     "resource": null
+    },
+    {
+     "time": "15:45",
+     "branch": "hsr",
+     "dentist": "dr-sameer",
+     "chair": "hsr-c2",
+     "resource": null
+    },
+    {
+     "time": "16:00",
+     "branch": "hsr",
+     "dentist": "dr-rahul",
+     "chair": "hsr-c2",
+     "resource": null
+    },
+    {
+     "time": "16:00",
+     "branch": "hsr",
+     "dentist": "dr-sameer",
+     "chair": "hsr-c2",
+     "resource": null
+    },
+    {
+     "time": "16:15",
+     "branch": "hsr",
+     "dentist": "dr-rahul",
+     "chair": "hsr-c2",
+     "resource": null
+    },
+    {
+     "time": "16:15",
+     "branch": "hsr",
+     "dentist": "dr-sameer",
+     "chair": "hsr-c2",
+     "resource": null
+    },
+    {
+     "time": "16:30",
+     "branch": "indiranagar",
+     "dentist": "dr-farah",
+     "chair": "ind-c2",
+     "resource": null
+    },
+    {
+     "time": "16:30",
+     "branch": "hsr",
+     "dentist": "dr-nandini",
+     "chair": "hsr-c1",
+     "resource": null
+    },
+    {
+     "time": "16:30",
+     "branch": "hsr",
+     "dentist": "dr-rahul",
+     "chair": "hsr-c1",
+     "resource": null
+    },
+    {
+     "time": "16:30",
+     "branch": "hsr",
+     "dentist": "dr-sameer",
+     "chair": "hsr-c1",
+     "resource": null
+    },
+    {
+     "time": "16:45",
+     "branch": "indiranagar",
+     "dentist": "dr-farah",
+     "chair": "ind-c2",
+     "resource": null
+    },
+    {
+     "time": "16:45",
+     "branch": "hsr",
+     "dentist": "dr-nandini",
+     "chair": "hsr-c2",
+     "resource": null
+    },
+    {
+     "time": "16:45",
+     "branch": "hsr",
+     "dentist": "dr-rahul",
+     "chair": "hsr-c2",
+     "resource": null
+    },
+    {
+     "time": "17:00",
+     "branch": "indiranagar",
+     "dentist": "dr-farah",
+     "chair": "ind-c2",
+     "resource": null
+    },
+    {
+     "time": "17:00",
+     "branch": "hsr",
+     "dentist": "dr-nandini",
+     "chair": "hsr-c2",
+     "resource": null
+    },
+    {
+     "time": "17:00",
+     "branch": "hsr",
+     "dentist": "dr-rahul",
+     "chair": "hsr-c2",
+     "resource": null
+    },
+    {
+     "time": "17:15",
+     "branch": "indiranagar",
+     "dentist": "dr-farah",
+     "chair": "ind-c1",
+     "resource": null
+    },
+    {
+     "time": "17:15",
+     "branch": "indiranagar",
+     "dentist": "dr-kavitha",
+     "chair": "ind-c1",
+     "resource": null
+    },
+    {
+     "time": "17:30",
+     "branch": "indiranagar",
+     "dentist": "dr-farah",
+     "chair": "ind-c1",
+     "resource": null
+    },
+    {
+     "time": "17:30",
+     "branch": "indiranagar",
+     "dentist": "dr-kavitha",
+     "chair": "ind-c1",
+     "resource": null
+    },
+    {
+     "time": "17:45",
+     "branch": "indiranagar",
+     "dentist": "dr-kavitha",
+     "chair": "ind-c2",
+     "resource": null
+    },
+    {
+     "time": "17:45",
+     "branch": "hsr",
+     "dentist": "dr-sameer",
+     "chair": "hsr-c2",
+     "resource": null
+    },
+    {
+     "time": "18:00",
+     "branch": "indiranagar",
+     "dentist": "dr-kavitha",
+     "chair": "ind-c2",
+     "resource": null
+    },
+    {
+     "time": "18:00",
+     "branch": "hsr",
+     "dentist": "dr-sameer",
+     "chair": "hsr-c2",
+     "resource": null
+    },
+    {
+     "time": "18:15",
+     "branch": "hsr",
+     "dentist": "dr-sameer",
+     "chair": "hsr-c2",
+     "resource": null
+    },
+    {
+     "time": "18:30",
+     "branch": "hsr",
+     "dentist": "dr-sameer",
+     "chair": "hsr-c2",
+     "resource": null
+    }
+   ]
+  },
+  {
+   "service": "emergency",
+   "branch": "hsr",
+   "dentist": null,
+   "date": "2026-11-18",
+   "slots": [
+    {
+     "time": "11:00",
+     "branch": "hsr",
+     "dentist": "dr-rahul",
+     "chair": "hsr-c2",
+     "resource": null
+    },
+    {
+     "time": "11:15",
+     "branch": "hsr",
+     "dentist": "dr-rahul",
+     "chair": "hsr-c2",
+     "resource": null
+    },
+    {
+     "time": "12:45",
+     "branch": "hsr",
+     "dentist": "dr-rahul",
+     "chair": "hsr-c2",
+     "resource": null
+    },
+    {
+     "time": "13:00",
+     "branch": "hsr",
+     "dentist": "dr-rahul",
+     "chair": "hsr-c1",
+     "resource": null
+    },
+    {
+     "time": "15:00",
+     "branch": "hsr",
+     "dentist": "dr-sameer",
+     "chair": "hsr-c2",
+     "resource": null
+    },
+    {
+     "time": "15:15",
+     "branch": "hsr",
+     "dentist": "dr-sameer",
+     "chair": "hsr-c2",
+     "resource": null
+    },
+    {
+     "time": "15:30",
+     "branch": "hsr",
+     "dentist": "dr-rahul",
+     "chair": "hsr-c2",
+     "resource": null
+    },
+    {
+     "time": "15:30",
+     "branch": "hsr",
+     "dentist": "dr-sameer",
+     "chair": "hsr-c2",
+     "resource": null
+    },
+    {
+     "time": "15:45",
+     "branch": "hsr",
+     "dentist": "dr-rahul",
+     "chair": "hsr-c2",
+     "resource": null
+    },
+    {
+     "time": "15:45",
+     "branch": "hsr",
+     "dentist": "dr-sameer",
+     "chair": "hsr-c2",
+     "resource": null
+    },
+    {
+     "time": "16:00",
+     "branch": "hsr",
+     "dentist": "dr-rahul",
+     "chair": "hsr-c2",
+     "resource": null
+    },
+    {
+     "time": "16:00",
+     "branch": "hsr",
+     "dentist": "dr-sameer",
+     "chair": "hsr-c2",
+     "resource": null
+    },
+    {
+     "time": "16:15",
+     "branch": "hsr",
+     "dentist": "dr-rahul",
+     "chair": "hsr-c2",
+     "resource": null
+    },
+    {
+     "time": "16:15",
+     "branch": "hsr",
+     "dentist": "dr-sameer",
+     "chair": "hsr-c2",
+     "resource": null
+    },
+    {
+     "time": "16:30",
+     "branch": "hsr",
+     "dentist": "dr-rahul",
+     "chair": "hsr-c1",
+     "resource": null
+    },
+    {
+     "time": "16:30",
+     "branch": "hsr",
+     "dentist": "dr-sameer",
+     "chair": "hsr-c1",
+     "resource": null
+    },
+    {
+     "time": "16:45",
+     "branch": "hsr",
+     "dentist": "dr-rahul",
+     "chair": "hsr-c2",
+     "resource": null
+    },
+    {
+     "time": "17:45",
+     "branch": "hsr",
+     "dentist": "dr-sameer",
+     "chair": "hsr-c2",
+     "resource": null
+    },
+    {
+     "time": "18:00",
+     "branch": "hsr",
+     "dentist": "dr-sameer",
+     "chair": "hsr-c2",
+     "resource": null
+    },
+    {
+     "time": "18:15",
+     "branch": "hsr",
+     "dentist": "dr-sameer",
+     "chair": "hsr-c2",
+     "resource": null
+    },
+    {
+     "time": "18:30",
+     "branch": "hsr",
+     "dentist": "dr-sameer",
+     "chair": "hsr-c2",
+     "resource": null
+    }
+   ]
+  },
+  {
+   "service": "rct",
+   "branch": null,
+   "dentist": "dr-kavitha",
+   "date": "2026-11-23",
+   "slots": [
+    {
+     "time": "09:30",
+     "branch": "indiranagar",
+     "dentist": "dr-kavitha",
+     "chair": "ind-c1",
+     "resource": null
+    },
+    {
+     "time": "09:45",
+     "branch": "indiranagar",
+     "dentist": "dr-kavitha",
+     "chair": "ind-c1",
+     "resource": null
+    },
+    {
+     "time": "10:00",
+     "branch": "indiranagar",
+     "dentist": "dr-kavitha",
+     "chair": "ind-c1",
+     "resource": null
+    },
+    {
+     "time": "12:00",
+     "branch": "indiranagar",
+     "dentist": "dr-kavitha",
+     "chair": "ind-c2",
+     "resource": null
+    },
+    {
+     "time": "12:15",
+     "branch": "indiranagar",
+     "dentist": "dr-kavitha",
+     "chair": "ind-c2",
+     "resource": null
+    },
+    {
+     "time": "12:30",
+     "branch": "indiranagar",
+     "dentist": "dr-kavitha",
+     "chair": "ind-c2",
+     "resource": null
+    },
+    {
+     "time": "15:45",
+     "branch": "indiranagar",
+     "dentist": "dr-kavitha",
+     "chair": "ind-c1",
+     "resource": null
+    },
+    {
+     "time": "16:00",
+     "branch": "indiranagar",
+     "dentist": "dr-kavitha",
+     "chair": "ind-c1",
+     "resource": null
+    },
+    {
+     "time": "16:15",
+     "branch": "indiranagar",
+     "dentist": "dr-kavitha",
+     "chair": "ind-c1",
+     "resource": null
+    },
+    {
+     "time": "16:30",
+     "branch": "indiranagar",
+     "dentist": "dr-kavitha",
+     "chair": "ind-c1",
+     "resource": null
+    },
+    {
+     "time": "16:45",
+     "branch": "indiranagar",
+     "dentist": "dr-kavitha",
+     "chair": "ind-c1",
+     "resource": null
+    },
+    {
+     "time": "17:00",
+     "branch": "indiranagar",
+     "dentist": "dr-kavitha",
+     "chair": "ind-c1",
+     "resource": null
+    },
+    {
+     "time": "17:15",
+     "branch": "indiranagar",
+     "dentist": "dr-kavitha",
+     "chair": "ind-c2",
+     "resource": null
+    },
+    {
+     "time": "17:30",
+     "branch": "indiranagar",
+     "dentist": "dr-kavitha",
+     "chair": "ind-c2",
+     "resource": null
+    }
+   ]
+  },
+  {
+   "service": "whitening",
+   "branch": "indiranagar",
+   "dentist": null,
+   "date": "2026-11-20",
+   "slots": [
+    {
+     "time": "11:45",
+     "branch": "indiranagar",
+     "dentist": "dr-farah",
+     "chair": "ind-c4",
+     "resource": null
+    },
+    {
+     "time": "12:00",
+     "branch": "indiranagar",
+     "dentist": "dr-farah",
+     "chair": "ind-c4",
+     "resource": null
+    },
+    {
+     "time": "12:15",
+     "branch": "indiranagar",
+     "dentist": "dr-farah",
+     "chair": "ind-c4",
+     "resource": null
+    },
+    {
+     "time": "12:30",
+     "branch": "indiranagar",
+     "dentist": "dr-farah",
+     "chair": "ind-c4",
+     "resource": null
+    },
+    {
+     "time": "12:45",
+     "branch": "indiranagar",
+     "dentist": "dr-farah",
+     "chair": "ind-c4",
+     "resource": null
+    }
+   ]
+  },
+  {
+   "service": "wisdom",
+   "branch": null,
+   "dentist": "dr-sameer",
+   "date": "2026-11-19",
+   "slots": [
+    {
+     "time": "16:00",
+     "branch": "indiranagar",
+     "dentist": "dr-sameer",
+     "chair": "ind-c3",
+     "resource": null
+    },
+    {
+     "time": "16:15",
+     "branch": "indiranagar",
+     "dentist": "dr-sameer",
+     "chair": "ind-c3",
+     "resource": null
+    },
+    {
+     "time": "16:30",
+     "branch": "indiranagar",
+     "dentist": "dr-sameer",
+     "chair": "ind-c3",
+     "resource": null
+    }
+   ]
+  },
+  {
+   "service": "cbct",
+   "branch": "indiranagar",
+   "dentist": null,
+   "date": "2026-11-19",
+   "slots": [
+    {
+     "time": "09:45",
+     "branch": "indiranagar",
+     "dentist": null,
+     "chair": null,
+     "resource": "ind-img"
+    },
+    {
+     "time": "10:00",
+     "branch": "indiranagar",
+     "dentist": null,
+     "chair": null,
+     "resource": "ind-img"
+    },
+    {
+     "time": "10:15",
+     "branch": "indiranagar",
+     "dentist": null,
+     "chair": null,
+     "resource": "ind-img"
+    },
+    {
+     "time": "10:30",
+     "branch": "indiranagar",
+     "dentist": null,
+     "chair": null,
+     "resource": "ind-img"
+    },
+    {
+     "time": "11:30",
+     "branch": "indiranagar",
+     "dentist": null,
+     "chair": null,
+     "resource": "ind-img"
+    },
+    {
+     "time": "11:45",
+     "branch": "indiranagar",
+     "dentist": null,
+     "chair": null,
+     "resource": "ind-img"
+    },
+    {
+     "time": "12:00",
+     "branch": "indiranagar",
+     "dentist": null,
+     "chair": null,
+     "resource": "ind-img"
+    },
+    {
+     "time": "12:15",
+     "branch": "indiranagar",
+     "dentist": null,
+     "chair": null,
+     "resource": "ind-img"
+    },
+    {
+     "time": "12:30",
+     "branch": "indiranagar",
+     "dentist": null,
+     "chair": null,
+     "resource": "ind-img"
+    },
+    {
+     "time": "12:45",
+     "branch": "indiranagar",
+     "dentist": null,
+     "chair": null,
+     "resource": "ind-img"
+    },
+    {
+     "time": "13:00",
+     "branch": "indiranagar",
+     "dentist": null,
+     "chair": null,
+     "resource": "ind-img"
+    },
+    {
+     "time": "14:15",
+     "branch": "indiranagar",
+     "dentist": null,
+     "chair": null,
+     "resource": "ind-img"
+    },
+    {
+     "time": "14:30",
+     "branch": "indiranagar",
+     "dentist": null,
+     "chair": null,
+     "resource": "ind-img"
+    },
+    {
+     "time": "14:45",
+     "branch": "indiranagar",
+     "dentist": null,
+     "chair": null,
+     "resource": "ind-img"
+    },
+    {
+     "time": "15:00",
+     "branch": "indiranagar",
+     "dentist": null,
+     "chair": null,
+     "resource": "ind-img"
+    },
+    {
+     "time": "16:00",
+     "branch": "indiranagar",
+     "dentist": null,
+     "chair": null,
+     "resource": "ind-img"
+    },
+    {
+     "time": "16:15",
+     "branch": "indiranagar",
+     "dentist": null,
+     "chair": null,
+     "resource": "ind-img"
+    },
+    {
+     "time": "16:30",
+     "branch": "indiranagar",
+     "dentist": null,
+     "chair": null,
+     "resource": "ind-img"
+    },
+    {
+     "time": "16:45",
+     "branch": "indiranagar",
+     "dentist": null,
+     "chair": null,
+     "resource": "ind-img"
+    },
+    {
+     "time": "17:00",
+     "branch": "indiranagar",
+     "dentist": null,
+     "chair": null,
+     "resource": "ind-img"
+    },
+    {
+     "time": "17:15",
+     "branch": "indiranagar",
+     "dentist": null,
+     "chair": null,
+     "resource": "ind-img"
+    },
+    {
+     "time": "17:30",
+     "branch": "indiranagar",
+     "dentist": null,
+     "chair": null,
+     "resource": "ind-img"
+    },
+    {
+     "time": "18:00",
+     "branch": "indiranagar",
+     "dentist": null,
+     "chair": null,
+     "resource": "ind-img"
+    },
+    {
+     "time": "18:15",
+     "branch": "indiranagar",
+     "dentist": null,
+     "chair": null,
+     "resource": "ind-img"
+    },
+    {
+     "time": "18:30",
+     "branch": "indiranagar",
+     "dentist": null,
+     "chair": null,
+     "resource": "ind-img"
+    },
+    {
+     "time": "18:45",
+     "branch": "indiranagar",
+     "dentist": null,
+     "chair": null,
+     "resource": "ind-img"
+    },
+    {
+     "time": "19:00",
+     "branch": "indiranagar",
+     "dentist": null,
+     "chair": null,
+     "resource": "ind-img"
+    }
+   ]
+  },
+  {
+   "service": "iopa",
+   "branch": "hsr",
+   "dentist": null,
+   "date": "2026-11-18",
+   "slots": [
+    {
+     "time": "11:30",
+     "branch": "hsr",
+     "dentist": null,
+     "chair": null,
+     "resource": "hsr-img"
+    },
+    {
+     "time": "12:00",
+     "branch": "hsr",
+     "dentist": null,
+     "chair": null,
+     "resource": "hsr-img"
+    },
+    {
+     "time": "12:15",
+     "branch": "hsr",
+     "dentist": null,
+     "chair": null,
+     "resource": "hsr-img"
+    },
+    {
+     "time": "12:30",
+     "branch": "hsr",
+     "dentist": null,
+     "chair": null,
+     "resource": "hsr-img"
+    },
+    {
+     "time": "12:45",
+     "branch": "hsr",
+     "dentist": null,
+     "chair": null,
+     "resource": "hsr-img"
+    },
+    {
+     "time": "13:00",
+     "branch": "hsr",
+     "dentist": null,
+     "chair": null,
+     "resource": "hsr-img"
+    },
+    {
+     "time": "13:15",
+     "branch": "hsr",
+     "dentist": null,
+     "chair": null,
+     "resource": "hsr-img"
+    },
+    {
+     "time": "14:15",
+     "branch": "hsr",
+     "dentist": null,
+     "chair": null,
+     "resource": "hsr-img"
+    },
+    {
+     "time": "14:30",
+     "branch": "hsr",
+     "dentist": null,
+     "chair": null,
+     "resource": "hsr-img"
+    },
+    {
+     "time": "14:45",
+     "branch": "hsr",
+     "dentist": null,
+     "chair": null,
+     "resource": "hsr-img"
+    },
+    {
+     "time": "15:00",
+     "branch": "hsr",
+     "dentist": null,
+     "chair": null,
+     "resource": "hsr-img"
+    },
+    {
+     "time": "15:15",
+     "branch": "hsr",
+     "dentist": null,
+     "chair": null,
+     "resource": "hsr-img"
+    },
+    {
+     "time": "15:45",
+     "branch": "hsr",
+     "dentist": null,
+     "chair": null,
+     "resource": "hsr-img"
+    },
+    {
+     "time": "16:15",
+     "branch": "hsr",
+     "dentist": null,
+     "chair": null,
+     "resource": "hsr-img"
+    },
+    {
+     "time": "16:45",
+     "branch": "hsr",
+     "dentist": null,
+     "chair": null,
+     "resource": "hsr-img"
+    },
+    {
+     "time": "17:00",
+     "branch": "hsr",
+     "dentist": null,
+     "chair": null,
+     "resource": "hsr-img"
+    },
+    {
+     "time": "17:15",
+     "branch": "hsr",
+     "dentist": null,
+     "chair": null,
+     "resource": "hsr-img"
+    },
+    {
+     "time": "17:30",
+     "branch": "hsr",
+     "dentist": null,
+     "chair": null,
+     "resource": "hsr-img"
+    },
+    {
+     "time": "17:45",
+     "branch": "hsr",
+     "dentist": null,
+     "chair": null,
+     "resource": "hsr-img"
+    },
+    {
+     "time": "18:00",
+     "branch": "hsr",
+     "dentist": null,
+     "chair": null,
+     "resource": "hsr-img"
+    },
+    {
+     "time": "18:15",
+     "branch": "hsr",
+     "dentist": null,
+     "chair": null,
+     "resource": "hsr-img"
+    },
+    {
+     "time": "18:30",
+     "branch": "hsr",
+     "dentist": null,
+     "chair": null,
+     "resource": "hsr-img"
+    },
+    {
+     "time": "19:00",
+     "branch": "hsr",
+     "dentist": null,
+     "chair": null,
+     "resource": "hsr-img"
+    }
+   ]
+  },
+  {
+   "service": "aligner",
+   "branch": null,
+   "dentist": null,
+   "date": "2026-11-23",
+   "slots": [
+    {
+     "time": "10:30",
+     "branch": "hsr",
+     "dentist": "dr-nandini",
+     "chair": "hsr-c2",
+     "resource": null
+    },
+    {
+     "time": "10:45",
+     "branch": "hsr",
+     "dentist": "dr-nandini",
+     "chair": "hsr-c2",
+     "resource": null
+    },
+    {
+     "time": "11:00",
+     "branch": "hsr",
+     "dentist": "dr-nandini",
+     "chair": "hsr-c2",
+     "resource": null
+    },
+    {
+     "time": "11:15",
+     "branch": "hsr",
+     "dentist": "dr-nandini",
+     "chair": "hsr-c2",
+     "resource": null
+    },
+    {
+     "time": "11:30",
+     "branch": "hsr",
+     "dentist": "dr-nandini",
+     "chair": "hsr-c2",
+     "resource": null
+    },
+    {
+     "time": "11:45",
+     "branch": "hsr",
+     "dentist": "dr-nandini",
+     "chair": "hsr-c2",
+     "resource": null
+    },
+    {
+     "time": "12:00",
+     "branch": "hsr",
+     "dentist": "dr-nandini",
+     "chair": "hsr-c2",
+     "resource": null
+    },
+    {
+     "time": "12:15",
+     "branch": "hsr",
+     "dentist": "dr-nandini",
+     "chair": "hsr-c2",
+     "resource": null
+    },
+    {
+     "time": "12:30",
+     "branch": "hsr",
+     "dentist": "dr-nandini",
+     "chair": "hsr-c2",
+     "resource": null
+    },
+    {
+     "time": "14:00",
+     "branch": "hsr",
+     "dentist": "dr-nandini",
+     "chair": "hsr-c2",
+     "resource": null
+    },
+    {
+     "time": "14:15",
+     "branch": "hsr",
+     "dentist": "dr-nandini",
+     "chair": "hsr-c2",
+     "resource": null
+    },
+    {
+     "time": "14:30",
+     "branch": "hsr",
+     "dentist": "dr-nandini",
+     "chair": "hsr-c2",
+     "resource": null
+    },
+    {
+     "time": "14:45",
+     "branch": "hsr",
+     "dentist": "dr-nandini",
+     "chair": "hsr-c1",
+     "resource": null
+    },
+    {
+     "time": "15:00",
+     "branch": "hsr",
+     "dentist": "dr-nandini",
+     "chair": "hsr-c1",
+     "resource": null
+    },
+    {
+     "time": "17:15",
+     "branch": "hsr",
+     "dentist": "dr-nandini",
+     "chair": "hsr-c1",
+     "resource": null
+    },
+    {
+     "time": "17:30",
+     "branch": "hsr",
+     "dentist": "dr-nandini",
+     "chair": "hsr-c1",
+     "resource": null
+    }
+   ]
+  },
+  {
+   "service": "scaling",
+   "branch": "indiranagar",
+   "dentist": "dr-farah",
+   "date": "2026-11-19",
+   "slots": [
+    {
+     "time": "15:00",
+     "branch": "indiranagar",
+     "dentist": "dr-farah",
+     "chair": "ind-c2",
+     "resource": null
+    },
+    {
+     "time": "15:15",
+     "branch": "indiranagar",
+     "dentist": "dr-farah",
+     "chair": "ind-c2",
+     "resource": null
+    },
+    {
+     "time": "15:30",
+     "branch": "indiranagar",
+     "dentist": "dr-farah",
+     "chair": "ind-c2",
+     "resource": null
+    },
+    {
+     "time": "15:45",
+     "branch": "indiranagar",
+     "dentist": "dr-farah",
+     "chair": "ind-c2",
+     "resource": null
+    },
+    {
+     "time": "16:00",
+     "branch": "indiranagar",
+     "dentist": "dr-farah",
+     "chair": "ind-c1",
+     "resource": null
+    },
+    {
+     "time": "16:15",
+     "branch": "indiranagar",
+     "dentist": "dr-farah",
+     "chair": "ind-c1",
+     "resource": null
+    },
+    {
+     "time": "16:30",
+     "branch": "indiranagar",
+     "dentist": "dr-farah",
+     "chair": "ind-c1",
+     "resource": null
+    },
+    {
+     "time": "16:45",
+     "branch": "indiranagar",
+     "dentist": "dr-farah",
+     "chair": "ind-c1",
+     "resource": null
+    },
+    {
+     "time": "17:00",
+     "branch": "indiranagar",
+     "dentist": "dr-farah",
+     "chair": "ind-c1",
+     "resource": null
+    },
+    {
+     "time": "17:15",
+     "branch": "indiranagar",
+     "dentist": "dr-farah",
+     "chair": "ind-c1",
+     "resource": null
+    },
+    {
+     "time": "18:45",
+     "branch": "indiranagar",
+     "dentist": "dr-farah",
+     "chair": "ind-c1",
+     "resource": null
+    }
+   ]
+  }
+ ],
+ "rct_plan": {
+  "first": {
+   "date": "2026-11-23",
+   "time": "09:30",
+   "branch": "indiranagar"
+  },
+  "next": [
+   {
+    "date": "2026-11-30",
+    "time": "10:00",
+    "branch": "indiranagar"
+   },
+   {
+    "date": "2026-12-07",
+    "time": "14:30",
+    "branch": "indiranagar"
+   }
+  ]
+ }
+}
