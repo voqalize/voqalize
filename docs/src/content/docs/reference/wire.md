@@ -581,8 +581,9 @@ should turn it off, or the user hears two. When to turn it off is in
 [Voice and language](/build/voice-and-language/).
 
 The same switch covers the **continuer**. When the user stops in the middle of
-a turn and Voqalize cannot yet tell whether they are done, it says "Mm-hm." in
-every language, and the avatar nods. The turn stays open, and the brain still
+a turn and Voqalize cannot yet tell whether they are done, the avatar nods, and
+at some of those pauses Voqalize also says "Mm-hm." in every language. The nod
+comes with the avatar and does not follow ack. The turn stays open, and the brain still
 receives one `UserMessage` for it. Like the acknowledgement, the continuer is
 not on the wire.
 

@@ -199,7 +199,7 @@ await session.configure(Config(idle=IdleConfig(timeout_ms=15000)))
 
 **`ack`** is Voqalize's own short acknowledgement ("Sure.", "Let me check.")
 said when the user's turn ends and before your reply starts, and the "Mm-hm."
-said when the user pauses mid-turn. Keep it on unless
+Voqalize may say when the user pauses mid-turn. Keep it on unless
 your brain writes its own acknowledgements;
 [Speaking](/build/brain/speaking/#voqalize-covers-the-wait-before-your-first-word)
 has the rule and the code to turn it off.
