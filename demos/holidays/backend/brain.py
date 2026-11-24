@@ -64,6 +64,7 @@ from .engine import Trip
 from .persona import LANGUAGES, Speaking, speaking
 from .prompt import system_instruction
 from .rejoin import Rejoin
+from .spoken import SpokenAmounts, amounts_note, implausible, speak_text
 from .stage_gen import SPEC
 
 #: GPT-6.1 Terra, as the other OpenAI demos run it, at medium reasoning: at low,
@@ -329,6 +330,10 @@ class HolidaysBrain(OpenAIBrain):
         self._say_next: Callable[[], str] | None = None
         self._said_state = ""
         self._rejoined = False  # this socket picked up a call a dropped one served
+        #: The visitor's last few turns, as heard: what a budget is checked against.
+        self._heard_recent: list[str] = []
+        #: Every amount spoken in the form the voice reads right (spoken.py, X8).
+        self._spoken = SpokenAmounts(lambda: self.lang)
 
     # ─── Session ────────────────────────────────────────────────────────
 
@@ -396,15 +401,17 @@ class HolidaysBrain(OpenAIBrain):
         if self._rejoined:
             return None
         s = LANGUAGES[self.lang]
-        return s.greeting_home if self.page == "home" else s.greeting_plan
+        return speak_text(s.greeting_home if self.page == "home" else s.greeting_plan, self.lang)
 
     def _line(self, key: str, **kw: str) -> str:
         return _LINES[self.lang][key].format(**kw)
 
-    async def on_user_message(
-        self, session: Session, msg: UserMessage
-    ) -> AsyncGenerator[Speech, None]:
+    def on_user_message(self, session: Session, msg: UserMessage) -> AsyncGenerator[Speech, None]:
+        return self._spoken.wrap(self._answer(session, msg))
+
+    async def _answer(self, session: Session, msg: UserMessage) -> AsyncGenerator[Speech, None]:
         self.stage.visitor_spoke()
+        self._heard_recent = [*self._heard_recent[-2:], msg.text]
         self._say_next = None
         self._settle_expired()
         state = self.state_line()
@@ -412,6 +419,8 @@ class HolidaysBrain(OpenAIBrain):
             self.append_note(f"[Trip now: {state}]")
             self._said_state = state
         self.append_note(msg.text)
+        if (said := amounts_note(msg.text)) is not None:
+            self.append_note(said)
         async for speech in self.respond(session):
             yield speech
 
@@ -422,7 +431,7 @@ class HolidaysBrain(OpenAIBrain):
         self.stage.end_turn()
 
     def on_user_idle(self, session: Session, idle: UserIdle) -> AsyncGenerator[Speech, None]:
-        return self._idle(session)
+        return self._spoken.wrap(self._idle(session))
 
     async def _idle(self, session: Session) -> AsyncGenerator[Speech, None]:
         self._settle_expired()
@@ -866,7 +875,9 @@ class HolidaysBrain(OpenAIBrain):
                 sent["nights"] = brief.nights
         if brief.budget is not None:
             budget = brief.budget * (t.pax if brief.budget_per_person else 1)
-            if budget != t.budget:
+            if (why := implausible({"budget": budget}, self._heard_recent[::-1])) is not None:
+                notes.insert(0, why)  # first, so the model confirms before anything else
+            elif budget != t.budget:
                 t.budget = budget
                 sent["budget"] = budget
         if brief.style and brief.style != t.style:

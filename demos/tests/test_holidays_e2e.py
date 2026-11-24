@@ -646,3 +646,66 @@ async def test_no_redial_is_asked_of_a_voqalize_that_does_not_offer_it() -> None
         assert greeting is not None and greeting.text == LANGUAGES["en"].greeting_plan
         assert _redials(rig.driver) == []
         check_voice_pair(rig, voice=LANGUAGES["en"].voice, language="en")
+
+
+# ─── Amounts in speech, both ways (X8) ────────────────────────────────────────
+
+
+async def test_a_budget_is_heard_in_rupees_and_amounts_are_said_the_indian_way() -> None:
+    """Over the wire: "around 1 and half lakhs" reaches the model with a note in
+    rupees; a budget passed as ₹15 is refused and confirmed back, never put in the
+    brief; the confirmed ₹1,50,000 is. What the planner writes as "₹1.25 lakh" (two
+    decimals, which the TTS would read as rupees and paise) is given to the voice in
+    words, in English, and with लाख and whole rupees in Hindi."""
+    llm = ScriptedOpenAI(
+        {
+            "around 1 and half lakhs": replies(
+                call(
+                    "set_trip",
+                    from_city="Delhi",
+                    destination="Goa",
+                    month="March",
+                    nights=5,
+                    adults=2,
+                    budget=15,
+                ),
+                reply("Just to check, ₹1.5 lakh, right?"),
+            ),
+            "Yes, one and a half lakh": replies(
+                call("set_trip", budget=150000),
+                reply("Done. Goa for two usually comes to ₹1.25 lakh, so you're well inside it."),
+            ),
+            "Hindi mein": reply("ज़रूर। पैकेज ₹1.5\u20132 लाख में बन जाएगा, कुल ₹2.3 लाख तक।"),
+        }
+    )
+    answered: set[str] = set()
+    async with _rig(llm) as rig:
+        await rig.driver.start_session(init={"page": "plan", "lang": "en"})
+        brain = _brain(rig)
+
+        t1 = await rig.driver.user_says(
+            "Delhi to Goa in March, five nights, the two of us, budget around 1 and half lakhs"
+        )
+        check_turn(rig, t1)
+        told = json.dumps(llm.captured_inputs[-1], ensure_ascii=False)
+        assert "'1 and half lakhs' = about 150000 rupees" in told
+        result = tool_results_of(llm.captured_inputs[-1], "set_trip")[0]
+        assert result.startswith("Not done: a budget of ₹15"), result
+        assert "₹1.5 lakh, right?" in result
+        assert brain.trip.budget == 0 and "budget" not in _move(rig, "trip.brief")["args"]
+        said = " ".join(u.text for u in t1.units)
+        assert "one point five lakh rupees" in said and "₹" not in said, said
+        await _page_answers(rig, answered)
+
+        t2 = await rig.driver.user_says("Yes, one and a half lakh")
+        check_turn(rig, t2)
+        assert brain.trip.budget == 150000
+        assert _move(rig, "trip.brief")["args"] == {"budget": 150000}
+        said = " ".join(u.text for u in t2.units)
+        assert "one point two five lakh rupees" in said and "₹1.25" not in said, said
+
+        brain.lang = "hi"  # as the toggle leaves it; the voice pair is covered above
+        t3 = await rig.driver.user_says("Hindi mein bataiye")
+        check_turn(rig, t3)
+        said = " ".join(u.text for u in t3.units)
+        assert "₹1.5 लाख से ₹2 लाख" in said and "₹2,30,000" in said, said

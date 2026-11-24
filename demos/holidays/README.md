@@ -68,6 +68,29 @@ phone, steps aside for a primary action (`data-dock-avoid`: Review & pay, Pay), 
 corner while the phone's trip-summary sheet is open (`data-overlay`). Whatever the planner rings is
 first brought fully into view with its group, inner scroll areas included (`frontend/src/stage/view.ts`).
 
+## Amounts in speech
+
+Prices come from the engine as whole rupees in Indian grouping (₹2,28,975), which Voqalize's TTS
+reads right in both languages. What it reads wrong is a rupee amount with two decimals before a
+scale word: in English "₹1.25 lakh" reaches the voice model as "one rupee and twenty five paisa
+lakh". `backend/spoken.py` (adapted from the bank demo) rewrites everything the planner speaks,
+the model's words and the brain's own lines, as it streams; the screen keeps its formatting:
+
+- English: an amount with lakh or crore is spelled out ("one point two five lakh rupees",
+  "one point five to two lakh rupees"); plain ₹ amounts go as written.
+- Hindi: lakh and crore in Devanagari with the ₹ mark ("₹1.5 लाख", said डेढ़ लाख); any other
+  decimal becomes whole rupees ("₹2.3 लाख" → ₹2,30,000, said दो लाख तीस हज़ार).
+- Ranges say both ends ("₹1.5 lakh to ₹2 lakh", "8% to 18%").
+
+The prompt asks the model to write amounts as the tools give them, or with lakh in full (never
+"L", "Cr" or "k"). The other way, `parse_amounts` reads the budget as the recogniser wrote it:
+digits with either grouping, lakh / crore / thousand / hazaar / k, English and Hindi number words,
+"one and a half", "a lakh and a half", dedh, dhai, sava, saade, paune, decimals, Devanagari digits,
+"around" / lagbhag, and ranges that say the scale once ("one and a half to two lakh",
+"डेढ़ से दो लाख"). The model gets a note with those amounts in rupees, and `set_trip` refuses a
+budget no traveller would mean (under ₹5,000 or over ₹1 crore) and tells the model to confirm it
+back first ("Just to check, ₹1.5 lakh, right?").
+
 ## Run it
 
 ```sh
