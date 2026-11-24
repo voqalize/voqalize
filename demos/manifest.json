@@ -75,6 +75,16 @@
       "name": "fernhollow",
       "title": "Fernhollow Home",
       "tagline": "The front of house of a home & furniture store, one voice agent on every page: walks a shopper through the pieces they want and fills the cart, runs their orders (moves a delivery day, cancels while packed, asks for an earlier delivery) and fills a return with them, finds a gift, and runs a showroom kiosk."
+    },
+    {
+      "name": "payroll_site",
+      "title": "Paynora — HR and Payroll (website)",
+      "tagline": "The marketing site of an Indian payroll product, where a voice sales rep qualifies a lead, works out the per-employee price and books a demo on screen."
+    },
+    {
+      "name": "payroll_app",
+      "title": "Paynora — HR and Payroll (app)",
+      "tagline": "Inside an Indian HRMS as the HR admin: a voice guide sets up the company, explains why a payslip changed, compares the old and new tax regimes slab by slab, and makes changes with a confirm step."
     }
   ]
 }
