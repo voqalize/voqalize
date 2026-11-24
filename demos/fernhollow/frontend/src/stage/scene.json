@@ -1,7 +1,7 @@
 {
   "$schema": "../../../../../sdk/js/stage/stage.schema.json",
   "stage": 1,
-  "id": "fernhollow_returns",
+  "id": "fernhollow",
   "languages": [
     "en"
   ],
@@ -19,80 +19,13 @@
   ],
   "moves": [
     {
-      "id": "returns.find",
-      "verb": "find",
-      "class": "reversible",
-      "args": [
-        {
-          "name": "order_number",
-          "doc": "The order's number, FH-20418."
-        },
-        {
-          "name": "email",
-          "optional": true,
-          "doc": "The email used for the order, as the shopper said it."
-        }
-      ],
-      "say": "{find: FH-20418 | sam.rivera@example.com} fills step 1 and looks the order up, as the Find button does.",
-      "doc": "Fill step 1 with the order number and email and look the order up exactly as the Find button does; on success the form moves to step 2. Refused with the reason: no such order, email mismatch, not delivered, outside the window."
-    },
-    {
-      "id": "returns.next_step",
-      "verb": "next",
-      "class": "reversible",
-      "args": [],
-      "say": "{next} moves the returns form on to its next step, as Continue does.",
-      "doc": "Validate the step in front like the Continue button and move to the next one. Refused, naming the missing fields."
-    },
-    {
-      "id": "returns.open_step",
-      "verb": "step",
-      "class": "look",
-      "args": [
-        {
-          "name": "step",
-          "type": "integer",
-          "doc": "A step already reached, 1 to 6: 1 find your order, 2 items, 3 reason, 4 resolution, 5 collection, 6 review."
-        }
-      ],
-      "say": "{step: 3} as you start talking about that step of the returns form; it opens, scrolls into view and is ringed.",
-      "doc": "Open a step of the returns form the form has already reached, and ring it."
-    },
-    {
-      "id": "returns.fill",
-      "verb": "fill",
-      "class": "reversible",
-      "args": [
-        {
-          "name": "field",
-          "doc": "A field of the returns form by its name: order_number, email, reason, condition, resolution, exchange_variant_<product_id>, collection, pickup_window."
-        },
-        {
-          "name": "value",
-          "doc": "One of the field's values as the form names them: doesnt_suit_room, unused_in_packaging, refund, pickup, weekday_morning. For order_number the order number, FH-20418; for email the address the shopper said."
-        }
-      ],
-      "say": "{fill: reason | doesnt_suit_room} at the start of the sentence that says it, one field per sentence: \"Let's put down that it doesn't suit the room.\"",
-      "claims": [
-        "putting down",
-        "filling in",
-        "i'll put"
-      ],
-      "objects": [
-        "form",
-        "field",
-        "return"
-      ],
-      "doc": "Set one field of the returns form, as the voice says it. Refused, with the field's values, when the value is not one of them."
-    },
-    {
       "id": "returns.select_item",
-      "verb": "item",
       "class": "reversible",
+      "doc": "On an order's return form, tick an item of the order and set how many go back; opens the items step first when the form is on another one. 0 takes the item off. Refused with the order's items when the product is not on it.",
       "args": [
         {
           "name": "product_id",
-          "doc": "The order line's product id, as find_order gives it."
+          "doc": "The order line's product id, as start_return gives it."
         },
         {
           "name": "qty",
@@ -101,46 +34,259 @@
           "doc": "How many to return, 1 up to the number ordered (a numeral, \"1\", is read as 1); 0 takes the item off the return."
         }
       ],
-      "say": "{item: product-id | 1} as you name an item of the order being returned.",
-      "claims": [
-        "returning the",
-        "adding the"
-      ],
       "objects": [
         "item",
         "return"
-      ],
-      "doc": "Choose an item of the order to return, and how many."
+      ]
     },
     {
-      "id": "returns.submit",
-      "class": "confirmed",
-      "args": [],
-      "doc": "Press Submit return, once the shopper has said yes. Refused, naming the step, while a step still needs something.",
-      "claims": [
-        "submitting your return",
-        "sending your return"
+      "id": "returns.fill",
+      "class": "reversible",
+      "doc": "On an order's return form, ring one choice and choose it, as a tap does; the step that holds the field opens first (once the steps before it are complete). Nothing on the form is chosen before the shopper says it. Refused, with the field's values, when the value is not one of them, or naming what an earlier step still needs.",
+      "args": [
+        {
+          "name": "field",
+          "doc": "A field of the return form by its name: reason, condition, resolution, exchange_variant_<product_id>, collection, pickup_window."
+        },
+        {
+          "name": "value",
+          "doc": "One of the field's values as the form names them: doesnt_suit_room, unused_in_packaging, refund, pickup, weekday_morning; for exchange_variant_<product_id> the option value, Walnut."
+        }
       ],
       "objects": [
+        "form",
+        "field",
         "return"
+      ]
+    },
+    {
+      "id": "returns.open_step",
+      "class": "look",
+      "doc": "Open a step of the return form the form has already reached, and ring it.",
+      "args": [
+        {
+          "name": "step",
+          "type": "integer",
+          "doc": "A step already reached, 1 to 5: 1 items, 2 reason, 3 resolution, 4 collection, 5 review."
+        }
+      ]
+    },
+    {
+      "id": "returns.next_step",
+      "class": "reversible",
+      "doc": "Validate the step in front like the Continue button and move to the next one. Refused, naming the missing fields.",
+      "objects": [
+        "step",
+        "return"
+      ]
+    },
+    {
+      "id": "orders.open",
+      "class": "look",
+      "doc": "On the orders page, select one order: its status, items and the actions its status allows show, ringed.",
+      "args": [
+        {
+          "name": "order_number",
+          "doc": "An order's number, FH-31207."
+        }
+      ],
+      "objects": [
+        "order"
+      ]
+    },
+    {
+      "id": "orders.show_slots",
+      "class": "look",
+      "doc": "On a packed order, press Change delivery day: the picker opens with the days it can move to, ringed. Refused when the order cannot move.",
+      "args": [
+        {
+          "name": "order_number",
+          "doc": "The order's number, FH-31207."
+        }
+      ],
+      "objects": [
+        "delivery",
+        "order"
+      ]
+    },
+    {
+      "id": "orders.reschedule",
+      "class": "reversible",
+      "args": [
+        {
+          "name": "order_number",
+          "doc": "The order's number, FH-31207."
+        },
+        {
+          "name": "slot",
+          "doc": "One of the order's authored delivery slots by id, d3-morning."
+        }
+      ],
+      "doc": "Open the order's delivery-day picker, ring the day and choose it, as a tap and Save do. Refused when the order cannot move (it is on the way or delivered) or the slot is not one it offers, with the slots it does offer.",
+      "claims": [
+        "moved your delivery",
+        "moving your delivery"
+      ],
+      "objects": [
+        "delivery",
+        "order"
+      ]
+    },
+    {
+      "id": "orders.cancel",
+      "class": "confirmed",
+      "doc": "Cancel a packed order, as Cancel order and its confirmation do, once the shopper has said yes. Refused once the order is on the way or delivered.",
+      "args": [
+        {
+          "name": "order_number",
+          "doc": "The order's number, FH-31207."
+        }
+      ],
+      "claims": [
+        "cancelling your order",
+        "cancelled your order"
+      ],
+      "objects": [
+        "order"
+      ]
+    },
+    {
+      "id": "orders.request_earlier",
+      "class": "reversible",
+      "doc": "On an order that is on the way, press Request an earlier delivery: a request to the driver, never a promise. Refused when the order is not on the way.",
+      "args": [
+        {
+          "name": "order_number",
+          "doc": "The order's number, FH-31188."
+        }
+      ],
+      "objects": [
+        "delivery",
+        "order"
+      ]
+    },
+    {
+      "id": "orders.start_return",
+      "class": "navigate",
+      "doc": "On a delivered order, press Start a return: that order's return form opens on its first step, nothing chosen. Refused when the order is not delivered yet or is outside the 30-day window.",
+      "args": [
+        {
+          "name": "order_number",
+          "doc": "The order's number, FH-31042."
+        }
+      ],
+      "objects": [
+        "return",
+        "order"
+      ]
+    },
+    {
+      "id": "gifts.set",
+      "class": "reversible",
+      "args": [
+        {
+          "name": "recipient",
+          "doc": "Who it is for, by the gift edit's id.",
+          "optional": true,
+          "enum": [
+            "partner",
+            "parent",
+            "sibling",
+            "friend",
+            "host",
+            "colleague"
+          ]
+        },
+        {
+          "name": "occasion",
+          "doc": "The occasion, by the gift edit's id.",
+          "optional": true,
+          "enum": [
+            "housewarming",
+            "birthday",
+            "thank_you",
+            "wedding",
+            "just_because"
+          ]
+        },
+        {
+          "name": "budget",
+          "doc": "A budget chip in dollars: 30, 50, 80, 100, 150, 250 or 500; 0 is No limit.",
+          "type": "integer",
+          "optional": true
+        }
+      ],
+      "doc": "On the gift edit, ring each control given and set it, one after another, as taps do; the short list shows once who, the occasion and the budget (or No limit) are all set. Refused with the chips when a budget is not one of them.",
+      "objects": [
+        "gift",
+        "edit"
+      ]
+    },
+    {
+      "id": "kiosk.start",
+      "class": "reversible",
+      "doc": "On the showroom kiosk, leave the attract screen for the first question, as a tap on it does.",
+      "objects": [
+        "kiosk"
+      ]
+    },
+    {
+      "id": "kiosk.answer",
+      "class": "reversible",
+      "args": [
+        {
+          "name": "question",
+          "doc": "A kiosk question by its id.",
+          "enum": [
+            "room",
+            "feel",
+            "budget"
+          ]
+        },
+        {
+          "name": "value",
+          "doc": "One of its option values as content/kiosk.json names them: living, warm_wood, 400."
+        }
+      ],
+      "doc": "On the kiosk, ring an option tile and choose it; after the third answer the three picks and the QR code show. Refused with the options when the value is not one of them.",
+      "objects": [
+        "kiosk"
+      ]
+    },
+    {
+      "id": "kiosk.restart",
+      "class": "reversible",
+      "doc": "Clear the kiosk's answers and go back to the attract screen, as Start over does.",
+      "objects": [
+        "kiosk"
       ]
     }
   ],
   "slices": [
     {
       "id": "returns_form",
-      "doc": "the returns form: the step in front and which fields hold something, by name, never their values",
+      "doc": "an order's return form: the order, the step in front, the field that just changed and its value (choices only, never personal data), and which fields hold something",
       "fields": [
+        {
+          "name": "order_number",
+          "optional": true,
+          "doc": "The order the return is for, FH-31042."
+        },
         {
           "name": "step",
           "type": "integer",
           "optional": true,
-          "doc": "The step in front, 1 to 6."
+          "doc": "The step in front, 1 to 5: 1 items, 2 reason, 3 resolution, 4 collection, 5 review."
         },
         {
           "name": "field",
           "optional": true,
           "doc": "The field that just changed, by name."
+        },
+        {
+          "name": "value",
+          "optional": true,
+          "doc": "Its value as the form names it (refund, doesnt_suit_room, a qty), or empty when cleared."
         },
         {
           "name": "filled",
@@ -150,7 +296,63 @@
         {
           "name": "reference",
           "optional": true,
-          "doc": "The return's reference, once submitted: RT-20418-1."
+          "doc": "The return's reference, once submitted: RT-31042-1."
+        }
+      ]
+    },
+    {
+      "id": "gift_edit",
+      "doc": "the gift edit's controls: who it is for, the occasion and the budget chip",
+      "fields": [
+        {
+          "name": "recipient",
+          "optional": true
+        },
+        {
+          "name": "occasion",
+          "optional": true
+        },
+        {
+          "name": "budget",
+          "type": "integer",
+          "optional": true
+        }
+      ]
+    },
+    {
+      "id": "orders",
+      "doc": "the orders page: the order selected, its delivery slot by id, and what was just done to it",
+      "fields": [
+        {
+          "name": "order_number",
+          "optional": true
+        },
+        {
+          "name": "slot",
+          "optional": true
+        },
+        {
+          "name": "status",
+          "optional": true,
+          "doc": "packed, on_the_way, delivered or cancelled"
+        }
+      ]
+    },
+    {
+      "id": "kiosk",
+      "doc": "the showroom kiosk: the screen it is on (attract, room, feel, budget, picks) and the answer just given",
+      "fields": [
+        {
+          "name": "screen",
+          "optional": true
+        },
+        {
+          "name": "question",
+          "optional": true
+        },
+        {
+          "name": "value",
+          "optional": true
         }
       ]
     }
@@ -160,17 +362,17 @@
       "id": "returns.field_filled",
       "slice": "returns_form",
       "op": "merge",
-      "note": "{by} filled {field} on the returns form",
+      "note": "{by} set {field} to {value} on the return form",
       "react": "note",
-      "doc": "A field of the returns form was filled or changed."
+      "doc": "A field of the return form was chosen, changed or cleared."
     },
     {
       "id": "returns.step_reached",
       "slice": "returns_form",
       "op": "merge",
-      "note": "{by} is on step {step} of the returns form",
+      "note": "{by} is on step {step} of the return form",
       "react": "note",
-      "doc": "The returns form moved to another step."
+      "doc": "The return form moved to another step."
     },
     {
       "id": "returns.return_submitted",
@@ -179,7 +381,71 @@
       "note": "{by} submitted the return {reference}",
       "react": "speak",
       "ask": "thank them and say what happens next, in one line",
-      "doc": "The shopper pressed Submit return."
+      "doc": "The shopper pressed Submit return with their own hand. Only they can: there is no move that submits, and the page refuses a press that is not theirs."
+    },
+    {
+      "id": "gifts.changed",
+      "slice": "gift_edit",
+      "op": "merge",
+      "note": "{by} set the gift edit to {recipient}, {occasion}, budget {budget} dollars (0 is no limit)",
+      "react": "note",
+      "doc": "A gift-edit control changed."
+    },
+    {
+      "id": "orders.opened",
+      "slice": "orders",
+      "op": "merge",
+      "note": "{by} selected order {order_number}",
+      "react": "note",
+      "doc": "An order was selected on the orders page."
+    },
+    {
+      "id": "orders.delivery_changed",
+      "slice": "orders",
+      "op": "merge",
+      "note": "{by} moved the delivery of {order_number} to {slot}",
+      "react": "note",
+      "doc": "An order's delivery day was changed and saved."
+    },
+    {
+      "id": "orders.cancelled",
+      "slice": "orders",
+      "op": "merge",
+      "note": "{by} cancelled order {order_number}",
+      "react": "note",
+      "doc": "A packed order was cancelled."
+    },
+    {
+      "id": "orders.earlier_requested",
+      "slice": "orders",
+      "op": "merge",
+      "note": "{by} asked for an earlier delivery of {order_number}",
+      "react": "note",
+      "doc": "An earlier delivery was requested for an order on the way."
+    },
+    {
+      "id": "orders.return_started",
+      "slice": "returns_form",
+      "op": "merge",
+      "note": "{by} started a return for order {order_number}",
+      "react": "note",
+      "doc": "A delivered order's return form was opened."
+    },
+    {
+      "id": "kiosk.screen",
+      "slice": "kiosk",
+      "op": "merge",
+      "note": "the kiosk is on {screen}",
+      "react": "note",
+      "doc": "The kiosk moved to another screen: attract, room, feel, budget or picks."
+    },
+    {
+      "id": "kiosk.answered",
+      "slice": "kiosk",
+      "op": "merge",
+      "note": "{by} chose {value} for {question} on the kiosk",
+      "react": "note",
+      "doc": "A kiosk question was answered."
     }
   ]
 }

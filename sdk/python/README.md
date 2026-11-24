@@ -6,7 +6,7 @@
 write a `Brain` of callbacks; the wire is plain protobuf and the Brain surface is
 plain dataclasses. (Pipecat lives only inside the Voqalize voice runtime, on
 the far side of the socket.) The wire is language-neutral — see
-[the wire](https://github.com/voqalize/voqalize/blob/python-sdk-v0.14.0/docs/src/content/docs/reference/wire.md)
+[the wire](https://github.com/voqalize/voqalize/blob/python-sdk-v0.15.0/docs/src/content/docs/reference/wire.md)
 for the contract.
 
 The **`Brain` is the sole customer surface** — there is no raw `FrameProcessor`
@@ -192,7 +192,7 @@ failure it prevents is silent, because a Hindi call read by an English clip has 
 correct transcript and clean logs and merely sounds wrong.
 
 `stt.patience` is a scale from 0 to 10 for how long the recognizer waits through
-a pause; unset takes the deployment's own calibration, which is 7. A value off
+a pause it is not sure about; unset takes the deployment's own calibration. A value off
 the scale raises `ConfigError` at the call site too.
 
 Two refusals with different homes: `ConfigError` is raised in your process for
@@ -302,8 +302,8 @@ speak. Rejection is all-or-nothing, and `detail` is written to be shown.
 
 ## Read next
 
-- [The protobuf contract](https://github.com/voqalize/voqalize/blob/python-sdk-v0.14.0/proto/voqalize/frames/frames.proto) — the wire contract of record: envelope, frame vocabulary, direction table.
-- [The wire reference](https://github.com/voqalize/voqalize/blob/python-sdk-v0.14.0/docs/src/content/docs/reference/wire.md) — the wire in full, and why the Brain has the shape it has.
+- [The protobuf contract](https://github.com/voqalize/voqalize/blob/python-sdk-v0.15.0/proto/voqalize/frames/frames.proto) — the wire contract of record: envelope, frame vocabulary, direction table.
+- [The wire reference](https://github.com/voqalize/voqalize/blob/python-sdk-v0.15.0/docs/src/content/docs/reference/wire.md) — the wire in full, and why the Brain has the shape it has.
 - The module docstrings in `src/voqalize/sdk/` (`brain.py`, `engine.py`, `session.py`) — the canonical narratives, and they move with the code.
 - `examples/` — runnable brains: `echo` (the smallest complete brain),
   `fastapi_inbound` (mount a brain in your own FastAPI app).

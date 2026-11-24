@@ -141,9 +141,9 @@ DEMOS: dict[str, Expected] = {
     # both legs for the toggle or for English heard — javier in both. Asserted
     # in test_figurella_e2e.py.
     "figurella": Expected(voice="omnivoice/javier", language="es", provider="openai"),
-    # Mira, Fernhollow's design adviser: English only, in Emily's voice — the
-    # voice the `emily` avatar the page mounts was made for. Asserted in
-    # test_fernhollow_e2e.py.
+    # Fernhollow's front of house (fernhollow/persona.json: Emily, the `emily`
+    # avatar and her voice): English only, on every landing page. Asserted in
+    # test_fernhollow_e2e.py, which reads the persona file.
     "fernhollow": Expected(voice="omnivoice/emily", language="en"),
     "forge": Expected(voice="omnivoice/gauri", language="en"),
     "interview_bot": Expected(voice="omnivoice/gauri", language="en"),
@@ -220,6 +220,13 @@ DEMOS: dict[str, Expected] = {
     # a gallery card (the page is Uno Salud's own site). Asserted in
     # test_unosalud_e2e.py.
     "unosalud": Expected(voice="omnivoice/javier", language="es", provider="openai"),
+    # Paynora's two demos read their character from demos/<name>/persona.json;
+    # these rows name the voice outright, so a persona edit that changes it is
+    # seen here (round 2, R4: the site's character became Aditya). Both open in
+    # English, the default, and speak en and hi; the Hindi toggle is asserted in
+    # test_payroll_site_e2e.py / test_payroll_app_e2e.py.
+    "payroll_site": Expected(voice="omnivoice/aditya", language="en", provider="openai"),
+    "payroll_app": Expected(voice="omnivoice/priya", language="en", provider="openai"),
 }
 
 

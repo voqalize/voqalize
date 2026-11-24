@@ -37,6 +37,8 @@ from .frames import (
     IdleConfig,
     InterruptionFrame,
     Language,
+    LateConfig,
+    RedialConfig,
     ResponseFrame,
     RTVIFrame,
     RTVIType,
@@ -95,6 +97,8 @@ _CAPABILITY_TO_PB: dict[Capability, int] = {
     Capability.SPEECH_CANCEL: pb.CAPABILITY_SPEECH_CANCEL,
     Capability.STRING_CONFIG: pb.CAPABILITY_STRING_CONFIG,
     Capability.TURN_STEPS: pb.CAPABILITY_TURN_STEPS,
+    Capability.REDIAL: pb.CAPABILITY_REDIAL,
+    Capability.LATE: pb.CAPABILITY_LATE,
 }
 _CAPABILITY_FROM_PB: dict[int, Capability] = {v: k for k, v in _CAPABILITY_TO_PB.items()}
 
@@ -235,6 +239,18 @@ def _enc_configure(f: ConfigureFrame, env: pb.Envelope) -> None:
         m.ack.SetInParent()
         if c.ack.enabled is not None:
             m.ack.enabled = c.ack.enabled
+    if c.redial is not None:
+        m.redial.SetInParent()
+        if c.redial.enabled is not None:
+            m.redial.enabled = c.redial.enabled
+    if c.late is not None:
+        m.late.SetInParent()
+        if c.late.enabled is not None:
+            m.late.enabled = c.late.enabled
+        if c.late.after_ms is not None:
+            m.late.after_ms = c.late.after_ms
+        if c.late.text is not None:
+            m.late.text = c.late.text
 
 
 def _enc_response(f: ResponseFrame, env: pb.Envelope) -> None:
@@ -384,7 +400,7 @@ def _dec_language(m: pb.TtsConfig | pb.SttConfig) -> Language | str | None:
 
 def _dec_configure(req: pb.Request) -> ConfigureFrame:
     m = req.configure
-    tts = stt = idle = ack = None
+    tts = stt = idle = ack = redial = late = None
     if m.HasField("tts"):
         tts = TtsConfig(voice=_dec_voice(m.tts), language=_dec_language(m.tts))
     if m.HasField("stt"):
@@ -398,8 +414,17 @@ def _dec_configure(req: pb.Request) -> ConfigureFrame:
         )
     if m.HasField("ack"):
         ack = AckConfig(enabled=m.ack.enabled if m.ack.HasField("enabled") else None)
+    if m.HasField("redial"):
+        redial = RedialConfig(enabled=m.redial.enabled if m.redial.HasField("enabled") else None)
+    if m.HasField("late"):
+        late = LateConfig(
+            enabled=m.late.enabled if m.late.HasField("enabled") else None,
+            after_ms=m.late.after_ms if m.late.HasField("after_ms") else None,
+            text=m.late.text if m.late.HasField("text") else None,
+        )
     return ConfigureFrame(
-        request_id=req.request_id, config=Config(tts=tts, stt=stt, idle=idle, ack=ack)
+        request_id=req.request_id,
+        config=Config(tts=tts, stt=stt, idle=idle, ack=ack, redial=redial, late=late),
     )
 
 

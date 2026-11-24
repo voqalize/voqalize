@@ -19,6 +19,8 @@ from voqalize.sdk.wire import (
     IdleConfig,
     InterruptionFrame,
     Language,
+    LateConfig,
+    RedialConfig,
     ResponseFrame,
     RTVIFrame,
     RTVIType,
@@ -103,6 +105,17 @@ def _frames() -> list[Frame]:
         # off must survive as off rather than as "unset", which is on.
         ConfigureFrame(request_id=7, config=Config(ack=AckConfig(enabled=False))),
         ConfigureFrame(request_id=8, config=Config(ack=AckConfig(enabled=True))),
+        ConfigureFrame(request_id=9, config=Config(redial=RedialConfig(enabled=True))),
+        ConfigureFrame(request_id=10, config=Config(redial=RedialConfig(enabled=False))),
+        ConfigureFrame(request_id=11, config=Config(redial=RedialConfig())),
+        ConfigureFrame(request_id=12, config=Config(late=LateConfig(enabled=False))),
+        ConfigureFrame(
+            request_id=13,
+            config=Config(late=LateConfig(enabled=True, after_ms=20000, text="One moment.")),
+        ),
+        # "" goes back to Voqalize's own line, so it must survive as "" and not as unset.
+        ConfigureFrame(request_id=14, config=Config(late=LateConfig(text=""))),
+        ConfigureFrame(request_id=15, config=Config(late=LateConfig())),
         # patience alone, with no language on either leg — the pairing rule does
         # not apply to it, and 0 must survive as 0 rather than as "unset".
         ConfigureFrame(request_id=4, config=Config(stt=SttConfig(patience=0))),
@@ -196,6 +209,18 @@ async def test_a_capability_this_build_does_not_know_is_dropped() -> None:
     out = await WireSerializer().deserialize(env.SerializeToString())
     assert isinstance(out, SessionStartFrame)
     assert out.capabilities == frozenset({Capability.SPEECH_CANCEL})
+
+
+async def test_the_redial_capability_decodes() -> None:
+    from voqalize.sdk.wire import _frames_pb2 as pb
+
+    env = pb.Envelope()
+    env.session_start.session_id = "s"
+    env.session_start.turn_id = 1
+    env.session_start.capabilities.extend([pb.CAPABILITY_REDIAL])
+    out = await WireSerializer().deserialize(env.SerializeToString())
+    assert isinstance(out, SessionStartFrame)
+    assert out.capabilities == frozenset({Capability.REDIAL})
 
 
 async def test_no_capabilities_decodes_as_none() -> None:

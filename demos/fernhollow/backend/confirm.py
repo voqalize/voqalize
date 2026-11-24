@@ -1,6 +1,6 @@
 """Every confirmation Emily asks for, handled one way.
 
-Placing an order, submitting a return, adding to the cart — and any confirmed
+Placing an order, cancelling an order — and any confirmed
 action added later — go through the same four steps:
 
 1. **Ask.** A tool that needs the shopper's yes records one pending

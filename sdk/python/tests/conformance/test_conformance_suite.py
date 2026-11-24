@@ -195,7 +195,7 @@ async def test_wrong_key_is_rejected_directly() -> None:
 
 def test_minted_tokens_carry_workspace_id_and_its_deprecated_twin():
     """Voqalize's brain token carries both claims until 2027-02-15, so the kit's
-    does too: a brain on an SDK older than 0.15.0 reads ``tenant_id``."""
+    does too: a brain on an SDK older than 0.16.0 reads ``tenant_id``."""
     import jwt
 
     from voqalize.conformance import mint_voqalize_token

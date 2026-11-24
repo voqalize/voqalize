@@ -11,7 +11,7 @@ a page is one reply, with no tool round trip between its parts.
 Stage ships in two packages, one per half. Pin both:
 
 ```bash
-pip install voqalize-agent-sdk==0.14.0      # the brain: voqalize.sdk.stage
+pip install voqalize-agent-sdk==0.15.0      # the brain: voqalize.sdk.stage
 pnpm add @voqalize/stage@0.2.0              # the page
 ```
 

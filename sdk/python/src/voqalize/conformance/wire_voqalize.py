@@ -143,7 +143,7 @@ def mint_voqalize_token(
     ``sub=session_id``, ``kind=pygato``, plus ``agent_id`` / ``workspace_id`` for
     the recipient to decide. The token also carries ``tenant_id`` with the same
     value, as Voqalize's brain token does until the first minor release on or
-    after 2027-02-15, so a brain on an SDK older than 0.15.0 still reads its
+    after 2027-02-15, so a brain on an SDK older than 0.16.0 still reads its
     workspace. The ``tenant_id=`` keyword is a deprecated alias for
     ``workspace_id=``. The header names the signing key as ``kid``
     (:func:`voqalize.sdk.session.key_id`). The same shape Voqalize signs in

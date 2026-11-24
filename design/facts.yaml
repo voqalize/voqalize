@@ -167,18 +167,21 @@ facts:
       pattern: '^name = "(.+)"$'
 
   sdk.python.version.tree:
-    value: '0.15.0'
+    value: '0.16.0'
     source: sdk/python/pyproject.toml:3
-    verified: 2026-11-16
+    verified: 2026-11-24
     derive:
       file: sdk/python/pyproject.toml
       pattern: '^version = "(.+)"$'
     note: >-
-      Bumped to 0.15.0 on 2026-11-16: the tenant is renamed workspace —
+      Bumped to 0.16.0 on 2026-11-24: the tenant is renamed workspace —
       Session.workspace_id, VerifiedIdentity.workspace_id, session_context(
       workspace_id=), the workspace_id log field and token claim; every
       tenant_id is a deprecated alias until the first minor on or after
       2027-02-15. The wire is unchanged.
+      Bumped to 0.15.0 on 2026-11-17: Config.redial (a call outlives the
+      brain's socket) and Config.late (the slow-turn line off, later, or in the
+      brain's words), each behind a capability. Additive; the wire stays 3.
       Bumped to 0.14.0 on 2026-11-06: run_session(expect_agent=...), which
       refuses a token signed for another agent, Session.tenant_id and
       Session.agent_id, and tokens that name their signing key (kid). Leaving
@@ -231,13 +234,17 @@ facts:
       two are deliberately apart between a bump and the tag that publishes it.
 
   sdk.python.version.published:
-    value: '0.14.0'
+    value: '0.15.0'
     source: https://pypi.org/pypi/voqalize-agent-sdk/json
-    verified: 2026-11-06
+    verified: 2026-11-17
     reproduce: >-
       curl -s https://pypi.org/pypi/voqalize-agent-sdk/json
       | python3 -c "import sys,json;print(json.load(sys.stdin)['info']['version'])"
     note: >-
+      Published 2026-11-17 by the `python-sdk-v0.15.0` tag, and level with
+      sdk.python.version.tree again; the install lines across the docs moved
+      from 0.14.0 to 0.15.0 the same day. 0.15.0 adds Config.redial and
+      Config.late, each behind a capability.
       Published 2026-11-06 by the `python-sdk-v0.14.0` tag, and level with
       sdk.python.version.tree again; the install lines across the docs moved
       from 0.12.0 to 0.14.0 the same day, and Stage's npm pin to 0.2.0. 0.14.0
@@ -627,16 +634,21 @@ facts:
       - 'patience[^.]{0,40}\brange 0 to (?!10\b)\d+'
 
   stt.patience.default:
-    value: 7
-    source: speech/infra/deploy/env/stt-prod.env:20,24 — derived, see note
-    verified: 2026-10-19
+    value: 3
+    source: speech/infra/deploy/env/stt-dev.env VQL_STT_RS__PATIENCE, and stt-rs/src/config.rs's default
+    verified: 2026-11-23
     reproduce: >-
-      grep -n 'VAD_EAGER_FRAMES\|VAD_STOP_FRAMES_TO_TRIGGER_UPDATE'
-      ../speech/infra/deploy/env/stt-prod.env ../speech/infra/deploy/env/stt-dev.env &&
-      grep -n 'update_frames + 1 + patience'
-      ../speech/stt-rs/src/turn.rs
+      grep -n 'VQL_STT_RS__PATIENCE'
+      ../speech/infra/deploy/env/stt-dev.env ../speech/infra/deploy/env/stt-prod.env
+      ../speech/stt-rs/src/config.rs
     note: >-
-      What an unset `stt.patience` runs at, and a **derived** number, so the
+      Since 2026-11-22 (owner) the deployment sets the default directly,
+      `VQL_STT_RS__PATIENCE`: 3 on dev and in code, 7 on prod until prod is
+      moved, so `main`'s docs say 3 and `prod`'s say 7. Patience now sets only
+      the wait for a pause the turn model is unsure about,
+      `1500 + 200 · patience` ms (`UNSURE_WAIT_MIN_MS`, `UNSURE_WAIT_STEP_MS`
+      in `stt-rs/src/turn.rs`). History: until then it was what an unset
+      `stt.patience` runs at, and a **derived** number, so the
       derivation is the fact: `eager_frames_for_patience` is
       `eager_frames = update_frames + 1 + patience` (`stt-rs/src/turn.rs`),
       and both deployed environments set `VQL_STT__VAD_EAGER_FRAMES=18` with
@@ -653,8 +665,8 @@ facts:
       wire**: unset is what a default-patience session sends, which is what
       makes the field additive for a brain on an older SDK.
     forbid:
-      - 'calibration[^.]{0,40}\bwhich is (?!7\b)\d+'
-      - 'patience[^.]{0,30}\bdefaults? to (?!7\b)\d+'
+      - 'calibration[^.]{0,40}\bwhich is (?!3\b)\d+'
+      - 'patience[^.]{0,30}\bdefaults? to (?!3\b)\d+'
 
   pipecat.version:
     value: '1.7.0'
@@ -928,6 +940,41 @@ facts:
       connected and then said nothing — so a page that means one must not cite
       the other. What the user hears at the end of either is the apology line,
       not silence.
+
+  brain.redial.window_secs:
+    value: 30
+    source: gato/gato/internal/brain/bridge.go:241 limits.window
+    verified: 2026-11-17
+    reproduce: >-
+      grep -n 'l.window = \|l.cap = \|l.flapLive = \|l.flaps = '
+      ../gato/gato/internal/brain/bridge.go
+    note: >-
+      How long Voqalize keeps redialling one dropped brain socket, from the
+      moment it finds the drop, before the call ends brain_disconnected. Only a
+      session with Config.redial on is redialled. The window is per drop; the
+      call's total across drops is brain.redial.cap_secs.
+
+  brain.redial.cap_secs:
+    value: 60
+    source: gato/gato/internal/brain/bridge.go:250 limits.cap
+    verified: 2026-11-17
+    reproduce: >-
+      grep -n 'l.cap = ' ../gato/gato/internal/brain/bridge.go
+    note: >-
+      The time one call may spend redialling, summed across its drops. Past it
+      the next drop ends the call.
+
+  brain.redial.flap_secs:
+    value: 10
+    source: gato/gato/internal/brain/bridge.go:244 limits.flapLive
+    verified: 2026-11-17
+    reproduce: >-
+      grep -n 'l.flapLive = \|l.flaps = ' ../gato/gato/internal/brain/bridge.go
+    note: >-
+      A redialled socket that dies younger than this is a flap, and the third
+      flap in a row ends the call (l.flaps = 3): a brain that accepts and then
+      crashes on every rejoin is not redialled forever. A socket that lived
+      longer resets the streak.
 
   brain.watchdog_secs:
     value: 10.0

@@ -6,7 +6,7 @@ description: Every callback a brain may implement, its signature, and what it is
 A brain is a subclass of `Brain`. Voqalize opens one WebSocket per session, and
 what arrives on it reaches your code as a callback, each handed the `Session`
 for that call. This page is every signature on that surface,
-read out of `voqalize-agent-sdk` 0.14.0 and speaking wire version 3.
+read out of `voqalize-agent-sdk` 0.15.0 and speaking wire version 3.
 
 Only `on_user_message` is required. `on_user_message` and `on_user_idle` are
 async generators, and they are the only moments the floor is yours. Everything that is not speech is a method on `session`, callable
@@ -52,7 +52,8 @@ mid-call wire:
 
 ```python
 from voqalize.sdk.wire import (
-    AckConfig, Config, ConfigError, IdleConfig, SttConfig, TtsConfig
+    AckConfig, Config, ConfigError, IdleConfig, LateConfig, RedialConfig, SttConfig,
+    TtsConfig,
 )
 ```
 
@@ -90,14 +91,14 @@ async def on_session_end(self, session: Session) -> None: ...
 
 | Callback | Required | Yields | Fires |
 |---|---|---|---|
-| `on_session_start` | no | — | Once, on `SessionStart`, before `greet`. |
+| `on_session_start` | no | — | Once per socket, on `SessionStart`, before `greet`. With redial on, again on each new socket of the same call. |
 | `greet` | no | — | Once, after `on_session_start` returns. |
 | `on_user_message` | **yes** | speech | On every `UserMessage`. `msg.text` is the finalized transcript. |
 | `on_user_idle` | no | speech | On every `UserIdle`. Off unless you set a timeout. |
 | `on_rtvi` | no | — | On every whitelisted RTVI message from the app. |
 | `on_finalize` | no | — | Once per speech unit you opened, after playout, including a unit that turned out silent (empty `heard`) and one you cancelled. |
 | `on_error` | no | — | On an `Error` frame. The session is never killed by it. |
-| `on_session_end` | no | — | Once, for any reason, as the socket closes. |
+| `on_session_end` | no | — | As the socket closes, for any reason. At least once, not exactly once: with [redial](/build/hosting/#surviving-a-redeploy) on it runs on each socket of a call, so keep it idempotent. |
 
 The speaking callbacks are declared `def … -> AsyncGenerator[Speech, None]`
 in the base class because that is the type an async generator function returns.
@@ -183,6 +184,8 @@ lifetime is exactly the socket's.
 | `can_cancel_speech` | `bool` | Whether `cancel_speech` is honoured. Fixed for the session's life. |
 | `can_configure_strings` | `bool` | Whether `configure` accepts a voice or language as a string. Fixed for the session's life. |
 | `can_report_steps` | `bool` | Whether `report_step` is recorded. Fixed for the session's life. |
+| `can_redial` | `bool` | Whether `Config(redial=RedialConfig(enabled=True))` is honoured. Fixed for the session's life. |
+| `can_late` | `bool` | Whether `Config(late=LateConfig(...))` is honoured: Voqalize's line for a slow turn turned off, delayed or reworded. Fixed for the session's life. |
 
 There is no `SessionStart` object in the SDK. The frame's payload arrives as
 these attributes, and its turn id is the turn the greeting is bound to.
@@ -231,7 +234,8 @@ await session.configure(
 ```
 
 `Config` has optional `tts` (`voice`, `language`), `stt` (`language`,
-`patience`), `idle` (`timeout_ms`) and `ack` (`enabled`) sections. A section
+`patience`), `idle` (`timeout_ms`), `ack` (`enabled`) and `redial` (`enabled`)
+sections. A section
 left `None` is untouched, and so is a field left `None` inside a section that is
 present. `voice` takes a voice id such as `"omnivoice/gauri"` and `language` a
 BCP-47 tag such as `"ta"`; the values are in [the catalog](/reference/catalog/).
@@ -239,8 +243,9 @@ BCP-47 tag such as `"ta"`; the values are in [the catalog](/reference/catalog/).
 - **Naming a language on one leg and not the other raises `ConfigError`** before
   anything reaches the wire. They may differ — fewer languages can be spoken
   than understood — but you state both. See [Voice and language](/build/voice-and-language/#always-set-both-legs).
-- **A string voice or language needs `can_configure_strings`.** Without it,
-  `configure` raises `Unsupported` before sending anything.
+- **A string voice or language needs `can_configure_strings`,** and turning
+  redial on needs `can_redial`, and any `late` needs `can_late`. Without it, `configure` raises `Unsupported`
+  before sending anything.
 - **A session runs with `idle.timeout_ms` at 0**, which is idle detection off.
   Until you set it, `on_user_idle` never fires.
 - **Rejection is all-or-nothing.** `RequestRejected` means Voqalize applied none
@@ -252,7 +257,7 @@ BCP-47 tag such as `"ta"`; the values are in [the catalog](/reference/catalog/).
   running. See [when each change lands](/reference/wire/#when-each-change-lands).
 - **`stt.patience` is a scale from 0 to 10**, not a duration, and a value off it
   raises `ConfigError` where you build the `SttConfig` rather than at the far end
-  of the wire. Unset takes the deployment's own calibration, which is 7.
+  of the wire. Unset takes the deployment's own calibration, which is 3.
 - The call waits `REQUEST_TIMEOUT_S`, 10.0 seconds, then raises `TimeoutError`
   saying that whether it applied is unknown.
 
@@ -468,7 +473,7 @@ once. The claims themselves are in
 [The wire](/reference/wire/). The workspace is read from the token's
 `workspace_id` claim, falling back to `tenant_id` for a token minted before the
 rename. Until 2027-02-15 the token carries both claims with the same value, so a
-brain on an SDK older than 0.15.0 still reads its workspace from `tenant_id`.
+brain on an SDK older than 0.16.0 still reads its workspace from `tenant_id`.
 
 `run_session` returns when the session ends or the socket errors, and it never
 closes the channel — your framework owns the socket's lifecycle. See
@@ -564,7 +569,7 @@ from voqalize.sdk.litellm import LiteLLMBrain
 from voqalize.sdk.voice import TOOL_BUDGET_MS, ToolChoice, needs_result_now
 ```
 
-`GeminiBrain` is installed with `pip install "voqalize-agent-sdk[gemini]==0.14.0"`;
+`GeminiBrain` is installed with `pip install "voqalize-agent-sdk[gemini]==0.15.0"`;
 the other two take the `openai` and `litellm` extras the same way. All three are
 hosted exactly like any other brain.
 

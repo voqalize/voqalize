@@ -122,6 +122,12 @@ class Capability(StrEnum):
     #: Voqalize records :class:`TurnStepFrame`.
     TURN_STEPS = "turn_steps"
 
+    #: Voqalize honours :class:`RedialConfig`.
+    REDIAL = "redial"
+
+    #: Voqalize honours :class:`LateConfig`.
+    LATE = "late"
+
 
 # ─── Voqalize → Brain ────────────────────────────────────────────────────────────
 
@@ -450,12 +456,11 @@ class SttConfig:
 
     language: Language | str | None = None
 
-    #: How long the recognizer waits through a pause before deciding the caller
-    #: has finished, from ``PATIENCE_MIN`` to ``PATIENCE_MAX``. Higher waits
-    #: longer: ``0`` answers as soon as it can and will sometimes cut a slow
+    #: How long the recognizer waits through a pause it is not sure about before
+    #: deciding the caller has finished, from ``PATIENCE_MIN`` to
+    #: ``PATIENCE_MAX``. Higher waits longer: ``0`` will sometimes cut a slow
     #: speaker off mid-thought; ``10`` lets a caller finish a sentence they are
-    #: still assembling, and costs a beat on every turn. Left unset, the
-    #: deployment's own calibration applies, which is ``7``.
+    #: still assembling. Left unset, the deployment's own calibration applies.
     #:
     #: It is a scale, not a duration, and nothing between here and the
     #: recognizer converts it to one. What that scale is worth in milliseconds
@@ -500,6 +505,55 @@ class AckConfig:
 
 
 @dataclass(frozen=True)
+class RedialConfig:
+    """Whether the call survives the brain's socket dropping.
+
+    On, Voqalize redials the brain's URL when the socket fails with no close
+    frame or closes with 1001, 1011, 1012, 1013, 1014 or an unassigned code.
+    :class:`EndFrame`, and any other close (1000, a protocol or policy code,
+    3000-4999), still ends the call. Voqalize opens the new socket exactly as it
+    opened the first: the same session
+    id, init and parameters. Nothing says it is a redial. The brain tells a new
+    call from a rejoined one by the session id, from state it keeps itself, and
+    every turn it had not answered is sent again in order.
+
+    Off by default, because a brain that keeps a session in the memory of one
+    connection takes a redial for a new call. Turn it on only when what a
+    session needs is stored under its id, somewhere every instance behind the
+    URL can read it. It applies at once, to the next drop, and only on a
+    Voqalize that advertises :attr:`Capability.REDIAL`."""
+
+    enabled: bool | None = None
+
+
+@dataclass(frozen=True)
+class LateConfig:
+    """What Voqalize says when the brain is slow to answer a turn.
+
+    A caller's turn that has produced no audio after ``after_ms`` hears
+    Voqalize's own line ("Sorry — that's taking longer than I expected." in the
+    voice's language), and the brain is not told. Your answer, when it comes,
+    plays after it as usual. Voqalize keeps it rare whatever is set here: once a
+    turn at most, never for a turn it read as owing no answer (a noise, a nod, a
+    goodbye), and not again within a couple of minutes of the last one.
+
+    Turn it off, or raise ``after_ms``, if your brain sometimes stays quiet on
+    purpose or takes long over a turn as a matter of course; set ``text`` for
+    your own words. ``text`` is spoken as given, whatever language the session
+    is speaking, so a brain that changes language changes it too.
+
+    At session creation, unset is on, 15000 ms and Voqalize's own line. In a
+    mid-call request, unset leaves a field alone, and ``text=""`` goes back to
+    Voqalize's own line. ``after_ms`` runs from 5000 to 120000 and ``text`` to
+    200 characters; outside them the request is rejected. Applies from the next
+    turn, only on a Voqalize that advertises :attr:`Capability.LATE`."""
+
+    enabled: bool | None = None
+    after_ms: int | None = None
+    text: str | None = None
+
+
+@dataclass(frozen=True)
 class Config:
     """One configuration, in optional sections.
 
@@ -530,6 +584,8 @@ class Config:
     stt: SttConfig | None = None
     idle: IdleConfig | None = None
     ack: AckConfig | None = None
+    redial: RedialConfig | None = None
+    late: LateConfig | None = None
 
     def __post_init__(self) -> None:
         spoken = self.tts.language if self.tts is not None else None

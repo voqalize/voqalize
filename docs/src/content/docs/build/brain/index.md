@@ -50,7 +50,7 @@ language and hanging up are methods on `session`, callable from any callback:
 | `on_rtvi` | `None` | The user did something in your app ([Context and history](/build/brain/context/)). |
 | `on_finalize` | `None` | A speech unit finished playing; reports what the user heard. |
 | `on_error` | `None` | Voqalize sent a signal, such as `OVERLOAD`. |
-| `on_session_end` | `None` | The socket is closing. |
+| `on_session_end` | `None` | The socket is closing. Runs at least once; keep it idempotent. |
 
 Only the two generators can speak, so a click or an error never talks over the
 user. Signatures and arguments are in the [Brain API](/reference/brain/).

@@ -173,9 +173,13 @@ with or without a language. Their values and defaults are in
 [the catalog](/reference/catalog/#turn-taking-settings).
 
 **`stt.patience`** is a scale from `0` to `10`, not a duration: how long the
-recognizer waits through a pause before it decides the user has finished. Raise it for users who pause
-mid-thought (reading out a number, or speaking a second language); lower it for
-quick back-and-forth. Each step up waits longer on every turn.
+recognizer waits through a pause it is not sure about before it decides the user
+has finished. It is the user's time to think. When the turn model is confident
+the user has finished, Voqalize answers at once, whatever the patience; patience
+only stretches the wait when it is not. Today that wait runs from 1.5 seconds at
+`0` to 3.5 seconds at `10`, and an unset patience is `3`, about 2 seconds. Raise
+it for users who pause mid-thought (reading out a number, or speaking a second
+language); lower it for quick back-and-forth.
 
 ```python
 from voqalize.sdk.wire import Config, SttConfig
@@ -194,7 +198,8 @@ await session.configure(Config(idle=IdleConfig(timeout_ms=15000)))
 ```
 
 **`ack`** is Voqalize's own short acknowledgement ("Sure.", "Let me check.")
-said when the user's turn ends and before your reply starts. Keep it on unless
+said when the user's turn ends and before your reply starts, and the "Mm-hm."
+Voqalize may say when the user pauses mid-turn. Keep it on unless
 your brain writes its own acknowledgements;
 [Speaking](/build/brain/speaking/#voqalize-covers-the-wait-before-your-first-word)
 has the rule and the code to turn it off.

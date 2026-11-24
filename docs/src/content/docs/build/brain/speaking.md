@@ -124,15 +124,41 @@ class MyBrain(Brain):
 ```
 
 Acknowledgements are said only in the languages Voqalize has a vocabulary for.
+
+### Voqalize nods, and may say "Mm-hm.", while the user pauses
+
+When the user stops in the middle of a thought ("I was thinking we could go
+to… umm…") and Voqalize cannot yet tell whether they are done, the avatar nods,
+so the user knows they are still being heard. At some of those pauses Voqalize
+also says "Mm-hm.", not at every one: a hum at every pause is too many. The line
+is the same in every language. Neither reaches your brain: the turn stays open,
+your `on_user_message` receives the whole turn once it ends, and that turn's
+`heard_text` never contains the "Mm-hm.". The "Mm-hm." belongs to ack, so
+turning ack off turns it off; the nod comes with the avatar.
 [Voice and language](/build/voice-and-language/) covers the rest of the session
 settings.
 
-### The ten-second line
+### The line for a slow turn
 
-If a user turn sends no `SpeechChunk` for ten seconds, Voqalize says a line of
+If a user turn sends no `SpeechChunk` for 15 seconds, Voqalize says a line of
 its own about the wait and keeps the session up. Opening a unit does not stop
 the timer; your first chunk does. [What your user hears](/reference/errors/#what-your-user-hears)
 has the line and the rules.
+
+A brain that sometimes says nothing on purpose, or that is slow over a turn as a
+matter of course, can turn the line off, change the wait or put it in its own
+words:
+
+```python
+from voqalize.sdk.wire import Config, LateConfig
+
+async def on_session_start(self, session):
+    if session.can_late:
+        await session.configure(Config(late=LateConfig(after_ms=25000)))
+```
+
+`LateConfig(enabled=False)` turns it off, and `text="…"` is spoken in place of
+Voqalize's line. See [`late`](/reference/wire/#late--the-line-for-a-slow-turn).
 
 After your first chunk nothing covers a wait. An `await` between units is
 silence you chose, so the line before it has to carry something, as "The blue

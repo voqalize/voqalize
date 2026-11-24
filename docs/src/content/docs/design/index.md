@@ -166,8 +166,8 @@ short line first, then make the call, in that same response"*. The rule is
 written down once, in [Tools](/build/brain/tools/#speak-first-and-call-in-the-same-response).
 
 A model that calls a tool and says nothing leaves the user listening to silence
-until they speak again. If a user turn sends no `SpeechChunk` within 10 seconds,
-Voqalize says [a line of its own](/build/brain/speaking/#the-ten-second-line)
+until they speak again. If a user turn sends no `SpeechChunk` within 15 seconds,
+Voqalize says [a line of its own](/build/brain/speaking/#the-line-for-a-slow-turn)
 about the wait. The fix is the prompt, or a line your brain speaks itself when a
 call arrives with no speech ahead of it; the SDK does not fill the silence for
 you, because a silent call can be the right answer when the screen already is

@@ -129,6 +129,15 @@ enum Capability {
   // The runtime records TurnStep. A runtime that does not list it skips the
   // frame, so a brain that checks first sends nothing it will not keep.
   CAPABILITY_TURN_STEPS = 3;
+
+  // The runtime honours RedialConfig: a session that turned it on survives its
+  // brain's socket dropping. A runtime that does not list it ignores the
+  // section, and any drop ends the call.
+  CAPABILITY_REDIAL = 4;
+
+  // The runtime honours LateConfig. A runtime that does not list it ignores
+  // the section and speaks its own late line, in its own time.
+  CAPABILITY_LATE = 5;
 }
 
 // A committed user utterance, on a turn of its own.
@@ -369,6 +378,12 @@ message Config {
 
   // Whether the runtime acknowledges the caller while the brain thinks.
   AckConfig ack = 4;
+
+  // Whether the runtime redials the brain when its socket drops mid-call.
+  RedialConfig redial = 5;
+
+  // What the runtime says when the brain is slow to answer a turn.
+  LateConfig late = 6;
 }
 
 // The speaking leg. Applies to the next speech unit, never mid-utterance.
@@ -455,11 +470,68 @@ message IdleConfig {
 // begun, chosen from what the caller said. It is said only in the languages
 // the runtime has a vocabulary for, and otherwise nothing is said. A brain that
 // opens its replies with its own nod should turn this off, or the caller hears
-// two.
+// two. The same switch covers the continuer: the "Mm-hm." the runtime says,
+// with the avatar's nod, when the caller pauses mid-turn and the runtime cannot
+// yet tell whether they are done. Neither line reaches the brain.
 message AckConfig {
   // On or off. Unset at session creation is on; on the wire, unset leaves it
   // alone. Applies from the next turn.
   optional bool enabled = 1;
+}
+
+// Whether the call survives the brain's socket dropping. On, the runtime
+// redials the brain's URL when the socket fails with no close frame or closes
+// with 1001, 1011, 1012, 1013, 1014 or an unassigned code; End, and any other
+// close (1000, a protocol or policy code, 3000-4999), still ends the call. It
+// opens the new socket exactly as it opened the first: the same SessionStart,
+// the same session id, init and parameters. Nothing on the wire says it is a
+// redial. The brain tells a new call from a rejoined one by the session id,
+// from state it keeps itself, and every turn it had not answered is sent again
+// in order.
+//
+// Off, any drop after the brain answered ends the call. That is the default,
+// because a brain that keeps its state in the memory of one connection takes a
+// redial for a new call and answers it without the conversation so far.
+//
+// Turn it on only for a brain that can rejoin: one that stores what a session
+// needs under its id, somewhere every instance behind the URL can read it. Set
+// it at session creation or from the brain at any time; it applies at once, to
+// the next drop. Honoured only by a runtime that advertises CAPABILITY_REDIAL.
+message RedialConfig {
+  // On or off. Unset at session creation is off; on the wire, unset leaves it
+  // alone.
+  optional bool enabled = 1;
+}
+
+// The runtime's own line when the brain is slow: a caller's turn that has
+// produced no audio after after_ms hears it ("Sorry — that's taking longer
+// than I expected." in the voice's language), and the brain is not told. The
+// brain's answer, when it comes, plays after it as usual.
+//
+// The runtime keeps it rare whatever is set here: once a turn at most, never
+// for a turn it read as owing no answer (a noise, a nod, a goodbye), and not
+// again within a couple of minutes of the last one.
+//
+// A brain that sometimes stays quiet on purpose, or takes long over a turn as
+// a matter of course, should turn it off or raise after_ms; one that wants its
+// own words sets text. Set it at session creation or from the brain at any
+// time; it applies from the next turn. Honoured only by a runtime that
+// advertises CAPABILITY_LATE.
+message LateConfig {
+  // On or off. Unset at session creation is on; on the wire, unset leaves it
+  // alone.
+  optional bool enabled = 1;
+
+  // How long a turn may go without audio before the line, in milliseconds,
+  // from 5000 to 120000. Unset at session creation is 15000; on the wire,
+  // unset leaves it alone.
+  optional uint32 after_ms = 2;
+
+  // The line itself, spoken as given, in whatever language the session is
+  // speaking: a brain that changes language changes it too. At most 200
+  // characters. Unset at session creation, or "" on the wire, is the
+  // runtime's own line in the voice's language.
+  optional string text = 3;
 }
 
 // ─── The catalog ─────────────────────────────────────────────────────────────

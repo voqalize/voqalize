@@ -30,7 +30,7 @@ like working, and every one of those fields is computed and thrown away.
 
 Field names match what Voqalize writes — ``service``, ``session_id``,
 ``workspace_id``, ``agent_id`` — because being joinable across the whole call is
-the entire point. (``workspace_id`` was ``tenant_id`` before 0.15.0.)
+the entire point. (``workspace_id`` was ``tenant_id`` before 0.16.0.)
 """
 
 from __future__ import annotations

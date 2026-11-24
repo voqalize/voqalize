@@ -334,6 +334,7 @@ enum Capability {
   CAPABILITY_SPEECH_CANCEL = 1;  // SpeechCancel is honoured
   CAPABILITY_STRING_CONFIG = 2;  // voice_id and language_tag are read
   CAPABILITY_TURN_STEPS = 3;     // TurnStep is recorded
+  CAPABILITY_REDIAL = 4;         // Config.redial is honoured
 }
 ```
 
@@ -342,12 +343,15 @@ enum Capability {
 | `CAPABILITY_SPEECH_CANCEL` | `SpeechCancel` stops a unit and is answered by its `Finalize`. See [taking speech back](#taking-speech-back). |
 | `CAPABILITY_STRING_CONFIG` | `TtsConfig.voice_id`, `TtsConfig.language_tag` and `SttConfig.language_tag` are read. Without it they are ignored, and a request carrying only them is answered accepted with nothing changed. See [changing the call mid-session](#changing-the-call-mid-session). |
 | `CAPABILITY_TURN_STEPS` | `TurnStep` is recorded beside its turn. See [what a turn did](#what-a-turn-did). |
+| `CAPABILITY_REDIAL` | `Config.redial` is honoured: a session that turns it on is dialled again when its socket drops. See [`redial`](#redial--the-call-outlives-the-socket). |
+| `CAPABILITY_LATE` | `Config.late` is honoured: the line for a slow turn can be turned off, delayed or reworded. See [`late`](#late--the-line-for-a-slow-turn). |
 
 Check before sending an optional message, and treat a value you do not
 recognise as absent. Adding a capability is append-only and does not move the
 version. The Python SDK reads them as `session.can_cancel_speech`,
-`session.can_configure_strings` and `session.can_report_steps`, and refuses the
-call locally when the one it needs is false.
+`session.can_configure_strings`, `session.can_report_steps`,
+`session.can_redial` and `session.can_late`, and refuses the call locally when the one it needs is
+false.
 
 ## The screen
 
@@ -489,14 +493,16 @@ A request is accepted or rejected **whole**. A rejected `Config` applies none of
 its sections, so the call is still coherent afterwards and the previous settings
 are still in force.
 
-### `Config` — `tts`, `stt`, `idle` and `ack` in one message
+### `Config` — `tts`, `stt`, `idle`, `ack`, `redial` and `late` in one message
 
 ```proto
 message Config {
-  TtsConfig  tts  = 1;
-  SttConfig  stt  = 2;
-  IdleConfig idle = 3;
-  AckConfig  ack  = 4;
+  TtsConfig    tts    = 1;
+  SttConfig    stt    = 2;
+  IdleConfig   idle   = 3;
+  AckConfig    ack    = 4;
+  RedialConfig redial = 5;
+  LateConfig   late   = 6;
 }
 
 message TtsConfig {
@@ -512,6 +518,12 @@ message SttConfig {
 }
 message IdleConfig { optional uint32 timeout_ms = 1; }
 message AckConfig  { optional bool enabled = 1; }
+message RedialConfig { optional bool enabled = 1; }
+message LateConfig {
+  optional bool   enabled  = 1;
+  optional uint32 after_ms = 2;  // 5000 to 120000
+  optional string text     = 3;  // at most 200 characters; "" is Voqalize's own
+}
 ```
 
 This message is used twice: `sessions.connect` supplies the starting sections,
@@ -538,8 +550,9 @@ once. Separate ops would put a turn boundary, and a possible refusal, between
 the halves, leaving the call heard in one language and spoken in another.
 
 The surface is deliberately narrow: the voice, the language on each leg, how
-long the recognizer waits through a pause, the idle timeout, and whether
-Voqalize acknowledges the user. The recognizer's other thresholds are not
+long the recognizer waits through a pause, the idle timeout, whether
+Voqalize acknowledges the user, and whether the call outlives the brain's
+socket. The recognizer's other thresholds are not
 settable, and recording is fixed when the session starts.
 
 ### When each change lands
@@ -550,6 +563,7 @@ settable, and recording is fixed when the session starts.
 | `stt.language` | once the open turn commits | The recognizer carries per-turn decoder state, so the turn being spoken when the change arrives still transcribes as spoken. |
 | `stt.patience` | immediately | It bounds a silence counter that resets at every word, so there is nothing in flight for it to corrupt, including the pause already running. |
 | `ack` | the next turn | The acknowledgement is chosen when a turn ends, so a turn already answered keeps what it had. |
+| `redial` | immediately | It is read when the socket drops, so it covers the next drop. |
 | `idle` | immediately | Voqalize owns that timer; one already running restarts on the new duration. `timeout_ms` is the silence after Voqalize stops speaking before it mints an idle turn, and `0` disables idle detection. |
 
 ### `ack` — Voqalize acknowledges while the brain thinks
@@ -565,6 +579,61 @@ brain sees no message for it.
 on, with this op at any time. A brain that opens its replies with its own nod
 should turn it off, or the user hears two. When to turn it off is in
 [Voice and language](/build/voice-and-language/).
+
+The same switch covers the **continuer**. When the user stops in the middle of
+a turn and Voqalize cannot yet tell whether they are done, the avatar nods, and
+at some of those pauses Voqalize also says "Mm-hm." in every language. The nod
+comes with the avatar and does not follow ack. The turn stays open, and the brain still
+receives one `UserMessage` for it. Like the acknowledgement, the continuer is
+not on the wire.
+
+### `redial` — the call outlives the socket
+
+**Off unless the brain turns it on.** Off, the socket is the session: any close
+after the brain answered ends the call. On, a drop that is not a hang-up is
+dialled again, for up to 30 seconds per drop and 60 seconds in a call, and the
+new socket opens exactly as the first did: the same `?session_id=`, a fresh
+token, and the same `SessionStart`, `init` and capabilities included. Nothing
+says it is a redial. Every `UserMessage` the brain had not answered, and every
+one the user spoke meanwhile, is sent again in order; the greeting the new
+socket's brain sends is not spoken.
+
+Which drops are dialled again is decided by the close:
+
+| Close | With `redial` on |
+|---|---|
+| None: the process died, the connection reset, or pings went unanswered | Dialled again. |
+| `1001`, `1012`, `1013` | Dialled again at once: a server going away. |
+| `1011`, `1014`, an unassigned code | Dialled again. |
+| `End` or `Cancel` sent, then any close | The call ends. |
+| `1000` | The call ends, `agent_hung_up`. |
+| `1005`, `1002`–`1010`, `3000`–`4999` | The call ends, `brain_disconnected`: a deliberate close, a protocol fault that the same request would meet again, or an application decision. |
+
+Turn it on only for a brain that can rejoin: one that stores what a session
+needs under its id, somewhere every instance behind `brain_url` can read it. A
+brain that keeps a session in the memory of one connection takes a redial for a
+new call. Set it from the brain with this op; it needs `CAPABILITY_REDIAL`. What
+a brain owes is in [Surviving a redeploy](/build/hosting/#surviving-a-redeploy).
+
+### `late` — the line for a slow turn
+
+When a user's turn has produced no audio after `after_ms`, Voqalize says a line
+of its own: "Sorry — that's taking longer than I expected.", in the voice's
+language. The brain sees no message for it, and its answer, when it comes, plays
+after the line as usual.
+
+**It is on, at 15 seconds, unless the session changes it.** Voqalize keeps it
+rare whatever is set: at most once a turn, never for a turn it read as owing no
+answer (a noise, a nod, a goodbye), and not again within a couple of minutes of
+the last one. A brain that sometimes stays quiet on purpose, or takes long over
+a turn as a matter of course, should turn it off with `enabled: false` or raise
+`after_ms`. `text` replaces the line with the brain's own words, spoken as given
+in whatever language the call is speaking, so a brain that changes language
+sets it again; `""` goes back to Voqalize's own line.
+
+Set it at `sessions.connect` or with this op at any time; it applies from the
+next turn. It needs `CAPABILITY_LATE`: a Voqalize without it ignores the section
+and speaks its own line, after 10 seconds.
 
 ### Both legs carry a language, and both must be set
 
@@ -600,10 +669,13 @@ rule.
 
 ### Waiting through a pause (`stt.patience`)
 
-`patience` is a scale from 0 to 10, not a duration: `0` answers as soon as the
-recognizer can, `10` lets a user finish a sentence they are still assembling.
-Unset runs the deployment's calibration, which is patience 7; nothing writes a
-`7` onto the wire.
+`patience` is a scale from 0 to 10, not a duration. It sets how long the
+recognizer waits through a pause the turn model is not sure about: `0` the least,
+`10` long enough for a user to finish a sentence they are still assembling. A
+pause the model is confident ends the turn is answered at once at any patience.
+Unset runs the deployment's calibration, which is patience 3; nothing writes a
+`3` onto the wire. What a step is worth belongs to the speech tier and moves with
+it; today the wait runs from 1.5 seconds at 0 to 3.5 seconds at 10.
 
 A patience off the scale is refused at whichever door it arrives at, in the same
 words: `invalid_config` at `sessions.connect`, so the call never starts, and a
@@ -818,8 +890,9 @@ Voqalize dials `{brain_url}?session_id={session_id}`, presenting **the
 brain-connection token**: a short-lived RS256 JWT, sent as a bare token or as
 `Authorization: Bearer <jwt>` and verified against Voqalize's public key.
 Required claims: `iss="pygato"`, `aud="brain"`, `sub == session_id`, and `exp`.
-`agent_id` and `tenant_id` are informational: the recipient decides from them
-whether it serves this agent.
+`agent_id` and `workspace_id` are informational: the recipient decides from them
+whether it serves this agent. Until 2027-02-15 the token also carries
+`tenant_id`, the workspace's name before the rename, with the same value.
 
 The path is yours and is used verbatim; the session rides as a query parameter.
 A brain is therefore one ordinary WebSocket route rather than a wildcard path
@@ -828,17 +901,18 @@ segment you have to carve out.
 `aud` is the constant `"brain"` for every brain. Routing lives in the
 `brain_url`, never in the token.
 
-**The socket is the session, and it is not reconnected.**
+**The socket is the session, unless the brain turned on
+[`redial`](#redial--the-call-outlives-the-socket).**
 
 | What happens | What Voqalize does |
 |---|---|
 | The dial fails: connection refused, TLS error, or a `401` or `403` at the HTTP handshake | Retries, from 100 ms with backoff, for up to **10 seconds** from the first attempt. Then the session ends as `brain_unreachable` and the user hears [the unreachable line](/reference/errors/#what-your-user-hears). |
-| Your brain closes the open socket, with any code | The session ends at once. `1000` reads as `agent_hung_up`; any other code, including **4000** after a failed token check, as `brain_disconnected`. |
+| Your brain closes the open socket, with any code | The session ends at once. `1000` reads as `agent_hung_up`; any other code, including **4000** after a failed token check, as `brain_disconnected`. With `redial` on, a drop that is not a hang-up is dialled again instead. |
 
 A rejected token is therefore best refused after the upgrade, with **4000**: a
-`401` at the handshake is retried for the whole window first. Nothing reconnects
-an open session, because a second connection would reach a brain with none of
-the first one's state.
+`401` at the handshake is retried for the whole window first. Without `redial`,
+nothing reconnects an open session, because a second connection would reach a
+brain with none of the first one's state.
 
 ### Voqalize → brain
 

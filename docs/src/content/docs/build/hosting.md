@@ -53,7 +53,7 @@ the query string, and hand the socket to the SDK's `run_session`. It verifies th
 connection, runs the session, and returns when the session ends.
 
 ```bash
-pip install "voqalize-agent-sdk==0.14.0" fastapi "uvicorn[standard]"
+pip install "voqalize-agent-sdk==0.15.0" fastapi "uvicorn[standard]"
 ```
 
 ```python
@@ -113,14 +113,82 @@ URL.
   constructed fresh for each session, so no state leaks between sessions.
 - To drive the route without a real session, see [Test the brain](/build/testing/).
 
-**The socket is the session, and it is not reconnected.** Voqalize retries
-opening the socket for up to 10 seconds, so a brain that is still starting up is
-reached. Once your route accepts it, any close ends the session, whatever the
-code. A second connection would reach a fresh brain with none of the first one's
-history, so nothing reconnects.
+**The socket is the session, unless the brain turns on redial.** Voqalize
+retries opening the socket for up to 10 seconds, so a brain that is still
+starting up is reached. Once your route accepts it, any close ends the session,
+whatever the code: a second connection would reach a fresh brain with none of
+the first one's history. A brain that keeps its sessions somewhere a new
+connection can find them can opt in to being dialled again instead; see
+[Surviving a redeploy](#surviving-a-redeploy).
 
-Each session is one socket, so there is nothing to pool or drain: dropping a
-socket drops that session.
+Each session is one socket, so there is nothing to pool: dropping a socket drops
+that session.
+
+## Surviving a redeploy
+
+Without redial, every deploy of your brain ends every call it is serving. With
+it, a call outlives its socket: when the socket drops and your brain did not
+hang up, Voqalize dials your `brain_url` again for the same session and carries
+on.
+
+**Turn it on from the brain**, in `on_session_start`, and only if the brain can
+rejoin a call it did not start (below):
+
+```python
+from voqalize.sdk.wire import Config, RedialConfig
+
+class MyBrain(Brain):
+    async def on_session_start(self, session):
+        if session.can_redial:
+            await session.configure(Config(redial=RedialConfig(enabled=True)))
+        self.state = await load_or_create(session.id)  # your own store
+```
+
+It is off by default, applies at once, and lasts the call: a redialled brain
+need not set it again. On a Voqalize that does not list the `redial`
+capability, `can_redial` is false and `configure` raises `Unsupported` rather
+than send a setting that would be ignored.
+
+**What a redial is.** The new socket opens exactly as the first did: the same
+`brain_url` and `?session_id=`, a fresh token for the same session, and the
+same `SessionStart`, with the same `init`. Nothing on the wire says it is a
+redial, and the SDK runs it as a new session: a fresh brain instance,
+`on_session_start`, then `greet`. So:
+
+- **Key what a call needs by `session.id`**, in a store every instance behind
+  your URL can read, and load it in `on_session_start`. A brain that finds
+  nothing stored has a new call; one that finds something has a rejoin.
+- **The greeting is not spoken again.** Return it as usual; on a redial the
+  user does not hear it.
+- **Turns are not lost.** Every user turn your brain had not answered when the
+  socket dropped, and every turn the user took while it was down, is sent again
+  in order. The user hears silence while the brain is away.
+- **`on_session_end` runs at least once, not exactly once.** It runs on the old
+  socket and again on the new one, so what it does must be idempotent: key a
+  write on `session.id`. It also cannot run at all when the process is killed
+  outright, so it is no place for the only copy of anything.
+- **Expire what you store.** A call ends without telling a brain that is not
+  connected, so give stored sessions a time limit.
+
+**What redials and what ends.** Your brain decides by how it closes:
+
+| Your brain | Voqalize |
+|---|---|
+| Hangs up with `End` (the SDK always does), or closes `1000` | Ends the call. |
+| Closes `1012` or `1001`: the drain on a deploy | Redials at once. |
+| Exits, crashes or is killed with no close frame, closes `1011`, or the network drops | Redials. |
+| Closes with `4000`–`4999`, or a protocol or policy code | Ends the call: an application decision is final. |
+
+- **Drain with `1012`, never `1000`.** A `1000` is a hang-up. uvicorn closes
+  every socket `1012` on `SIGTERM` by itself.
+- **A `finally: await ws.close()` turns every crash into a hang-up.** Close
+  `1011` on an exception, as the route above does.
+
+**Limits.** Voqalize redials one drop for up to 30 seconds and a call for 60
+seconds in all. A socket that dies within 10 seconds of opening, three times
+in a row, ends the call: a brain that crashes on every rejoin is not redialled
+for ever. A redial answered with a refusal, such as `401`, `403` or `410`, ends the
+call at once, since asking again gets the same answer.
 
 ## A brain that dials out
 
@@ -173,7 +241,8 @@ asyncio.run(
   lifespan, or a worker entrypoint.
 
 Cortex keeps no session state. If it restarts, your brain's connection
-reconnects, and the sessions that were in flight end.
+reconnects, and the sessions that were in flight end, unless they turned on
+[redial](#surviving-a-redeploy).
 
 To rotate the key, see [Keys and authentication](/build/keys/#rotating-a-key).
 
@@ -211,7 +280,7 @@ Your agent's id is the `agent_id` that `create_agent` returned, and `get_agent`
 reports it. `expect_agent` is optional in this release, and leaving it out logs
 a warning once per process. A future release will require it.
 
-Inside the brain, `session.tenant_id` and `session.agent_id` hold the workspace
+Inside the brain, `session.workspace_id` and `session.agent_id` hold the workspace
 and agent the verified token names. Branch on `agent_id` when one brain serves
 several agents. Both are `None` behind Cortex, which already admits only your
 agent's sessions, and under `allow_unverified=True`.

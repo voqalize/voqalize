@@ -25,7 +25,7 @@ Find the symptom, check the cause, apply the fix. If no row fits,
 |---|---|---|
 | The user hears "Sorry, I'm having trouble connecting right now", then the session ends | Voqalize could not reach your brain for 10 seconds: the service is down, the `brain_url` is wrong, TLS fails, or the handshake answers `401` or `403`. `end_reason` is `brain_unreachable`. | Check the route and the token. See [Deploy the brain](/build/hosting/) and [what your user hears](/reference/errors/#what-your-user-hears). |
 | The session ends at once, with `end_reason` `brain_disconnected` | Your brain closed the socket, often with `4000` after the token failed verification. | See [the brain-connection token](/build/hosting/#the-brain-connection-token). |
-| The user hears "Sorry — that's taking longer than I expected." | A turn produced no speech within 10 seconds: the model called a tool and said nothing, or a callback raised. | Say the line in the same response as the tool call ([Tools](/build/brain/tools/#speak-first-and-call-in-the-same-response)); check your brain's logs for the exception. |
+| The user hears "Sorry — that's taking longer than I expected." | A turn produced no speech within 15 seconds, or the time the brain set in `Config.late`: the model called a tool and said nothing, or a callback raised. | Say the line in the same response as the tool call ([Tools](/build/brain/tools/#speak-first-and-call-in-the-same-response)); check your brain's logs for the exception. |
 | The greeting plays, then no turn ever speaks, with `brain: turn failed` and a `TypeError` in your logs | A tool is a plain `def`. | Make every tool `async def`. See [Tools](/build/brain/tools/#async-def-is-required). |
 | `on_user_idle` never fires | Idle detection is off by default. | Set `idle.timeout_ms`. See [Voice and language](/build/voice-and-language/). |
 
@@ -34,6 +34,7 @@ Find the symptom, check the cause, apply the fix. If no row fits,
 | Symptom | Usual cause | Fix |
 |---|---|---|
 | It refers to things the user never heard | History records what the brain generated, not what was heard. | Record `fin.heard` from `on_finalize`. See [Transcripts and heard truth](/build/brain/transcripts/). |
+| The user hears "Mm-hm." in the middle of their turn, or the avatar nods | The continuer: the user paused, and Voqalize could not yet tell whether they were done. Voqalize says "Mm-hm." at some of these pauses, not all. It is expected, and the turn stays open. | Nothing to fix. Turning ack off removes the "Mm-hm."; the nod comes with the avatar. See [Speaking](/build/brain/speaking/#voqalize-nods-and-may-say-mm-hm-while-the-user-pauses). |
 | The user hears two acknowledgements | Voqalize's acknowledgement is on, and your brain opens with its own. | Turn ack off, or drop your own opener. See [Speaking](/build/brain/speaking/#turn-ack-off-when-your-brain-writes-its-own). |
 | Right words, wrong accent | Only one language leg was changed, or `tts.language` was never set. | Set both legs every time. See [Voice and language](/build/voice-and-language/). |
 | A `configure` raises `RequestRejected` | The voice does not speak that language, or the recognizer does not hear it. | Read `code` and `detail`. See [Error codes](/reference/errors/#a-rejected-request-comes-back-on-the-request). |

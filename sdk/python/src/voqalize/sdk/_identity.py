@@ -6,7 +6,7 @@ session's own tasks. A ``ContextVar`` carries the verified identity across that
 gap: an ``asyncio.Task`` copies the ambient context when it is created, so every
 task the session starts sees what ``run_session`` set, and nothing else does.
 
-The workspace was called a *tenant* until 0.15.0. Every ``tenant_id`` the SDK
+The workspace was called a *tenant* until 0.16.0. Every ``tenant_id`` the SDK
 still accepts or exposes is a deprecated alias for ``workspace_id``, kept for
 about 90 days and removed in the first minor release on or after 2027-02-15.
 """

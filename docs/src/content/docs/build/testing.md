@@ -28,7 +28,7 @@ keypair = generate_keypair()
 async with brain_server(MyBrain, public_keys=keypair.public_pem) as server:
     token = mint_voqalize_token(
         private_key_pem=keypair.private_pem,
-        session_id="s1", agent_id="agent_test", tenant_id="tenant_test",
+        session_id="s1", agent_id="agent_test", workspace_id="workspace_test",
     )
     driver = VoqalizeDriver(
         DirectConnection(server.url, "s1", token=token),

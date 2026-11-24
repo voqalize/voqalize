@@ -51,12 +51,12 @@ advertises it today.
 
 | Setting | Values | Default |
 |---|---|---|
-| `stt.patience` | `0` (answer as soon as possible) to `10` (wait longest through a pause) | `7` when unset |
+| `stt.patience` | `0` (answer as soon as possible) to `10` (wait longest through a pause the turn model is unsure about) | `3` when unset |
 | `idle.timeout_ms` | `0` (off) to `300000` | `0`, so `on_user_idle` never fires until you set it |
 | `ack.enabled` | `true` or `false` | on |
 
 A value off the scale is refused. What each one does and when a change lands is
-in [the wire reference](/reference/wire/#config--tts-stt-idle-and-ack-in-one-message).
+in [the wire reference](/reference/wire/#config--tts-stt-idle-ack-and-redial-in-one-message).
 
 ## Speech-to-text
 
