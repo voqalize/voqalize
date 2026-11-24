@@ -74,7 +74,7 @@ async def test_a_demo_greets_over_its_own_route(monkeypatch: pytest.MonkeyPatch)
                     private_key_pem=keypair.private_pem,
                     session_id=SESSION_ID,
                     agent_id="sugar",
-                    tenant_id="demo",
+                    workspace_id="demo",
                 ),
             ),
             session_id=SESSION_ID,
