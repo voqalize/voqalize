@@ -133,6 +133,11 @@ The call starts with `init = {page: "home" | "plan", lang: "en" | "hi", trip?: {
 hotels, split, activities}}` — `trip` only when the visitor already built something by hand, so the
 brain starts from what is on screen.
 
+The language toggle: mid-call a press sends `language_chosen {language}` (a ui-event); the brain moves
+both legs and answers with `language_changed {language}` (a ui-command), which it also sends when the
+visitor switches by voice (`set_language`). The toggle follows only `language_changed`, and the page
+remembers it for the next call.
+
 ## Redial: a dropped brain socket does not end the call (SDK 0.15.0 `Config.redial`)
 
 On a Voqalize that offers redial (`session.can_redial`), `on_session_start` turns it on in the same

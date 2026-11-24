@@ -60,7 +60,7 @@ for (const size of ["desktop", "phone"]) {
   await shot(p, { path: `${OUT}/package-${size}-full.png`, fullPage: true });
   console.log(size, "hotels beach", JSON.stringify(await runMove(p, "trip.hotels", 3)));
   console.log(size, "swap hotel", JSON.stringify(await runMove(p, "trip.hotel", 1)));
-  await p.locator(".debug-row", { has: p.locator("b", { hasText: /^Call$/ }) }).locator("button").nth(1).click();
+  await p.locator(".debug-row", { has: p.locator("b", { hasText: /^Call$/ }) }).locator("button").nth(2).click();
   await p.waitForTimeout(300);
   await p.evaluate(() => document.querySelector("[data-stage-thing=nights]")?.scrollIntoView({ block: "start" }));
   await p.evaluate(() => window.scrollBy(0, -80));

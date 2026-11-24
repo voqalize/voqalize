@@ -4,6 +4,7 @@ import "@fontsource-variable/plus-jakarta-sans";
 import "@fontsource/noto-sans-devanagari/devanagari-400.css";
 import "@fontsource/noto-sans-devanagari/devanagari-700.css";
 import "./styles.css";
+import "./dock.css";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App";

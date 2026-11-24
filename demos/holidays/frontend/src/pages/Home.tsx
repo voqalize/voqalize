@@ -1,12 +1,11 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowRight, CalendarDays, Clock3, MapPin, Mic, Plane, Sparkles, Users } from "lucide-react";
+import { ArrowRight, CalendarDays, Clock3, MapPin, Plane, Sparkles, Users } from "lucide-react";
 import { DestinationArt } from "../components/Art";
 import { DESTINATIONS, ORIGINS } from "../data";
 import { defaultStartForMonth, fromPrice } from "../engine";
 import { MONTH_NAMES, money } from "../format";
 import { PERSONA } from "../persona";
-import { useVoiceClient } from "../stage/client";
 import { setBrief, setStep, useTrip } from "../state/trip";
 
 function nextMonths(n: number): { month: number; year: number }[] {
@@ -27,7 +26,6 @@ export function Home() {
   const [dest, setDest] = useState(brief.destination ?? "bali");
   const [month, setMonth] = useState<number>(brief.start_date ? Number(brief.start_date.slice(5, 7)) : months[1].month);
   const [adults, setAdults] = useState(brief.adults || 2);
-  const begin = useVoiceClient((s) => s.begin);
 
   const start = () => {
     setBrief({ from_city: from, destination: dest, start_date: defaultStartForMonth(month), adults });
@@ -129,11 +127,6 @@ export function Home() {
                   Say it to {PERSONA.name}. She fills the brief, picks flights and stays, and lays out every day.
                 </small>
               </p>
-              {begin && (
-                <button type="button" className="btn btn-small" onClick={begin}>
-                  <Mic size={14} /> Talk to {PERSONA.name}
-                </button>
-              )}
             </div>
           </div>
         </div>

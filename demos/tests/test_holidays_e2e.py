@@ -356,6 +356,23 @@ async def test_hindi_from_the_page_and_english_from_the_toggle() -> None:
         brain = _brain(rig)
         assert brain.lang == "en"
         assert "This call is in English" in brain.system_instruction
+        # The toggle only asked; the brain's language_changed is what moves it.
+        assert rig.command("language_changed") == {"language": "en"}
+
+
+async def test_a_switch_asked_by_voice_moves_the_page_toggle() -> None:
+    """The visitor asks for Hindi out loud: both legs move, and the page's
+    toggle follows (language_changed), so the next call starts in Hindi too."""
+    llm = ScriptedOpenAI(
+        {"Hindi mein": reply_and_call("ज़रूर, अब हिंदी में।", "set_language", language="hi")}
+    )
+    async with _rig(llm) as rig:
+        await rig.driver.start_session(init={"page": "plan", "lang": "en"})
+        assert "language_changed" not in rig.actions()
+        check_turn(rig, await rig.driver.user_says("Hindi mein baat karein?"))
+        await asyncio.sleep(0.1)
+        check_voice_pair(rig, voice=LANGUAGES["hi"].voice, language="hi")
+        assert rig.command("language_changed") == {"language": "hi"}
 
 
 async def test_a_trip_built_by_hand_before_the_call_is_where_the_call_starts() -> None:

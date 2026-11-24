@@ -23,7 +23,7 @@ export function Breakdown({ trip, detail = true }: { trip: Trip; detail?: boolea
   const fp = f ? flightPrice(f, trip.brief) : null;
   const legs = transfers(trip);
   return (
-    <div className="breakdown" data-stage-thing="breakdown" data-stage-label="Price breakdown">
+    <div className="breakdown" data-stage-group data-stage-thing="breakdown" data-stage-label="Price breakdown">
       <div className="bd-row">
         <span>Flights{fp && detail ? <small> {money(fp.adult)} × adult{trip.brief.kids.length ? ", child and infant fares" : ""}</small> : null}</span>
         <b>{money(p.flights)}</b>
@@ -101,7 +101,8 @@ export function TripSummary() {
         </span>
         <ChevronUp size={18} />
       </button>
-      <div className="summary-inner">
+      {/* Open on a phone it is a sheet over the page: the planner moves to a top corner (data-overlay). */}
+      <div className="summary-inner" data-overlay={open ? "bottom" : undefined}>
         <div className="summary-head">
           {d ? <DestinationArt id={d.id} hue={d.hue} className="summary-art" /> : <div className="summary-art empty" />}
           <div>

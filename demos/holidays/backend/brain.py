@@ -44,7 +44,16 @@ from openai import AsyncOpenAI
 from pydantic import BaseModel, Field
 from voqalize_demos import PATIENCE, FallbackLine, configure_soon, landed
 
-from voqalize.sdk import AppEvent, AppEvents, RTVIMessage, Session, Speech, UserIdle, UserMessage
+from voqalize.sdk import (
+    Action,
+    AppEvent,
+    AppEvents,
+    RTVIMessage,
+    Session,
+    Speech,
+    UserIdle,
+    UserMessage,
+)
 from voqalize.sdk.openai import OpenAIBrain, needs_result_now
 from voqalize.sdk.stage import Mirror, Stage, match_label
 from voqalize.sdk.stage.wire import StageEvent, StageHello, StageProgress, StageResult
@@ -80,6 +89,13 @@ class LanguageChosen(AppEvent):
     """The visitor pressed the other language on the toggle during the call."""
 
     language: str
+
+
+class LanguageChanged(Action):
+    """The call's language moved (the toggle, or the visitor asking by voice):
+    the page's EN / हिंदी toggle follows and remembers it for the next call."""
+
+    language: Lang
 
 
 _EVENTS = AppEvents(LanguageChosen, StageResult, StageHello, StageProgress, StageEvent)
@@ -1258,6 +1274,7 @@ class HolidaysBrain(OpenAIBrain):
             return
         self.lang = "hi" if s.tag == "hi" else "en"
         configure_soon(self.session, self._speaking(s))
+        self.session.dispatch(LanguageChanged(language=self.lang))
         self.system_instruction = system_instruction(self.page, self.lang, self.today)
         logger.info("holidays: language -> {} ({})", s.tag, by)
         if by == "toggle":

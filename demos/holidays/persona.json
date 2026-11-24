@@ -1,8 +1,14 @@
 {
-  "$comment": "The one place the trip planner's character lives. The brain (backend/persona.py) and the page (frontend/src/persona.ts) both read this file. To change the character: change `character` (an avatar character id), `name`, and each language's `voice`. To add a language: add an entry under `languages` (BCP-47 tag) with its label, voice, greeting and the toggle's confirm line, and add its tag to the brain's prompt section if it needs a written-in rule. A voice must speak the language it is listed under (see GET https://app.voqalize.com/api/v1/catalog.get).",
+  "$comment": "The one place the trip planner's character lives. The brain (backend/persona.py) and the page (frontend/src/persona.ts) both read this file. To change the character: change `character` (an avatar character id; the idle dock's still photo is frontend/src/characters/<character>.webp), `name`, and each language's `voice`. `roles` is the dock's label per page (`role` when a page has none). To add a language: add an entry under `languages` (BCP-47 tag) with its label, voice, greeting and the toggle's confirm line, and add its tag to the brain's prompt section if it needs a written-in rule. A voice must speak the language it is listed under (see GET https://app.voqalize.com/api/v1/catalog.get).",
   "character": "aaliyah",
   "name": "Aaliyah",
   "role": "Trip planner",
+  "roles": {
+    "home": "Holiday ideas",
+    "plan": "Trip planner",
+    "checkout": "Booking help",
+    "booked": "Trip planner"
+  },
   "default_language": "en",
   "languages": {
     "en": {

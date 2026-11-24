@@ -12,8 +12,7 @@ import { SPOTLIGHT } from "../stage/host";
 import { performers } from "../stage/performers";
 import { scene } from "../stage/scene.gen";
 import { useTrip } from "../state/trip";
-import type { CallState } from "./Dock";
-import { useFakeCall } from "./VoiceDock";
+import { type CallState, useFakeCall } from "./fake";
 
 function samples(): Record<string, Record<string, unknown>[]> {
   const t = useTrip.getState().trip;
@@ -86,8 +85,11 @@ export default function DebugConsole() {
         <div className="debug-body">
           <div className="debug-row">
             <b>Call</b>
-            {(["idle", "listening", "speaking", "thinking"] as CallState[]).map((s) => (
-              <button key={s} type="button" className={fake.state === s ? "is-on" : ""} onClick={() => useFakeCall.setState({ state: s, heard: s === "listening" ? "Swap the hotel in Ubud for something by the beach" : "" })}>
+            <button type="button" className={fake.on ? "" : "is-on"} onClick={() => useFakeCall.setState({ on: false })}>
+              idle
+            </button>
+            {(["connecting", "listening", "thinking", "speaking"] as CallState[]).map((s) => (
+              <button key={s} type="button" className={fake.on && fake.state === s ? "is-on" : ""} onClick={() => useFakeCall.setState({ on: true, state: s })}>
                 {s}
               </button>
             ))}
