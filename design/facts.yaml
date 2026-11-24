@@ -571,15 +571,19 @@ facts:
     reproduce: grep '"name"' ../avatar-public/packages/avatar/package.json
 
   avatar.npm.version:
-    value: '0.7.0'
+    value: '0.7.5'
     source: avatar-public/packages/avatar/package.json
-    verified: 2026-11-04
+    verified: 2026-11-24
     reproduce: npm view @voqalize/avatar version
     note: >-
-      The version the docs site pins. The demos still depend on ^0.6.3, which
-      stays below 0.7 and loads from avatar.voqalize.com. A different repo, so
-      no derive rule reaches it; the package README is where a version belongs
-      in prose.
+      The latest release on npm. The owner's rule (2026-11-24) is that a demo
+      uses the latest avatar runtime: the demos from fernhollow on (fernhollow,
+      payroll_site, payroll_app, bank, insurance, dental, university, holidays,
+      property) depend on ^0.7.5, which loads from cdn.voqalize.com. The older
+      demos, on hold by the owner's decision, still depend on ^0.6.3, which
+      stays below 0.7 and loads from avatar.voqalize.com; the docs site pins
+      0.7.0. A different repo, so no derive rule reaches it; the package README
+      is where a version belongs in prose.
     forbid_literal:
       # A version named in a sentence, not a pin: `npm install pkg@0.4.1` is
       # still legal, `@voqalize/avatar 0.4.1` is the claim this fact denies.
@@ -1147,9 +1151,11 @@ facts:
 
   demos.roster:
     value: [travel, shopping, support, servicing, interview_bot, sugar, legal,
-            lead_qual, aura, forge, avatar, orderdesk, kiosk, petwell, fernhollow]
+            lead_qual, aura, forge, avatar, orderdesk, kiosk, petwell, fernhollow,
+            payroll_site, payroll_app, bank, insurance, dental, university,
+            holidays, property]
     source: demos/manifest.json
-    verified: 2026-11-04
+    verified: 2026-11-24
     derive:
       file: demos/manifest.json
       json_pluck: {key: demos, field: name}

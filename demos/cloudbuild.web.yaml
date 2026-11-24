@@ -84,6 +84,14 @@ substitutions:
   _BANK_PK: ''
   _INSURANCE_AGENT: ''
   _INSURANCE_PK: ''
+  _DENTAL_AGENT: ''
+  _DENTAL_PK: ''
+  _UNIVERSITY_AGENT: ''
+  _UNIVERSITY_PK: ''
+  _HOLIDAYS_AGENT: ''
+  _HOLIDAYS_PK: ''
+  _PROPERTY_AGENT: ''
+  _PROPERTY_PK: ''
   # Empty in prod, so every prod page loads the runtime its npm release pins.
   # The dev trigger sets it to the dev host's `runtime/current.js`, the newest
   # runtime uploaded there, so an unreleased character is testable on dev
@@ -95,7 +103,9 @@ substitutions:
 steps:
   # 1. Build + assemble every demo UI → demos/dist/demos/<name>/. The per-demo
   #    VITE_* wiring is read from the environment (build.mjs maps _<NAME>_AGENT/_PK
-  #    onto each app's VITE_AGENT_ID / VITE_PUBLISHABLE_KEY).
+  #    onto each app's VITE_AGENT_ID / VITE_PUBLISHABLE_KEY). build.mjs builds the
+  #    demos in parallel, one per CPU (bounded by memory) — which is why this build
+  #    asks for a bigger machine below. DEMOS_BUILD_JOBS overrides the pool size.
   - name: 'node:20-slim'
     id: demos
     entrypoint: bash
@@ -145,6 +155,14 @@ steps:
       - 'VITE_BANK_PK=${_BANK_PK}'
       - 'VITE_INSURANCE_AGENT=${_INSURANCE_AGENT}'
       - 'VITE_INSURANCE_PK=${_INSURANCE_PK}'
+      - 'VITE_DENTAL_AGENT=${_DENTAL_AGENT}'
+      - 'VITE_DENTAL_PK=${_DENTAL_PK}'
+      - 'VITE_UNIVERSITY_AGENT=${_UNIVERSITY_AGENT}'
+      - 'VITE_UNIVERSITY_PK=${_UNIVERSITY_PK}'
+      - 'VITE_HOLIDAYS_AGENT=${_HOLIDAYS_AGENT}'
+      - 'VITE_HOLIDAYS_PK=${_HOLIDAYS_PK}'
+      - 'VITE_PROPERTY_AGENT=${_PROPERTY_AGENT}'
+      - 'VITE_PROPERTY_PK=${_PROPERTY_PK}'
 
   # 2. Build the docs site (Astro Starlight, served at its own origin's root) →
   #    docs/dist. The avatar page's live session bakes in the avatar agent's
@@ -219,3 +237,9 @@ tags: ['web-artifact']
 
 options:
   logging: CLOUD_LOGGING_ONLY
+  # 8 vCPU / 8 GB, for build.mjs's parallel demo builds (and the docs step that
+  # runs beside them). On the default machine (2 vCPU) the demos built one after
+  # another and took ~12.5 of the build's ~14 minutes. E2_HIGHCPU_32 is the next
+  # step up if the demo count keeps growing. Not available on a private pool,
+  # which this build does not use.
+  machineType: E2_HIGHCPU_8

@@ -366,20 +366,225 @@ async def test_a_change_the_page_refuses_is_never_said_done() -> None:
         assert "at most ₹1,00,000" in _results(llm, "request_change")[-1]
 
 
-async def test_signed_out_visitor_data_stays_private() -> None:
+# ─── B7: the customer signs in herself, typed; Arjun never does ──────────────
+
+_SIGNED_OUT = {"landing": "home", "path": "/", "lang": "en", "signed_in": False}
+_FIRST = b.CUSTOMER["profile"]["first_name"]
+
+
+def _private_bits() -> list[str]:
+    """Things only a signed-in customer may see or hear: names, balances, card ends."""
+    p = b.CUSTOMER["profile"]
+    bits = [p["name"], *(b.inr(a["balance"]) for a in b.CUSTOMER["accounts"])]
+    bits += [c["last4"] for c in b.CUSTOMER["cards"]]
+    return bits
+
+
+def _signed_in_event() -> dict[str, Any]:
+    return {"name": b.CUSTOMER["profile"]["name"], "first_name": _FIRST, "by": "visitor"}
+
+
+async def test_signed_out_her_data_opens_the_sign_in_screen_and_nothing_private() -> None:
+    """His call (25 Nov): signed out, "check my transactions" opened the dashboard
+    and signed a demo customer in on the way. Now every read of her data opens the
+    sign-in screen instead, says nothing of hers, and Arjun asks her to sign in."""
     llm = ScriptedOpenAI(
         {
-            "What's my balance?": [
-                reply_and_call("Let me see.", "card_details", card="credit"),
+            "I want to check my transactions in my bank account.": [
+                reply_and_call("Let me pull those up.", "find_transactions", account="bank"),
+                reply(
+                    "You're not signed in yet. Please type your mobile number and PIN on the "
+                    "sign-in screen and press Sign in."
+                ),
+            ],
+            "And my credit card dues?": [
+                reply_and_call("Let me check.", "card_details", card="credit"),
+                reply("Once you're signed in, I'll show you."),
+            ],
+            "Just open my dashboard.": [
+                reply_and_call("Opening it.", "open_screen", screen="dashboard"),
                 reply("Please sign in first."),
-            ]
+            ],
         }
     )
     async with demo("bank", llm) as rig:
-        await rig.driver.start_session(init={"landing": "home", "lang": "en", "signed_in": False})
+        await rig.driver.start_session(init=_SIGNED_OUT)
+        t1 = await rig.driver.user_says("I want to check my transactions in my bank account.")
+        check_turn(rig, t1)
+        # The sign-in screen, in place of the transactions she asked for, and nothing else.
+        assert [p["move"] for p in _moves(rig)] == ["nav.open"]
+        assert _move(rig, "nav.open")["args"] == {"screen": "transactions"}
+        said = _results(llm, "find_transactions")[-1]
+        assert said.startswith("Not done: she is not signed in")
+        assert "Never ask her to say them" in said
+        for bit in _private_bits():
+            assert bit not in said and bit not in t1.text
+        brain = rig.brain
+        assert isinstance(brain, BankBrain)
+        assert brain.signed_in is False
+        assert brain.pending == "I want to check my transactions in my bank account."
+
+        # The sign-in screen is already up: no second move, still nothing of hers.
+        t2 = await rig.driver.user_says("And my credit card dues?")
+        t3 = await rig.driver.user_says("Just open my dashboard.")
+        assert [p["move"] for p in _moves(rig)] == ["nav.open"]
+        for name in ("card_details", "open_screen"):
+            assert _results(llm, name)[-1].startswith("Not done: she is not signed in")
+        for bit in _private_bits():
+            assert bit not in t2.text and bit not in t3.text
+        assert brain.signed_in is False
+
+
+async def test_landing_on_banking_signed_out_greets_without_her_data() -> None:
+    """/app with nobody signed in shows the sign-in screen; the brain no longer
+    takes the banking landing to mean signed in."""
+    async with demo("bank", ScriptedOpenAI()) as rig:
+        greeting_turn = await rig.driver.start_session(
+            init={"landing": "banking", "path": "/app", "lang": "en", "signed_in": False}
+        )
+        brain = rig.brain
+        assert isinstance(brain, BankBrain) and brain.signed_in is False
+        assert _FIRST not in greeting_turn.text
+        assert "Sign in" in greeting_turn.text and "type your mobile number and PIN" in (
+            greeting_turn.text
+        )
+        assert _FIRST not in greeting("banking", "hi", False)
+
+
+async def test_a_mobile_number_or_pin_said_aloud_never_reaches_the_model() -> None:
+    """X9: the number and the PIN are typed. Said aloud, they are taken out before
+    the model hears them, nothing is filled, and he is asked to type them."""
+    llm = ScriptedOpenAI(
+        {
+            "Show me my balance.": [
+                reply_and_call("Sure.", "my_accounts"),
+                reply("Please sign in on your screen first."),
+            ],
+            "a mobile number, not kept": reply("Please type it in the box and press Sign in."),
+        }
+    )
+    async with demo("bank", llm) as rig:
+        await rig.driver.start_session(init=_SIGNED_OUT)
+        await rig.driver.user_says("Show me my balance.")
+        moves_before = len(_moves(rig))
+        await rig.driver.user_says("My number is 98765 43210 and my PIN is 4321.")
+        await rig.driver.user_says("नौ आठ सात छह पाँच चार तीन दो एक शून्य")
+        sent = json.dumps(llm.captured_inputs[-1], ensure_ascii=False)
+        sent_all = json.dumps(llm.requests, ensure_ascii=False)
+        for digits in ("98765", "43210", "9876543210", "4321", "नौ आठ सात"):
+            assert digits not in sent_all, f"{digits} reached the model"
+        assert "[a mobile number, not kept]" in sent and "[a PIN, not kept]" in sent
+        assert "ask her to type it into the sign-in box" in sent
+        # Nothing filled, nothing pressed: the only move is the sign-in screen.
+        assert len(_moves(rig)) == moves_before
+        assert all(p["move"] != "form.fill" for p in _moves(rig))
+        brain = rig.brain
+        assert isinstance(brain, BankBrain) and brain.signed_in is False
+
+
+async def test_only_her_own_hand_signs_in() -> None:
+    """No tool or move can sign her in, and a sign-in the page did not see her
+    hand make (``by: agent``) is not believed."""
+    scene = json.loads((b.ROOT / "frontend/src/stage/scene.json").read_text("utf-8"))
+    move_ids = [mv["id"] for mv in scene["moves"]]
+    assert not [i for i in move_ids if "sign" in i or "login" in i]
+    submit = next(mv for mv in scene["moves"] if mv["id"] == "form.submit")
+    assert "login" not in json.dumps(submit)
+
+    async with demo("bank", ScriptedOpenAI()) as rig:
+        await rig.driver.start_session(init=_SIGNED_OUT)
+        brain = rig.brain
+        assert isinstance(brain, BankBrain)
+        names = [t.__name__ for t in brain.tools]
+        assert not [n for n in names if "sign" in n or "login" in n]
+        await rig.driver.send_ui_event("signed_in", {**_signed_in_event(), "by": "agent"})
+        await asyncio.sleep(0.1)
+        assert brain.signed_in is False and brain._welcome_next is None
+        idle = await rig.driver.user_idle()
+        assert _FIRST not in idle.text
+
+
+async def test_her_own_sign_in_gets_a_welcome_by_name_and_what_she_asked() -> None:
+    """She types and presses Sign in herself; the page says so with her name (no
+    number). Arjun says "Hi Aditi, you're signed in" and then shows the
+    transactions she asked for before."""
+    llm = ScriptedOpenAI(
+        {
+            "She has signed in herself": [
+                reply_and_call("", "find_transactions", account="bank"),
+                reply("Here are your savings and current account transactions."),
+            ],
+            "Show me my transactions.": [
+                reply_and_call("Let me see.", "find_transactions", account="bank"),
+                reply("Please sign in on your screen first."),
+            ],
+        }
+    )
+    async with demo("bank", llm) as rig:
+        await rig.driver.start_session(init=_SIGNED_OUT)
+        await rig.driver.user_says("Show me my transactions.")
+        assert [p["move"] for p in _moves(rig)] == ["nav.open"]
+
+        await rig.driver.send_ui_event("signed_in", _signed_in_event())
+        await rig.driver.send_ui_event(
+            "page_viewed",
+            {"path": "/app/transactions", "screen": "transactions", "signed_in": True},
+        )
+        await asyncio.sleep(0.1)
+        brain = rig.brain
+        assert isinstance(brain, BankBrain) and brain.signed_in is True
+
+        welcome = await rig.driver.user_idle()
+        assert welcome.text.startswith(f"Hi {_FIRST}, you're signed in.")
+        note = json.dumps(llm.captured_inputs[-1], ensure_ascii=False)
+        assert "She has signed in herself" in note and "Show me my transactions." in note
+        assert "do not welcome her again" in note
+        assert _move(rig, "txn.find")["args"]["account"] == "bank"
+        assert "Here are your savings and current account transactions." in welcome.text
+        assert brain.pending is None
+        # Her data is open to her now.
+        assert not _results(llm, "find_transactions")[-1].startswith("Not done")
+
+
+async def test_she_speaks_before_the_welcome_and_it_rides_on_her_turn() -> None:
+    llm = ScriptedOpenAI(
+        {
+            "Okay, I've signed in.": [
+                reply_and_call("", "my_accounts"),
+                reply(f"Hi {_FIRST}, you're signed in. Your savings has {_SB}."),
+            ],
+            "What's my balance?": [
+                reply_and_call("Let me see.", "my_accounts"),
+                reply("Please sign in first."),
+            ],
+        }
+    )
+    async with demo("bank", llm) as rig:
+        await rig.driver.start_session(init=_SIGNED_OUT)
         await rig.driver.user_says("What's my balance?")
-        assert _moves(rig) == []
-        assert "not signed in" in _results(llm, "card_details")[-1]
+        await rig.driver.send_ui_event("signed_in", _signed_in_event())
+        await asyncio.sleep(0.1)
+        t = await rig.driver.user_says("Okay, I've signed in.")
+        sent = json.dumps(llm.captured_inputs[-1], ensure_ascii=False)
+        assert f'Start your reply with \\"Hi {_FIRST}, you\'re signed in.\\"' in sent
+        assert "What's my balance?" in sent
+        assert _move(rig, "accounts.show")["args"] == {}
+        assert t.text.startswith(f"Hi {_FIRST}, you're signed in.")
+
+
+async def test_a_sign_in_typed_the_wrong_length_is_said_and_stays_signed_out() -> None:
+    async with demo("bank", ScriptedOpenAI()) as rig:
+        await rig.driver.start_session(init=_SIGNED_OUT)
+        await rig.driver.send_ui_event("sign_in_failed", {"problem": "mobile", "by": "visitor"})
+        await asyncio.sleep(0.1)
+        idle = await rig.driver.user_idle()
+        assert "10 digits" in idle.text
+        await rig.driver.send_ui_event("sign_in_failed", {"problem": "pin", "by": "visitor"})
+        await asyncio.sleep(0.1)
+        idle = await rig.driver.user_idle()
+        assert "4 digits" in idle.text
+        brain = rig.brain
+        assert isinstance(brain, BankBrain) and brain.signed_in is False
 
 
 # ─── Account opening: the form fills as she talks ────────────────────────────
