@@ -242,6 +242,12 @@ DEMOS: dict[str, Expected] = {
     # it; nothing in the payload means English. Hindi, and the toggle mid-call,
     # are asserted in test_dental_e2e.py.
     "dental": Expected(voice="omnivoice/meera", language="en", provider="openai"),
+    # Varenya University's course advisor and admissions counsellor: the
+    # voice per language lives in demos/university/persona.json. With no `lang`
+    # in the payload it opens in English, and moves both legs to Hindi for the
+    # toggle, for Hindi heard or when asked — the same voice in both. Asserted in
+    # test_university_e2e.py.
+    "university": Expected(voice="omnivoice/aditya", language="en", provider="openai"),
 }
 
 

@@ -100,6 +100,11 @@
       "name": "dental",
       "title": "Dantika Dental Front Desk",
       "tagline": "A dental clinic's front desk that books check-ups, root canals and scans on each dentist's real calendar, moves or cancels appointments under the clinic's policy, and sends clinical questions to a dentist, in English or Hindi."
+    },
+    {
+      "name": "university",
+      "title": "Varenya University Admissions",
+      "tagline": "A university course advisor and admissions counsellor, in English or Hindi: it narrows 54 programmes to the two or three that fit, compares them side by side, and fills the application as the family talks."
     }
   ]
 }
