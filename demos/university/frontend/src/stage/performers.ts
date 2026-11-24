@@ -24,6 +24,7 @@ import { useApplication } from "../state/application";
 import { matching, useFinder } from "../state/finder";
 import { currentPath, goTo, moves, part, thing, waitFor } from "./host";
 import { scene } from "./scene.gen";
+import { showWhole } from "./view";
 
 type Spec = typeof scene.spec;
 
@@ -219,7 +220,10 @@ export function performers(): Performers<Spec> {
       }
       c.after(async () => {
         const tray = thing("shortlist");
-        if (tray) await c.ring(tray, "Shortlist");
+        if (tray) {
+          await c.scrollTo(tray);
+          await c.ring(tray, "Shortlist");
+        }
       });
       return `picked ${picks.map((p) => p.name).join(", ")}`;
     },
@@ -237,14 +241,18 @@ export function performers(): Performers<Spec> {
       const shown = ps.map((p) => card(p.id)).filter((x): x is Element => !!x);
       const anchor = shown.length ? shown : [thing("results")].filter((x): x is Element => !!x);
       if (anchor.length) {
-        await c.scrollTo(anchor[0]);
+        // X1: every card being compared in view together, not just the first.
+        await (anchor.length > 1 ? showWhole(anchor) : c.scrollTo(anchor[0]));
         await c.ring(anchor, "Compare");
       }
       useFinder.getState().openCompare(ps.map((p) => p.id));
       const panel = await waitFor(() => thing("comparison"));
       const line = `comparing ${ps.map((p) => p.name).join(" and ")} side by side`;
       c.done(line);
-      if (panel) await c.ring(panel, "Comparison");
+      if (panel) {
+        await c.scrollTo(panel);
+        await c.ring(panel, "Comparison");
+      }
       return line;
     },
 
@@ -260,7 +268,10 @@ export function performers(): Performers<Spec> {
       const title = await waitFor(() => (currentPath() === `/programs/${p.id}` ? thing("title") : null));
       if (!title) c.refuse("program", "the programme page did not open");
       window.scrollTo({ top: 0 });
-      c.after(() => c.ring(title, p.name));
+      c.after(async () => {
+        await c.scrollTo(title);
+        await c.ring(title, p.name);
+      });
       return `opened ${p.name}`;
     },
 
@@ -277,7 +288,10 @@ export function performers(): Performers<Spec> {
       }
       if (!path) c.refuse("page", `the site has no "${page}" page`, [...Object.keys(PAGES).filter((k) => k !== "programmes"), "schools/<school id>"]);
       const nav = document.querySelector(`[data-nav="${CSS.escape(path)}"]`);
-      if (nav && nav.getBoundingClientRect().height > 0) await c.ring(nav, label);
+      if (nav && nav.getBoundingClientRect().height > 0) {
+        await c.scrollTo(nav);
+        await c.ring(nav, label);
+      }
       useFinder.getState().closeCompare();
       await goTo(path);
       window.scrollTo({ top: 0 });

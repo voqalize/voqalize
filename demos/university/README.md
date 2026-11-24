@@ -32,7 +32,8 @@ no second greeting (`backend/rejoin.py`; `CONTRACT.md`, Redial).
   `finder.py` (matching, comparison, eligibility and scholarship rules), `prompt.py`,
   `data.py`, `rejoin.py` (live calls by session id, for a redial), `stage_gen.py` (generated),
   `routes.py`.
-- `frontend/`: the Vite + React site, Stage performers in `src/stage/`, the agent widget in
+- `frontend/`: the Vite + React site, Stage performers in `src/stage/` (`view.ts` brings every
+  highlighted target's whole group into view first, inner scroll areas included), the agent widget in
   `src/voice/`.
 
 ## The agent widget

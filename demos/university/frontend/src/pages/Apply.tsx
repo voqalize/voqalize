@@ -150,7 +150,7 @@ function Field({ f }: { f: FormField }) {
 
   if (f.type === "program") {
     return (
-      <label className={`field field-wide${flagged ? " is-flagged" : ""}`} htmlFor={id}>
+      <label className={`field field-wide${flagged ? " is-flagged" : ""}`} htmlFor={id} data-stage-group>
         {label}
         <select id={id} name="program" value={value} onChange={(e) => set("program", e.target.value)}>
           <option value="">Choose a programme</option>
@@ -171,7 +171,7 @@ function Field({ f }: { f: FormField }) {
 
   if (f.type === "document") {
     return (
-      <div className={`doc-row${flagged ? " is-flagged" : ""}`} data-field={f.name}>
+      <div className={`doc-row${flagged ? " is-flagged" : ""}`} data-field={f.name} data-stage-group>
         <div>
           {label}
           <span className="doc-status">
@@ -203,7 +203,7 @@ function Field({ f }: { f: FormField }) {
   const options = optionsFor(f, values);
   const needsProgram = (f.type === "intake" || f.type === "scholarship" || f.name === "campus") && !values.program;
   return (
-    <div className={`field field-wide${flagged ? " is-flagged" : ""}`} data-field={f.name}>
+    <div className={`field field-wide${flagged ? " is-flagged" : ""}`} data-field={f.name} data-stage-group>
       <span id={`${id}-l`}>{label}</span>
       {needsProgram && f.name !== "campus" ? (
         <span className="field-help">Choose a programme first.</span>
@@ -243,7 +243,7 @@ function TextField({ f, label, help, err }: { f: FormField; label: React.ReactNo
   };
   const id = `f-${f.name}`;
   return (
-    <label className={`field${err ? " is-flagged" : ""}`} htmlFor={id}>
+    <label className={`field${err ? " is-flagged" : ""}`} htmlFor={id} data-stage-group>
       {label}
       <span className={f.type === "percent" ? "input-suffix" : undefined}>
         <input

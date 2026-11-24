@@ -45,7 +45,7 @@ export function Programs() {
             </button>
           </div>
           {FACETS.map((f) => (
-            <fieldset key={f.name} className="facet" data-stage-thing={`facet-${f.name}`} data-stage-label={`${f.name} filter`}>
+            <fieldset key={f.name} className="facet" data-stage-group data-stage-thing={`facet-${f.name}`} data-stage-label={`${f.name} filter`}>
               <legend>{f.name}</legend>
               {f.options.map((o) => {
                 const on = s.filters[f.name].includes(o.id);

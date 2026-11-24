@@ -22,6 +22,7 @@ export function ProgramCard({
     <article
       className={`pcard${pick ? " is-pick" : ""}`}
       data-stage-card={`/programs/${p.id}`}
+      data-stage-group
       data-program={p.id}
       style={{ "--accent": school?.accent } as React.CSSProperties}
     >
