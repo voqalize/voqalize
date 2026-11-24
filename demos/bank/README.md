@@ -57,7 +57,7 @@ Paynora's widget, in the bank's palette (`frontend/src/voice/`): idle, a pill at
 with the character's still photo (`frontend/src/characters/<character>.webp`), the name, the job on
 this page (`persona.json` `roles`, kept short so it fits a phone), EN / हिंदी and "Talk to Arjun"
 ("Talk" on a phone, where the name is already beside the face). In a call the pill goes away and
-the face becomes a draggable tile with the live avatar (`@voqalize/avatar` 0.6.3), the language
+the face becomes a draggable tile with the live avatar (the latest `@voqalize/avatar`), the language
 toggle, mute, minimise and end. No transcript anywhere. The language is remembered across reloads.
 While the confirmation sheet, a transaction's sheet (phone) or the app's menu is open, the pill and
 the tile move to a top corner above it (`data-overlay` on each overlay). The dock is the page's only

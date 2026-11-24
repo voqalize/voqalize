@@ -55,8 +55,8 @@ opens a console that fires every Stage move by hand.
 The one place the character lives, read by the brain (`backend/persona.py`) and the page
 (`frontend/src/persona.ts`).
 
-- **The planner is Kasia** (H2, 25 Nov): avatar character `kasia` (in the runtime `@voqalize/avatar`
-  0.6.3 pins), voice `omnivoice/kasia`, **English only**. Her idle still
+- **The planner is Kasia** (H2, 25 Nov): avatar character `kasia` (in the runtime the latest
+  `@voqalize/avatar` pins), voice `omnivoice/kasia`, **English only**. Her idle still
   (`frontend/src/characters/kasia.webp`) is the runtime's own still for her (`listCharacters()`), as
   the cast folder has none.
 - **To change the character**, edit `character` (an avatar character id), `name`, and each language's
@@ -78,7 +78,7 @@ The one place the character lives, read by the brain (`backend/persona.py`) and 
 One entry point, no transcript anywhere (`frontend/src/voice/`). Idle: a bar at the bottom right with
 her still photo, her name, the page's role, a language toggle (only when more than one language is
 offered) and Talk. In a call the bar goes away and her face
-becomes a draggable tile with the live avatar (`@voqalize/avatar` 0.6.3, mounted only in a call), the
+becomes a draggable tile with the live avatar (the latest `@voqalize/avatar`, mounted only in a call), the
 language toggle (with more than one language), mute, minimise and end. The tile starts bottom right on a desktop and bottom left on a
 phone, steps aside for a primary action (`data-dock-avoid`: Review & pay, Pay), and moves to a top
 corner while the phone's trip-summary sheet is open (`data-overlay`). Whatever the planner rings is
