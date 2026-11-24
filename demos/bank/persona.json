@@ -1,0 +1,33 @@
+{
+  "character": "arjun",
+  "name": "Arjun",
+  "spoken_names": {
+    "en": "Arjun",
+    "hi": "अर्जुन"
+  },
+  "role": "Global Bank's assistant",
+  "roles": {
+    "home": "Cards & loans",
+    "cards": "Credit cards",
+    "loans": "Loans",
+    "account": "Account opening",
+    "banking": "Your banking"
+  },
+  "voices": {
+    "en": "omnivoice/arjun",
+    "hi": "omnivoice/arjun"
+  },
+  "languages": [
+    "en",
+    "hi"
+  ],
+  "default_language": "en",
+  "language_labels": {
+    "en": "EN",
+    "hi": "हिंदी"
+  },
+  "language_names": {
+    "en": "English",
+    "hi": "Hindi"
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "helpline": "1800 266 4242",
+  "helpline_note": "fictional number",
+  "motor": {
+    "next_steps": [
+      "A surveyor will call you within 24 hours to fix a time to inspect the vehicle, at the garage or where it stands.",
+      "The surveyor inspects the damage and checks the garage's estimate. Please do not start repairs before this, except to prevent further damage.",
+      "Once the estimate is approved, the garage can begin repairs. We will tell you if any part of the bill is not covered, such as the deductible.",
+      "At a network garage we pay the garage directly and you pay only your share. At any other garage you pay, send us the final bill, and we transfer the approved amount to your bank account on file within 7 working days."
+    ],
+    "turnaround": "Surveyor contact within 24 hours. Most repair approvals follow the inspection within 2 working days; reimbursements are paid within 7 working days of the final bill."
+  },
+  "health": {
+    "cashless": {
+      "next_steps": [
+        "Show your Chhatri health card at the network hospital's insurance desk; the hospital sends us a pre-authorisation request.",
+        "We reply to the hospital within 1 hour of receiving complete details, approving an amount or asking for more information.",
+        "At discharge, the hospital sends the final bill and we give final approval within 3 hours.",
+        "You pay only for non-medical items and anything above your policy limits. The approved amount is paid to the hospital directly."
+      ],
+      "turnaround": "Pre-authorisation within 1 hour of complete details; final discharge approval within 3 hours of the final bill."
+    },
+    "reimbursement": {
+      "next_steps": [
+        "Pay the hospital and collect the discharge summary, the itemised final bill, payment receipts, reports and prescriptions.",
+        "Submit the claim within 30 days of discharge, online or through the helpline. Bills for treatment after discharge can follow within 15 days of finishing it.",
+        "Our medical team reviews the claim and may ask for more documents.",
+        "We settle within 30 days of receiving the last document, by transfer to your bank account on file."
+      ],
+      "turnaround": "Settled within 30 days of receiving all documents."
+    }
+  }
+}

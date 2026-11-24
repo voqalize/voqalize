@@ -1,0 +1,673 @@
+{
+  "id": "travel-2026",
+  "product": "travel",
+  "title": "Overseas Travel Insurance Policy (Family)",
+  "plan": "Chhatri Travel Plus",
+  "policy_number": "CHI/TR/26/0120458",
+  "status": "upcoming",
+  "start": "2026-12-20",
+  "end": "2026-12-28",
+  "premium_paid": 2815,
+  "summary": "Cover for the family trip from Pune to Singapore, 20 to 28 December 2026: medical cover of US$1,00,000 each, flight delay, baggage and trip cancellation.",
+  "insured": [
+    {
+      "id": "rohan",
+      "name": "Rohan Kulkarni",
+      "role": "Proposer and traveller"
+    },
+    {
+      "id": "meera",
+      "name": "Meera Kulkarni",
+      "role": "Traveller"
+    },
+    {
+      "id": "aarav",
+      "name": "Aarav Kulkarni",
+      "role": "Traveller"
+    }
+  ],
+  "schedule": [
+    {
+      "label": "Policy number",
+      "value": "CHI/TR/26/0120458"
+    },
+    {
+      "label": "Trip",
+      "value": "Pune to Singapore and back"
+    },
+    {
+      "label": "Period of cover",
+      "value": "20 Dec 2026 to 28 Dec 2026 (9 days)"
+    },
+    {
+      "label": "Region",
+      "value": "Asia (excluding Japan)"
+    },
+    {
+      "label": "Plan",
+      "value": "Plus"
+    },
+    {
+      "label": "Travellers",
+      "value": "Rohan Kulkarni, Meera Kulkarni, Aarav Kulkarni"
+    },
+    {
+      "label": "Emergency medical cover",
+      "value": "US$1,00,000 per traveller"
+    },
+    {
+      "label": "Medical deductible",
+      "value": "US$100 per claim"
+    },
+    {
+      "label": "Flight delay",
+      "value": "₹1,000 per 6 hours, up to ₹6,000 per traveller"
+    },
+    {
+      "label": "Checked-in baggage loss",
+      "value": "US$500 per traveller"
+    },
+    {
+      "label": "Baggage delay (over 12 hours)",
+      "value": "₹5,000 per traveller"
+    },
+    {
+      "label": "Loss of passport",
+      "value": "Up to US$250 per traveller"
+    },
+    {
+      "label": "Trip cancellation",
+      "value": "Included, up to ₹40,000 per traveller"
+    },
+    {
+      "label": "Premium paid (incl. 18% GST)",
+      "value": "₹2,815"
+    }
+  ],
+  "addons": [
+    {
+      "id": "trip_cancellation",
+      "label": "Trip cancellation",
+      "included": true
+    },
+    {
+      "id": "baggage_plus",
+      "label": "Baggage plus",
+      "included": false
+    },
+    {
+      "id": "adventure_sports",
+      "label": "Adventure sports",
+      "included": false
+    }
+  ],
+  "sections": [
+    {
+      "id": "s1",
+      "number": "1",
+      "title": "Schedule notes and definitions",
+      "clauses": [
+        {
+          "id": "1.1",
+          "title": "Insured persons and trip",
+          "kind": "info",
+          "text": "This policy covers Rohan Kulkarni, Meera Kulkarni and Aarav Kulkarni for a trip from Pune, India to Singapore and back, from 20 December 2026 to 28 December 2026. Each insured person has their own limits as shown in the Schedule.",
+          "plain": "Rohan, Meera and Aarav are each covered for the Singapore trip, 20 to 28 December 2026.",
+          "tags": [
+            "travellers",
+            "Singapore",
+            "family trip",
+            "who is covered",
+            "trip dates",
+            "December",
+            "holiday",
+            "videsh yatra"
+          ]
+        },
+        {
+          "id": "1.2",
+          "title": "Start and end of cover",
+          "kind": "info",
+          "text": "Cover under Section 2 and Section 3 begins when the insured person boards the outbound flight from India and ends when they return to India or at midnight on 28 December 2026, whichever is earlier. Trip cancellation cover under Clause 4.1 applies from the date of issue until boarding the outbound flight.",
+          "plain": "Cover starts when you board in India and ends when you land back; cancellation cover applies before you leave.",
+          "tags": [
+            "start date",
+            "when cover starts",
+            "boarding",
+            "return",
+            "end of cover",
+            "kab se",
+            "trip period",
+            "departure"
+          ]
+        },
+        {
+          "id": "1.3",
+          "title": "Extension of the trip",
+          "kind": "condition",
+          "text": "If the return is delayed beyond 28 December 2026 because of an event covered by this policy, such as hospitalisation or a cancelled flight, cover is extended automatically for up to 7 days without extra premium. A planned extension must be requested before 28 December 2026 and is subject to the Company's agreement and additional premium.",
+          "plain": "If a covered emergency delays your return, cover continues for up to 7 days at no cost.",
+          "tags": [
+            "extension",
+            "trip extended",
+            "delayed return",
+            "stay longer",
+            "7 days",
+            "extend policy",
+            "flight cancelled",
+            "badhana"
+          ]
+        },
+        {
+          "id": "1.4",
+          "title": "Emergency assistance",
+          "kind": "info",
+          "text": "In a medical emergency abroad, the insured person or someone on their behalf should call the 24-hour assistance service through the claims helpline before or as soon as possible after admission. The assistance partner will guide them to a hospital, arrange cashless treatment where possible, and coordinate evacuation if needed.",
+          "plain": "In an emergency abroad, call our 24-hour helpline first; we can arrange cashless treatment.",
+          "tags": [
+            "emergency",
+            "helpline",
+            "assistance",
+            "24 hours",
+            "abroad",
+            "hospital abroad",
+            "cashless",
+            "madad",
+            "call"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "s2",
+      "number": "2",
+      "title": "Medical cover",
+      "clauses": [
+        {
+          "id": "2.1",
+          "title": "Emergency medical expenses",
+          "kind": "covered",
+          "text": "The Company will pay reasonable and customary medical expenses incurred outside India for emergency treatment of an illness or injury that first occurs during the trip, including hospitalisation, surgery, doctors' fees, medicines prescribed during the treatment and diagnostics, up to US$1,00,000 per insured person. Treatment that can reasonably wait until return to India is not an emergency.",
+          "plain": "If any of you falls ill or is injured in Singapore, emergency treatment is covered up to US$1,00,000 each.",
+          "tags": [
+            "medical emergency",
+            "hospital abroad",
+            "illness abroad",
+            "injury",
+            "doctor",
+            "hospitalisation",
+            "fever",
+            "bimaar",
+            "US$1,00,000"
+          ]
+        },
+        {
+          "id": "2.2",
+          "title": "Emergency evacuation and repatriation",
+          "kind": "covered",
+          "text": "The Company will pay, within the medical sum insured, the cost of medically necessary emergency evacuation to the nearest suitable hospital, or repatriation to India, when arranged or approved by the assistance service. In the event of death abroad, the cost of returning the mortal remains to India, or local cremation or burial, is covered.",
+          "plain": "If you must be moved to another hospital or flown home for treatment, it is covered.",
+          "tags": [
+            "evacuation",
+            "air ambulance",
+            "repatriation",
+            "fly home",
+            "medical transfer",
+            "mortal remains",
+            "death abroad",
+            "emergency transport"
+          ]
+        },
+        {
+          "id": "2.3",
+          "title": "Emergency dental treatment",
+          "kind": "limit",
+          "text": "Emergency dental treatment for the relief of sudden acute pain, or required because of an accident during the trip, is payable up to US$500 per insured person.",
+          "plain": "Emergency dental pain relief abroad is covered up to US$500.",
+          "tags": [
+            "dental",
+            "toothache",
+            "teeth",
+            "dentist abroad",
+            "daant",
+            "accident",
+            "pain relief",
+            "US$500"
+          ]
+        },
+        {
+          "id": "2.4",
+          "title": "Medical deductible",
+          "kind": "deductible",
+          "text": "Each claim under Section 2 is subject to a deductible of US$100, borne by the insured person.",
+          "plain": "You pay the first US$100 of each medical claim.",
+          "tags": [
+            "deductible",
+            "excess",
+            "US$100",
+            "medical claim",
+            "own pocket",
+            "apni jeb se",
+            "first 100",
+            "claim deduction"
+          ]
+        },
+        {
+          "id": "2.5",
+          "title": "Cashless hospitalisation abroad",
+          "kind": "info",
+          "text": "Where the assistance service is informed before admission or within 24 hours of an emergency admission, the Company will try to arrange direct payment to the hospital. Where direct payment is not possible, the insured person pays and claims reimbursement as set out in Clause 6.3.",
+          "plain": "Call us at admission and we will try to pay the hospital directly.",
+          "tags": [
+            "cashless",
+            "direct billing",
+            "guarantee of payment",
+            "hospital abroad",
+            "pay and claim",
+            "reimbursement",
+            "24 hours",
+            "direct payment"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "s3",
+      "number": "3",
+      "title": "Travel inconvenience",
+      "clauses": [
+        {
+          "id": "3.1",
+          "title": "Flight delay",
+          "kind": "covered",
+          "text": "If the scheduled departure of a flight forming part of the trip is delayed by more than 6 hours from the time shown on the ticket, the Company will pay ₹1,000 for each full 6 hours of delay, up to ₹6,000 per insured person per trip. The delay must be confirmed in writing by the airline. A delay caused by a strike or industrial action announced before the policy was issued is not covered.",
+          "plain": "If your flight is delayed by more than 6 hours, you get ₹1,000 for every 6 hours, up to ₹6,000 each.",
+          "tags": [
+            "flight delay",
+            "delayed flight",
+            "late flight",
+            "6 hours",
+            "airline",
+            "airport",
+            "1000",
+            "flight late",
+            "deri"
+          ]
+        },
+        {
+          "id": "3.2",
+          "title": "Loss of checked-in baggage",
+          "kind": "covered",
+          "text": "The Company will pay for permanent loss of checked-in baggage while in the custody of the airline, up to US$500 per insured person, less any compensation paid by the airline. The amount paid for any single item is limited to US$100. A Property Irregularity Report from the airline is required.",
+          "plain": "If the airline loses your checked-in bags, you get up to US$500 each.",
+          "tags": [
+            "lost baggage",
+            "lost luggage",
+            "suitcase",
+            "bag lost",
+            "checked in",
+            "airline lost bag",
+            "saamaan",
+            "PIR"
+          ]
+        },
+        {
+          "id": "3.3",
+          "title": "Delay of checked-in baggage",
+          "kind": "covered",
+          "text": "If checked-in baggage is delayed by more than 12 hours from the insured person's arrival at the destination, the Company will reimburse the cost of emergency purchases of essential clothing and toiletries, up to ₹5,000 per insured person, on production of receipts and the airline's confirmation of the delay.",
+          "plain": "If your bags arrive more than 12 hours late, we pay up to ₹5,000 each for essentials you buy.",
+          "tags": [
+            "baggage delay",
+            "luggage late",
+            "bag delayed",
+            "12 hours",
+            "essentials",
+            "clothes",
+            "toiletries",
+            "saamaan nahi aaya"
+          ]
+        },
+        {
+          "id": "3.4",
+          "title": "Loss of passport",
+          "kind": "covered",
+          "text": "If the insured person's passport is lost or stolen during the trip, the Company will reimburse the cost of obtaining a duplicate or emergency travel document, including fees and reasonable travel to the embassy or consulate, up to US$250 per insured person. The loss must be reported to the local police within 24 hours of discovery.",
+          "plain": "If a passport is lost or stolen abroad, the cost of a replacement is covered up to US$250.",
+          "tags": [
+            "passport",
+            "lost passport",
+            "stolen passport",
+            "emergency certificate",
+            "embassy",
+            "consulate",
+            "duplicate passport",
+            "police report"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "s4",
+      "number": "4",
+      "title": "Trip cancellation and add-ons",
+      "clauses": [
+        {
+          "id": "4.1",
+          "title": "Trip cancellation",
+          "kind": "covered",
+          "text": "In consideration of the add-on premium, the Company will reimburse the non-refundable portion of pre-paid travel and accommodation costs, up to ₹40,000 per insured person, if the trip is cancelled before departure solely because of one of the following: death, or hospitalisation for more than 48 hours, of an insured person or an immediate family member; serious damage to the insured's home by fire or flood requiring their presence; a summons for jury or witness service; or refusal of a visa, provided the application was made correctly and in time. Cancellation for any other reason, including change of plans or work commitments, is not covered.",
+          "plain": "If you cancel because of a death, serious illness, a fire or flood at home, or a visa refusal, non-refundable bookings are covered up to ₹40,000 each.",
+          "tags": [
+            "trip cancellation",
+            "cancel trip",
+            "refund",
+            "visa rejected",
+            "illness before trip",
+            "hospitalised",
+            "non-refundable",
+            "booking",
+            "change of plans",
+            "trip radd"
+          ]
+        },
+        {
+          "id": "4.2",
+          "title": "Trip cancellation conditions",
+          "kind": "condition",
+          "text": "The insured must cancel bookings as soon as the reason for cancellation arises and claim any refund available from airlines, hotels or agents. The Company will pay only the amount that cannot be recovered from them. Medical evidence, a death certificate, a visa refusal letter or other proof of the reason must be provided.",
+          "plain": "Cancel your bookings promptly and claim refunds first; we pay what you cannot recover.",
+          "tags": [
+            "cancellation proof",
+            "refund first",
+            "airline refund",
+            "hotel refund",
+            "visa refusal letter",
+            "documents",
+            "conditions",
+            "promptly"
+          ]
+        },
+        {
+          "id": "4.3",
+          "title": "Baggage plus: not opted",
+          "kind": "excluded",
+          "text": "The baggage plus add-on has not been opted under this policy. Baggage loss is covered only up to the limits in Clause 3.2, and loss or theft of hand baggage, laptops and cameras is not covered.",
+          "plain": "Hand baggage, laptops and cameras are not covered, and checked-in bags only up to US$500 each.",
+          "tags": [
+            "hand baggage",
+            "cabin bag",
+            "laptop stolen",
+            "camera",
+            "baggage plus",
+            "theft abroad",
+            "not opted",
+            "not covered"
+          ]
+        },
+        {
+          "id": "4.4",
+          "title": "Adventure sports: not opted",
+          "kind": "excluded",
+          "text": "The adventure sports add-on has not been opted under this policy. Medical expenses arising from participation in adventure or hazardous activities, including scuba diving, skydiving, bungee jumping, paragliding, white-water rafting and mountaineering, are not covered.",
+          "plain": "Injuries from activities like scuba diving or bungee jumping are not covered.",
+          "tags": [
+            "adventure sports",
+            "scuba diving",
+            "bungee",
+            "skydiving",
+            "paragliding",
+            "rafting",
+            "snorkelling",
+            "theme park",
+            "not covered"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "s5",
+      "number": "5",
+      "title": "Exclusions",
+      "clauses": [
+        {
+          "id": "5.1",
+          "title": "Pre-existing diseases",
+          "kind": "excluded",
+          "text": "Expenses arising from any pre-existing disease or condition are not covered, except for treatment of a sudden, unforeseen and life-threatening emergency arising from it during the trip, which is covered up to the medical sum insured. Routine treatment, medication or check-ups for a pre-existing condition are not covered.",
+          "plain": "A known illness is not covered abroad, except for a life-threatening emergency.",
+          "tags": [
+            "pre-existing",
+            "existing illness",
+            "blood pressure",
+            "hypertension",
+            "diabetes",
+            "life threatening",
+            "emergency",
+            "purani bimari",
+            "not covered"
+          ]
+        },
+        {
+          "id": "5.2",
+          "title": "Alcohol and drugs",
+          "kind": "excluded",
+          "text": "Any claim arising from the insured person being under the influence of alcohol or drugs not prescribed by a medical practitioner is not covered.",
+          "plain": "Anything that happens because of alcohol or drugs is not covered.",
+          "tags": [
+            "alcohol",
+            "drunk",
+            "drugs",
+            "sharaab",
+            "party",
+            "intoxicated",
+            "nightlife",
+            "not covered"
+          ]
+        },
+        {
+          "id": "5.3",
+          "title": "Travelling against medical advice",
+          "kind": "excluded",
+          "text": "Any claim is excluded if the insured person travelled against the advice of a medical practitioner, or for the purpose of obtaining medical treatment abroad, or while awaiting treatment or a diagnosis for a condition.",
+          "plain": "If a doctor advised you not to travel, or you travel for treatment, it is not covered.",
+          "tags": [
+            "medical advice",
+            "doctor said no",
+            "fit to fly",
+            "treatment abroad",
+            "medical tourism",
+            "awaiting diagnosis",
+            "not covered",
+            "unfit"
+          ]
+        },
+        {
+          "id": "5.4",
+          "title": "Pregnancy and childbirth",
+          "kind": "excluded",
+          "text": "Expenses related to pregnancy, childbirth and their complications are not covered, except for an emergency arising from an unforeseen complication before the 24th week of pregnancy.",
+          "plain": "Pregnancy and childbirth abroad are not covered, apart from early emergencies.",
+          "tags": [
+            "pregnancy",
+            "childbirth",
+            "delivery",
+            "pregnant",
+            "maternity",
+            "complication",
+            "not covered",
+            "garbhavastha"
+          ]
+        },
+        {
+          "id": "5.5",
+          "title": "Unattended baggage and cash",
+          "kind": "excluded",
+          "text": "Loss of baggage or personal effects left unattended in a public place, loss of cash, cards, tickets and documents other than the passport, and loss not reported to the police or carrier within 24 hours are not covered.",
+          "plain": "Things left unattended, cash and cards are not covered.",
+          "tags": [
+            "unattended",
+            "cash",
+            "credit card",
+            "wallet",
+            "pickpocket",
+            "left behind",
+            "tickets",
+            "not covered"
+          ]
+        },
+        {
+          "id": "5.6",
+          "title": "War, civil unrest and travel warnings",
+          "kind": "excluded",
+          "text": "Any claim arising from war, civil war, terrorism in which the insured takes part, nuclear contamination, or travel to a country against which the Government of India has issued an advisory against travel before departure is not covered.",
+          "plain": "Loss from war, or travel to a country under a government travel advisory, is not covered.",
+          "tags": [
+            "war",
+            "civil unrest",
+            "terrorism",
+            "travel advisory",
+            "government warning",
+            "nuclear",
+            "yuddh",
+            "not covered"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "s6",
+      "number": "6",
+      "title": "Claims",
+      "clauses": [
+        {
+          "id": "6.1",
+          "title": "Inform the assistance service",
+          "kind": "condition",
+          "text": "In a medical emergency the assistance service must be informed before admission where possible and in any case within 24 hours of admission. Failure to inform may lead to the Company paying only what it would have paid had it been informed.",
+          "plain": "Tell our assistance service within 24 hours of any hospital admission abroad.",
+          "tags": [
+            "inform",
+            "24 hours",
+            "admission",
+            "assistance",
+            "helpline",
+            "emergency",
+            "claim intimation",
+            "batana"
+          ]
+        },
+        {
+          "id": "6.2",
+          "title": "Documents for travel claims",
+          "kind": "condition",
+          "text": "Flight delay claims need the airline's written confirmation of the delay and the boarding pass. Baggage claims need the Property Irregularity Report, the baggage tag and the airline's settlement letter. Passport claims need the police report and the receipt for the duplicate document. Medical claims need the medical report, itemised bills and receipts.",
+          "plain": "Keep the airline's delay letter, the baggage report, the police report and all bills.",
+          "tags": [
+            "documents",
+            "boarding pass",
+            "PIR",
+            "baggage tag",
+            "airline letter",
+            "police report",
+            "medical bills",
+            "receipts",
+            "kagaz"
+          ]
+        },
+        {
+          "id": "6.3",
+          "title": "Claim submission",
+          "kind": "condition",
+          "text": "A reimbursement claim must be submitted within 30 days of the insured person's return to India, through the website or the claims helpline, with the documents listed in Clause 6.2.",
+          "plain": "Send your claim within 30 days of returning home.",
+          "tags": [
+            "claim submission",
+            "30 days",
+            "after return",
+            "reimbursement",
+            "how to claim",
+            "deadline",
+            "claim kaise kare",
+            "online claim"
+          ]
+        },
+        {
+          "id": "6.4",
+          "title": "Settlement currency",
+          "kind": "info",
+          "text": "Claims are settled in Indian rupees to the bank account on file, at the exchange rate published by the Reserve Bank of India on the date of payment of the expense, within 30 days of receiving all documents.",
+          "plain": "Claims are paid in rupees to your bank account within 30 days of all documents.",
+          "tags": [
+            "settlement",
+            "rupees",
+            "exchange rate",
+            "INR",
+            "bank account",
+            "30 days",
+            "currency",
+            "payment"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "s7",
+      "number": "7",
+      "title": "General conditions",
+      "clauses": [
+        {
+          "id": "7.1",
+          "title": "Cancellation of the policy",
+          "kind": "condition",
+          "text": "If the trip is cancelled or postponed before departure, this policy may be cancelled before its start date with a full refund of premium, less a cancellation charge of ₹250, provided no claim has been made. The policy cannot be cancelled after the start of the trip.",
+          "plain": "If you do not travel, you can cancel before 20 December and get the premium back, less ₹250.",
+          "tags": [
+            "cancel policy",
+            "refund",
+            "trip postponed",
+            "not travelling",
+            "premium refund",
+            "250",
+            "radd",
+            "before departure"
+          ]
+        },
+        {
+          "id": "7.2",
+          "title": "Disclosure",
+          "kind": "condition",
+          "text": "The policy is issued on the basis of the information given in the proposal, including the age and health of each insured person. Any misrepresentation or non-disclosure of material facts may make the policy void for the person concerned.",
+          "plain": "Answer the health questions honestly, or a claim may be refused.",
+          "tags": [
+            "disclosure",
+            "honest",
+            "health declaration",
+            "non-disclosure",
+            "medical history",
+            "proposal",
+            "void",
+            "chhupana"
+          ]
+        },
+        {
+          "id": "7.3",
+          "title": "Sanctions and law",
+          "kind": "info",
+          "text": "This policy is governed by the laws of India. The Company will not provide cover or pay any claim where doing so would expose it to any sanction, prohibition or restriction under applicable law.",
+          "plain": "This policy follows Indian law.",
+          "tags": [
+            "law",
+            "India",
+            "jurisdiction",
+            "sanctions",
+            "legal",
+            "governing law",
+            "court",
+            "rules"
+          ]
+        }
+      ]
+    }
+  ]
+}

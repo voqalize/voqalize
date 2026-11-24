@@ -42,6 +42,12 @@ Everything also works by click alone: clicks, the agent's moves and the `?debug=
 through one store controller (`frontend/src/state/store.ts`). `?debug=1` fires any move by hand,
 runs each agent's main flow as a script, and fakes a live call for screenshots.
 
+Every ring first brings the target's whole group (`data-stage-group`) into view: inner scroll areas,
+then the window, under the top bars and clear of the dock and the call tile when there is room
+(`frontend/src/stage/view.ts`). With `?debug=1`, `window.__paynoraRings` records, for each ring,
+whether that group was fully in view as it rang (`frontend/src/stage/audit.ts`), and
+`window.__paynoraMove(id, args)` fires a move by hand.
+
 The contract between the two halves is `CONTRACT.md`; the moves are `frontend/src/stage/scene.json`.
 
 ## Facts the agent may state
@@ -86,6 +92,20 @@ restart, a network blip), Voqalize dials it again for the same session and the n
 the call from `backend/rejoin.py`: same job, language, lead card, held slot and model history, no
 second greeting. Calls are held in process memory for two minutes after the drop, so a redial that
 reaches a freshly deployed process starts over. See `CONTRACT.md`, Redial.
+
+## Amounts in speech
+
+Everything the agent says, model text and its own lines alike, passes through
+`backend/spoken.py` on its way to the voice. Voqalize's TTS reads a rupee amount
+with two decimals before a scale word as rupees and paise ("₹1.25 crore" becomes
+"one rupee and twenty five paisa crore"), so a scaled amount is spelled out in
+English ("sixteen point eight lakh rupees") and, in Hindi, written with ₹ and the
+Devanagari scale (₹7.5 लाख, read डेढ़/ढाई/साढ़े) or as whole rupees (₹16,80,000).
+Plain amounts as the tools write them (₹6,664) are left as they are; the screen keeps
+its own formatting. The other way, the headcount: a count said with a scale ("dedh
+hazaar", "one and a half thousand") is noted to the model as a number, and a
+headcount that lost its scale on the way (15 for "dedh sau") is confirmed back, never
+put on the card or the calculator. Tests: `demos/tests/test_payroll_spoken.py`.
 
 ## Change the character or add a language
 

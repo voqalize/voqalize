@@ -1219,3 +1219,48 @@ async def test_a_hindi_call_hears_a_refused_or_unanswered_change_in_hindi() -> N
         turn = await rig.driver.user_says("हाँ।")
         await task
         assert _hindi(turn.text) and "नहीं हो पाया" in turn.text, turn.text
+
+
+# ─── Amounts in speech, both ways (X8) ───────────────────────────────────────
+
+_ADD = "Add Meera Iyer, an engineer in Pune, joining 16 February, CTC 7.2 lakh."
+
+
+async def test_amounts_are_spoken_as_words_and_a_wrong_ctc_is_confirmed() -> None:
+    """X8 over the wire: "7.2 lakh" heard is noted to the model as 720000 rupees; a CTC
+    that lost its scale on the way (72) never reaches the form, the tool asks for it
+    to be confirmed back, and the voice says the amount in words. In Hindi a scaled
+    amount reaches the voice as whole rupees with the ₹ mark."""
+    llm = ScriptedOpenAI(
+        {
+            _ADD: [
+                reply_and_call(
+                    "Filling it in.",
+                    "fill_new_employee",
+                    name="Meera Iyer",
+                    title="Software Engineer",
+                    department="Engineering",
+                    location="Pune",
+                    joined="2026-02-16",
+                    annual_ctc=72,
+                    gender="F",
+                ),
+                reply("Just to check, ₹7.2 lakh, right?"),
+            ],
+            "उसका CTC कितना है?": reply("उनका CTC ₹16.8 lakh है।"),
+        }
+    )
+    async with demo("payroll_app", llm) as rig:
+        await rig.driver.start_session(init={"landing": "/", "lang": "en"})
+        turn = await rig.driver.user_says(_ADD)
+        told = json.dumps(llm.captured_inputs[-1], ensure_ascii=False)
+        assert "'7.2 lakh' = 720000" in told
+        result = tool_results(llm.captured_inputs[-1])["fill_new_employee"]
+        assert result.startswith("Not done") and "₹7,20,000" in result
+        assert not [m for m in _moves(rig) if m["move"] == "employee.fill"]
+        assert "seven point two lakh rupees, right?" in turn.text and "₹" not in turn.text
+
+    async with demo("payroll_app", llm) as rig:
+        await rig.driver.start_session(init={"landing": "/", "lang": "hi"})
+        turn = await rig.driver.user_says("उसका CTC कितना है?")
+        assert "₹16,80,000" in turn.text and "lakh" not in turn.text
