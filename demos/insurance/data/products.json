@@ -1,0 +1,289 @@
+{
+  "$comment": "Chhatri Insurance (fictional). The quote schema and the rating tables, read by the brain (backend/rating.py) and the page (frontend/src/quote/rating.ts). Both compute the same premium; data/quote_cases.json holds golden cases both test suites check. Every number here is invented for the demo.",
+  "rating_year": 2026,
+  "rounding": "Each breakdown line is rounded to the nearest rupee, half up (floor(x + 0.5)). The total is the sum of the rounded lines.",
+  "cities": [
+    { "value": "mumbai", "label": "Mumbai", "zone": "A" },
+    { "value": "delhi", "label": "Delhi", "zone": "A" },
+    { "value": "bengaluru", "label": "Bengaluru", "zone": "A" },
+    { "value": "chennai", "label": "Chennai", "zone": "A" },
+    { "value": "hyderabad", "label": "Hyderabad", "zone": "A" },
+    { "value": "kolkata", "label": "Kolkata", "zone": "A" },
+    { "value": "pune", "label": "Pune", "zone": "A" },
+    { "value": "ahmedabad", "label": "Ahmedabad", "zone": "A" },
+    { "value": "jaipur", "label": "Jaipur", "zone": "B" },
+    { "value": "lucknow", "label": "Lucknow", "zone": "B" },
+    { "value": "kochi", "label": "Kochi", "zone": "B" },
+    { "value": "indore", "label": "Indore", "zone": "B" },
+    { "value": "chandigarh", "label": "Chandigarh", "zone": "B" },
+    { "value": "nagpur", "label": "Nagpur", "zone": "B" },
+    { "value": "coimbatore", "label": "Coimbatore", "zone": "B" },
+    { "value": "other", "label": "Another city", "zone": "B" }
+  ],
+  "ncb": { "$comment": "No Claim Bonus on own-damage premium, by claim-free years (5 or more = 50%).", "by_years": [0, 20, 25, 35, 45, 50] },
+  "products": [
+    {
+      "id": "car",
+      "name": "Car insurance",
+      "plan": "Chhatri Car Shield",
+      "gst_percent": 18,
+      "fields": [
+        { "id": "vehicle_class", "label": "Car type", "type": "select", "ask": "Is it a hatchback, a sedan or an SUV?", "options": [
+          { "value": "hatchback", "label": "Hatchback" }, { "value": "sedan", "label": "Sedan" }, { "value": "suv", "label": "SUV" } ] },
+        { "id": "fuel", "label": "Fuel", "type": "select", "ask": "Petrol, diesel, CNG or electric?", "options": [
+          { "value": "petrol", "label": "Petrol" }, { "value": "diesel", "label": "Diesel" }, { "value": "cng", "label": "CNG" }, { "value": "electric", "label": "Electric" } ] },
+        { "id": "make_model", "label": "Make and model", "type": "text", "optional": true, "ask": "Which make and model is it?" },
+        { "id": "registration_year", "label": "Registration year", "type": "integer", "min": 2011, "max": 2026, "ask": "Which year was it registered?" },
+        { "id": "ex_showroom", "label": "Ex-showroom price", "type": "money", "min": 300000, "max": 10000000, "ask": "Roughly what was the ex-showroom price?" },
+        { "id": "city", "label": "City of registration", "type": "select", "options_from": "cities", "ask": "Which city is it registered in?" },
+        { "id": "claim_free_years", "label": "Claim-free years", "type": "integer", "min": 0, "max": 5, "ask": "How many years in a row without a claim? Five or more counts as five." },
+        { "id": "voluntary_deductible", "label": "Voluntary deductible", "type": "select", "default": "0", "ask": "Would you like a voluntary deductible to lower the premium?", "options": [
+          { "value": "0", "label": "None" }, { "value": "2500", "label": "₹2,500" }, { "value": "5000", "label": "₹5,000" }, { "value": "7500", "label": "₹7,500" } ] }
+      ],
+      "addons": [
+        { "id": "pa_owner", "label": "Owner-driver personal accident cover (₹15,00,000)", "default": true, "price": { "flat": 399 } },
+        { "id": "zero_dep", "label": "Zero depreciation", "price": { "idv_percent_by_age": [[2, 0.40], [4, 0.55], [5, 0.70]] }, "max_age": 5 },
+        { "id": "engine_protect", "label": "Engine protection", "price": { "idv_percent": 0.12 } },
+        { "id": "rsa", "label": "24x7 roadside assistance", "price": { "flat": 199 } },
+        { "id": "return_to_invoice", "label": "Return to invoice", "price": { "idv_percent": 0.15 }, "max_age": 3 },
+        { "id": "consumables", "label": "Consumables cover", "price": { "idv_percent": 0.10 } },
+        { "id": "key_replacement", "label": "Key replacement", "price": { "flat": 299 } },
+        { "id": "ncb_protect", "label": "NCB protection", "price": { "idv_percent": 0.08 }, "min_ncb": 20 }
+      ],
+      "tables": {
+        "idv_depreciation_by_age": [5, 15, 20, 30, 40, 50],
+        "od_rate_percent": {
+          "$comment": "Own-damage rate as % of IDV, by car type, zone and age band [0-4 years, 5-9 years, 10+ years].",
+          "hatchback": { "A": [3.13, 3.28, 3.36], "B": [3.04, 3.19, 3.26] },
+          "sedan": { "A": [3.28, 3.44, 3.52], "B": [3.19, 3.35, 3.43] },
+          "suv": { "A": [3.44, 3.61, 3.70], "B": [3.35, 3.52, 3.60] }
+        },
+        "fuel_factor": { "petrol": 1.0, "diesel": 1.05, "cng": 1.08, "electric": 0.9 },
+        "third_party": { "hatchback": 2150, "sedan": 3480, "suv": 7950 },
+        "third_party_electric_factor": 0.85,
+        "voluntary_deductible_discount_percent": { "0": 0, "2500": 10, "5000": 15, "7500": 20 }
+      },
+      "method": [
+        "age = rating_year - registration_year; age band index = 0 if age <= 4, 1 if age <= 9, else 2.",
+        "IDV = ex_showroom x (1 - idv_depreciation_by_age[min(age, 5)] / 100), rounded to the nearest 100 (half up).",
+        "Own damage = IDV x od_rate_percent[class][zone][band] / 100 x fuel_factor[fuel].",
+        "No Claim Bonus = Own damage x ncb.by_years[claim_free_years] / 100 (a discount).",
+        "Voluntary deductible discount = (Own damage - NCB) x voluntary_deductible_discount_percent / 100.",
+        "Third-party = third_party[class] (x third_party_electric_factor when electric).",
+        "Add-on with idv_percent = IDV x idv_percent / 100; idv_percent_by_age = the first [max_age, percent] row with age <= max_age; flat = the amount. An add-on whose max_age < age, or whose min_ncb > the NCB %, is unavailable.",
+        "Net premium = sum of the rounded lines (discounts negative). GST = net x gst_percent / 100. Total = net + GST."
+      ]
+    },
+    {
+      "id": "bike",
+      "name": "Two-wheeler insurance",
+      "plan": "Chhatri Bike Shield",
+      "gst_percent": 18,
+      "fields": [
+        { "id": "bike_type", "label": "Two-wheeler type", "type": "select", "ask": "Is it a scooter or a motorcycle?", "options": [
+          { "value": "scooter", "label": "Scooter" }, { "value": "motorcycle", "label": "Motorcycle" } ] },
+        { "id": "engine_cc", "label": "Engine size", "type": "select", "ask": "What engine size: up to 150 cc, 150 to 350 cc, or above 350 cc?", "options": [
+          { "value": "upto_150", "label": "Up to 150 cc" }, { "value": "150_350", "label": "150 to 350 cc" }, { "value": "above_350", "label": "Above 350 cc" } ] },
+        { "id": "fuel", "label": "Fuel", "type": "select", "default": "petrol", "ask": "Petrol or electric?", "options": [
+          { "value": "petrol", "label": "Petrol" }, { "value": "electric", "label": "Electric" } ] },
+        { "id": "make_model", "label": "Make and model", "type": "text", "optional": true, "ask": "Which make and model?" },
+        { "id": "registration_year", "label": "Registration year", "type": "integer", "min": 2011, "max": 2026, "ask": "Which year was it registered?" },
+        { "id": "ex_showroom", "label": "Ex-showroom price", "type": "money", "min": 40000, "max": 1500000, "ask": "Roughly what was the ex-showroom price?" },
+        { "id": "city", "label": "City of registration", "type": "select", "options_from": "cities", "ask": "Which city is it registered in?" },
+        { "id": "claim_free_years", "label": "Claim-free years", "type": "integer", "min": 0, "max": 5, "ask": "How many years in a row without a claim?" }
+      ],
+      "addons": [
+        { "id": "pa_owner", "label": "Owner-driver personal accident cover (₹15,00,000)", "default": true, "price": { "flat": 399 } },
+        { "id": "zero_dep", "label": "Zero depreciation", "price": { "idv_percent": 0.35 }, "max_age": 5 },
+        { "id": "engine_protect", "label": "Engine protection", "price": { "idv_percent": 0.10 } },
+        { "id": "rsa", "label": "24x7 roadside assistance", "price": { "flat": 99 } },
+        { "id": "consumables", "label": "Consumables cover", "price": { "idv_percent": 0.08 } }
+      ],
+      "tables": {
+        "idv_depreciation_by_age": [5, 15, 20, 30, 40, 50],
+        "od_rate_percent": {
+          "$comment": "% of IDV by engine size and zone (no age bands for two-wheelers).",
+          "upto_150": { "A": 1.708, "B": 1.676 },
+          "150_350": { "A": 1.793, "B": 1.76 },
+          "above_350": { "A": 1.879, "B": 1.844 }
+        },
+        "fuel_factor": { "petrol": 1.0, "electric": 0.9 },
+        "third_party": { "upto_150": 720, "150_350": 1380, "above_350": 2820 },
+        "third_party_electric_factor": 0.85
+      },
+      "method": [
+        "As car, with: Own damage = IDV x od_rate_percent[engine_cc][zone] / 100 x fuel_factor[fuel]; no voluntary deductible; Third-party = third_party[engine_cc] (x electric factor)."
+      ]
+    },
+    {
+      "id": "health",
+      "name": "Health insurance",
+      "plan": "Chhatri Health Plus",
+      "gst_percent": 0,
+      "gst_note": "Individual health insurance premiums are exempt from GST.",
+      "fields": [
+        { "id": "cover_type", "label": "Cover for", "type": "select", "ask": "Is this just for you, or a family floater?", "options": [
+          { "value": "individual", "label": "Just me" }, { "value": "family_floater", "label": "My family (floater)" } ] },
+        { "id": "adults", "label": "Adults", "type": "integer", "min": 1, "max": 2, "ask": "How many adults: one or two?" },
+        { "id": "children", "label": "Children", "type": "integer", "min": 0, "max": 3, "default": "0", "ask": "How many children, up to three?" },
+        { "id": "eldest_age", "label": "Age of the eldest adult", "type": "integer", "min": 18, "max": 65, "ask": "How old is the eldest adult?" },
+        { "id": "sum_insured", "label": "Sum insured", "type": "select", "ask": "How much cover: 5, 10, 15, 25 or 50 lakh?", "options": [
+          { "value": "500000", "label": "₹5,00,000" }, { "value": "1000000", "label": "₹10,00,000" }, { "value": "1500000", "label": "₹15,00,000" }, { "value": "2500000", "label": "₹25,00,000" }, { "value": "5000000", "label": "₹50,00,000" } ] },
+        { "id": "city", "label": "City", "type": "select", "options_from": "cities", "ask": "Which city do you live in?" },
+        { "id": "pre_existing", "label": "Any pre-existing illness", "type": "select", "ask": "Does anyone have a pre-existing illness, like diabetes or blood pressure?", "options": [
+          { "value": "no", "label": "No" }, { "value": "yes", "label": "Yes" } ] },
+        { "id": "voluntary_copay", "label": "Voluntary co-pay", "type": "select", "default": "0", "ask": "Would you take a voluntary co-pay to lower the premium?", "options": [
+          { "value": "0", "label": "None" }, { "value": "10", "label": "10%" }, { "value": "20", "label": "20%" } ] }
+      ],
+      "addons": [
+        { "id": "room_rent_waiver", "label": "Room rent limit waiver", "price": { "base_percent": 6 } },
+        { "id": "opd_cover", "label": "OPD cover (₹10,000 a year)", "price": { "flat": 3500 } },
+        { "id": "maternity", "label": "Maternity cover", "price": { "flat": 7800 }, "requires": "family_floater with 2 adults, eldest adult 45 or younger" },
+        { "id": "critical_illness", "label": "Critical illness (₹5,00,000 lump sum per adult)", "price": { "flat_per_adult": 2400 } }
+      ],
+      "tables": {
+        "age_bands": [[25, "18-25"], [35, "26-35"], [40, "36-40"], [45, "41-45"], [50, "46-50"], [55, "51-55"], [60, "56-60"], [65, "61-65"]],
+        "base_by_band": {
+          "$comment": "Annual base premium for one adult, by age band, for each sum insured.",
+          "500000": [5200, 6400, 7900, 9600, 12400, 15800, 20500, 26800],
+          "1000000": [7100, 8700, 10800, 13100, 16900, 21600, 28000, 36600],
+          "1500000": [8400, 10300, 12800, 15500, 20000, 25600, 33200, 43400],
+          "2500000": [10200, 12500, 15500, 18800, 24300, 31100, 40300, 52700],
+          "5000000": [13100, 16100, 19900, 24200, 31200, 40000, 51800, 67700]
+        },
+        "second_adult_factor": 0.7,
+        "child_factor": 0.25,
+        "zone_factor": { "A": 1.0, "B": 0.9 },
+        "pre_existing_loading_percent": 10,
+        "copay_discount_percent": { "0": 0, "10": 8, "20": 15 }
+      },
+      "method": [
+        "band = the first age_bands row with eldest_age <= its upper age. individual: adults must be 1 and children 0.",
+        "Base premium = base_by_band[sum_insured][band] x (1 + second_adult_factor x (adults - 1) + child_factor x children) x zone_factor[zone].",
+        "Pre-existing illness loading = Base x 10% when pre_existing = yes.",
+        "Voluntary co-pay discount = (Base + loading) x copay_discount_percent / 100 (a discount).",
+        "Add-ons: base_percent = Base x percent / 100; flat; flat_per_adult = amount x adults. maternity is unavailable unless family_floater, adults = 2 and eldest_age <= 45.",
+        "GST 0%: total = net."
+      ]
+    },
+    {
+      "id": "term",
+      "name": "Term life insurance",
+      "plan": "Chhatri Term Secure",
+      "gst_percent": 0,
+      "gst_note": "Individual life insurance premiums are exempt from GST.",
+      "fields": [
+        { "id": "age", "label": "Your age", "type": "integer", "min": 18, "max": 60, "ask": "How old are you?" },
+        { "id": "gender", "label": "Gender", "type": "select", "ask": "May I ask your gender, for the rate table?", "options": [
+          { "value": "male", "label": "Male" }, { "value": "female", "label": "Female" } ] },
+        { "id": "smoker", "label": "Tobacco use", "type": "select", "ask": "Do you smoke or use tobacco?", "options": [
+          { "value": "no", "label": "No" }, { "value": "yes", "label": "Yes" } ] },
+        { "id": "cover_amount", "label": "Life cover", "type": "select", "ask": "How much life cover: 50 lakh, 75 lakh, 1 crore, 1.5 crore or 2 crore?", "options": [
+          { "value": "5000000", "label": "₹50,00,000" }, { "value": "7500000", "label": "₹75,00,000" }, { "value": "10000000", "label": "₹1,00,00,000" }, { "value": "15000000", "label": "₹1,50,00,000" }, { "value": "20000000", "label": "₹2,00,00,000" } ] },
+        { "id": "cover_till_age", "label": "Cover till age", "type": "select", "ask": "Until what age: 60, 65, 70 or 75?", "options": [
+          { "value": "60", "label": "60" }, { "value": "65", "label": "65" }, { "value": "70", "label": "70" }, { "value": "75", "label": "75" } ] }
+      ],
+      "addons": [
+        { "id": "accidental_death", "label": "Accidental death benefit (₹25,00,000 extra)", "price": { "flat": 1500 } },
+        { "id": "critical_illness_rider", "label": "Critical illness rider (₹10,00,000)", "price": { "flat_by_age": [[39, 2800], [49, 5900], [60, 11500]] } },
+        { "id": "waiver_of_premium", "label": "Waiver of premium on disability", "price": { "base_percent": 3 } }
+      ],
+      "tables": {
+        "rate_per_thousand": {
+          "$comment": "Annual premium per ₹1,000 of cover for a male non-smoker, by age band upper bound.",
+          "bands": [[25, 0.55], [30, 0.62], [35, 0.78], [40, 1.02], [45, 1.45], [50, 2.15], [55, 3.3], [60, 4.9]]
+        },
+        "smoker_factor": 1.6,
+        "female_factor": 0.85,
+        "term_factor": { "60": 0.92, "65": 1.0, "70": 1.1, "75": 1.22 },
+        "high_cover_discount_percent": [[15000000, 7], [10000000, 5], [0, 0]],
+        "min_term_years": 10
+      },
+      "method": [
+        "cover_till_age - age must be at least 10, or the quote is refused.",
+        "Base premium = cover_amount / 1000 x rate (first band with age <= upper) x (smoker_factor if smoker) x (female_factor if female) x term_factor[cover_till_age].",
+        "High-cover discount = Base x the first high_cover_discount_percent row with cover_amount >= its threshold (a discount).",
+        "Riders: flat; flat_by_age = the first row with age <= its upper age; base_percent = Base x percent / 100.",
+        "GST 0%: total = net. The premium is annual."
+      ]
+    },
+    {
+      "id": "home",
+      "name": "Home insurance",
+      "plan": "Chhatri Ghar Suraksha",
+      "gst_percent": 18,
+      "fields": [
+        { "id": "ownership", "label": "You are the", "type": "select", "ask": "Do you own the home or rent it?", "options": [
+          { "value": "owner", "label": "Owner" }, { "value": "tenant", "label": "Tenant" } ] },
+        { "id": "property_type", "label": "Property type", "type": "select", "ask": "Is it an apartment or an independent house?", "options": [
+          { "value": "apartment", "label": "Apartment" }, { "value": "independent_house", "label": "Independent house" } ] },
+        { "id": "building_value", "label": "Rebuilding cost of the structure", "type": "money", "min": 0, "max": 50000000, "ask": "What would it cost to rebuild the structure? Tenants can say zero." },
+        { "id": "contents_value", "label": "Value of household contents", "type": "money", "min": 0, "max": 5000000, "ask": "Roughly what are your household contents worth?" },
+        { "id": "building_age", "label": "Age of the building (years)", "type": "integer", "min": 0, "max": 60, "ask": "How old is the building?" },
+        { "id": "city", "label": "City", "type": "select", "options_from": "cities", "ask": "Which city is the home in?" },
+        { "id": "security_system", "label": "Security system or guarded society", "type": "select", "default": "no", "ask": "Does it have a security system or a guarded gate?", "options": [
+          { "value": "no", "label": "No" }, { "value": "yes", "label": "Yes" } ] }
+      ],
+      "addons": [
+        { "id": "earthquake", "label": "Earthquake cover for the structure", "price": { "per_thousand_of": "building_value", "rate": 0.1 } },
+        { "id": "valuables", "label": "Jewellery and valuables (up to ₹2,00,000)", "price": { "flat": 1600 } },
+        { "id": "electronics", "label": "Portable electronics (up to ₹1,50,000)", "price": { "flat": 1250 } },
+        { "id": "rent_loss", "label": "Loss of rent (owners)", "price": { "flat": 600 }, "requires": "owner" },
+        { "id": "public_liability", "label": "Public liability (₹10,00,000)", "price": { "flat": 450 } }
+      ],
+      "tables": {
+        "building_rate_per_thousand": { "apartment": 0.25, "independent_house": 0.32 },
+        "old_building_years": 25,
+        "old_building_loading_percent": 10,
+        "contents_rate_per_thousand": 0.8,
+        "zone_factor": { "A": 1.05, "B": 1.0 },
+        "security_discount_percent": 5
+      },
+      "method": [
+        "Building premium = building_value / 1000 x building_rate_per_thousand[property_type] x (1.10 if building_age > 25) x zone_factor[zone]. A tenant's building_value must be 0.",
+        "Contents premium = contents_value / 1000 x 0.8 x zone_factor[zone].",
+        "Security discount = (Building + Contents) x 5% when security_system = yes (a discount).",
+        "Add-ons: per_thousand_of = field / 1000 x rate (earthquake needs building_value > 0); flat. rent_loss is unavailable to a tenant.",
+        "Net = sum of the rounded lines. GST = net x 18%. Total = net + GST."
+      ]
+    },
+    {
+      "id": "travel",
+      "name": "Travel insurance",
+      "plan": "Chhatri Travel",
+      "gst_percent": 18,
+      "fields": [
+        { "id": "region", "label": "Destination", "type": "select", "ask": "Where are you travelling: Asia, the Schengen countries, the USA or Canada, or worldwide?", "options": [
+          { "value": "asia", "label": "Asia (excluding Japan)" }, { "value": "schengen", "label": "Schengen Europe" }, { "value": "usa_canada", "label": "USA and Canada" }, { "value": "worldwide", "label": "Worldwide" } ] },
+        { "id": "trip_days", "label": "Trip length (days)", "type": "integer", "min": 1, "max": 90, "ask": "How many days is the trip?" },
+        { "id": "travellers", "label": "Travellers", "type": "integer", "min": 1, "max": 6, "ask": "How many people are travelling?" },
+        { "id": "eldest_age", "label": "Age of the eldest traveller", "type": "integer", "min": 0, "max": 80, "ask": "How old is the eldest traveller?" },
+        { "id": "plan", "label": "Plan", "type": "select", "default": "essential", "ask": "Essential, with US$50,000 medical cover, or Plus, with US$1,00,000?", "options": [
+          { "value": "essential", "label": "Essential (medical US$50,000)" }, { "value": "plus", "label": "Plus (medical US$1,00,000)" } ] }
+      ],
+      "addons": [
+        { "id": "trip_cancellation", "label": "Trip cancellation", "price": { "flat_per_traveller": 350 } },
+        { "id": "baggage_plus", "label": "Baggage plus", "price": { "flat_per_traveller": 150 } },
+        { "id": "adventure_sports", "label": "Adventure sports", "price": { "base_percent": 20 } }
+      ],
+      "tables": {
+        "per_day_per_traveller": {
+          "asia": { "essential": 38, "plus": 55 },
+          "schengen": { "essential": 70, "plus": 95 },
+          "usa_canada": { "essential": 120, "plus": 165 },
+          "worldwide": { "essential": 135, "plus": 185 }
+        },
+        "age_loading": [[40, 1.0], [60, 1.35], [70, 1.9], [80, 2.6]],
+        "min_per_traveller": 450,
+        "group_size": 3,
+        "group_discount_percent": 10
+      },
+      "method": [
+        "Base = max(per_day_per_traveller[region][plan] x trip_days, min_per_traveller) x travellers x age loading (first row with eldest_age <= its upper age).",
+        "Group discount = Base x 10% when travellers >= 3 (a discount).",
+        "Add-ons: flat_per_traveller = amount x travellers; base_percent = Base x percent / 100.",
+        "Net = sum of the rounded lines. GST = net x 18%. Total = net + GST."
+      ]
+    }
+  ]
+}

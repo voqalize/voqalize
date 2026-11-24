@@ -1,0 +1,671 @@
+{
+  "id": "home-2026",
+  "product": "home",
+  "title": "Home Insurance Policy (Building and Contents)",
+  "plan": "Chhatri Ghar Suraksha",
+  "policy_number": "CHI/HM/26/0015309",
+  "status": "active",
+  "start": "2026-01-15",
+  "end": "2027-01-14",
+  "premium_paid": 4908,
+  "summary": "Cover for your flat B-602, Sahyadri Heights, Baner (building ₹65,00,000, contents ₹8,00,000), with earthquake and portable electronics add-ons.",
+  "insured": [
+    {
+      "id": "rohan",
+      "name": "Rohan Kulkarni",
+      "role": "Policyholder and owner"
+    }
+  ],
+  "schedule": [
+    {
+      "label": "Policy number",
+      "value": "CHI/HM/26/0015309"
+    },
+    {
+      "label": "Period of insurance",
+      "value": "15 Jan 2026 to 14 Jan 2027 (both days inclusive)"
+    },
+    {
+      "label": "Address of the insured property",
+      "value": "B-602, Sahyadri Heights, Baner, Pune 411045"
+    },
+    {
+      "label": "Property type",
+      "value": "Apartment (owner-occupied), built 2017"
+    },
+    {
+      "label": "Building sum insured (rebuilding cost)",
+      "value": "₹65,00,000"
+    },
+    {
+      "label": "Contents sum insured",
+      "value": "₹8,00,000"
+    },
+    {
+      "label": "Earthquake cover",
+      "value": "Included"
+    },
+    {
+      "label": "Portable electronics",
+      "value": "Included, up to ₹1,50,000"
+    },
+    {
+      "label": "Jewellery and valuables",
+      "value": "Not included"
+    },
+    {
+      "label": "Deductible",
+      "value": "₹5,000 per claim"
+    },
+    {
+      "label": "Security",
+      "value": "Guarded society (5% discount applied)"
+    },
+    {
+      "label": "Premium paid (incl. 18% GST)",
+      "value": "₹4,908"
+    }
+  ],
+  "addons": [
+    {
+      "id": "earthquake",
+      "label": "Earthquake cover for the structure",
+      "included": true
+    },
+    {
+      "id": "electronics",
+      "label": "Portable electronics (up to ₹1,50,000)",
+      "included": true
+    },
+    {
+      "id": "valuables",
+      "label": "Jewellery and valuables (up to ₹2,00,000)",
+      "included": false
+    },
+    {
+      "id": "rent_loss",
+      "label": "Loss of rent (owners)",
+      "included": false
+    },
+    {
+      "id": "public_liability",
+      "label": "Public liability (₹10,00,000)",
+      "included": false
+    }
+  ],
+  "sections": [
+    {
+      "id": "s1",
+      "number": "1",
+      "title": "Schedule notes and definitions",
+      "clauses": [
+        {
+          "id": "1.1",
+          "title": "Property insured",
+          "kind": "info",
+          "text": "This policy covers the building of the flat at B-602, Sahyadri Heights, Baner, Pune 411045, including its fixtures and fittings and the insured's proportionate share of common areas, for a sum insured of ₹65,00,000, and the household contents kept in the flat, such as furniture, appliances, clothing and kitchen items, for a sum insured of ₹8,00,000.",
+          "plain": "Your flat's structure is covered for ₹65,00,000 and the things inside for ₹8,00,000.",
+          "tags": [
+            "home",
+            "flat",
+            "ghar",
+            "building",
+            "contents",
+            "furniture",
+            "appliances",
+            "sum insured",
+            "Sahyadri Heights",
+            "what is covered"
+          ]
+        },
+        {
+          "id": "1.2",
+          "title": "Basis of settlement",
+          "kind": "info",
+          "text": "Loss of or damage to the building will be settled on the cost of repairing or rebuilding it to a condition substantially the same as, but not better than, when new. Loss of or damage to contents will be settled on the cost of repair, or of replacement by an item of the same kind and capacity, less an allowance for wear and tear for items more than five years old.",
+          "plain": "We pay to repair or rebuild the flat, and to repair or replace your things, with a cut for wear on items over five years old.",
+          "tags": [
+            "settlement",
+            "rebuilding cost",
+            "replacement",
+            "repair",
+            "wear and tear",
+            "old items",
+            "how much paid",
+            "basis"
+          ]
+        },
+        {
+          "id": "1.3",
+          "title": "Period of insurance",
+          "kind": "info",
+          "text": "This policy is in force from 15 January 2026 to 14 January 2027, both days inclusive.",
+          "plain": "You are covered from 15 January 2026 to 14 January 2027.",
+          "tags": [
+            "policy period",
+            "validity",
+            "expiry",
+            "renewal",
+            "dates",
+            "kab tak",
+            "start date",
+            "end date"
+          ]
+        },
+        {
+          "id": "1.4",
+          "title": "Occupancy",
+          "kind": "condition",
+          "text": "The insured property is declared as a self-occupied residential flat. Cover applies only while it is used as a private dwelling. Any change in occupancy, such as letting it out or using it for business, must be notified to the Company in writing.",
+          "plain": "The cover assumes you live in the flat; tell us if you rent it out or use it for business.",
+          "tags": [
+            "occupancy",
+            "self occupied",
+            "rent out",
+            "tenant",
+            "business use",
+            "change",
+            "kiraye pe dena",
+            "residential"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "s2",
+      "number": "2",
+      "title": "What is covered",
+      "clauses": [
+        {
+          "id": "2.1",
+          "title": "Fire",
+          "kind": "covered",
+          "text": "The Company will indemnify the insured against loss of or damage to the building and contents caused by fire, including fire caused by an electrical short circuit, and by explosion or implosion of domestic appliances such as gas cylinders. Damage caused by water or chemicals used to put out the fire is also covered.",
+          "plain": "Damage from fire, including a short circuit or a cylinder blast, is covered.",
+          "tags": [
+            "fire",
+            "aag",
+            "short circuit",
+            "gas cylinder",
+            "explosion",
+            "burnt",
+            "smoke",
+            "kitchen fire",
+            "fire brigade"
+          ]
+        },
+        {
+          "id": "2.2",
+          "title": "Lightning",
+          "kind": "covered",
+          "text": "The Company will indemnify the insured against loss of or damage to the building and contents caused by lightning, including damage to wiring and appliances caused by a power surge resulting directly from a lightning strike.",
+          "plain": "Damage from lightning, including appliances fried by a lightning surge, is covered.",
+          "tags": [
+            "lightning",
+            "bijli",
+            "power surge",
+            "thunderstorm",
+            "appliance damage",
+            "TV burnt",
+            "wiring",
+            "voltage"
+          ]
+        },
+        {
+          "id": "2.3",
+          "title": "Storm, cyclone and flood",
+          "kind": "covered",
+          "text": "The Company will indemnify the insured against loss of or damage to the building and contents caused by storm, cyclone, typhoon, tempest, hurricane, tornado, flood or inundation, including water entering the flat through a window or door broken by the storm.",
+          "plain": "Damage from storms, cyclones or flooding is covered.",
+          "tags": [
+            "storm",
+            "flood",
+            "baarish",
+            "rain",
+            "cyclone",
+            "toofan",
+            "inundation",
+            "water entered",
+            "monsoon",
+            "broken window"
+          ]
+        },
+        {
+          "id": "2.4",
+          "title": "Bursting of water tanks and pipes",
+          "kind": "covered",
+          "text": "The Company will indemnify the insured against loss of or damage to the building and contents caused by bursting or overflowing of water tanks, apparatus or pipes, including damage to the flat caused by water from a neighbouring flat. The cost of repairing the burst tank or pipe itself is not covered.",
+          "plain": "Water damage from a burst pipe or overflowing tank, even from the flat above, is covered.",
+          "tags": [
+            "pipe burst",
+            "water tank",
+            "overflow",
+            "leak",
+            "paani",
+            "upstairs flat",
+            "water damage",
+            "ceiling",
+            "plumbing"
+          ]
+        },
+        {
+          "id": "2.5",
+          "title": "Burglary and housebreaking",
+          "kind": "covered",
+          "text": "The Company will indemnify the insured against loss of or damage to contents caused by burglary or housebreaking, and against damage to the building caused in the course of such an act, provided there is visible evidence of forcible and violent entry into or exit from the flat. The police must be informed within 24 hours as set out in Clause 7.1.",
+          "plain": "Theft after someone breaks into your flat is covered; there must be signs of forced entry.",
+          "tags": [
+            "burglary",
+            "chori",
+            "theft",
+            "break in",
+            "forced entry",
+            "lock broken",
+            "housebreaking",
+            "door broken",
+            "robbery"
+          ]
+        },
+        {
+          "id": "2.6",
+          "title": "Riot, strike, malicious damage and impact",
+          "kind": "covered",
+          "text": "The Company will indemnify the insured against loss of or damage to the building and contents caused by riot, strike, malicious damage or terrorism, and by impact from any vehicle, falling trees or aircraft.",
+          "plain": "Damage from riots, vandalism, or a vehicle or tree crashing into the building is covered.",
+          "tags": [
+            "riot",
+            "strike",
+            "vandalism",
+            "malicious damage",
+            "terrorism",
+            "tree fell",
+            "vehicle impact",
+            "danga"
+          ]
+        },
+        {
+          "id": "2.7",
+          "title": "Landslide and subsidence",
+          "kind": "covered",
+          "text": "The Company will indemnify the insured against loss of or damage to the building caused by landslide, rockslide or subsidence of the land on which the building stands. Damage from settlement of new structures, normal shrinkage or faulty construction is not covered.",
+          "plain": "Damage from a landslide or the ground sinking is covered, but not cracks from poor construction.",
+          "tags": [
+            "landslide",
+            "subsidence",
+            "ground sinking",
+            "cracks",
+            "foundation",
+            "rockslide",
+            "zameen dhasna",
+            "structure"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "s3",
+      "number": "3",
+      "title": "Add-on covers",
+      "clauses": [
+        {
+          "id": "3.1",
+          "title": "Earthquake",
+          "kind": "covered",
+          "text": "In consideration of the additional premium paid, the Company will indemnify the insured against loss of or damage to the building and contents caused by earthquake, volcanic eruption or other convulsions of nature, including resulting fire and shock.",
+          "plain": "Earthquake damage to your flat and belongings is covered.",
+          "tags": [
+            "earthquake",
+            "bhookamp",
+            "tremor",
+            "quake",
+            "cracks",
+            "shock",
+            "natural calamity",
+            "add-on"
+          ]
+        },
+        {
+          "id": "3.2",
+          "title": "Portable electronics",
+          "kind": "covered",
+          "text": "In consideration of the additional premium paid, the Company will indemnify the insured against accidental loss of or damage to portable electronic equipment, such as laptops, mobile phones, tablets and cameras, anywhere in India, up to ₹1,50,000 in total during the policy period. Items must be less than five years old and supported by a purchase invoice. Mechanical or electrical breakdown, and loss of items left unattended in a public place, are not covered.",
+          "plain": "If your laptop or phone is accidentally damaged or lost anywhere in India, it is covered up to ₹1,50,000.",
+          "tags": [
+            "laptop",
+            "mobile phone",
+            "phone broken",
+            "tablet",
+            "camera",
+            "accidental damage",
+            "dropped phone",
+            "electronics",
+            "screen cracked"
+          ]
+        },
+        {
+          "id": "3.3",
+          "title": "Jewellery and valuables: not opted",
+          "kind": "excluded",
+          "text": "The jewellery and valuables add-on has not been opted under this policy. Jewellery, gold, silver, precious stones, watches, works of art and collections are not covered against any peril, whether kept in the flat or elsewhere.",
+          "plain": "Jewellery and gold are not covered, because the valuables add-on was not taken.",
+          "tags": [
+            "jewellery",
+            "gold",
+            "sona",
+            "silver",
+            "watches",
+            "valuables",
+            "precious stones",
+            "gehne",
+            "not covered"
+          ]
+        },
+        {
+          "id": "3.4",
+          "title": "Loss of rent: not opted",
+          "kind": "excluded",
+          "text": "The loss of rent add-on has not been opted under this policy. Rent lost, or the cost of alternative accommodation, while the flat is being repaired after insured damage is not covered.",
+          "plain": "Rent you lose or pay elsewhere while the flat is repaired is not covered.",
+          "tags": [
+            "loss of rent",
+            "alternative accommodation",
+            "hotel stay",
+            "rent",
+            "temporary stay",
+            "kiraya",
+            "repairs",
+            "not covered"
+          ]
+        },
+        {
+          "id": "3.5",
+          "title": "Public liability: not opted",
+          "kind": "excluded",
+          "text": "The public liability add-on has not been opted under this policy. Legal liability for injury to other people or damage to their property arising from the flat, such as water leaking into the flat below, is not covered.",
+          "plain": "If damage from your flat harms a neighbour or their property, your liability is not covered.",
+          "tags": [
+            "public liability",
+            "neighbour",
+            "third party",
+            "leak downstairs",
+            "injury to visitor",
+            "liability",
+            "padosi",
+            "not covered"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "s4",
+      "number": "4",
+      "title": "Deductible and limits",
+      "clauses": [
+        {
+          "id": "4.1",
+          "title": "Deductible",
+          "kind": "deductible",
+          "text": "Each and every claim under this policy is subject to a deductible of ₹5,000, which is borne by the insured.",
+          "plain": "You pay the first ₹5,000 of every claim.",
+          "tags": [
+            "deductible",
+            "excess",
+            "5000",
+            "own pocket",
+            "apni jeb se",
+            "claim deduction",
+            "what do I pay",
+            "per claim"
+          ]
+        },
+        {
+          "id": "4.2",
+          "title": "Under-insurance",
+          "kind": "limit",
+          "text": "If at the time of loss the sum insured for the building or for the contents is less than the cost of rebuilding the building or replacing the contents, the Company will pay only that proportion of the loss which the sum insured bears to that cost. This condition does not apply where the shortfall is 15% or less.",
+          "plain": "If your cover is too low for the real value, claims are reduced in the same proportion.",
+          "tags": [
+            "under insurance",
+            "average clause",
+            "sum insured too low",
+            "proportion",
+            "valuation",
+            "kam bima",
+            "reduced claim",
+            "revalue"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "s5",
+      "number": "5",
+      "title": "Exclusions",
+      "clauses": [
+        {
+          "id": "5.1",
+          "title": "Theft without forced entry",
+          "kind": "excluded",
+          "text": "The Company shall not be liable for theft of contents unless it involves forcible and violent entry into or exit from the flat. Theft by a member of the household or by domestic staff, loss found only at stock-taking, and items that are simply missing are not covered.",
+          "plain": "If things go missing with no sign of a break-in, including theft by household staff, it is not covered.",
+          "tags": [
+            "theft",
+            "chori",
+            "no forced entry",
+            "maid",
+            "domestic help",
+            "missing items",
+            "kaamwali",
+            "door unlocked",
+            "not covered"
+          ]
+        },
+        {
+          "id": "5.2",
+          "title": "Wear and tear and gradual deterioration",
+          "kind": "excluded",
+          "text": "The Company shall not be liable for wear and tear, gradual deterioration, rust, damp, seepage or leakage occurring over time, rot, insects, termites or vermin, or for routine maintenance.",
+          "plain": "Normal wear, slow leaks, damp and termites are not covered.",
+          "tags": [
+            "wear and tear",
+            "seepage",
+            "damp",
+            "termite",
+            "deemak",
+            "leakage",
+            "seelan",
+            "maintenance",
+            "not covered"
+          ]
+        },
+        {
+          "id": "5.3",
+          "title": "Electrical and mechanical breakdown",
+          "kind": "excluded",
+          "text": "The Company shall not be liable for mechanical or electrical breakdown or derangement of appliances and electronic equipment, including portable electronics, unless the breakdown results from an insured peril such as fire or lightning. Accidental external damage to portable electronics is covered under Clause 3.2.",
+          "plain": "An appliance or laptop that simply stops working is not covered; accidental damage to portable electronics is.",
+          "tags": [
+            "breakdown",
+            "appliance failure",
+            "fridge stopped",
+            "AC not working",
+            "electrical fault",
+            "laptop not working",
+            "kharab",
+            "not covered"
+          ]
+        },
+        {
+          "id": "5.4",
+          "title": "Cash, documents and certain property",
+          "kind": "excluded",
+          "text": "The Company shall not be liable for loss of cash, currency notes, bullion, cheques, securities, documents, title deeds, or for loss of data or software, or for vehicles and their accessories.",
+          "plain": "Cash, documents, data and vehicles are not covered under this policy.",
+          "tags": [
+            "cash",
+            "money",
+            "documents",
+            "data",
+            "software",
+            "vehicle",
+            "paise",
+            "deeds",
+            "not covered"
+          ]
+        },
+        {
+          "id": "5.5",
+          "title": "Deliberate and construction-related loss",
+          "kind": "excluded",
+          "text": "The Company shall not be liable for loss caused intentionally by the insured, or for damage resulting from faulty design, workmanship or materials, or from structural alterations, renovation or repair work.",
+          "plain": "Damage you cause on purpose, or from poor construction or renovation work, is not covered.",
+          "tags": [
+            "deliberate",
+            "intentional",
+            "faulty construction",
+            "renovation",
+            "workmanship",
+            "alteration",
+            "repair work",
+            "not covered"
+          ]
+        },
+        {
+          "id": "5.6",
+          "title": "War and nuclear risks",
+          "kind": "excluded",
+          "text": "The Company shall not be liable for loss directly or indirectly caused by war, invasion, hostilities, civil war, rebellion, or nuclear weapons material, ionising radiation or radioactive contamination.",
+          "plain": "Loss caused by war or nuclear events is not covered.",
+          "tags": [
+            "war",
+            "nuclear",
+            "radiation",
+            "invasion",
+            "civil war",
+            "yuddh",
+            "military",
+            "not covered"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "s6",
+      "number": "6",
+      "title": "General conditions",
+      "clauses": [
+        {
+          "id": "6.1",
+          "title": "Unoccupied property",
+          "kind": "condition",
+          "text": "If the flat is left unoccupied for more than 60 consecutive days, cover for burglary, malicious damage and bursting of water tanks and pipes is suspended for the period beyond 60 days, unless the insured has informed the Company in advance and the Company has agreed in writing to continue the cover.",
+          "plain": "If the flat is empty for more than 60 days in a row, burglary and pipe-burst cover stops unless you tell us first.",
+          "tags": [
+            "unoccupied",
+            "vacant",
+            "locked flat",
+            "60 days",
+            "long trip",
+            "away from home",
+            "khaali ghar",
+            "travel",
+            "empty house"
+          ]
+        },
+        {
+          "id": "6.2",
+          "title": "Reasonable care",
+          "kind": "condition",
+          "text": "The insured shall take all reasonable precautions to protect the property, keep it in good repair, lock doors and windows when the flat is unattended, and comply with fire safety rules applicable to the building.",
+          "plain": "Look after the flat and lock up when you go out.",
+          "tags": [
+            "reasonable care",
+            "lock",
+            "maintenance",
+            "precaution",
+            "safety",
+            "negligence",
+            "doors",
+            "windows"
+          ]
+        },
+        {
+          "id": "6.3",
+          "title": "Alterations and change in risk",
+          "kind": "condition",
+          "text": "The insured shall inform the Company in writing of any material change in the risk, including structural alterations, a change in the use of the flat, or the storage of hazardous goods. Cover for the changed risk will apply only once the Company has accepted it.",
+          "plain": "Tell us before major renovations or any change in how the flat is used.",
+          "tags": [
+            "renovation",
+            "alteration",
+            "change in risk",
+            "interior work",
+            "hazardous goods",
+            "inform",
+            "remodelling",
+            "notice"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "s7",
+      "number": "7",
+      "title": "Claims",
+      "clauses": [
+        {
+          "id": "7.1",
+          "title": "Claim intimation",
+          "kind": "condition",
+          "text": "The insured shall notify the Company within 7 days of any loss or damage, through the claims helpline or the website. In the case of burglary, housebreaking, riot or malicious damage, the police must be informed within 24 hours and a copy of the FIR provided. The insured shall take all practicable steps to reduce further loss.",
+          "plain": "Tell us within 7 days; for a burglary, also tell the police within 24 hours.",
+          "tags": [
+            "claim intimation",
+            "7 days",
+            "FIR",
+            "police",
+            "24 hours",
+            "how to claim",
+            "report loss",
+            "claim kaise kare"
+          ]
+        },
+        {
+          "id": "7.2",
+          "title": "Documents and survey",
+          "kind": "condition",
+          "text": "A claim must be supported by the claim form, photographs of the damage, purchase invoices or other proof of ownership and value of contents, repair estimates, the FIR where applicable, and a fire brigade report for a fire claim. The Company may appoint a surveyor, and the insured shall not dispose of damaged items until the surveyor has inspected them.",
+          "plain": "Keep photos, bills and estimates, and do not throw away damaged items until our surveyor sees them.",
+          "tags": [
+            "documents",
+            "photos",
+            "invoices",
+            "surveyor",
+            "estimate",
+            "FIR",
+            "fire brigade report",
+            "proof",
+            "bills"
+          ]
+        },
+        {
+          "id": "7.3",
+          "title": "Settlement",
+          "kind": "info",
+          "text": "The Company will settle the claim within 30 days of receiving the surveyor's final report, by payment to the insured's bank account on file or, at its option, by repair or replacement. Where the flat is mortgaged, payment for the building will be made with the consent of the lender named in the Schedule, if any.",
+          "plain": "We settle within 30 days of the surveyor's final report.",
+          "tags": [
+            "settlement",
+            "30 days",
+            "payment",
+            "bank transfer",
+            "home loan",
+            "lender",
+            "claim status",
+            "kab milega"
+          ]
+        }
+      ]
+    }
+  ]
+}

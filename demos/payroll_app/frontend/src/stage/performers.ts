@@ -33,18 +33,28 @@ async function open(to: string, sel: string, c: MoveContext, what: string): Prom
   const here = currentPath();
   const samePath = pathOnly() === p;
   const sameQuery = !q || here.includes(`?${q}`) || here.includes(`&${q}`);
-  if (!samePath || !sameQuery) go(to);
+  if (!samePath || !sameQuery) {
+    go(to);
+    // The screen in front matches `sel` too: wait for the new one to draw, or
+    // the ring lands on the old, detached element (X1 audit: the heading).
+    await waitFor(() => pathOnly() === p, WAIT_MS);
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+  }
   const el = await waitFor(() => $<HTMLElement>(sel), WAIT_MS);
   return el ?? c.refuse("page", `${what} did not come up`);
 }
 
 const heading = () => $("[data-stage-heading]");
 async function ringHeading(c: MoveContext) {
-  const h = await waitFor(() => heading(), WAIT_MS);
-  if (h && visible(h)) {
+  // A screen can draw its heading again as it settles (X1 audit: a ring on
+  // the replaced, detached heading showed nothing): take the one on screen.
+  let h = await waitFor(() => heading(), WAIT_MS);
+  for (let i = 0; h && i < 3; i++) {
     await c.scrollTo(h);
-    await c.ring(h, h.textContent ?? undefined);
+    if (h.isConnected) break;
+    h = heading();
   }
+  if (h?.isConnected && visible(h)) await c.ring(h, h.textContent ?? undefined);
 }
 
 /** Show the target's whole group (inner scroll areas too, see `view.ts`), then ring it. */
