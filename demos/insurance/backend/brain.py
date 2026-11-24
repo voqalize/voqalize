@@ -13,8 +13,12 @@ at the start, then every Stage ``hello`` as they move):
   says what they say and :meth:`mark_clause` opens the document and marks the
   clause with a verdict.
 - **Claim** (``/claim``): the long claim form, filled from what the customer
-  says (:meth:`fill_claim`), asking only for what is still missing, up to the
-  review step. The customer submits.
+  says (:meth:`fill_claim`) the moment they say it. She leads it one question
+  at a time and never asks for what she has; every claim tool returns the next
+  question, and a turn whose model said nothing after it ends on that question
+  in the brain's own words (``owe``, I1). Amounts are read by :mod:`.amounts`
+  and said back in words. Then the uploads, then the review; the customer
+  submits.
 
 Every change to the screen is a Stage move (``frontend/src/stage/scene.json``),
 sent with ``stage.send``; the page reports its state back as Stage events.
@@ -27,9 +31,11 @@ on the English recognizer switches it too — both speech legs at once, always.
 
 from __future__ import annotations
 
+import contextlib
 import re
 from collections.abc import AsyncGenerator
-from dataclasses import replace
+from contextvars import ContextVar
+from dataclasses import dataclass, replace
 from datetime import datetime, timedelta, timezone
 from typing import Any, Literal
 
@@ -43,6 +49,9 @@ from voqalize.sdk import (
     RTVIMessage,
     Session,
     Speech,
+    SpeechChunk,
+    SpeechEnd,
+    SpeechStart,
     UserIdle,
     UserMessage,
 )
@@ -51,8 +60,9 @@ from voqalize.sdk.stage import Mirror, Stage
 from voqalize.sdk.stage.wire import StageEvent, StageHello, StageProgress, StageResult
 from voqalize.sdk.wire import Config, IdleConfig, RedialConfig
 
+from . import amounts, persona, quotes, rating
+from . import claim_lines as cline
 from . import claims as cl
-from . import persona, quotes, rating
 from .policies import clause_text, search
 from .prompt import system_instruction
 from .rejoin import Rejoin
@@ -89,7 +99,7 @@ JOBS: dict[str, str] = {
     "home": "HOME: find out whether they want a quote, an answer about their cover, or to make a claim, and take them there with go_to.",
     "quote": "QUOTE: build their quote from what they say with update_quote.",
     "policies": "POLICIES: answer 'am I covered if…' with search_policy, then say it plainly and mark_clause.",
-    "claim": "CLAIM: fill the claim form from what they say with start_claim and fill_claim; ask only for what is missing.",
+    "claim": "CLAIM: lead the claim one question at a time: fill each answer with fill_claim the moment it is given, confirm it in a few words, and ask the next question the tool gives you.",
 }
 
 # Hindi grammar words, as either recognizer writes them: two in one turn is Hindi.
@@ -221,6 +231,10 @@ class OpenPolicy(BaseModel):
 class StartClaim(BaseModel):
     claim_type: Literal["motor", "health"]
     policy_id: str | None = Field(default=None, description="The policy to claim on, once known.")
+    answers: list[Answer] = Field(
+        default_factory=list,
+        description="Every claim answer the customer already gave (as for fill_claim), filled at once.",
+    )
 
 
 class ClaimAnswers(BaseModel):
@@ -239,6 +253,67 @@ class GoTo(BaseModel):
 
 class LanguageRequest(BaseModel):
     language: str = Field(description="A language code: " + ", ".join(persona.LANGUAGES) + ".")
+
+
+# ─── Never a fill and then silence ────────────────────────────────────────────
+
+
+@dataclass
+class _Owed:
+    """One turn's record: how many units of the model's speech went out, and the
+    written line a tool's result owes if nothing is said after the tool ran."""
+
+    starts: int = 0
+    line: str | None = None
+    at: int = 0
+
+
+async def _counted(
+    turn: AsyncGenerator[Speech, None], record: _Owed
+) -> AsyncGenerator[Speech, None]:
+    """The model's turn, each unit of its speech counted."""
+    try:
+        async for s in turn:
+            if isinstance(s, SpeechStart):
+                record.starts += 1
+            yield s
+    finally:
+        await turn.aclose()
+
+
+#: Per turn, like ``landed``'s record: each turn runs in its own task.
+_OWED: ContextVar[_Owed | None] = ContextVar("insurance_owed", default=None)
+
+
+def owe(line: str) -> None:
+    """Beside a tool whose result must be answered aloud (a claim fill, a page
+    opened): the line the brain says itself if the model's turn says nothing
+    after the tool ran. The claim calls showed the gap (I1): a fill or a ringed
+    section, then "It's this section here." or nothing at all, and no next
+    question. The last call in a turn sets it."""
+    if (record := _OWED.get()) is not None:
+        record.line = line
+        record.at = record.starts
+
+
+async def _amounts_spoken(
+    turn: AsyncGenerator[Speech, None], lang: str
+) -> AsyncGenerator[Speech, None]:
+    """Every written amount in the turn's speech said in words, for the voice
+    (amounts.py, B6/X8: "₹1.25 Cr" was read "1 rupee 25 crore"). Pieces pass
+    straight through but for a figure that may still be arriving."""
+    stream = amounts.SpokenAmounts(lang)
+    try:
+        async for s in turn:
+            if isinstance(s, SpeechChunk):
+                if text := stream.feed(s.text):
+                    yield SpeechChunk(text)
+                continue
+            if isinstance(s, SpeechEnd) and (rest := stream.flush()):
+                yield SpeechChunk(rest)
+            yield s
+    finally:
+        await turn.aclose()
 
 
 # ─── The brain ────────────────────────────────────────────────────────────────
@@ -364,10 +439,28 @@ class InsuranceBrain(OpenAIBrain):
             yield event
 
     async def respond(self, session: Session) -> AsyncGenerator[Speech, None]:
-        """The model's turn; a written line if it acted and said nothing."""
-        turn = self.stage.cued(super().respond(session))
-        async for event in self._fallback.speak_if_silent(self, turn):
+        """The model's turn, its amounts said in words; a written line if it acted
+        and said nothing, and the line a tool owes (``owe``) if nothing was said
+        after it ran: a claim turn always ends on the next question (I1)."""
+        async for event in _amounts_spoken(self._turn(session), self.lang):
             yield event
+
+    async def _turn(self, session: Session) -> AsyncGenerator[Speech, None]:
+        record = _Owed()
+        token = _OWED.set(record)
+        try:
+            turn = _counted(self.stage.cued(super().respond(session)), record)
+            async for event in self._fallback.speak_if_silent(self, turn):
+                yield event
+            if record.line is not None and record.starts == record.at:
+                logger.warning(
+                    "insurance: nothing said after the tool; the brain says {!r}", record.line
+                )
+                async for event in self.say_line(record.line, remember=True):
+                    yield event
+        finally:
+            with contextlib.suppress(ValueError):
+                _OWED.reset(token)
         for unkept in self.stage.end_turn():
             self.append_note(
                 f"[You said {unkept.sentence!r} but made no matching tool call. Make the call now if it is still wanted.]"
@@ -383,7 +476,7 @@ class InsuranceBrain(OpenAIBrain):
         configure_soon(session, Config(idle=IdleConfig(timeout_ms=_IDLE_MS)))
         say, self._say = self._say, None
         if say is not None:
-            async for event in self.say_line(say, remember=True):
+            async for event in _amounts_spoken(self.say_line(say, remember=True), self.lang):
                 yield event
             return
         ask, self._talk = self._talk, None
@@ -491,7 +584,20 @@ class InsuranceBrain(OpenAIBrain):
             case "claim.document_uploaded":
                 if isinstance(docs := d.get("documents"), list):
                     self.claim.documents = {str(x) for x in docs}  # pyright: ignore[reportUnknownVariableType]
-                left = ", ".join(x["label"] for x in self.claim.documents_needed()) or "none"
+                needed = self.claim.documents_needed()
+                left = ", ".join(x["label"] for x in needed) or "none"
+                if not self.claim.missing():
+                    # The last step before the review is hers to lead too (I1).
+                    if needed:
+                        self._soon(
+                            say=cline.line(
+                                "uploaded_left", self.lang, docs=cline.docs_said(needed, self.lang)
+                            )
+                        )
+                    else:
+                        self._send("claim.review")
+                        self._soon(say=cline.line("review", self.lang))
+                        return f"[The customer uploaded {d.get('field')}; every document is in, and you opened the review step. They tick the declaration and press Submit claim.]"
                 return f"[The customer uploaded {d.get('field')}. Documents still needed: {left}.]"
             case "claim.submitted":
                 ref = str(d.get("reference") or "")
@@ -539,6 +645,17 @@ class InsuranceBrain(OpenAIBrain):
         if result.outcome == "unknown":
             return
         self.append_note(f"[The screen did not do {result.move}: {why}. Never say it did.]")
+        if result.move == "claim.review" and not self.claim.missing():
+            # Only uploads stand between the form and its review: ring them and say which.
+            needed = self.claim.documents_needed()
+            if needed:
+                self._send("claim.section", {"section": "documents"})
+                self._soon(
+                    say=cline.line(
+                        "upload_only", self.lang, docs=cline.docs_said(needed, self.lang)
+                    )
+                )
+                return
         self._soon(
             talk="Tell the customer in one short sentence what did not go through on screen, and ask for what fixes it."
         )
@@ -667,6 +784,7 @@ class InsuranceBrain(OpenAIBrain):
         self._landed("Here's the clause.", "यह रहा वह क्लॉज़।")
         return f"Clause {req.clause_id} of {req.policy_id} is marked on screen as {req.verdict}."
 
+    @needs_result_now
     async def open_policy(self, req: OpenPolicy) -> str:
         """Open one of the customer's policy documents on screen (optionally at a section)."""
         if req.policy_id not in POLICIES:
@@ -676,14 +794,20 @@ class InsuranceBrain(OpenAIBrain):
             args["section"] = req.section
         self._send("policy.open", args)
         self.route, self.mode = f"my-policies/{req.policy_id}", "policies"
-        self._landed("Here's your policy.", "यह रही आपकी पॉलिसी।")
+        owe(cline.line("policy_open", self.lang))
         sections = "; ".join(f"{s['id']} {s['title']}" for s in POLICIES[req.policy_id]["sections"])
-        return f"{req.policy_id} is open. Sections: {sections}."
+        p = POLICIES[req.policy_id]
+        sched = "; ".join(f"{r['label']}: {r['value']}" for r in p.get("schedule", [])[:6])
+        return (
+            f"{req.policy_id} ({p['plan']}) is open. Schedule: {sched}. Sections: {sections}. "
+            "Say in a sentence what it is, and ask what they would like to check."
+        )
 
     @needs_result_now
     async def start_claim(self, req: StartClaim) -> str:
         """Open the claim form for a motor or health claim (and the policy, once
-        known). Returns the form's sections and what to ask first."""
+        known), filling every answer the customer already gave in the same call.
+        Returns the form's sections and the next question."""
         ps = policies_for(cl.TYPES[req.claim_type]["products"])
         pid = req.policy_id
         if pid is not None and pid not in {p["id"] for p in ps}:
@@ -696,82 +820,209 @@ class InsuranceBrain(OpenAIBrain):
             args["policy_id"] = pid
         self._send("claim.start", args)
         self.route, self.mode = "claim", "claim"
-        self._landed("The claim form is open.", "क्लेम फ़ॉर्म खुल गया है।")
-        which = "" if pid else f" Ask which policy: {cl.policy_options_line(req.claim_type)}."
+        kind = cline.KINDS[self.lang][req.claim_type]
+        if req.answers:
+            filled = await self.fill_claim(ClaimAnswers(answers=req.answers))
+            if not pid:
+                owe(cline.line("which_policy", self.lang, kind=kind))
+                filled += f" First ask which policy: {cl.policy_options_line(req.claim_type)}."
+            return f"The {req.claim_type} claim form is open. {filled}"
+        if pid:
+            owe(cline.line("start", self.lang, kind=kind, ask=self._next_question()[1]))
+            which = ""
+        else:
+            owe(cline.line("which_policy", self.lang, kind=kind))
+            which = f" Ask which policy: {cl.policy_options_line(req.claim_type)}."
         return (
             f"The {req.claim_type} claim form is open.{which} Fields (✓ = filled):\n"
-            f"{cl.outline(req.claim_type, self.claim)}\nNext: {self._next_ask()}"
+            f"{cl.outline(req.claim_type, self.claim)}\n"
+            "If they already told you some answers, fill_claim them now. "
+            f"{self._next_ask()}"
         )
 
     @needs_result_now
     async def fill_claim(self, req: ClaimAnswers) -> str:
-        """Fill the claim form on screen with every answer the customer gave.
-        Returns what is still missing, so you ask only for that."""
+        """Fill the claim form on screen with every answer the customer gave, the
+        moment they give it (several at once). Pass each answer as they said it:
+        an amount in their own words ("around 1 and half lakhs"), a date as
+        YYYY-MM-DD. Returns what was filled, what is already on the form (never
+        ask for it again) and the one next question to ask."""
         if self.claim.claim_type is None:
             return "No claim form is open: call start_claim first."
         order = list(cl.FIELDS)
         done: list[str] = []
+        notes: list[str] = []
         rejected: list[str] = []
+        amount_rejected = False
+        amount: tuple[str, str] | None = None  # (₹ figure, note)
         for a in sorted(
             req.answers, key=lambda a: order.index(a.field) if a.field in order else 999
         ):
             value, why = cl.normalise(a.field, a.value, self.claim, self.today)
             if value is None:
                 rejected.append(f"{a.field} = {a.value!r} not taken: {why}")
+                amount_rejected = amount_rejected or (
+                    a.field in cl.FIELDS and cl.FIELDS[a.field]["type"] == "money"
+                )
                 continue
             self.claim.values[a.field] = value
             self._send("claim.fill", {"field": a.field, "value": value})
-            done.append(a.field)
-        self._landed("That's filled in.", "यह भर दिया है।")
-        out = f"Filled on screen: {', '.join(done) or 'nothing'}."
+            shown = cl.display(a.field, value, self.claim)
+            done.append(f"{a.field} = {shown}")
+            if cl.FIELDS[a.field]["type"] == "money":
+                amount = (shown, why)
+                notes.append(
+                    f"Say the amount back in words to confirm it ({amounts.words(int(value), self.lang)})"
+                    + (f"; {why}" if why else "")
+                    + "."
+                )
+        out = f"Filled on screen just now: {'; '.join(done) or 'nothing'}."
         if rejected:
-            out += " " + " ".join(rejected) + "."
+            out += " NOT taken: " + " ".join(rejected) + "."
+        if notes:
+            out += " " + " ".join(notes)
+        had = [
+            f"{f} = {cl.display(f, v, self.claim)}"
+            for f, v in self.claim.values.items()
+            if v and f in cl.FIELDS and f not in {d.split(" = ")[0] for d in done}
+        ]
+        if had:
+            out += f" Already on the form (never ask for these again): {'; '.join(had)}."
+        if amount_rejected:
+            owe(
+                cline.line("amount_unclear", self.lang)
+                if not any("too small" in r or "too large" in r for r in rejected)
+                else cline.line(
+                    "amount_small",
+                    self.lang,
+                    amount=next(
+                        (
+                            r.split(" is too")[0].split("not taken: ")[1]
+                            for r in rejected
+                            if " is too" in r
+                        ),
+                        "",
+                    ),
+                )
+            )
+            return out + " Ask for the amount again now; do not move on until you have it."
+        lead = cline.line("ack", self.lang)
+        if amount is not None:
+            lead = cline.line(
+                "amount_check" if "range" in amount[1] else "amount_ack",
+                self.lang,
+                amount=amount[0],
+            )
+        if rejected and not done:
+            lead = cline.line("not_taken", self.lang, ask="").strip()
+        owe(self._lead_on(lead))
         return f"{out} {self._next_ask()}"
 
-    def _next_ask(self) -> str:
+    def _next_question(self) -> tuple[str | None, str]:
+        """The next field to ask for and its question in the call's language:
+        the bank on file offered as one question while no bank field is filled."""
         missing = self.claim.missing()
         if not missing:
-            docs = ", ".join(d["label"] for d in self.claim.documents_needed()) or "none"
-            return (
-                "Every required field is filled: call review_claim. "
-                f"Documents the customer still uploads: {docs}."
-            )
-        labels = "; ".join(f"{m} ({cl.FIELDS[m]['label']})" for m in missing[:4])
-        return f"Still missing ({len(missing)}): {labels}. Ask for the next one or two in one short question."
+            return None, ""
+        field = missing[0]
+        bank = ("account_holder", "bank_name", "account_number", "ifsc")
+        if field in bank and not any(self.claim.filled(b) for b in bank):
+            field = "account_holder"
+        return field, cline.ask(field, self.lang)
 
-    async def review_claim(self) -> str:
-        """Check the whole claim form and open its review step. The customer
-        ticks the declaration and presses Submit claim themselves."""
-        missing = self.claim.missing()
-        if self.claim.claim_type is None:
-            return "No claim form is open: call start_claim first."
-        if missing:
-            return f"Not yet: still missing {', '.join(missing)}. Ask for them."
+    def _lead_on(self, lead: str) -> str:
+        """``lead`` and then the next step, said by the brain: the next question;
+        once every field is filled, the uploads (ringed) or the review (opened)."""
+        field, question = self._next_question()
+        if field is not None:
+            return f"{lead} {question}".strip()
+        needed = self.claim.documents_needed()
+        if needed:
+            self._send("claim.section", {"section": "documents"})
+            return cline.line("upload", self.lang, docs=cline.docs_said(needed, self.lang))
         self._send("claim.review")
-        self._landed("Here's the review.", "यह रहा रिव्यू।")
-        docs = ", ".join(d["label"] for d in self.claim.documents_needed()) or "none"
+        return cline.line("review", self.lang)
+
+    def _next_ask(self) -> str:
+        """The model's next step, in the words of a tool result."""
+        field, question = self._next_question()
+        if field is not None:
+            left = len(self.claim.missing())
+            return (
+                f"NEXT QUESTION ({left} left), ask only this, in a few words after confirming what you "
+                f'filled: {field} ({cl.FIELDS[field]["label"]}), e.g. "{question}" '
+                "Every reply in a claim ends with the next question."
+            )
+        docs = ", ".join(d["label"] for d in self.claim.documents_needed())
+        if docs:
+            return (
+                "Every field is filled; the documents section is open and ringed on screen. "
+                f"Tell the customer to upload these with the buttons on screen: {docs}. "
+                "You open the review once they are uploaded."
+            )
         return (
-            f"The review step is open. Documents still to upload with the buttons on screen: {docs}. "
-            "Then the customer ticks the declaration and presses Submit claim."
+            "Every field and document is done; the review step is open on screen. Tell the "
+            "customer to tick the declaration and press Submit claim."
         )
 
+    @needs_result_now
+    async def review_claim(self) -> str:
+        """Check the whole claim form and open its review step once every field
+        and document is in. The customer ticks the declaration and presses
+        Submit claim themselves."""
+        if self.claim.claim_type is None:
+            return "No claim form is open: call start_claim first."
+        if self.claim.missing():
+            owe(self._lead_on(""))
+            return f"Not yet: still missing {', '.join(self.claim.missing())}. {self._next_ask()}"
+        owe(self._lead_on(""))
+        return self._next_ask()
+
+    @needs_result_now
     async def show_claim_section(self, req: ClaimSection) -> str:
-        """Ring one section of the claim form (documents rings the uploads still missing)."""
-        if req.section not in {s["id"] for s in cl.SECTIONS}:
+        """Ring one section of the claim form (documents rings the uploads still
+        missing) when the customer asks where something is. Returns what it
+        holds and the next question; it is never an answer on its own."""
+        sec = next((s for s in cl.SECTIONS if s["id"] == req.section), None)
+        if sec is None:
             return f"No section {req.section!r}."
         self._send("claim.section", {"section": req.section})
-        self._landed("It's this section here.", "यह वाला सेक्शन।")
-        return f"Section {req.section} is ringed on screen."
+        if req.section == "documents":
+            needed = self.claim.documents_needed()
+            docs = cline.docs_said(needed, self.lang)
+            owe(cline.line("upload_only", self.lang, docs=docs) if needed else self._lead_on(""))
+            return (
+                "The documents section is ringed. Still to upload: "
+                + (", ".join(d["label"] for d in needed) or "none")
+                + f". {self._next_ask()}"
+            )
+        holds = [
+            f"{f['id']} = "
+            + (
+                cl.display(f["id"], self.claim.values[f["id"]], self.claim)
+                if self.claim.filled(f["id"])
+                else "EMPTY"
+            )
+            for f in sec["fields"]
+            if cl.visible(f["id"], self.claim.values)
+        ]
+        owe(self._lead_on(""))
+        return f"Section {req.section} is ringed on screen: {'; '.join(holds)}. {self._next_ask()}"
 
+    @needs_result_now
     async def go_to(self, req: GoTo) -> str:
-        """Take the customer to another page (and so to another job)."""
+        """Take the customer to another page (and so to another job). Then ask
+        the job's first question."""
         page = req.page.strip("/") or "home"
         if page not in pages():
             return f"No page {page!r}. Pages: {', '.join(pages())}."
         self._send("site.go", {"page": page})
         self._arrive(page)
-        self._landed("Here we are.", "यह रहा।")
-        return f"Going to /{page}. Your job there: {JOBS[self.mode]}"
+        owe(cline.job_ask(self.mode, self.lang))
+        return (
+            f"Going to /{page}. Your job there: {JOBS[self.mode]} Ask the customer the first question "
+            "for it now, unless they already told you: then act on it."
+        )
 
     async def set_language(self, req: LanguageRequest) -> str:
         """Switch the call to English or Hindi (listening and speaking) when the

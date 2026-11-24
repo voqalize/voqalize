@@ -9,6 +9,7 @@ from typing import Any
 
 from voqalize.sdk.stage import match_label
 
+from .amounts import parse
 from .rating import CITIES, PRODUCTS
 
 Json = dict[str, Any]
@@ -25,20 +26,10 @@ def field_options(f: Json) -> list[tuple[str, str]]:
 
 
 def money(text: str) -> int | None:
-    """Rupees from "14 lakh", "1.5 crore", "₹14,50,000", "1450000"."""
-    t = text.lower().replace(",", "").replace("₹", "").replace("rs.", "").replace("rs", "").strip()
-    m = re.match(r"^(\d+(?:\.\d+)?)\s*(lakh|lakhs|lac|lacs|l|crore|crores|cr|k|thousand)?\b", t)
-    if not m:
-        return None
-    n = float(m.group(1))
-    unit = m.group(2) or ""
-    if unit.startswith(("lakh", "lac")) or unit == "l":
-        n *= 100_000
-    elif unit.startswith("cr"):
-        n *= 10_000_000
-    elif unit in ("k", "thousand"):
-        n *= 1_000
-    return round(n)
+    """Rupees from "14 lakh", "fourteen and a half lakh", "1.5 crore", "₹14,50,000"
+    (:func:`.amounts.parse`, the same reading the claim form uses)."""
+    heard = parse(text)
+    return heard.rupees if heard is not None else None
 
 
 def normalise(product: str, field_id: str, raw: str) -> tuple[str | None, str]:

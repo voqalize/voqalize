@@ -29,7 +29,8 @@ from ._harness import DemoRig, check_greeting, check_turn, check_voice_pair, dem
 
 discover()
 
-from voqalize_demos._loaded.insurance import persona, rating  # noqa: E402
+from voqalize_demos._loaded.insurance import amounts, persona, rating  # noqa: E402
+from voqalize_demos._loaded.insurance import claim_lines as cl_lines  # noqa: E402
 from voqalize_demos._loaded.insurance.brain import InsuranceBrain  # noqa: E402
 from voqalize_demos._loaded.insurance.store import POLICIES, clauses  # noqa: E402
 
@@ -140,7 +141,8 @@ async def test_a_car_quote_from_two_sentences_fills_the_form_and_speaks_the_tota
         result = _tool_outputs(llm)[0]
         assert f"TOTAL PAYABLE {rating.inr(expected.total)}" in result
         assert "Zero depreciation" in result
-        assert str(expected.total) in t1.text
+        # The model wrote the figure; the voice is given it in words (B6/X8).
+        assert amounts.words(expected.total) in t1.text
 
         t2 = await rig.driver.user_says("Take engine protection too.")
         check_turn(rig, t2)
@@ -331,19 +333,40 @@ async def test_a_motor_claim_fills_from_what_he_says_and_reaches_review() -> Non
             "description",
         ]
         first = _tool_outputs(llm)[-1]
-        assert "vehicle_drivable" in first and "driver_is_policyholder" in first
-        assert "contact_phone" not in first.split("Still missing")[1]
+        # One next question, and what is filled is never asked again.
+        assert "NEXT QUESTION" in first and "vehicle_drivable" in first.split("NEXT QUESTION")[1]
+        assert "contact_phone" not in first.split("NEXT QUESTION")[1]
 
         check_turn(rig, await rig.driver.user_says(MOTOR_MORE))
-        check_turn(rig, await rig.driver.user_says(MOTOR_LAST))
+        last_turn = await rig.driver.user_says(MOTOR_LAST)
+        check_turn(rig, last_turn)
         last = _tool_outputs(llm)
-        assert any("Every required field is filled" in r for r in last)
-        assert _moves(rig)[-1]["move"] == "claim.review"
+        # Every field filled: the uploads are ringed, the review waits for them.
+        assert any("Every field is filled" in r for r in last)
+        assert {"move": "claim.section", "args": {"section": "documents"}}.items() <= _moves(rig)[
+            -1
+        ].items()
         # The documents he still uploads himself: the FIR copy because he reported it.
         assert "Copy of the FIR" in last[-1]
+        assert "claim.review" not in {m["move"] for m in _moves(rig)}
+
+        # He uploads them; with the last one in she opens the review and says so.
+        docs = ["driving_licence", "rc_copy", "damage_photos", "fir_copy"]
+        await rig.driver.send_ui_event(
+            "stage_event",
+            {
+                "name": "claim.document_uploaded",
+                "by": "visitor",
+                "data": {"field": "fir_copy", "documents": docs},
+            },
+        )
+        await asyncio.sleep(0.1)
+        review = await rig.driver.user_idle()
+        assert "Submit claim" in review.text
+        assert _moves(rig)[-1]["move"] == "claim.review"
         assert "claim.submit" not in {m["move"] for m in _moves(rig)}
 
-        # The customer uploads and submits; she thanks him with the guide's next step.
+        # The customer submits; she thanks him with the guide's next step.
         await rig.driver.send_ui_event(
             "stage_event",
             {
@@ -356,6 +379,239 @@ async def test_a_motor_claim_fills_from_what_he_says_and_reaches_review() -> Non
         thanks = await rig.driver.user_idle()
         check_turn(rig, thanks)
         assert "CLM-M-260418" in thanks.text
+
+
+# ─── The owner's health claim, utterance by utterance (I1, I2) ────────────────
+
+#: What the recognizer wrote on the owner's call (session of 24 Nov, 04:48 UTC),
+#: with the amount as he says he said it.
+OWNER = [
+    "Yeah, I need to make a claim for uh cashless for uh my maternity delivery.",
+    "Yeah, patient is my spouse.",
+    "And uh we are getting it admitted for uh Kadamba Multi-Speciality Hospital.",
+    "I get the reading areas with money to that.",
+    "Yeah. Uh treatment date was uh admission date was uh Around uh 5th of the November and discharge was on 7th of November.",
+    "Yes, correct, it was surgical.",
+    "The treating doctor was uh Niharika and the amount uh uh estimated amount was uh around 1 and half lakhs.",
+    "Yeah.",
+]
+
+
+def _said(rig: DemoRig, turn: Any) -> str:
+    return " ".join(u.text for u in turn.units)
+
+
+async def test_the_owners_health_claim_is_led_question_by_question_with_no_silence() -> None:
+    """Every turn of the owner's call that went silent or answered "It's this
+    section here." now ends on the next question, said by the brain when the
+    model's second hop says nothing; the date of admission, given once, is never
+    asked again; "around 1 and half lakhs" lands as ₹1,50,000 and is said back."""
+    bank = json.loads((rating.DATA / "customer.json").read_text())["bank_on_file"]
+    llm = ScriptedOpenAI(
+        {
+            OWNER[0]: [
+                call("start_claim", claim_type="health", policy_id="health-2026"),
+                call(
+                    "fill_claim",
+                    answers=[
+                        {"field": "claim_mode", "value": "cashless"},
+                        {"field": "ailment", "value": "Maternity delivery"},
+                    ],
+                ),
+                reply(""),  # the second hop says nothing
+            ],
+            OWNER[1]: [
+                call("fill_claim", answers=[{"field": "patient_member", "value": "meera"}]),
+                reply(""),
+            ],
+            OWNER[2]: [
+                call("fill_claim", answers=[{"field": "hospital_id", "value": "h-baner-kadamb"}]),
+                reply(""),
+            ],
+            # A mishearing: on the call the model rang a section and said nothing.
+            OWNER[3]: [call("show_claim_section", section="treatment"), reply("")],
+            OWNER[4]: [
+                call(
+                    "fill_claim",
+                    answers=[
+                        {"field": "admission_date", "value": "2026-11-05"},
+                        {"field": "discharge_date", "value": "2026-11-07"},
+                    ],
+                ),
+                reply("Admitted on the fifth, home on the seventh. Was it a surgery?"),
+            ],
+            OWNER[5]: [
+                call("fill_claim", answers=[{"field": "treatment_kind", "value": "surgical"}]),
+                reply(""),
+            ],
+            OWNER[6]: [
+                call(
+                    "fill_claim",
+                    answers=[
+                        {"field": "treating_doctor", "value": "Niharika"},
+                        {"field": "claim_amount", "value": "around 1 and half lakhs"},
+                    ],
+                ),
+                reply(""),
+            ],
+            OWNER[7]: [
+                call(
+                    "fill_claim",
+                    answers=[
+                        {"field": "account_holder", "value": bank["account_holder"]},
+                        {"field": "bank_name", "value": bank["bank_name"]},
+                        {"field": "account_number", "value": bank["account_number"]},
+                        {"field": "ifsc", "value": bank["ifsc"]},
+                    ],
+                ),
+                reply(""),
+            ],
+        }
+    )
+    async with demo("insurance", llm) as rig:
+        brain = _brain(rig)
+        brain.today = datetime(2026, 11, 24).date()
+        await rig.driver.start_session(init={"landing": "/claim", "lang": "en"})
+        heard: list[str] = []
+        for said in OWNER:
+            turn = await rig.driver.user_says(said)
+            check_turn(rig, turn)
+            heard.append(_said(rig, turn))
+
+        asks = cl_lines.ASKS["en"]
+        assert heard[0].endswith(asks["patient_member"]), heard[0]
+        assert heard[1].endswith(asks["hospital_id"]), heard[1]
+        assert heard[2].endswith(asks["admission_date"]), heard[2]
+        # The misheard turn: the next question, never "It's this section here."
+        assert "section" not in heard[3].lower() and heard[3].endswith(asks["admission_date"])
+        assert heard[5].endswith(asks["treating_doctor"]), heard[5]
+        # The amount said back in words, then the bank on file offered.
+        assert "one lakh fifty thousand rupees" in heard[6], heard[6]
+        assert heard[6].endswith(asks["account_holder"]), heard[6]
+        # Every field filled: the one upload left, ringed on screen.
+        assert "patient's photo ID" in heard[7], heard[7]
+        assert _moves(rig)[-1]["move"] == "claim.section"
+        assert _moves(rig)[-1]["args"] == {"section": "documents"}
+
+        # The date of admission, given once, is never asked for again.
+        later = heard[4:]
+        assert not any(asks["admission_date"] in h for h in later)
+        results = _tool_outputs(llm)
+        after = results[
+            results.index(next(r for r in results if "admission_date = 05 Nov 2026" in r)) :
+        ]
+        assert all(
+            "admission_date" not in r.split("NEXT QUESTION")[1]
+            for r in after
+            if "NEXT QUESTION" in r
+        )
+        assert all("admission_date = 05 Nov 2026" in r for r in after if "Already" in r)
+
+        fills = {
+            m["args"]["field"]: m["args"]["value"] for m in _moves(rig) if m["move"] == "claim.fill"
+        }
+        assert fills["claim_amount"] == "150000"
+        assert fills["admission_date"] == "2026-11-05"
+        assert (
+            sum(
+                m["move"] == "claim.fill" and m["args"]["field"] == "admission_date"
+                for m in _moves(rig)
+            )
+            == 1
+        )
+        assert brain.claim.missing() == []
+
+        # The upload arrives; she opens the review and tells him the last step.
+        await rig.driver.send_ui_event(
+            "stage_event",
+            {
+                "name": "claim.document_uploaded",
+                "by": "visitor",
+                "data": {"field": "id_proof", "documents": ["id_proof"]},
+            },
+        )
+        await asyncio.sleep(0.1)
+        review = await rig.driver.user_idle()
+        assert "Submit claim" in review.text
+        assert _moves(rig)[-1]["move"] == "claim.review"
+
+
+async def test_an_amount_that_lost_its_lakh_is_confirmed_never_filled() -> None:
+    """On the call the form got ₹15 for "1 and half lakhs". An amount too small
+    for a hospital claim is not filled: she says what she heard and asks."""
+    said = "The estimated amount was one and a half lakhs."
+    llm = ScriptedOpenAI(
+        {
+            "My wife had a delivery at Kadamb hospital, cashless.": [
+                call("start_claim", claim_type="health", policy_id="health-2026"),
+                reply("Who is the patient?"),
+            ],
+            said: [
+                call("fill_claim", answers=[{"field": "claim_amount", "value": "15"}]),
+                reply(""),
+            ],
+        }
+    )
+    async with demo("insurance", llm) as rig:
+        await rig.driver.start_session(init={"landing": "/claim", "lang": "en"})
+        await rig.driver.user_says("My wife had a delivery at Kadamb hospital, cashless.")
+        turn = await rig.driver.user_says(said)
+        check_turn(rig, turn)
+        assert "claim_amount" not in {
+            m["args"].get("field") for m in _moves(rig) if m["move"] == "claim.fill"
+        }
+        assert "fifteen rupees" in _said(rig, turn) and "lakh" in _said(rig, turn)
+        assert "too small" in _tool_outputs(llm)[-1]
+
+
+async def test_a_motor_claim_with_an_estimate_in_thousands_and_a_quiet_model() -> None:
+    """A motor claim in four answers, the model's second hop silent each time:
+    every turn still ends on the next question, and "around 25 thousand" is
+    filled as ₹25,000 and said back."""
+    llm = ScriptedOpenAI(
+        {
+            MOTOR_SAID: [
+                call("start_claim", claim_type="motor", policy_id="car-2026"),
+                call(
+                    "fill_claim",
+                    answers=[
+                        {"field": "incident_kind", "value": "accident"},
+                        {"field": "incident_date", "value": YESTERDAY},
+                        {"field": "incident_time", "value": "19:00"},
+                        {"field": "incident_city", "value": "Pune"},
+                        {"field": "incident_location", "value": "Baner Road"},
+                        {"field": "description", "value": "Another car hit mine from behind."},
+                    ],
+                ),
+                reply(""),
+            ],
+            "Yes it still drives, and the garage estimate is around 25 thousand.": [
+                call(
+                    "fill_claim",
+                    answers=[
+                        {"field": "vehicle_drivable", "value": "yes"},
+                        {"field": "estimate_amount", "value": "around 25 thousand"},
+                    ],
+                ),
+                reply(""),
+            ],
+        }
+    )
+    async with demo("insurance", llm) as rig:
+        await rig.driver.start_session(init={"landing": "/claim", "lang": "en"})
+        first = await rig.driver.user_says(MOTOR_SAID)
+        check_turn(rig, first)
+        assert _said(rig, first).endswith(cl_lines.ASKS["en"]["vehicle_drivable"])
+        second = await rig.driver.user_says(
+            "Yes it still drives, and the garage estimate is around 25 thousand."
+        )
+        check_turn(rig, second)
+        assert "twenty-five thousand rupees" in _said(rig, second)
+        assert _said(rig, second).endswith(cl_lines.ASKS["en"]["driver_is_policyholder"])
+        fills = {
+            m["args"]["field"]: m["args"]["value"] for m in _moves(rig) if m["move"] == "claim.fill"
+        }
+        assert fills["estimate_amount"] == "25000"
 
 
 HEALTH_SAID = "My son Aarav was admitted to hospital for dengue on the 10th of this month, I paid and want reimbursement."

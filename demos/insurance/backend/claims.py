@@ -12,6 +12,7 @@ from typing import Any
 
 from voqalize.sdk.stage import match_label
 
+from . import amounts
 from .store import CLAIM_FORM, CUSTOMER, NETWORK, POLICIES, member_ids, member_name, policies_for
 
 Json = dict[str, Any]
@@ -159,15 +160,61 @@ def normalise(field_id: str, raw: str, state: ClaimState, today: date) -> tuple[
         h, m = value.split(":")
         return f"{int(h):02d}:{m}", ""
     if kind == "money":
-        digits = re.sub(r"[^\d]", "", value)
-        if not digits:
-            return None, "an amount in rupees, digits only"
-        return digits, ""
+        return money(field_id, value)
     if pattern := f.get("pattern"):
         value = value.upper().replace(" ", "")
         if not re.match(pattern, value):
             return None, f"does not look like an {f['label']}"
     return value, ""
+
+
+#: The least an amount can plausibly be: below it the unit was surely lost
+#: ("1.5 lakh" read as 15), so it is confirmed with the customer, never stored.
+MONEY_FLOOR = {"claim_amount": 1_000, "estimate_amount": 500}
+MONEY_CEILING = 10_00_00_000
+
+
+def money(field_id: str, said: str) -> tuple[str | None, str]:
+    """Rupees from what the customer said ("around 1 and half lakhs" → 150000).
+    Taken: the digits and a note to say it back. Not taken: why, to ask again."""
+    heard = amounts.parse(said)
+    if heard is None:
+        return None, "no amount heard: ask how much, in rupees"
+    n = heard.rupees
+    if n < MONEY_FLOOR.get(field_id, 1):
+        return None, (
+            f"{amounts.inr(n)} is too small to be right (a unit like lakh was probably lost): "
+            "ask the customer to confirm the amount"
+        )
+    if n > MONEY_CEILING:
+        return (
+            None,
+            f"{amounts.inr(n)} is too large to be right: ask the customer to confirm the amount",
+        )
+    note = ""
+    if heard.low is not None:
+        note = f"a range ({amounts.inr(heard.low)} to {amounts.inr(n)}): the higher end was taken; check it"
+    elif heard.approx:
+        note = "an estimate: fine for the form"
+    return str(n), note
+
+
+def display(field_id: str, value: str, state: ClaimState) -> str:
+    """A filled value as the customer would read it on the form."""
+    f = FIELDS[field_id]
+    match f["type"]:
+        case "money":
+            return amounts.inr(int(value)) if value.isdigit() else value
+        case "date":
+            try:
+                return date.fromisoformat(value).strftime("%d %b %Y")
+            except ValueError:
+                return value
+        case "select":
+            opts = dict(options(field_id, state.claim_type or "motor", state.values))
+            return opts.get(value, value)
+        case _:
+            return value
 
 
 def outline(claim_type: str, state: ClaimState) -> str:

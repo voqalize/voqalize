@@ -17,7 +17,7 @@ The page the call starts on decides the job; the brain follows the visitor when 
 | --- | --- | --- |
 | `/quote`, `/quote/<product>`, `/insurance/<product>` | **Quote helper** | "I have a 2022 diesel SUV in Pune, about 14.5 lakh, two claim-free years" fills the quote form field by field; the premium builds with a transparent breakdown (own damage, NCB, third-party, add-ons, discounts, GST) computed from the rating tables. Add-ons switch on and off by voice or click. |
 | `/my-policies`, `/my-policies/<policy>` | **Policy advisor** | "Am I covered if my engine is damaged in a flooded street?" opens the customer's actual policy document and marks the clause that answers it, with a verdict chip; she says plainly what is and is not covered, naming the clause. |
-| `/claim` | **Claims assistant** | A long multi-section claim form (policy, what happened, driver, other party, police report, garage or hospital, treatment, bank, documents, review) fills in from what the customer says; she asks only for what is missing and takes them to the review step. Uploads (mock) and Submit are the customer's. Motor and health claims. |
+| `/claim` | **Claims assistant** | A long multi-section claim form (policy, what happened, driver, other party, police report, garage or hospital, treatment, bank, documents, review) fills in from what the customer says. She leads it one question at a time: each answer is filled the moment it is given and confirmed in a few words, then the next question; nothing she has is asked again. With every field filled she rings the uploads still owed, and opens the review once they are in. Uploads (mock) and Submit are the customer's. Motor and health claims. |
 | `/` | Home | Asks which of the three they want and takes them there. |
 
 ## How it is built
@@ -30,6 +30,13 @@ The page the call starts on decides the job; the brain follows the visitor when 
   `data/quote_cases.json` holds golden cases both test suites check).
 - `backend/claims.py`, `backend/policies.py`, `backend/quotes.py` — the claim form's rules, the
   clause search, and turning speech into form values.
+- `backend/claim_lines.py` — her question for each claim field and the lines a claim turn ends on, per
+  language. A claim tool's result carries the next question; if the model says nothing after it, the
+  brain says that line itself (`owe` in `brain.py`), so a claim turn never ends in silence.
+- `backend/amounts.py` — Indian amounts both ways: whatever the recognizer wrote ("around 1 and half
+  lakhs", "one lakh fifty thousand", "15k", "dedh lakh", "डेढ़ लाख") read into rupees, and every written
+  amount the voice is given turned into words ("one lakh fifty thousand rupees", "डेढ़ लाख रुपये"). The
+  screen keeps ₹1,50,000.
 - `frontend/src/stage/scene.json` — the Stage Spec: every move the agent can make and every state
   event the page sends. Regenerate after editing it:
   `cd demos && uv run voqalize stage gen insurance/frontend/src/stage/scene.json --py insurance/backend/stage_gen.py --ts insurance/frontend/src/stage/scene.gen.ts`
