@@ -77,8 +77,18 @@ export function DockBar({
         </p>
       </div>
       <LangToggle />
-      <button type="button" className="dock-cta" disabled={disabled} title={title} onClick={onTalk} tabIndex={calling ? -1 : undefined}>
-        <Mic size={16} aria-hidden /> <span className="dock-cta-label">Talk to {persona.name}</span>
+      <button
+        type="button"
+        className="dock-cta"
+        aria-label={`Talk to ${persona.name}`}
+        disabled={disabled}
+        title={title}
+        onClick={onTalk}
+        tabIndex={calling ? -1 : undefined}
+      >
+        <Mic size={16} aria-hidden /> <span className="dock-cta-label">
+          Talk<span className="dock-cta-name"> to {persona.name}</span>
+        </span>
       </button>
     </div>
   );

@@ -419,6 +419,10 @@
     padding: 0 12px;
     font-size: 13px;
   }
+  /* "Talk", not "Talk to Arjun": the name is beside the face, and the role line keeps its room. */
+  .dock-cta-name {
+    display: none;
+  }
   .lang-toggle button {
     min-width: 34px;
     padding: 0 7px;

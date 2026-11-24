@@ -7,11 +7,11 @@
   },
   "role": "Global Bank's assistant",
   "roles": {
-    "home": "Cards and loans adviser",
-    "cards": "Credit card adviser",
-    "loans": "Loans adviser",
+    "home": "Cards & loans",
+    "cards": "Credit cards",
+    "loans": "Loans",
     "account": "Account opening",
-    "banking": "Banking assistant"
+    "banking": "Your banking"
   },
   "voices": {
     "en": "omnivoice/arjun",
