@@ -85,6 +85,11 @@
       "name": "payroll_app",
       "title": "Paynora — HR and Payroll (app)",
       "tagline": "Inside an Indian HRMS as the HR admin: a voice guide sets up the company, explains why a payslip changed, compares the old and new tax regimes slab by slab, and makes changes with a confirm step."
+    },
+    {
+      "name": "bank",
+      "title": "Global Bank",
+      "tagline": "A fictional Indian bank's site and full net-banking app where the assistant answers from the customer's own data, opens the right screen, confirms every change, and advises on cards, loans and a new account, in English or Hindi."
     }
   ]
 }
