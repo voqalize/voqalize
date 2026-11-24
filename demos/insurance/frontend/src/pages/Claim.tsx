@@ -16,9 +16,7 @@ import {
   sectionsFor,
   visibleFields,
 } from "../claim/logic";
-import { TalkButton } from "../components/bits";
 import { fileSize, groupIndian } from "../lib/format";
-import { persona } from "../persona";
 import {
   claimMissing,
   openSection,
@@ -53,7 +51,6 @@ export function ClaimPage() {
           <h1 className="h1">Make a claim</h1>
           <p className="muted">Your answers are kept as you go. Nothing is sent until you press Submit claim on the last step.</p>
         </div>
-        <TalkButton className="btn btn-ghost btn-sm" label={`Fill it with ${persona.name}`} />
       </div>
       <TypeChooser type={type} />
       {type ? <ClaimForm type={type} /> : null}
@@ -187,6 +184,7 @@ function SectionCard({ type, section: sec, index, next }: { type: ClaimType; sec
               <button
                 type="button"
                 className="btn btn-primary"
+                data-dock-avoid
                 onClick={() => {
                   openSection(next);
                   scrollToSection(next);
@@ -420,6 +418,7 @@ function Review({ type }: { type: ClaimType }) {
           type="button"
           className="btn btn-primary btn-lg"
           disabled={!ready}
+          data-dock-avoid
           data-stage-part="submit-claim"
           onClick={() => {
             if (submitClaim()) navigate("/claim/submitted");

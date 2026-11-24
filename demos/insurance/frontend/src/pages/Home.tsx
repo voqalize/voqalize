@@ -1,7 +1,7 @@
 import { ArrowRight, BadgeCheck, Clock3, FileCheck2, Landmark, PhoneCall, Upload } from "lucide-react";
 import { Link } from "react-router-dom";
 import { PRODUCT_IDS, customer, policies, productById } from "../data";
-import { PRODUCT_BLURB, Portrait, ProductIcon, TalkButton } from "../components/bits";
+import { PRODUCT_BLURB, Portrait, ProductIcon } from "../components/bits";
 import { daysUntil, fmtDate, inr } from "../lib/format";
 import { persona } from "../persona";
 import { quote } from "../quote/rating";
@@ -32,10 +32,12 @@ export function Home() {
               Get a premium in under two minutes, read your policy in plain words, and file a claim without the paperwork maze. {persona.name}, our insurance guide, can walk you through any of it.
             </p>
             <div className="hero-ctas">
-              <Link to="/quote" className="btn btn-primary btn-lg">
+              <Link to="/quote" className="btn btn-primary btn-lg" data-dock-avoid>
                 Get a quote <ArrowRight size={18} aria-hidden />
               </Link>
-              <TalkButton className="btn btn-ghost btn-lg" />
+              <Link to="/my-policies" className="btn btn-ghost btn-lg">
+                My policies
+              </Link>
             </div>
             <ul className="hero-facts">
               <li><BadgeCheck size={16} aria-hidden /> Premiums from our published rating tables</li>
@@ -136,8 +138,7 @@ export function Home() {
             </li>
           </ol>
           <div className="claims-cta">
-            <Link to="/claim" className="btn btn-primary">Start a claim</Link>
-            <TalkButton className="btn btn-ghost-light" label={`Ask ${persona.name} to fill it with you`} />
+            <Link to="/claim" className="btn btn-primary" data-dock-avoid>Start a claim</Link>
           </div>
         </div>
       </section>

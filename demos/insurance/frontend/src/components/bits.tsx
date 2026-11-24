@@ -3,8 +3,6 @@ import type { ComponentType } from "react";
 import type { ProductId } from "../data/types";
 import { persona } from "../persona";
 import portrait from "../assets/portrait.png";
-import { useVoiceClient } from "../stage/client";
-import { Mic } from "lucide-react";
 
 export const PRODUCT_ICON: Record<ProductId, ComponentType<{ size?: number; strokeWidth?: number; "aria-hidden"?: boolean }>> = {
   car: Car,
@@ -31,22 +29,6 @@ export function ProductIcon({ product, size = 22 }: { product: ProductId; size?:
 
 export function Portrait({ className }: { className?: string }) {
   return <img className={className} src={portrait} alt={`${persona.name}, ${persona.role}`} />;
-}
-
-/** "Talk to {name}": starts the call where voice is switched on; otherwise it says so. */
-export function TalkButton({ className = "btn btn-ghost", label }: { className?: string; label?: string }) {
-  const begin = useVoiceClient((s) => s.begin);
-  return (
-    <button
-      type="button"
-      className={className}
-      disabled={!begin}
-      title={begin ? undefined : "Voice is not switched on for this preview"}
-      onClick={() => begin?.()}
-    >
-      <Mic size={16} aria-hidden /> {label ?? `Talk to ${persona.name}`}
-    </button>
-  );
 }
 
 export function KindBadge({ kind }: { kind: string }) {

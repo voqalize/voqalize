@@ -1,8 +1,7 @@
 import { ArrowRight } from "lucide-react";
 import { Link, Navigate, useParams } from "react-router-dom";
 import { PRODUCT_IDS, isProductId, productById } from "../data";
-import { PRODUCT_BLURB, ProductIcon, TalkButton } from "../components/bits";
-import { persona } from "../persona";
+import { PRODUCT_BLURB, ProductIcon } from "../components/bits";
 import { QuoteBuilder, QuoteTabs } from "../quote/QuoteBuilder";
 
 export function QuotePage() {
@@ -18,7 +17,6 @@ export function QuotePage() {
           </p>
           <h1 className="h1">Get a quote</h1>
         </div>
-        <TalkButton className="btn btn-ghost btn-sm" label={`Fill it with ${persona.name}`} />
       </div>
       <QuoteTabs product={product} />
       <QuoteBuilder product={product} />

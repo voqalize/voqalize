@@ -294,7 +294,7 @@ export function Breakdown({ product }: { product: ProductId }) {
               <Count value={q.total} />
             </strong>
           </div>
-          <button type="button" className="btn btn-primary btn-block" disabled title="Chhatri Insurance is fictional and sells no policies">
+          <button type="button" className="btn btn-primary btn-block" data-dock-avoid disabled title="Chhatri Insurance is fictional and sells no policies">
             Continue to buy
           </button>
           <p className="bd-fine">Illustrative premium from the demo’s rating tables. Not an offer of insurance.</p>

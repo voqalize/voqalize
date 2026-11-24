@@ -2,8 +2,7 @@ import { Check, ChevronDown, X } from "lucide-react";
 import { Link, Navigate, useParams } from "react-router-dom";
 import { isProductId, productById, productContent } from "../data";
 import type { ProductContent, ProductId } from "../data/types";
-import { PRODUCT_BLURB, ProductIcon, TalkButton } from "../components/bits";
-import { persona } from "../persona";
+import { PRODUCT_BLURB, ProductIcon } from "../components/bits";
 import { QuoteBuilder } from "../quote/QuoteBuilder";
 
 type Item = string | { title?: string; text?: string; body?: string };
@@ -51,8 +50,7 @@ export function ProductPage() {
               <h1 className="display-sm">{copy.headline}</h1>
               <p className="lede">{copy.subhead}</p>
               <div className="hero-ctas">
-                <a href="#quote" className="btn btn-primary">{copy.note ?? "See your price"}</a>
-                <TalkButton className="btn btn-ghost" label={`Ask ${persona.name} about ${spec.name.toLowerCase()}`} />
+                <a href="#quote" className="btn btn-primary" data-dock-avoid>{copy.note ?? "See your price"}</a>
               </div>
             </div>
           </div>

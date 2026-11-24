@@ -1,11 +1,9 @@
-import { ArrowRight, CalendarClock, FileText, MessageCircle, ShieldAlert } from "lucide-react";
+import { ArrowRight, CalendarClock, FileText, ShieldAlert } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { customer, policies, policyById } from "../data";
 import type { PolicyDoc } from "../data/types";
 import { ProductIcon } from "../components/bits";
 import { daysUntil, fmtDate, inr } from "../lib/format";
-import { persona } from "../persona";
-import { useVoiceClient } from "../stage/client";
 import { startClaim } from "../state/claim";
 
 /** The schedule rows worth a glance on the card, per product. */
@@ -28,7 +26,6 @@ export function keyNumbers(p: PolicyDoc) {
 
 export function MyPolicies() {
   const navigate = useNavigate();
-  const begin = useVoiceClient((s) => s.begin);
   const active = policies.filter((p) => p.status === "active").length;
   const renewals = [...policies]
     .filter((p) => p.product !== "term" && daysUntil(p.end) >= 0)
@@ -48,10 +45,7 @@ export function MyPolicies() {
           </p>
         </div>
         <div className="head-actions">
-          <button type="button" className="btn btn-ghost" disabled={!begin} title={begin ? undefined : "Voice is not switched on for this preview"} onClick={() => begin?.()}>
-            <MessageCircle size={16} aria-hidden /> Ask about my cover
-          </button>
-          <Link to="/claim" className="btn btn-primary">
+          <Link to="/claim" className="btn btn-primary" data-dock-avoid>
             <ShieldAlert size={16} aria-hidden /> Make a claim
           </Link>
         </div>
@@ -104,9 +98,6 @@ export function MyPolicies() {
                     Make a claim
                   </button>
                 ) : null}
-                <button type="button" className="link-btn small" disabled={!begin} onClick={() => begin?.()}>
-                  Ask {persona.name}
-                </button>
               </footer>
             </article>
           ))}

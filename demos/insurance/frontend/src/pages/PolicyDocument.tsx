@@ -41,6 +41,7 @@ export function PolicyDocument() {
             <button
               type="button"
               className="btn btn-primary btn-sm"
+              data-dock-avoid
               onClick={() => {
                 startClaim(pol.product === "health" ? "health" : "motor", pol.id);
                 navigate("/claim");
