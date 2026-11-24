@@ -254,7 +254,7 @@ _SCALE = (
     r"|ह(?:\u095b|\u091c\u093c?)ार"
 )
 _SCALED = re.compile(
-    rf"(?<![\w.,])(?P<cur>{_CUR})?[ \t]*(?P<a>{_NUM})"
+    rf"(?<![\w.,])(?:(?P<cur>{_CUR})[ \t]*)?(?P<a>{_NUM})"
     rf"(?:[ \t]*(?:[-\u2013\u2014]|\bto\b|से)[ \t]*(?P<cur2>₹)?[ \t]*(?P<b>{_NUM}))?"
     rf"[ \t]*(?:(?P<scale>{_SCALE})|(?<=\d)(?P<L>L)|(?<=\d)(?P<k>k))(?![A-Za-z{_DEVANAGARI_WORD}])"
     rf"(?:[ \t]+(?P<word>rupees|रुपये|रुपए))?",
