@@ -1,5 +1,6 @@
 import { ArrowRight, CreditCard, Landmark, LockKeyhole, Mic, UserRoundPlus } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
+import { SignInForm } from "../../components/SignInForm";
 import { brand, customer, inr, products } from "../../data/bank";
 import { persona } from "../../persona";
 import { useSession } from "../../state/session";
@@ -37,7 +38,6 @@ const JOBS = [
 
 export function Home() {
   const signedIn = useSession((s) => s.signedIn);
-  const signIn = useSession((s) => s.signIn);
   const navigate = useNavigate();
   const sb = customer.accounts.find((a) => a.id === "sb");
   const topRate = (v: (typeof products.savings_variants)[number]) => Math.max(...v.rates.map((r) => r.rate));
@@ -83,25 +83,8 @@ export function Home() {
             ) : (
               <>
                 <p className="hl-title">Sign in to My banking</p>
-                <label className="field-label" htmlFor="home-cid">
-                  Customer ID
-                </label>
-                <input id="home-cid" className="input" readOnly value={customer.profile.customer_id} />
-                <label className="field-label" htmlFor="home-pin">
-                  6-digit PIN
-                </label>
-                <input id="home-pin" className="input" type="password" readOnly value="123456" />
-                <button
-                  type="button"
-                  className="btn btn-primary btn-block"
-                  onClick={() => {
-                    signIn();
-                    navigate("/app");
-                  }}
-                >
-                  Sign in
-                </button>
-                <p className="hl-note">Demo sign-in: the sample customer's details are filled in. There is no real login.</p>
+                <SignInForm compact onSignedIn={() => navigate("/app")} />
+                <p className="hl-note">A demo: any 10-digit mobile number and any 4-digit PIN open a sample customer's accounts.</p>
                 <p className="hl-new">
                   New to {brand.short}? <Link to="/open-account">Open an account</Link>
                 </p>

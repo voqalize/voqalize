@@ -69,7 +69,7 @@
         "statement",
         "dashboard"
       ],
-      "doc": "Open a screen of the bank's site or app. Signed-in screens on a signed-out page go through the mock sign-in first."
+      "doc": "Open a screen of the bank's site or app. Signed out, a signed-in screen (or login) shows the sign-in form instead and rings it: only the customer signs in, by typing a mobile number and PIN."
     },
     {
       "id": "accounts.show",
