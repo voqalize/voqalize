@@ -13,7 +13,7 @@ import { runMove } from "../stage/host";
 import { eventLog, onEventLog } from "../stage/events";
 import { scene } from "../stage/scene.gen";
 import { uploadDocument, useClaim } from "../state/claim";
-import { useFakeCall } from "./VoiceDock";
+import { useFakeCall } from "./fake";
 
 type Step = [string, Record<string, unknown>];
 
@@ -184,7 +184,7 @@ export default function DebugConsole() {
         <button
           type="button"
           className={`debug-chip${fake.on ? " is-on" : ""}`}
-          onClick={() => useFakeCall.setState({ on: !fake.on, heard: fake.on ? "" : "Is flood damage to my engine covered?" })}
+          onClick={() => useFakeCall.setState({ on: !fake.on })}
         >
           <Phone size={12} /> Fake call
         </button>

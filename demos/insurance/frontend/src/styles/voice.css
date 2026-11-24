@@ -1,15 +1,16 @@
-/* ── Voice dock ──────────────────────────────────────────────────────── */
+/* ── Voice dock ──────────────────────────────────────────────────────
+   The idle pill, bottom right: still photo, name, the job on this page,
+   EN / हिंदी and "Talk to {name}". It goes away during a call; the face
+   (one fixed `.call-tile` for the page's life) becomes the call card. */
 .dock {
   position: fixed;
-  left: 50%;
+  right: max(20px, env(safe-area-inset-right));
   bottom: calc(18px + env(safe-area-inset-bottom));
-  transform: translateX(-50%);
   z-index: 55;
   display: flex;
   align-items: center;
   gap: 10px;
   padding: 7px;
-  min-width: 360px;
   max-width: calc(100vw - 32px);
   background: rgba(255, 255, 255, 0.97);
   backdrop-filter: blur(14px);
@@ -26,11 +27,15 @@
     translate: 0 20px;
   }
 }
-@keyframes pop {
-  from {
-    opacity: 0;
-    scale: 0.85;
-  }
+.dock.is-left {
+  right: auto;
+  left: max(20px, env(safe-area-inset-left));
+}
+.dock.is-hidden,
+.dock.is-calling {
+  opacity: 0;
+  translate: 0 24px;
+  pointer-events: none;
 }
 .dock-face {
   width: 46px;
@@ -40,19 +45,19 @@
   flex: none;
   position: relative;
 }
-.dock-avatar {
-  width: 100%;
-  height: 100%;
-  display: block;
+.dock-face-slot {
+  background: transparent;
 }
 .dock-text {
+  display: flex;
+  flex-direction: column;
   min-width: 0;
-  flex: 1;
+  max-width: 180px;
+  line-height: 1.25;
 }
 .dock-name {
   font-weight: 700;
   font-size: 14px;
-  line-height: 1.2;
 }
 .dock-status {
   font-size: 12.5px;
@@ -60,17 +65,10 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 220px;
 }
-.dock.is-listening .dock-status::before {
-  content: "";
-  display: inline-block;
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--teal-600);
-  margin-right: 6px;
-  animation: blink 1.4s ease-in-out infinite;
+.dock.is-error .dock-status {
+  color: var(--danger);
+  white-space: normal;
 }
 @keyframes blink {
   50% {
@@ -114,6 +112,7 @@
   color: #fff;
   font-weight: 640;
   font-size: 14px;
+  white-space: nowrap;
   transition: background 0.2s;
   flex: none;
 }
@@ -123,63 +122,6 @@
 .dock-cta:disabled {
   background: var(--paper-2);
   color: var(--muted);
-}
-.dock-btn {
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  background: var(--paper-2);
-  flex: none;
-}
-.dock-btn[aria-pressed="true"] {
-  background: var(--ink);
-  color: #fff;
-}
-.dock-end {
-  background: var(--danger);
-  color: #fff;
-}
-.dock.is-compact {
-  left: auto;
-  right: max(16px, env(safe-area-inset-right));
-  transform: none;
-  min-width: 0;
-  width: auto;
-  gap: 6px;
-  padding: 5px;
-  animation: pop 0.3s var(--ease);
-}
-.dock.is-compact .dock-text,
-.dock.is-compact .dock-cta-label {
-  display: none;
-}
-.dock.is-compact .dock-cta {
-  width: 44px;
-  padding: 0;
-  justify-content: center;
-}
-.dock.is-compact .lang-btn {
-  height: 30px;
-  min-width: 34px;
-  padding: 0 7px;
-}
-.dock.is-hidden {
-  opacity: 0;
-  translate: 0 24px;
-  pointer-events: none;
-}
-/* During a call the face lives in the tile; the dock keeps status, the
-   language toggle and the call controls. */
-.dock.is-calling .dock-face {
-  display: none;
-}
-.dock.is-calling {
-  padding-left: 18px;
-}
-.dock-face-slot {
-  background: transparent;
 }
 
 /* ── Call tile (one element: docked face, live tile, mini bubble) ──── */
@@ -213,6 +155,9 @@
 .call-tile.is-snap {
   transition: none;
 }
+.call-tile.is-raised {
+  z-index: 60;
+}
 .call-tile.is-tile {
   border-radius: 14px;
   background: var(--teal-950);
@@ -223,86 +168,18 @@
     0 26px 50px -18px rgba(16, 40, 42, 0.6);
   cursor: grab;
 }
+.call-tile.is-speaking.is-tile {
+  box-shadow:
+    0 0 0 5px var(--teal-950),
+    0 0 0 7px var(--saffron),
+    0 26px 50px -18px rgba(16, 40, 42, 0.6);
+}
 .call-tile.is-tile .call-face {
   border-radius: 10px;
 }
-.call-tile.is-tile .call-who {
-  display: none;
-}
-.call-tile.is-tile .call-bar {
-  justify-content: center;
-  padding: 6px;
-}
-.call-controls {
-  display: flex;
-  gap: 8px;
-}
-.call-btn {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  background: rgba(255, 255, 255, 0.14);
-  color: #fff;
-}
-.call-btn:hover {
-  background: rgba(255, 255, 255, 0.26);
-}
-.call-btn[aria-pressed="true"] {
-  background: #fff;
-  color: var(--ink);
-}
-.call-end,
-.call-end:hover {
-  background: var(--danger);
-}
-.call-btn svg {
-  width: 14px;
-  height: 14px;
-}
-.call-tag {
-  position: absolute;
-  top: 6px;
-  left: 6px;
-  padding: 2px 7px;
-  border-radius: 999px;
-  background: rgba(10, 44, 45, 0.75);
-  color: #fff;
-  font-size: 10.5px;
-  font-weight: 650;
-  z-index: 1;
-}
-.call-state {
-  position: absolute;
-  left: 6px;
-  bottom: 6px;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 20px;
-  padding: 0 8px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.92);
-  font-size: 10.5px;
-  font-weight: 640;
-  color: var(--ink-2);
-  z-index: 1;
-}
-.call-state::before {
-  content: "";
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--muted);
-}
-.call-state.is-listening::before {
-  background: var(--teal-600);
-  animation: blink 1.4s ease-in-out infinite;
-}
-.call-state.is-speaking::before {
-  background: var(--saffron);
-  animation: blink 0.7s ease-in-out infinite;
+.call-tile:focus-visible {
+  outline: 2px solid var(--saffron);
+  outline-offset: 3px;
 }
 .call-tile.is-mini {
   border-radius: 50%;
@@ -326,44 +203,199 @@
   height: 100% !important;
 }
 .call-face > .dock-avatar,
-.call-face > .face-portrait {
+.call-face > .face-still,
+.call-face > .face-placeholder {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
+  display: block;
+}
+.call-face > .face-still {
   object-fit: cover;
-  object-position: 50% 20%;
+  object-position: 50% 28%;
+  user-select: none;
+}
+.face-placeholder {
+  display: grid;
+  place-items: center;
+  background: var(--teal-100);
+}
+.face-placeholder span {
+  font-family: var(--serif, inherit);
+  font-size: 20px;
+  font-weight: 650;
+  color: var(--teal-900);
+  line-height: 1;
+}
+.call-tile.is-tile .face-placeholder span {
+  font-size: 56px;
+}
+.call-tag {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(10, 44, 45, 0.75);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 650;
+  z-index: 1;
+}
+.call-state {
+  position: absolute;
+  left: 6px;
+  bottom: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 22px;
+  padding: 0 9px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  font-size: 11px;
+  font-weight: 640;
+  color: var(--ink-2);
+  white-space: nowrap;
+  z-index: 1;
+}
+.call-state::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--muted);
+}
+.call-state.is-listening::before {
+  background: var(--teal-600);
+  animation: blink 1.4s ease-in-out infinite;
+}
+.call-state.is-speaking::before {
+  background: var(--saffron);
+  animation: blink 0.7s ease-in-out infinite;
+}
+.call-state.is-muted::before {
+  background: var(--danger);
 }
 .call-expand {
   position: absolute;
   inset: 0;
   display: grid;
-  place-items: end;
-  padding: 4px;
+  place-items: end center;
+  padding-bottom: 6px;
   color: #fff;
+  opacity: 0;
+}
+.call-tile.is-mini:hover .call-expand,
+.call-expand:focus-visible {
+  opacity: 1;
 }
 .call-bar {
   flex: 1;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: space-between;
-  gap: 10px;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 4px 4px;
   min-height: 0;
 }
-.call-name {
-  font-weight: 650;
-  font-size: 15px;
+.call-bar .lang-toggle {
+  padding: 2px;
+  background: rgba(255, 255, 255, 0.1);
+  border-color: transparent;
 }
-.call-heard {
+.call-bar .lang-btn {
+  height: 24px;
+  min-width: 36px;
+  padding: 0 9px;
   font-size: 12px;
-  color: var(--muted);
+  color: rgba(255, 255, 255, 0.72);
 }
-@media (max-width: 599px) {
-  .dock {
-    min-width: 0;
+.call-bar .lang-btn.is-on {
+  background: #fff;
+  color: var(--teal-950);
+  box-shadow: none;
+}
+.call-controls {
+  display: flex;
+  gap: 8px;
+}
+.call-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+}
+.call-btn:hover {
+  background: rgba(255, 255, 255, 0.26);
+}
+.call-btn[aria-pressed="true"] {
+  background: #fff;
+  color: var(--ink);
+}
+.call-end,
+.call-end:hover {
+  background: var(--danger);
+}
+.call-btn svg {
+  width: 15px;
+  height: 15px;
+}
+
+@media (max-width: 699px) {
+  /* A phone: the pill spans the bottom, the role label takes what is left. */
+  .dock,
+  .dock.is-left {
+    left: 12px;
+    right: 12px;
+    bottom: calc(12px + env(safe-area-inset-bottom));
+    gap: 8px;
+    padding: 5px;
+    max-width: none;
+  }
+  .dock-text {
+    flex: 1;
+    max-width: none;
+  }
+  .dock-face {
+    width: 42px;
+    height: 42px;
+  }
+  .lang-btn {
+    height: 30px;
+    min-width: 34px;
+    padding: 0 7px;
   }
   .dock-cta {
-    padding: 0 16px;
+    height: 42px;
+    padding: 0 14px;
+    font-size: 13.5px;
+  }
+  .call-controls {
+    gap: 6px;
+  }
+  .call-btn {
+    width: 28px;
+    height: 28px;
+  }
+  .call-bar .lang-btn {
+    min-width: 32px;
+    padding: 0 7px;
+  }
+}
+@media (max-width: 379px) {
+  .dock-cta-label {
+    display: none;
+  }
+  .dock-cta {
+    width: 42px;
+    padding: 0;
+    justify-content: center;
   }
 }
 

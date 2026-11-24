@@ -1,10 +1,10 @@
 /**
- * Page-wide state: the EN / हिंदी toggle by the call button, and the router
+ * Page-wide state: the EN / हिंदी toggle (remembered across reloads), and the router
  * binding the Stage performers navigate with.
  */
 import { create } from "zustand";
-import { persona } from "../persona";
 import { emit } from "../stage/events";
+import { loadLang, saveLang } from "./savedLang";
 
 interface UiState {
   lang: string;
@@ -14,7 +14,13 @@ interface UiState {
   live: boolean;
 }
 
-export const useUi = create<UiState>(() => ({ lang: persona.default, navigate: null, live: false }));
+export const useUi = create<UiState>(() => ({ lang: loadLang(), navigate: null, live: false }));
+
+// Every change of language (the toggle, or the brain's `site.language` mid-call)
+// is remembered for the next page load, the next call and a redial.
+useUi.subscribe((s, prev) => {
+  if (s.lang !== prev.lang) saveLang(s.lang);
+});
 
 /** The visitor moved the toggle: mid-call the brain is told, and moves both speech legs. */
 export function chooseLanguage(lang: string) {

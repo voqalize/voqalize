@@ -1,9 +1,11 @@
 /**
- * The agent's face, as one fixed element that moves between three shapes:
+ * The guide's face, as one fixed element that moves between three shapes:
  *
- * - **docked**: sitting exactly on the dock's face slot, before and after a call;
- * - **tile**: a floating video-call card once the call connects, with her name,
- *   what she is doing, and mute / minimise / end controls;
+ * - **docked**: sitting exactly on the idle dock's face slot (the still photo),
+ *   before and after a call;
+ * - **tile**: a floating call card once the call connects (the dock goes away),
+ *   with the name tag, what she is doing, the EN / हिंदी toggle and
+ *   mute / minimise / end. No transcript is shown;
  * - **mini**: a small bubble at the tile's place, after Minimise.
  *
  * It is one element for the whole page life, so the avatar inside it (the
@@ -11,15 +13,20 @@
  * popping out, dragging, minimising and going back into the dock only change
  * its box. The tile drags with mouse or touch (pointer events), snaps to the
  * nearest corner or side on release, stays below the header, steps aside for
- * Submit and Continue buttons, and remembers where it was.
+ * Submit and Continue buttons (`data-dock-avoid`), moves to a top corner clear
+ * of an open menu, drawer or sheet (`data-overlay`), and remembers where it was.
  */
 import { Maximize2, Mic, MicOff, Minus, PhoneOff } from "lucide-react";
-import { debugMode } from "./debug";
-import { persona } from "../persona";
 import { type ReactNode, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { create } from "zustand";
+import { persona, roleFor } from "../persona";
+import { debugMode } from "./debug";
+import type { CallState } from "./fake";
+import { LanguageToggle } from "./LanguageToggle";
+import { avoidRects, isPhone, overlayRects } from "./useDockMode";
 
-export type CallState = "connecting" | "listening" | "thinking" | "speaking" | "error";
+export type { CallState };
 type Anchor = "tl" | "tr" | "ml" | "mr" | "bl" | "br";
 const ANCHORS: Anchor[] = ["tl", "tr", "ml", "mr", "bl", "br"];
 const KEY = "chhatri-call-tile";
@@ -37,9 +44,12 @@ function load(): Saved {
   } catch {
     /* storage unavailable */
   }
-  // Bottom-left on a wide screen (clear of the breakdown and the centred dock);
-  // top-right on a phone, where the dock fills the bottom.
-  return { anchor: window.matchMedia("(max-width: 699px)").matches ? "tr" : "bl", mini: false };
+  // Bottom right on a wide screen, where the idle pill was: past the right
+  // edge of the page's column, under the price breakdown, so it covers no
+  // form field (the left one sat over the quote form). Top right on a phone,
+  // clear of the Continue and Submit buttons at the bottom of the claim's
+  // steps. Either way it steps aside for a primary action (`clearAnchor`).
+  return { anchor: isPhone() ? "tr" : "br", mini: false };
 }
 function save(s: Saved) {
   try {
@@ -56,16 +66,14 @@ interface Box {
   height: number;
 }
 
-const phone = () => window.matchMedia("(max-width: 699px)").matches;
-
-/** The tile's size here: a small framed portrait, smaller on a phone. It
- *  sits over the page, so it is kept to about a quarter of the old card's
- *  area — small enough to park over a listing's filter column. */
+/** The tile's size: a small framed portrait over a bar of controls (the
+ *  language toggle above mute / minimise / end), smaller on a phone. */
 function tileSize(mini: boolean): { width: number; height: number; face: number } {
   if (mini) return { width: 64, height: 64, face: 64 };
-  const width = phone() ? 104 : 150;
-  const face = Math.round(width * 1.2);
-  return { width, height: face + (phone() ? 36 : 40), face };
+  const phone = isPhone();
+  const width = phone ? 124 : 160;
+  const face = Math.round(width * (phone ? 1 : 1.08));
+  return { width, height: face + (phone ? 72 : 76), face };
 }
 
 /**
@@ -87,7 +95,7 @@ function boxAt(anchor: Anchor, size: { width: number; height: number }): Box {
   const vh = window.innerHeight;
   const left = anchor.endsWith("l") ? MARGIN : vw - size.width - MARGIN;
   const top =
-    anchor[0] === "t" ? top0 : anchor[0] === "m" ? Math.max(top0, (vh - size.height) / 2) : vh - size.height - MARGIN - (phone() ? 8 : 12);
+    anchor[0] === "t" ? top0 : anchor[0] === "m" ? Math.max(top0, (vh - size.height) / 2) : vh - size.height - MARGIN - (isPhone() ? 8 : 12);
   return { left, top: Math.max(top0, top), ...size };
 }
 
@@ -103,19 +111,33 @@ const overlaps = (a: Box, b: DOMRect) => a.left < b.right && a.left + a.width > 
 
 /** The anchor to use: the visitor's, unless it would cover a Submit or Continue button. */
 function clearAnchor(want: Anchor, size: { width: number; height: number }): Anchor {
-  const blockers = [...document.querySelectorAll<HTMLElement>("[data-dock-avoid]")]
-    .map((el) => el.getBoundingClientRect())
-    .filter((r) => r.width > 0 && r.bottom > 0 && r.top < window.innerHeight);
+  const blockers = avoidRects();
   const free = (a: Anchor) => !blockers.some((r) => overlaps(boxAt(a, size), r));
   if (free(want)) return want;
   const order: Anchor[] = [want[1] === "r" ? "tr" : "tl", want[1] === "r" ? "mr" : "ml", want[1] === "r" ? "tl" : "tr", "ml", "mr", "bl", "br"];
   return order.find(free) ?? want;
 }
 
+/**
+ * With a menu, drawer or sheet open (`data-overlay`), the place clear of it:
+ * a top corner first (the visitor's side, then the other), else the nearest
+ * free place, so neither the overlay nor the agent hides the other. Null when
+ * nothing is open.
+ */
+function overlayAnchor(want: Anchor, size: { width: number; height: number }): Anchor | null {
+  const overlays = overlayRects();
+  if (!overlays.length) return null;
+  const blockers = [...overlays, ...avoidRects()];
+  const free = (a: Anchor) => !blockers.some((r) => overlaps(boxAt(a, size), r));
+  const h = want[1];
+  const o = h === "r" ? "l" : "r";
+  const order = [`t${h}`, `t${o}`, `m${h}`, `m${o}`, `b${h}`, `b${o}`] as Anchor[];
+  return order.find(free) ?? order.find((a) => !overlays.some((r) => overlaps(boxAt(a, size), r))) ?? `t${o}`;
+}
+
 export function CallTile({
   live,
   state,
-  heard,
   muted,
   onMute,
   onEnd,
@@ -123,7 +145,6 @@ export function CallTile({
 }: {
   live: boolean;
   state: CallState;
-  heard: string;
   muted: boolean;
   onMute: () => void;
   onEnd: () => void;
@@ -132,6 +153,7 @@ export function CallTile({
 }) {
   const [saved, setSaved] = useState<Saved>(load);
   const [box, setBox] = useState<Box | null>(null);
+  const [raised, setRaised] = useState(false);
   const [drag, setDrag] = useState<{ dx: number; dy: number; left: number; top: number } | null>(null);
   const [, setTick] = useState(0);
   const ref = useRef<HTMLDivElement>(null);
@@ -143,6 +165,7 @@ export function CallTile({
     w.__chhatriVoice = { ...w.__chhatriVoice, face: mountId.current };
   }, []);
   const mode: "docked" | "tile" | "mini" = !live ? "docked" : saved.mini ? "mini" : "tile";
+  const role = roleFor(useLocation().pathname);
 
   // The agent's side: the same height, the other side. Not saved — the visitor's
   // own drag is what the next visit remembers.
@@ -165,6 +188,7 @@ export function CallTile({
       // mid-slide would count the offset twice: the face sat low on load,
       // then glided up at the next poll.
       const [dx, dy] = restOffset(dock);
+      setRaised(false);
       setBox(
         slot && slot.width && !hidden
           ? { left: slot.left - dx, top: slot.top - dy, width: slot.width, height: slot.height }
@@ -173,7 +197,9 @@ export function CallTile({
       return;
     }
     const size = tileSize(mode === "mini");
-    setBox(boxAt(clearAnchor(saved.anchor, size), size));
+    const aside = overlayAnchor(saved.anchor, size);
+    setRaised(!!aside);
+    setBox(boxAt(aside ?? clearAnchor(saved.anchor, size), size));
   }, [mode, saved.anchor]);
 
   useLayoutEffect(() => {
@@ -185,8 +211,8 @@ export function CallTile({
     };
     window.addEventListener("scroll", soon, { passive: true });
     window.addEventListener("resize", soon);
-    // The dock moves (compact, hidden) without a scroll event of its own.
-    const t = window.setInterval(soon, 400);
+    // The dock moving, the menu opening, have no scroll event of their own.
+    const t = window.setInterval(soon, 300);
     return () => {
       cancelAnimationFrame(frame);
       window.clearInterval(t);
@@ -268,6 +294,7 @@ export function CallTile({
   const at = box ?? { left: -200, top: -200, width: 46, height: 46 };
   const pos = drag ? { left: drag.left, top: drag.top } : { left: at.left, top: at.top };
   const face = mode === "tile" ? tileSize(false).face : at.height;
+  const shown = muted && state === "listening" ? "muted" : state;
   const LABEL: Record<CallState, string> = {
     connecting: "Connecting…",
     listening: muted ? "Microphone off" : "Listening",
@@ -279,10 +306,10 @@ export function CallTile({
   return (
     <div
       ref={ref}
-      className={`call-tile is-${mode} is-${state}${drag ? " is-dragging" : ""}${parked ? " is-parked" : ""}${snap ? " is-snap" : ""}`}
+      className={`call-tile is-${mode} is-${state}${drag ? " is-dragging" : ""}${parked ? " is-parked" : ""}${snap ? " is-snap" : ""}${raised ? " is-raised" : ""}`}
       style={{ left: pos.left, top: pos.top, width: at.width, height: at.height }}
       role={mode === "docked" ? undefined : "region"}
-      aria-label={mode === "docked" ? undefined : `Call with ${persona.name}. Drag, or use the arrow keys, to move it.`}
+      aria-label={mode === "docked" ? undefined : `Call with ${persona.name}, ${role}. Drag, or use the arrow keys, to move it.`}
       tabIndex={mode === "docked" ? -1 : 0}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
@@ -294,8 +321,12 @@ export function CallTile({
         {children}
         {mode === "tile" ? (
           <>
-            <span className="call-tag">{persona.name}</span>
-            <span className={`call-state is-${state}`}>{LABEL[state]}</span>
+            <span className="call-tag" title={role}>
+              {persona.name}
+            </span>
+            <span className={`call-state is-${shown}`} aria-live="polite">
+              {LABEL[state]}
+            </span>
           </>
         ) : null}
         {mode === "mini" ? (
@@ -306,22 +337,15 @@ export function CallTile({
       </div>
       {mode === "tile" ? (
         <div className="call-bar">
-          <div className="call-who">
-            <p className="call-name">{persona.name}</p>
-            {!phone() ? (
-              <p className="call-heard" aria-live="polite">
-                {heard ? `“${heard}”` : persona.role}
-              </p>
-            ) : null}
-          </div>
+          <LanguageToggle />
           <div className="call-controls">
-            <button type="button" className="call-btn" aria-pressed={muted} aria-label={muted ? "Turn microphone on" : "Turn microphone off"} onClick={onMute}>
+            <button type="button" className="call-btn" aria-pressed={muted} aria-label={muted ? "Turn microphone on" : "Turn microphone off"} title={muted ? "Unmute" : "Mute"} onClick={onMute}>
               {muted ? <MicOff size={16} /> : <Mic size={16} />}
             </button>
-            <button type="button" className="call-btn" aria-label="Minimise the call" onClick={() => setMini(true)}>
+            <button type="button" className="call-btn" aria-label="Minimise the call" title="Minimise" onClick={() => setMini(true)}>
               <Minus size={16} />
             </button>
-            <button type="button" className="call-btn call-end" aria-label="End the call" onClick={onEnd}>
+            <button type="button" className="call-btn call-end" aria-label="End the call" title="End call" onClick={onEnd}>
               <PhoneOff size={16} />
             </button>
           </div>

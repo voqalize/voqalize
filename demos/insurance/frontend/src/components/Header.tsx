@@ -33,7 +33,7 @@ export function Header() {
         <Link to="/" className="nav-logo" data-stage-part="nav:home" aria-label="Chhatri Insurance, home">
           <Logo />
         </Link>
-        <nav className={`nav-products${open ? " is-open" : ""}`} aria-label="Insurance">
+        <nav className={`nav-products${open ? " is-open" : ""}`} aria-label="Insurance" data-overlay={open ? "top" : undefined}>
           {PRODUCT_IDS.map((p) => (
             <NavLink key={p} to={`/insurance/${p}`} className="nav-link" data-stage-part={`nav:product:${p}`}>
               {PRODUCT_SHORT[p]}

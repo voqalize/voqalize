@@ -55,8 +55,25 @@ pnpm install --ignore-workspace
 pnpm dev --port 5405            # http://localhost:5405/demos/insurance/
 ```
 
-Without an agent configured the whole site works by click, and the dock says voice is coming.
-`?debug=1` opens a console that fires any Stage move by hand.
+Without an agent configured the whole site works by click, and the dock's call button is off.
+`?debug=1` opens a console that fires any Stage move by hand, and its "Fake call" shows the call tile.
+
+## The agent widget
+
+One entry point, the same as Paynora's: no transcript anywhere.
+
+- **Idle:** a bar at the bottom right (full width on a phone) with Ananya's still photo, her name,
+  the job on this page (`roles` in `persona.json`: Insurance guide, Quote guide, Policy explainer,
+  Claim helper, by the brain's own page-to-job rule), the EN / हिंदी toggle and "Talk to Ananya".
+  It moves to the left, or steps aside, when a primary action (`data-dock-avoid`) is under it.
+- **In a call:** the bar goes away and a draggable face tile holds the live avatar (the avatar
+  runtime starts only here), the language toggle, mute, minimise and end. It starts bottom right on
+  a desktop and top right on a phone, never over Continue, Submit claim or Continue to buy, and
+  moves clear of anything open over the page (`data-overlay`: the phone menu).
+- **Language** is remembered in this browser (`chhatri-lang`); the next call and a redial start in it.
+- **Highlights are shown whole (X1):** every Stage scroll goes through `frontend/src/stage/view.ts`,
+  which brings the target's group (`data-stage-group`: the add-ons, the claim types, the documents
+  owed, a policy section) fully into view, inner scroll areas first, under the sticky header.
 
 Tests: `cd demos && uv run pytest tests/test_insurance_e2e.py` (the brain over the real wire,
 scripted model) and `cd demos/insurance/frontend && pnpm test`.
@@ -64,12 +81,13 @@ scripted model) and `cd demos/insurance/frontend && pnpm test`.
 ## Change the character or add a language
 
 The character lives in **one file, `persona.json`**: avatar character id, display name (and its
-Devanagari spelling), gender, the languages offered with the voice and both speech legs for each,
+Devanagari spelling), gender, the dock's label per job (`roles`), the languages offered with the voice and both speech legs for each,
 and the default language. The page (`frontend/src/persona.ts`) and the brain
 (`backend/persona.py`) both read it.
 
 - **Another character:** change `character`, `name`, `names`, `gender` and each language's
-  `voice` in `persona.json`. The greetings in `backend/persona.py` (`GREETINGS`) are written
+  `voice` in `persona.json`, and add the still photo the idle dock shows at
+  `frontend/src/characters/<character>.webp` (without one the dock shows the initial). The greetings in `backend/persona.py` (`GREETINGS`) are written
   sentences: the Hindi ones use feminine verb forms (सकती, भरती), so a male character needs those
   four Hindi lines adjusted too.
 - **Another language:** add a row to `languages` in `persona.json` (code, label, voice, `stt`, `tts`
