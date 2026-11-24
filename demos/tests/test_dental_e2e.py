@@ -687,7 +687,7 @@ async def test_amounts_are_said_the_way_the_voice_reads_them() -> None:
         assert "₹6,500 to ₹12,000" in said
         assert "₹8,000 to ₹18,000" in said and "\u2013" not in said
         assert "₹4,500" in said and "₹4.5k" not in said
-        assert "one point two five lakh rupees" in said
+        assert "₹1.25 lakh" in said
         told = input_texts(llm.captured_inputs[-1])
         assert "'dedh hazaar' = 1500 rupees" in told
 

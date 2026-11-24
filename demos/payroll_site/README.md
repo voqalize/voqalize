@@ -96,10 +96,10 @@ reaches a freshly deployed process starts over. See `CONTRACT.md`, Redial.
 ## Amounts in speech
 
 Everything the agent says, model text and its own lines alike, passes through
-`backend/spoken.py` on its way to the voice. Voqalize's TTS reads a rupee amount
-with two decimals before a scale word as rupees and paise ("₹1.25 crore" becomes
-"one rupee and twenty five paisa crore"), so a scaled amount is spelled out in
-English ("sixteen point eight lakh rupees") and, in Hindi, written with ₹ and the
+`backend/spoken.py` on its way to the voice. Voqalize's TTS reads one rupee amount
+right in English (since speech 174bd6ef also "₹1.25 crore"), so it goes as written;
+a range with the scale said once ("₹8 to 12 lakh", read "eight rupees to 12 lakh")
+is spelled out ("eight to twelve lakh rupees"), and, in Hindi, a scaled amount is written with ₹ and the
 Devanagari scale (₹7.5 लाख, read डेढ़/ढाई/साढ़े) or as whole rupees (₹16,80,000).
 Plain amounts as the tools write them (₹6,664) are left as they are; the screen keeps
 its own formatting. The other way, the headcount: a count said with a scale ("dedh

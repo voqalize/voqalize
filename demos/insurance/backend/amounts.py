@@ -8,9 +8,12 @@ lakh", "डेढ़ लाख", Devanagari digits. The model passes the custome
 digits of "1.5 lakh" and stored ₹15 (I2): nothing here drops a unit.
 
 **Spoken.** The voice reads words reliably; a written figure such as "₹1.25 Cr"
-it can read as "1 rupee 25 crore" (B6). :func:`words` writes an amount the
-Indian way ("one lakh fifty thousand rupees", "डेढ़ लाख रुपये"), and
-:func:`speakable` rewrites every written amount in a line before it is spoken;
+it read as "1 rupee 25 crore" (B6) until speech 174bd6ef (24 Nov 2026), and in
+Hindi it reads decimals stiffly. :func:`words` writes an amount the Indian way
+("one lakh fifty thousand rupees", "डेढ़ लाख रुपये"), and :func:`speakable`
+rewrites the written amounts in a line before it is spoken: in Hindi every one,
+in English those without a rupee mark ("1.25 crore", "1,50,000 rupees"), since
+the TTS now reads an English "₹1.25 crore" right;
 :class:`SpokenAmounts` does the same to a stream of model text, holding back
 only a figure that may still be arriving. The screen keeps ₹1,50,000.
 """
@@ -540,7 +543,8 @@ _UNIT_OF = {
 
 
 def speakable(text: str, lang: str = "en") -> str:
-    """``text`` with every written amount in words, for the voice. A bare number
+    """``text`` with its written amounts in words, for the voice (in English, an
+    amount with a rupee mark stays as written: the TTS reads it). A bare number
     with no rupee sign, no Indian grouping and no lakh/crore (a year, a clause,
     a policy or account number) is left as it is."""
 
@@ -551,6 +555,10 @@ def speakable(text: str, lang: str = "en") -> str:
             return m.group(0)
         if unit in ("L", "k", "K") and not cur:
             return m.group(0)  # "15k steps", "a 4K screen": not ours to read
+        if lang == "en" and cur and not tail and (unit or "").lower() != "lacs":
+            # A rupee amount ("₹1,50,000", "₹1.25 crore", "₹1.5L") the TTS reads right in
+            # English since speech 174bd6ef; it used to say "₹1.25 Cr" as "1 rupee 25 crore".
+            return m.group(0)
         value = float(num.translate(_DEVANAGARI_DIGITS).replace(",", ""))
         if unit:
             value *= _UNIT_OF[_nfc(unit).lower()]

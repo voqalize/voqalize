@@ -1297,24 +1297,25 @@ from voqalize_demos._loaded.bank.spoken import (  # noqa: E402
 @pytest.mark.parametrize(
     ("written", "lang", "spoken"),
     [
+        # A range with the scale said once is still read wrong by the TTS ("eight rupees to 12 lakh"): each end in full.
+        ("Loans of ₹8 to 12 lakh.", "en", "Loans of eight to twelve lakh rupees."),
         # The owner's call (24 Nov): Voqalize's TTS read this "one rupee and twenty five
-        # paisa crore". Spelled out, it passes the TTS's text chain untouched.
+        # paisa crore". Since speech 174bd6ef it reads it right, so it goes as written.
         (
             "Certainly, ₹1.25 crore is within our home loan range.",
             "en",
-            "Certainly, one point two five crore rupees is within our home loan range.",
+            None,
         ),
         (
             "Your estimated eligibility is up to ₹1.85 crore, so ₹1.25 crore is within that.",
             "en",
-            "Your estimated eligibility is up to one point eight five crore rupees, so one point "
-            "two five crore rupees is within that.",
+            None,
         ),
-        ("You can borrow ₹1.25 Cr.", "en", "You can borrow one point two five crore rupees."),
-        ("Up to ₹2.25 lakh.", "en", "Up to two point two five lakh rupees."),
-        ("Two FDs: ₹2 lakh and ₹1 lakh.", "en", "Two FDs: two lakh rupees and one lakh rupees."),
+        ("You can borrow ₹1.25 Cr.", "en", None),
+        ("Up to ₹2.25 lakh.", "en", None),
+        ("Two FDs: ₹2 lakh and ₹1 lakh.", "en", None),
         ("Loans of ₹8\u201312 lakh.", "en", "Loans of eight to twelve lakh rupees."),
-        ("₹8 lakh\u2013₹12 lakh.", "en", "eight lakh rupees to twelve lakh rupees."),
+        ("₹8 lakh\u2013₹12 lakh.", "en", "₹8 lakh to ₹12 lakh."),
         ("Rates of 8.65\u20139.4% a year.", "en", "Rates of 8.65% to 9.4% a year."),
         # Plain amounts are left to the TTS, which reads them in lakh and thousand.
         ("An EMI of ₹1,57,332 a month, ₹15,000 cap.", "en", None),
@@ -1334,9 +1335,9 @@ from voqalize_demos._loaded.bank.spoken import (  # noqa: E402
         ("आप ₹1.85 करोड़।", "hi", "आप ₹1,85,00,000।"),
         ("आप ₹1.85 करोड़॥", "hi", "आप ₹1,85,00,000॥"),
         ("आप ₹1.25 crore।", "hi", "आप ₹1.25 करोड़।"),
-        ("आपका लोन ₹13.6 लाख।", "en", "आपका लोन thirteen point six lakh rupees।"),
-        ("Your loan is ₹13.6 lakh.", "en", "Your loan is thirteen point six lakh rupees."),
-        ("You can borrow ₹1.25 crore।", "en", "You can borrow one point two five crore rupees।"),
+        ("आपका लोन ₹13.6 लाख।", "en", None),
+        ("Your loan is ₹13.6 lakh.", "en", None),
+        ("You can borrow ₹1.25 crore।", "en", None),
     ],
 )
 def test_amounts_are_written_the_way_the_voice_reads_them(
@@ -1428,9 +1429,7 @@ async def test_an_amount_split_across_streamed_chunks_is_still_said_whole() -> N
     out = [e async for e in SpokenAmounts(lambda: "en").wrap(stream())]
     assert isinstance(out[0], SpeechStart) and isinstance(out[-1], SpeechEnd)
     text = "".join(e.text for e in out if isinstance(e, SpeechChunk))
-    assert text == (
-        "Certainly, one point two five crore rupees is within range; eight to twelve lakh rupees too."
-    )
+    assert text == ("Certainly, ₹1.25 crore is within range; eight to twelve lakh rupees too.")
 
 
 def test_an_implausible_amount_is_confirmed_back_never_used() -> None:
@@ -1447,7 +1446,7 @@ def test_an_implausible_amount_is_confirmed_back_never_used() -> None:
 
 async def test_amounts_are_spoken_as_words_and_a_wrong_one_is_confirmed() -> None:
     """The owner's B6 call over the wire: "1.25 Cr" heard, "₹1.25 crore" written, and the
-    voice is given "one point two five crore rupees"; the model is told what the amount
+    voice is given it as written (the TTS reads it right since speech 174bd6ef); the model is told what the amount
     he said is in rupees. A mis-heard ₹15 for "around 1 and half lakhs" never reaches
     the calculator: the tool asks the model to confirm "₹1.5 lakh" back first."""
     llm = ScriptedOpenAI(
@@ -1474,7 +1473,7 @@ async def test_amounts_are_spoken_as_words_and_a_wrong_one_is_confirmed() -> Non
         turn = await rig.driver.user_says("I'm looking to borrow uh 1.25 Cr.")
         check_turn(rig, turn)
         said = " ".join(u.text for u in turn.units)
-        assert "one point two five crore rupees" in said and "₹" not in said
+        assert "₹1.25 crore" in said
         told = json.dumps(llm.captured_inputs[-1], ensure_ascii=False)
         assert "'1.25 Cr' = 12500000 rupees" in told
 
@@ -1485,7 +1484,7 @@ async def test_amounts_are_spoken_as_words_and_a_wrong_one_is_confirmed() -> Non
         assert result.startswith("Not done") and "₹1,50,000" in result
         assert not [p for p in _moves(rig) if p["move"] == "loan.calc"]
         said = " ".join(u.text for u in turn.units)
-        assert "one point five lakh rupees, right?" in said
+        assert "₹1.5 lakh, right?" in said
 
 
 # ─── Whitespace around a rewritten amount ─────────────────────────────────────

@@ -38,6 +38,8 @@ _DASH_RANGE = re.compile(r"\d\s*[-\u2013\u2014]\s*₹?\d")
 @pytest.mark.parametrize(
     ("written", "lang", "spoken"),
     [
+        # A range with the scale said once is still read wrong by the TTS ("eight rupees to 12 lakh"): each end in full.
+        ("Implants run ₹1 to 1.5 lakh.", "en", "Implants run one to one point five lakh rupees."),
         # The clinic's own figures: plain rupees and "to" ranges go as written.
         ("A root canal is ₹6,500 to ₹12,000 per tooth.", "en", None),
         ("A check-up is ₹700; X-rays are ₹300 each.", "en", None),
@@ -66,17 +68,17 @@ _DASH_RANGE = re.compile(r"\d\s*[-\u2013\u2014]\s*₹?\d")
         (
             "A full-mouth plan can reach ₹1.25 lakh.",
             "en",
-            "A full-mouth plan can reach one point two five lakh rupees.",
+            None,
         ),
-        ("That's ₹1.25 Cr.", "en", "That's one point two five crore rupees."),
-        ("₹1.5L in all.", "en", "one point five lakh rupees in all."),
+        ("That's ₹1.25 Cr.", "en", None),
+        ("₹1.5L in all.", "en", None),
         ("कुल ₹1.25 लाख है।", "hi", "कुल सवा लाख रुपये है।"),
         ("कुल ₹1.5 lakh है।", "hi", "कुल डेढ़ लाख रुपये है।"),
         ("₹2.75 लाख", "hi", "पौने तीन लाख रुपये"),
         ("₹1.85 लाख", "hi", "₹1,85,000"),
         ("₹2 लाख", "hi", "₹2 लाख"),
         # Paise in words: no ₹ with two decimals reaches the voice.
-        ("A tube is ₹12.50.", "en", "A tube is twelve rupees and fifty paise."),
+        ("A tube is ₹12.50.", "en", None),
         ("₹12.50 लगेंगे।", "hi", "₹12 और पचास पैसे लगेंगे।"),
         # Not money: phone numbers, codes, times, counts.
         ("I sent the code to 98450 31726; it's 4821. See you at 2:15 pm.", "en", None),
