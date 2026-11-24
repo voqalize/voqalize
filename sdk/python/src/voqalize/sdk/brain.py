@@ -79,7 +79,7 @@ from typing import Any
 
 from loguru import logger
 
-from ._identity import verified_identity, warn_tenant_alias
+from ._identity import TENANT_ID_REMOVED, verified_identity
 from .actions import Action
 from .engine import Emitter, SessionAdapter, SessionFactory
 from .events import (
@@ -263,8 +263,6 @@ class Session:
         #: Branch on it when one brain serves several agents; to refuse every
         #: other agent, pass ``expect_agent=`` to ``run_session``.
         self.agent_id: str | None = identity.agent_id if identity else None
-        # RENAME-CLEANUP: the account, kept only to serve the deprecated tenant_id.
-        self._tenant_id: str | None = identity.account if identity else None
         # One id per speech unit, session-monotonic. Voqalize never reads it — it
         # comes back on the Finalize naming the unit it belongs to, and nothing
         # on that side compares, orders or formats it.
@@ -288,13 +286,12 @@ class Session:
         # When each recent turn's stimulus arrived, on the monotonic clock.
         self._turn_began: OrderedDict[int, float] = OrderedDict()
 
-    # RENAME-CLEANUP: drop the Session.tenant_id alias
-    @property
-    def tenant_id(self) -> str | None:
-        """Deprecated: use :attr:`agent_id`; the SDK no longer exposes the
-        account. Warns; removed in 0.17.0."""
-        warn_tenant_alias("Session.tenant_id")
-        return self._tenant_id
+    def __getattr__(self, name: str) -> Any:
+        # Only reached for a name the session does not have: point the one
+        # removed attribute a 0.15 brain may still read at its replacement.
+        if name == "tenant_id":
+            raise AttributeError(f"Session.tenant_id {TENANT_ID_REMOVED}")
+        raise AttributeError(f"{type(self).__name__!r} object has no attribute {name!r}")
 
     # ─── The app ────────────────────────────────────────────────────────
 

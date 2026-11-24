@@ -53,7 +53,7 @@ the query string, and hand the socket to the SDK's `run_session`. It verifies th
 connection, runs the session, and returns when the session ends.
 
 ```bash
-pip install "voqalize-agent-sdk==0.15.0" fastapi "uvicorn[standard]"
+pip install "voqalize-agent-sdk==0.16.0" fastapi "uvicorn[standard]"
 ```
 
 ```python

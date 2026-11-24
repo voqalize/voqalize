@@ -29,8 +29,9 @@ from __future__ import annotations
 import uuid
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
+from typing import Any
 
-from voqalize.sdk._identity import deprecated_tenant_kwarg, warn_tenant_alias
+from voqalize.sdk._identity import reject_removed_kwargs
 from voqalize.sdk.wire import SpeechChunkFrame, SpeechEndFrame
 
 from . import checks
@@ -70,22 +71,14 @@ class ScenarioContext:
         private_key_pem: bytes | None,
         agent_id: str = "agent_conformance",
         default_timeout: float = 5.0,
-        tenant_id: str | None = None,  # RENAME-CLEANUP: drop the deprecated tenant_id= keyword
+        **removed: Any,
     ) -> None:
+        reject_removed_kwargs("ScenarioContext", removed)
         self.brain_url = brain_url
         self.private_key_pem = private_key_pem
         self.agent_id = agent_id
-        # RENAME-CLEANUP: the account the minted tokens name; drop with tenant_id=.
-        self._account = deprecated_tenant_kwarg("ScenarioContext", tenant_id) or CONFORMANCE_ACCOUNT
         self.default_timeout = default_timeout
         self._drivers: list[VoqalizeDriver] = []
-
-    # RENAME-CLEANUP: drop the ScenarioContext.tenant_id alias
-    @property
-    def tenant_id(self) -> str:
-        """Deprecated: use :attr:`agent_id`; the SDK no longer exposes the account."""
-        warn_tenant_alias("ScenarioContext.tenant_id")
-        return self._account
 
     def new_session_id(self) -> str:
         return f"conf-{uuid.uuid4().hex[:12]}"
@@ -114,7 +107,7 @@ class ScenarioContext:
                     session_id=sid,
                     agent_id=self.agent_id,
                     ttl_seconds=60,
-                    account=self._account,
+                    account=CONFORMANCE_ACCOUNT,
                 )
         elif auth == "none":
             token = None

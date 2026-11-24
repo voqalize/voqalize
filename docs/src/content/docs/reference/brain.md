@@ -6,7 +6,7 @@ description: Every callback a brain may implement, its signature, and what it is
 A brain is a subclass of `Brain`. Voqalize opens one WebSocket per session, and
 what arrives on it reaches your code as a callback, each handed the `Session`
 for that call. This page is every signature on that surface,
-read out of `voqalize-agent-sdk` 0.15.0 and speaking wire version 3.
+read out of `voqalize-agent-sdk` 0.16.0 and speaking wire version 3.
 
 Only `on_user_message` is required. `on_user_message` and `on_user_idle` are
 async generators, and they are the only moments the floor is yours. Everything that is not speech is a method on `session`, callable
@@ -177,7 +177,6 @@ lifetime is exactly the socket's.
 |---|---|---|
 | `id` | `str` | The session id Voqalize assigned — the same string in `?session_id=`, in your logs, and in [the call record](/operate/reading-a-call/). |
 | `agent_id` | `str \| None` | The agent the connection's verified token names: the call's identity (an agent belongs to exactly one organization, which the SDK does not expose). `None` behind Cortex and under `allow_unverified=True`. Branch on it when one brain serves several agents. |
-| `tenant_id` | `str \| None` | Deprecated: use `agent_id`. The SDK no longer exposes the account; until 0.17.0 (two weeks after the organization switch) this still returns the account the verified token names, and reading it raises a `DeprecationWarning`. |
 | `init` | `dict[str, Any]` | The opaque init data handed to Voqalize at connect. Read your own keys out of it; the SDK interprets none of it. |
 | `capabilities` | `frozenset[Capability]` | What this Voqalize said it honours beyond the wire version's baseline, at `SessionStart`. Read the `can_*` properties rather than the set. |
 | `can_cancel_speech` | `bool` | Whether `cancel_speech` is honoured. Fixed for the session's life. |
@@ -524,8 +523,7 @@ def configure_logging(*, level: str = "INFO", json_logs: bool = False) -> None: 
 ```
 
 **`session_context`** puts `service`, `session_id`, and any `agent_id` into
-loguru's `extra` via a `ContextVar`. It still accepts `tenant_id=`, with a
-`DeprecationWarning`, until 0.17.0. Both entry points already
+loguru's `extra` via a `ContextVar`. Both entry points already
 wrap every session in it, so a bare `from loguru import logger` anywhere in your
 brain — and in any task it spawns — logs with the call attached, with no argument
 threaded through. Call it yourself only to tag work that runs outside a session.
@@ -535,10 +533,7 @@ never calls it: it replaces loguru's handlers for the whole process, which a
 library has no business doing to its host. Call it from your own entrypoint if
 you have no loguru configuration; if you do have one, add `{extra}` to your
 format instead. `json_logs=True` writes one JSON object per line with
-`session_id` and `agent_id` promoted to the top level. Until 0.17.0 (two weeks
-after the organization switch) a verified session's lines also carry the
-deprecated `tenant_id`, so a log query on it keeps matching; move it to
-`agent_id`.
+`session_id` and `agent_id` promoted to the top level.
 
 Binding fields onto a handler whose format never prints them looks exactly like
 working, and every one of those fields is computed and thrown away. The
@@ -570,7 +565,7 @@ from voqalize.sdk.litellm import LiteLLMBrain
 from voqalize.sdk.voice import TOOL_BUDGET_MS, ToolChoice, needs_result_now
 ```
 
-`GeminiBrain` is installed with `pip install "voqalize-agent-sdk[gemini]==0.15.0"`;
+`GeminiBrain` is installed with `pip install "voqalize-agent-sdk[gemini]==0.16.0"`;
 the other two take the `openai` and `litellm` extras the same way. All three are
 hosted exactly like any other brain.
 

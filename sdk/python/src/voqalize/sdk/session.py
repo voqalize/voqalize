@@ -50,7 +50,7 @@ import jwt
 from cryptography.hazmat.primitives import serialization
 from loguru import logger
 
-from ._identity import VerifiedIdentity, account_claim, verified_identity
+from ._identity import VerifiedIdentity, verified_identity
 from ._keys import VOQALIZE_PUBLIC_KEYS
 from ._logging import _session_context
 from .engine import (
@@ -418,10 +418,7 @@ async def run_session(
                 session_id,
             )
             raise SessionRejected(f"session {session_id} is for another agent")
-        identity = VerifiedIdentity(
-            agent_id=agent_id,
-            account=account_claim(claims),  # RENAME-CLEANUP: drop with Session.tenant_id
-        )
+        identity = VerifiedIdentity(agent_id=agent_id)
     else:
         identity = None
     # Tag every line this session writes — including the brain's own — with the
@@ -429,11 +426,7 @@ async def run_session(
     # supplied. See `_logging`.
     identity_token = verified_identity.set(identity)
     try:
-        with _session_context(
-            session_id,
-            tenant_id=account_claim(claims),  # RENAME-CLEANUP: drop the tenant_id log field
-            agent_id=str(claims.get("agent_id", "")),
-        ):
+        with _session_context(session_id, agent_id=str(claims.get("agent_id", ""))):
             await serve_channel(
                 channel,
                 factory=_brain_factory(brain),

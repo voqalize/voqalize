@@ -177,8 +177,8 @@ facts:
       Bumped to 0.16.0 on 2026-11-24: the SDK identifies a call by
       agent_id and no longer exposes the account. Session.tenant_id,
       session_context(tenant_id=), the tenant_id log field and the conformance
-      kit's tenant_id= are deprecated, removed in 0.17.0 two weeks after the
-      organization switch. The wire is unchanged.
+      kit's tenant_id= are removed (each fails with a message naming
+      agent_id). The wire is unchanged.
       Bumped to 0.15.0 on 2026-11-17: Config.redial (a call outlives the
       brain's socket) and Config.late (the slow-turn line off, later, or in the
       brain's words), each behind a capability. Additive; the wire stays 3.

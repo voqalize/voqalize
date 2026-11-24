@@ -22,6 +22,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from typing import Any
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import jwt
@@ -29,7 +30,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from websockets.asyncio.client import ClientConnection, connect
 
-from voqalize.sdk._identity import deprecated_tenant_kwarg
+from voqalize.sdk._identity import reject_removed_kwargs
 from voqalize.sdk.session import key_id
 
 # Same wire constant every brain verifies (voqalize.sdk.session.BRAIN_AUDIENCE).
@@ -131,7 +132,7 @@ def mint_voqalize_token(
     session_id: str,
     agent_id: str,
     ttl_seconds: int = 60,
-    tenant_id: str | None = None,  # RENAME-CLEANUP: drop the deprecated tenant_id= keyword
+    **removed: Any,
 ) -> str:
     """Mint the short-lived RS256 token Voqalize presents on a brain connection.
 
@@ -141,21 +142,20 @@ def mint_voqalize_token(
     Claims: ``iss=pygato``, ``aud=brain`` (a wire constant),
     ``sub=session_id``, ``kind=pygato``, plus ``agent_id`` for the recipient to
     decide. Like production's, the token also names the agent's account
-    (``organization_id``, and ``tenant_id`` for two weeks after the organization
-    switch, so a brain on an SDK older than 0.16.0 still reads it); the SDK does
-    not expose it, so the value is a fixed placeholder. The ``tenant_id=``
-    keyword, which set it, is deprecated (removed in 0.17.0). The header names
-    the signing key as ``kid``
+    (``organization_id``, and ``tenant_id`` for the two weeks after the
+    organization switch, which a brain on an SDK older than 0.16.0 reads); the
+    SDK does not expose it, so the value is a fixed placeholder. The header
+    names the signing key as ``kid``
     (:func:`voqalize.sdk.session.key_id`). The same shape Voqalize signs in
     production, so a brain that accepts this one accepts production.
     """
-    account = deprecated_tenant_kwarg("mint_voqalize_token", tenant_id)
+    reject_removed_kwargs("mint_voqalize_token", removed)
     return _mint(
         private_key_pem=private_key_pem,
         session_id=session_id,
         agent_id=agent_id,
         ttl_seconds=ttl_seconds,
-        account=account or CONFORMANCE_ACCOUNT,
+        account=CONFORMANCE_ACCOUNT,
     )
 
 

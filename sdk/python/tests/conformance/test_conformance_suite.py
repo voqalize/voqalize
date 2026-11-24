@@ -192,38 +192,38 @@ async def test_wrong_key_is_rejected_directly() -> None:
     assert code == 4000
 
 
-# RENAME-CLEANUP: 0.17.0 asserts tenant_id is absent and drops the tenant_id= cases.
 def test_minted_tokens_mirror_production_claims_with_no_account_parameter():
     """Voqalize's brain token names the account (organization_id, and tenant_id
-    during the two-week grace, which a brain on an SDK older than 0.16.0 reads);
-    the kit's does too, without a public account parameter."""
-    import inspect
+    for the two weeks after the switch, which a brain on 0.15.0 reads); the kit's
+    does too, without any public account parameter."""
+    import asyncio
 
     import jwt
 
     from voqalize.conformance import mint_voqalize_token, run_suite
     from voqalize.conformance.scenarios import ScenarioContext
 
-    for fn in (mint_voqalize_token, run_suite, ScenarioContext):
-        assert "organization_id" not in inspect.signature(fn).parameters
+    assert not hasattr(ScenarioContext("ws://x", private_key_pem=None), "tenant_id")
 
     kp = generate_keypair()
-
-    def claims(token: str) -> dict:
-        return jwt.decode(token, options={"verify_signature": False})
-
     token = mint_voqalize_token(private_key_pem=kp.private_pem, session_id="s", agent_id="a")
-    assert claims(token)["organization_id"] == "organization_conformance"
-    assert claims(token)["tenant_id"] == "organization_conformance"
+    claims = jwt.decode(token, options={"verify_signature": False})
+    assert claims["organization_id"] == "organization_conformance"
+    assert claims["tenant_id"] == "organization_conformance"  # RENAME-CLEANUP
 
-    with pytest.warns(DeprecationWarning, match="mint_voqalize_token.*use agent_id"):
-        legacy = mint_voqalize_token(
-            private_key_pem=kp.private_pem, session_id="s", agent_id="a", tenant_id="old"
+    guidance = "(tenant_id=) was removed in 0.16.0: identify calls by session.agent_id"
+    with pytest.raises(TypeError) as e:
+        mint_voqalize_token(
+            private_key_pem=kp.private_pem, session_id="s", agent_id="a", tenant_id="t"
         )
-    assert claims(legacy)["organization_id"] == "old"
-    assert claims(legacy)["tenant_id"] == "old"
-
-    with pytest.warns(DeprecationWarning, match="ScenarioContext.*use agent_id"):
-        ctx = ScenarioContext("ws://x", private_key_pem=None, tenant_id="old")
-    with pytest.warns(DeprecationWarning, match="ScenarioContext.tenant_id"):
-        assert ctx.tenant_id == "old"
+    assert str(e.value) == "mint_voqalize_token" + guidance
+    with pytest.raises(TypeError) as e:
+        ScenarioContext("ws://x", private_key_pem=None, tenant_id="t")
+    assert str(e.value) == "ScenarioContext" + guidance
+    with pytest.raises(TypeError) as e:
+        asyncio.run(run_suite("ws://x", private_key_pem=None, tenant_id="t"))
+    assert str(e.value) == "run_suite" + guidance
+    with pytest.raises(TypeError, match="unexpected keyword argument 'organization_id'"):
+        mint_voqalize_token(
+            private_key_pem=kp.private_pem, session_id="s", agent_id="a", organization_id="o"
+        )

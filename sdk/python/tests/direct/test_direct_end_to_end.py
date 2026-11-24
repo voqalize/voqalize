@@ -218,7 +218,6 @@ async def test_direct_auth_accepts_valid_token_rejects_bad():
                 "kind": "voqal-voice",
                 "agent_id": "echo",
                 "organization_id": "t1",
-                "tenant_id": "t1",
                 "iat": now,
                 "exp": now + timedelta(seconds=300),
             },

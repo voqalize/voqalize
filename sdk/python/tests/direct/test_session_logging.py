@@ -62,6 +62,7 @@ async def test_context_reaches_tasks_spawned_inside_it():
     inside, outside = cap.records[0], cap.records[1]
     assert inside["session_id"] == "sid-1"
     assert "organization_id" not in inside, "the SDK does not expose the account"
+    assert "tenant_id" not in inside
     assert inside["agent_id"] == "a1"
     assert inside["service"] == "brain"
     assert "session_id" not in outside
@@ -149,9 +150,9 @@ def _signed(session_id: str, **claims) -> tuple[str, str]:
 async def test_brain_lines_carry_the_identity_from_the_verified_token():
     """The customer's own ``logger.info`` inside a callback is tagged for free."""
     sid = str(uuid.uuid4())
-    # The platform's token, which names the account; the SDK logs no account
-    # field except the deprecated tenant_id during the grace.
-    token, pub = _signed(sid, organization_id="org-7", agent_id="agent-9")
+    # The platform's token during the grace names the account twice; the SDK
+    # logs no account field.
+    token, pub = _signed(sid, organization_id="org-7", tenant_id="org-7", agent_id="agent-9")
     server_ch, client_ch = _pipe()
 
     with _Capture() as cap:
@@ -183,9 +184,7 @@ async def test_brain_lines_carry_the_identity_from_the_verified_token():
     tagged = [r for r in cap.records if r.get("session_id") == sid]
     assert tagged, "the brain's own log lines were not tagged with the session"
     assert not any("organization_id" in r for r in tagged)
-    # RENAME-CLEANUP: the grace-period tenant_id log field (read from organization_id);
-    # 0.17.0 asserts it is absent.
-    assert all(r["tenant_id"] == "org-7" for r in tagged), "log shippers still index tenant_id"
+    assert not any("tenant_id" in r for r in tagged), "log fields are service/session_id/agent_id"
     assert all(r["agent_id"] == "agent-9" for r in tagged)
 
 
@@ -195,14 +194,14 @@ def test_json_sink_promotes_identity_and_keeps_custom_fields(capsys):
 
     try:
         configure_logging(json_logs=True)
-        with _session_context("sid-3", agent_id="", tenant_id="t3"):
+        with _session_context("sid-3", agent_id=""):
             logger.bind(candidate="c-1").info("scored")
         line = json.loads(capsys.readouterr().err.strip().splitlines()[-1])
     finally:
         logger.remove()
 
     assert line["session_id"] == "sid-3"
-    assert line["tenant_id"] == "t3"  # RENAME-CLEANUP: the grace-period log field
+    assert "tenant_id" not in line
     assert "organization_id" not in line
     assert line["service"] == "brain"
     assert line["message"] == "scored"
@@ -222,13 +221,11 @@ def test_console_sink_renders_a_line_logged_outside_any_session(capsys):
     assert "no session here" in out
 
 
-# RENAME-CLEANUP: covers only the tenant_id= alias.
-def test_session_context_tenant_id_keyword_is_deprecated():
-    with _Capture() as cap:
-        with pytest.warns(DeprecationWarning, match="session_context.*use agent_id") as rec:
-            ctx = session_context("sid-4", tenant_id="t4")
-        assert rec[0].filename == __file__, "the warning points at the caller"
-        with ctx:
-            logger.info("hello")
-    assert cap.records[0]["tenant_id"] == "t4"
-    assert "organization_id" not in cap.records[0]
+def test_session_context_tenant_id_keyword_says_to_use_agent_id():
+    with pytest.raises(TypeError) as e:
+        session_context("sid-4", tenant_id="t4")
+    assert str(e.value) == (
+        "session_context(tenant_id=) was removed in 0.16.0: identify calls by session.agent_id"
+    )
+    with pytest.raises(TypeError, match="unexpected keyword argument 'organization_id'"):
+        session_context("sid-4", organization_id="t4")

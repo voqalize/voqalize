@@ -24,8 +24,9 @@ from __future__ import annotations
 import time
 import traceback
 from dataclasses import dataclass, field
+from typing import Any
 
-from voqalize.sdk._identity import deprecated_tenant_kwarg
+from voqalize.sdk._identity import reject_removed_kwargs
 
 from .scenarios import CATALOG, Scenario, ScenarioContext
 
@@ -181,7 +182,7 @@ async def run_suite(
     only: list[str] | None = None,
     default_timeout: float = 5.0,
     agent_id: str = "agent_conformance",
-    tenant_id: str | None = None,  # RENAME-CLEANUP: drop the deprecated tenant_id= keyword
+    **removed: Any,
 ) -> Report:
     """Run the catalog against ``brain_url`` and return a :class:`Report`.
 
@@ -199,22 +200,17 @@ async def run_suite(
     ``include_auth`` keeps the auth-rejection scenarios (skip them when the brain
     runs unverified — they can't pass without token enforcement); ``only``
     restricts to named scenarios.
-
-    ``tenant_id=`` is deprecated (it warns, and is removed in 0.17.0): the SDK
-    identifies a call by ``agent_id`` and no longer exposes the account.
     """
-    account = deprecated_tenant_kwarg("run_suite", tenant_id)
+
+    reject_removed_kwargs("run_suite", removed)
 
     def _ctx() -> ScenarioContext:
-        ctx = ScenarioContext(
+        return ScenarioContext(
             brain_url,
             private_key_pem=private_key_pem,
             agent_id=agent_id,
             default_timeout=default_timeout,
         )
-        if account is not None:  # RENAME-CLEANUP: drop with the tenant_id= keyword
-            ctx._account = account
-        return ctx
 
     selected = [s for s in CATALOG if only is None or s.name in only]
     reference_reason = _GRAMMAR_OFF

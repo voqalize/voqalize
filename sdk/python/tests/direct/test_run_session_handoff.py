@@ -235,9 +235,8 @@ def _token(
     account: dict[str, str] | None = None,
     **headers,
 ) -> str:
-    """``account`` is the account claim(s) to sign, as the platform does:
-    ``organization_id`` alone by default, ``tenant_id`` (a platform from before
-    the rename), or both (the brain token during the grace)."""
+    """``account`` is the account claim(s) to sign (``organization_id`` by
+    default, as the platform does); the SDK reads none of them."""
     now = datetime.now(UTC)
     return jwt.encode(
         {
@@ -359,78 +358,81 @@ async def test_unverified_sessions_carry_no_identity():
     assert text == "for None"
 
 
-# ─── the account: no longer exposed; tenant_id deprecated ─────────────────────
-# RENAME-CLEANUP: this section covers the deprecated tenant_id; 0.17.0 keeps
-# only the absence of any account field.
+# ─── the account: not exposed (0.16.0 removed tenant_id) ─────────────────────
 
 
-def test_the_session_exposes_no_organization_id():
+def test_the_session_exposes_no_account():
+    """A call is identified by its agent; no account field is left."""
     from voqalize.sdk import Session
     from voqalize.sdk._identity import VerifiedIdentity
 
-    assert not hasattr(Session, "organization_id")
-    assert "organization_id" not in VerifiedIdentity.__dataclass_fields__
-
-
-class _TenantAliasBrain(_IdentityBrain):
-    """A brain written against 0.15: it reads ``session.tenant_id``."""
-
-    async def greet(self, session) -> str:
-        return f"for {session.tenant_id}/{session.agent_id}"
+    for name in ("organization_id", "tenant_id"):
+        assert not hasattr(Session, name)
+        assert name not in VerifiedIdentity.__dataclass_fields__
 
 
 @pytest.mark.parametrize(
-    ("claims", "expected"),
+    "claims",
     [
-        ({"organization_id": "o-1", "tenant_id": "o-1"}, "o-1"),  # the brain token, in the grace
-        ({"organization_id": "o-1"}, "o-1"),  # a platform that dropped tenant_id
-        ({"tenant_id": "o-1"}, "o-1"),  # a platform from before the rename
-        ({"organization_id": "o-new", "tenant_id": "o-old"}, "o-new"),  # organization_id wins
+        {"organization_id": "o-1", "tenant_id": "o-1"},  # the brain token, in the grace
+        {"organization_id": "o-1"},  # after the grace
+        {"tenant_id": "o-1"},  # a platform from before the rename
     ],
-    ids=["both-claims", "organization-only", "tenant-only", "organization-wins"],
+    ids=["both-claims", "organization-only", "tenant-only"],
 )
-async def test_a_015_brain_reading_session_tenant_id_gets_the_id_and_one_warning(claims, expected):
-    """The customer guarantee: brain code written for 0.15 runs unchanged on 0.16,
-    whatever the token carries, and is told once to move to agent_id."""
+async def test_the_session_is_identified_by_agent_id_whatever_the_account_claims(claims):
+    priv, pub = _keypair()
+    sid = str(uuid.uuid4())
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", DeprecationWarning)
+        text = await _greeting(
+            session_id=sid,
+            token=f"Bearer {_token(priv, sid, agent_id='agent-mine', account=claims)}",
+            public_keys=pub,
+            expect_agent="agent-mine",
+        )
+    assert text == "for agent-mine"
+
+
+class _TenantReadingBrain(_IdentityBrain):
+    """A brain written against 0.15: it reads ``session.tenant_id``."""
+
+    async def greet(self, session) -> str:
+        try:
+            return f"for {session.tenant_id}"
+        except AttributeError as e:
+            return f"for error: {e}"
+
+
+async def test_reading_session_tenant_id_says_to_use_agent_id():
     priv, pub = _keypair()
     sid = str(uuid.uuid4())
     server_ch, client_ch = _pipe()
-    token = _token(priv, sid, agent_id="agent-mine", account=claims)
-    with warnings.catch_warnings(record=True) as caught:
-        warnings.simplefilter("always")
-        task = asyncio.create_task(
-            run_session(
-                server_ch,
-                brain=_TenantAliasBrain,
-                session_id=sid,
-                token=f"Bearer {token}",
-                public_keys=pub,
-                expect_agent="agent-mine",
-            )
+    token = _token(
+        priv, sid, agent_id="agent-mine", account={"organization_id": "o-1", "tenant_id": "o-1"}
+    )
+    task = asyncio.create_task(
+        run_session(
+            server_ch,
+            brain=_TenantReadingBrain,
+            session_id=sid,
+            token=f"Bearer {token}",
+            public_keys=pub,
+            expect_agent="agent-mine",
         )
-        client = _Client(client_ch)
-        try:
-            await client.send(SessionStartFrame(turn_id=1, session_id=sid))
-            frames = await client.collect_until(_has_text("for "))
-        finally:
-            await client_ch.close()
-            with contextlib.suppress(*_TEARDOWN_ERRORS):
-                await asyncio.wait_for(task, timeout=2.0)
-    want = f"for {expected}/agent-mine"
-    assert any(isinstance(f, SpeechChunkFrame) and f.text == want for f in frames)
-    deprecations = [w for w in caught if issubclass(w.category, DeprecationWarning)]
-    assert len(deprecations) == 1, [str(w.message) for w in deprecations]
-    message = str(deprecations[0].message)
-    assert "Session.tenant_id" in message
-    assert "use agent_id; the SDK no longer exposes the account (removed in 0.17.0)" in message
-
-
-def test_verified_identity_tenant_id_is_a_deprecated_alias():
-    from voqalize.sdk._identity import VerifiedIdentity
-
-    identity = VerifiedIdentity(agent_id="a-1", account="o-1")
-    with pytest.warns(DeprecationWarning, match="use agent_id"):
-        assert identity.tenant_id == "o-1"
+    )
+    client = _Client(client_ch)
+    try:
+        await client.send(SessionStartFrame(turn_id=1, session_id=sid))
+        frames = await client.collect_until(_has_text("for "))
+    finally:
+        await client_ch.close()
+        with contextlib.suppress(*_TEARDOWN_ERRORS):
+            await asyncio.wait_for(task, timeout=2.0)
+    text = next(f.text for f in frames if isinstance(f, SpeechChunkFrame))
+    assert text == (
+        "for error: Session.tenant_id was removed in 0.16.0: identify calls by session.agent_id"
+    )
 
 
 # ─── kid: the token names its key; old tokens without one still verify ──────
