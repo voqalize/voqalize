@@ -299,8 +299,9 @@ def owe(line: str) -> None:
 async def _amounts_spoken(
     turn: AsyncGenerator[Speech, None], lang: str
 ) -> AsyncGenerator[Speech, None]:
-    """Every written amount in the turn's speech said in words, for the voice
-    (amounts.py, B6/X8: "₹1.25 Cr" was read "1 rupee 25 crore"). Pieces pass
+    """The turn's written amounts said in words where the voice needs it
+    (amounts.speakable: every one in Hindi; in English those without a rupee
+    mark). Pieces pass
     straight through but for a figure that may still be arriving."""
     stream = amounts.SpokenAmounts(lang)
     try:

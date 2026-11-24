@@ -2,12 +2,11 @@
 
 **Out (brain → voice).** The screen shows ₹1,500 to ₹2,500; the voice must say
 it the way a Bengaluru front desk does. Voqalize's TTS normalises text before
-the voice model reads it, and in English one of its rules reads any rupee amount
-with exactly two decimals as rupees and paise, so "₹1.25 crore" reaches the
-voice as "one rupee and twenty five paisa crore" and a "₹1.25k" would fare no
-better. :func:`speak_text` rewrites every amount into a form that chain reads
-right (the forms are the ones the bank and insurance demos verified against the
-chain; see the README, "Amounts in speech"):
+the voice model reads it, and in English one of its rules read any rupee amount
+with exactly two decimals as rupees and paise, so "₹1.25 crore" reached the
+voice as "one rupee and twenty five paisa crore" (fixed in speech 174bd6ef,
+24 Nov 2026). :func:`speak_text` rewrites the amounts that chain still reads
+wrong or stiffly (see the README, "Amounts in speech"):
 
 - Plain rupees (₹500, ₹6,500, ₹12,000) go as written: the chain reads them in
   thousand and lakh, in English and in Hindi.
@@ -15,12 +14,15 @@ chain; see the README, "Amounts in speech"):
   ("₹8,000-₹18,000", "₹1,500-2,500") becomes "to" (से in Hindi).
 - Thousands written short ("₹1.5k", "₹15 thousand", "₹8 हज़ार") become whole
   rupees (₹1,500, ₹15,000, ₹8,000).
-- Lakh and crore: in English spelled out ("one point two five crore rupees");
-  in Hindi a quarter step is said the Hindi way in words ("सवा करोड़ रुपये",
-  "डेढ़ लाख रुपये"), a whole number keeps the ₹ with the Devanagari scale
-  ("₹8 लाख"), and any other decimal becomes whole rupees.
-- Rupees and paise ("₹12.50") are said in words, so no ₹ amount with two
-  decimals ever reaches the TTS.
+- Lakh and crore: in English one amount goes as written ("₹1.25 lakh"), and a
+  range is spelled out ("one to one point five lakh rupees"), because the chain
+  reads a range with the scale said once wrong ("₹1 to 1.5 lakh" → "one rupee
+  to 1.5 lakh"), a TTS gap this covers until speech fixes it. In Hindi a
+  quarter step is said the Hindi way in words ("सवा करोड़ रुपये", "डेढ़ लाख
+  रुपये"), a whole number keeps the ₹ with the Devanagari scale ("₹8 लाख"), and
+  any other decimal becomes whole rupees.
+- Rupees and paise ("₹12.50"): in English as written (the chain says "twelve
+  rupees and fifty paisa"); in Hindi in words.
 
 :class:`SpokenAmounts` applies it to a brain's speech as it streams, holding back
 only the last few words while they could still be part of an amount.
@@ -315,16 +317,21 @@ def _scaled(m: re.Match[str], lang: str) -> str:
         if not end:
             return first
         return f"{first} से {_hi_end(end, size, hindi, money=money, last=True)}"
+    if not end and m["cur"] and not m["word"] and (m["scale"] or "").lower() != "lacs":
+        # One rupee amount before its scale ("₹1.25 crore", "₹1.07 Cr", "₹1.5L") goes as
+        # written: the TTS reads it right since speech 174bd6ef ("one point two five crore
+        # rupees"; it used to say "one rupee and twenty five paisa crore").
+        return m[0]
+    # TTS gap: a range with the scale word said once ("₹8 to 12 lakh", "₹1.25 to 1.5
+    # crore") is still read "eight rupees to 12 lakh", so each end is said in full here.
+    # This can go when the speech tier reads such a range right.
     said = en_number(a) + (f" to {en_number(end)}" if end else "")
     return f"{said} {english}" + (" rupees" if money else "")
 
 
-def _paise(m: re.Match[str], lang: str) -> str:
-    whole, paise = int(m["r"].replace(",", "")), int(m["p"])
-    if lang == "hi":
-        return f"₹{m['r']}" + (f" और {_HI_DEVANAGARI[paise - 1]} पैसे" if paise else "")
-    said = f"{en_cardinal(whole)} {'rupee' if whole == 1 else 'rupees'}"
-    return said + (f" and {en_cardinal(paise)} paise" if paise else "")
+def _hi_paise(m: re.Match[str]) -> str:
+    paise = int(m["p"])
+    return f"₹{m['r']}" + (f" और {_HI_DEVANAGARI[paise - 1]} पैसे" if paise else "")
 
 
 #: A dash between two amounts already said in full ("₹8 lakh", dash, "₹12 lakh"): silent raw.
@@ -339,7 +346,8 @@ def speak_text(text: str, lang: str) -> str:
     out = _PCT_RANGE.sub(lambda m: f"{m[1]}% {to} {m[2]}%", text)
     out = _SCALED.sub(lambda m: _scaled(m, lang), out)
     out = _RUPEE_RANGE.sub(lambda m: f"₹{m['a']} {to} ₹{m['b']}", out)
-    out = _PAISE.sub(lambda m: _paise(m, lang), out)
+    if lang == "hi":  # In English the TTS reads rupees and paise right ("₹12.50").
+        out = _PAISE.sub(_hi_paise, out)
     return _DASH_AFTER_SCALE.sub(lambda m: f"{m[1]} {to} ", out)
 
 

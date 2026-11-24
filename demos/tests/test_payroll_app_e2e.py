@@ -1229,7 +1229,7 @@ _ADD = "Add Meera Iyer, an engineer in Pune, joining 16 February, CTC 7.2 lakh."
 async def test_amounts_are_spoken_as_words_and_a_wrong_ctc_is_confirmed() -> None:
     """X8 over the wire: "7.2 lakh" heard is noted to the model as 720000 rupees; a CTC
     that lost its scale on the way (72) never reaches the form, the tool asks for it
-    to be confirmed back, and the voice says the amount in words. In Hindi a scaled
+    to be confirmed back, and the voice says the amount back. In Hindi a scaled
     amount reaches the voice as whole rupees with the ₹ mark."""
     llm = ScriptedOpenAI(
         {
@@ -1258,7 +1258,7 @@ async def test_amounts_are_spoken_as_words_and_a_wrong_ctc_is_confirmed() -> Non
         result = tool_results(llm.captured_inputs[-1])["fill_new_employee"]
         assert result.startswith("Not done") and "₹7,20,000" in result
         assert not [m for m in _moves(rig) if m["move"] == "employee.fill"]
-        assert "seven point two lakh rupees, right?" in turn.text and "₹" not in turn.text
+        assert "₹7.2 lakh, right?" in turn.text
 
     async with demo("payroll_app", llm) as rig:
         await rig.driver.start_session(init={"landing": "/", "lang": "hi"})

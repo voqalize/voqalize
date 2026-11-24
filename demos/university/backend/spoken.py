@@ -2,15 +2,18 @@
 
 **Out (brain → voice).** The screen shows ₹3,40,000 and "₹2 to 3.5 lakh"; the voice
 must say them the way an Indian counsellor does. Voqalize's TTS normalises text
-before OmniVoice reads it, and one of its rules mangles a rupee amount with two
-decimals before a scale word: in English "₹1.75 lakh" reaches the voice as "one
+before OmniVoice reads it, and one of its rules mangled (until speech
+174bd6ef, 24 Nov 2026) a rupee amount with two
+decimals before a scale word: in English "₹1.75 lakh" reached the voice as "one
 rupee and seventy five paisa lakh". :func:`speak_text` rewrites every scaled
 amount into a form that chain reads right (the findings are the bank's, run
 through the chain itself):
 
-- English: a scaled amount is spelled out ("one point seven five lakh rupees",
-  "two to three point five lakh rupees"); plain amounts (₹3,40,000, ₹1,500,
-  ₹43,750) are left to the chain, which reads them in lakh and thousand.
+- English: one amount goes as written (₹1.75 lakh, ₹3,40,000): since speech 174bd6ef the chain
+  reads a scale after two decimals right ("one point two five crore rupees").
+  A range is still spelled out ("eight to twelve lakh rupees"): the chain reads
+  one with the scale said once wrong ("₹8 to 12 lakh" → "eight rupees to 12
+  lakh"), a TTS gap this rewrite covers until speech fixes it.
 - Hindi: the scale in Devanagari (लाख, करोड़) with the ₹ mark, so the chain says a
   quarter, a half or three quarters the Hindi way (सवा, डेढ़, ढाई, साढ़े, पौने);
   any other decimal becomes whole rupees ("₹3.4 लाख" → ₹3,40,000, "तीन लाख
@@ -163,6 +166,14 @@ def _scaled(m: re.Match[str], lang: str) -> str:
             return f"{a} से {end} {hindi}" if end else f"{a} {hindi}"
         first = _hi_end(a, size, hindi)
         return f"{first} से {_hi_end(end, size, hindi)}" if end else first
+    if not end and m["cur"] and not m["word"] and (m["scale"] or "").lower() != "lacs":
+        # One rupee amount before its scale ("₹1.25 crore", "₹1.07 Cr", "₹1.5L") goes as
+        # written: the TTS reads it right since speech 174bd6ef ("one point two five crore
+        # rupees"; it used to say "one rupee and twenty five paisa crore").
+        return m[0]
+    # TTS gap: a range with the scale word said once ("₹8 to 12 lakh", "₹1.25 to 1.5
+    # crore") is still read "eight rupees to 12 lakh", so each end is said in full here.
+    # This can go when the speech tier reads such a range right.
     said = en_number(a) + (f" to {en_number(end)}" if end else "")
     return f"{said} {english}" + (" rupees" if money else "")
 

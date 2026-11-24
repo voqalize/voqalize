@@ -65,12 +65,12 @@ first scrolled fully into view with the group around it (`frontend/src/stage/vie
 
 - **Amounts in speech** (`backend/spoken.py`, from the bank demo's): the screen shows ₹6,500 to
   ₹12,000, and everything she says (the model's words, the greeting, her own lines) is rewritten
-  before it reaches the voice. Voqalize's TTS reads a rupee amount with exactly two decimals as
-  rupees and paise ("₹1.25 crore" became "one rupee and twenty five paisa crore"), so: plain
-  rupees go as written (the TTS reads them in thousand and lakh); a dash between two amounts
-  becomes "to" / से with ₹ on both ends; "₹1.5k" or "₹15 thousand" becomes whole rupees; lakh and
-  crore are spelled out in English and said the Hindi way in Hindi (सवा करोड़, डेढ़ लाख); paise
-  are said in words. The prompt tells her to write ₹ with Indian grouping and never k/L/Cr.
+  before it reaches the voice. Plain rupees, a single lakh or crore amount ("₹1.25 lakh") and
+  paise go as written in English (the TTS reads them right since speech 174bd6ef); a dash
+  between two amounts becomes "to" / से with ₹ on both ends; "₹1.5k" or "₹15 thousand" becomes
+  whole rupees; a lakh or crore range is spelled out in English (the TTS reads "₹1 to 1.5 lakh"
+  as "one rupee to 1.5 lakh"); in Hindi lakh and crore are said the Hindi way (सवा करोड़, डेढ़
+  लाख) and paise in words. The prompt tells her to write ₹ with Indian grouping and never k/L/Cr.
   No tool takes an amount from the patient, so nothing is filled from speech; when a patient says
   one in words ("dedh hazaar", "10k", "पंद्रह हज़ार"), `parse_amounts` puts it in rupees in a note
   for the model.
