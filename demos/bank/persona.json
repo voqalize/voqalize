@@ -6,6 +6,13 @@
     "hi": "अर्जुन"
   },
   "role": "Anvaya Bank's assistant",
+  "roles": {
+    "home": "Cards and loans adviser",
+    "cards": "Credit card adviser",
+    "loans": "Loans adviser",
+    "account": "Account opening",
+    "banking": "Banking assistant"
+  },
   "voices": {
     "en": "omnivoice/arjun",
     "hi": "omnivoice/arjun"

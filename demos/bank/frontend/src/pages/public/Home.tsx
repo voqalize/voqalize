@@ -2,7 +2,6 @@ import { ArrowRight, CreditCard, Landmark, LockKeyhole, Mic, UserRoundPlus } fro
 import { Link, useNavigate } from "react-router-dom";
 import { brand, customer, inr, products } from "../../data/bank";
 import { persona } from "../../persona";
-import { useVoiceClient } from "../../stage/client";
 import { useSession } from "../../state/session";
 
 const JOBS = [
@@ -37,7 +36,6 @@ const JOBS = [
 ];
 
 export function Home() {
-  const begin = useVoiceClient((s) => s.begin);
   const signedIn = useSession((s) => s.signedIn);
   const signIn = useSession((s) => s.signIn);
   const navigate = useNavigate();
@@ -56,9 +54,9 @@ export function Home() {
               front of you.
             </p>
             <div className="hero-ctas">
-              <button type="button" className="btn btn-accent btn-lg" onClick={() => begin?.()} data-stage-thing="cta:talk" data-stage-label={`Talk to ${persona.name}`}>
-                <Mic size={18} aria-hidden /> Talk to {persona.name}
-              </button>
+              <Link to="/cards" className="btn btn-accent btn-lg">
+                <CreditCard size={18} aria-hidden /> Find your card
+              </Link>
               <Link to="/open-account" className="btn btn-outline-light btn-lg">
                 Open a savings account
               </Link>

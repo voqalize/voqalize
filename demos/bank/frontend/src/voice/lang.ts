@@ -1,16 +1,21 @@
 /**
- * The call's language, as the dock's toggle shows it. Before a call the toggle
- * sets it (and the call starts in it); during a call the toggle only asks
- * (`language_requested`) and the brain's `language_changed` moves it.
+ * The call's language, as the EN / हिंदी toggle shows it. Before a call the
+ * toggle sets it (and the call starts in it, `init.lang`); during a call a press
+ * only asks (`language_requested`) and the brain's `language_changed` moves it.
+ * The last language used, picked or moved to by the brain, is remembered in this
+ * browser across reloads, so the next call (and a redial) starts in it.
  */
 import { create } from "zustand";
 import { type Lang, persona } from "../persona";
+import { emit, isLive } from "./events";
 
-const KEY = "anvaya-lang";
+export { landingOf } from "../persona";
+
+export const LANG_KEY = "anvaya-lang";
 
 function stored(): Lang {
   try {
-    const v = localStorage.getItem(KEY) as Lang | null;
+    const v = localStorage.getItem(LANG_KEY) as Lang | null;
     if (v && persona.languages.includes(v)) return v;
   } catch {
     /* storage unavailable */
@@ -23,19 +28,23 @@ export const useLang = create<{ lang: Lang; setLang: (l: Lang) => void }>((set) 
   setLang: (lang) => {
     if (!persona.languages.includes(lang)) return;
     try {
-      localStorage.setItem(KEY, lang);
+      localStorage.setItem(LANG_KEY, lang);
     } catch {
-      /* storage unavailable */
+      /* storage unavailable: the choice lasts this page only */
     }
     set({ lang });
   },
 }));
 
-/** The landing (CONTRACT.md mode) a path belongs to. */
-export function landingOf(path: string): "banking" | "account" | "cards" | "loans" | "home" {
-  if (path === "/app" || path.startsWith("/app/")) return "banking";
-  if (path.startsWith("/open-account")) return "account";
-  if (path === "/cards" || path.startsWith("/cards/")) return "cards";
-  if (path === "/loans" || path.startsWith("/loans/")) return "loans";
-  return "home";
+/** A press on the toggle: off a call it sets the language; on one it asks the brain. */
+export function requestLanguage(lang: Lang) {
+  if (lang === useLang.getState().lang) return;
+  if (isLive()) emit("language_requested", { language: lang }, "visitor");
+  else useLang.getState().setLang(lang);
+}
+
+/** The brain's `language_changed`: the toggle follows. */
+export function languageChanged(payload: unknown) {
+  const language = (payload as { language?: string } | null)?.language;
+  if (language && (persona.languages as string[]).includes(language)) useLang.getState().setLang(language as Lang);
 }

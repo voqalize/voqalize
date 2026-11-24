@@ -1,5 +1,17 @@
-/* The assistant's dock (bottom right), its call tile and the ?debug=1 move
-   console. Global: they float over the public site and the signed-in app alike. */
+/* The assistant's dock and call tile (Paynora's widget, in the bank's palette),
+   and the ?debug=1 move console. Global: they float over the public site and the
+   signed-in app alike.
+
+   Idle: a pill at the bottom right with the still face, the name, the job on
+   this page, EN / हिंदी and Talk. In a call the pill fades out and the face (one
+   fixed `.call-tile` for the page's life) becomes a floating call card holding
+   the language toggle, mute, minimise and end. No transcript anywhere. While a
+   drawer, sheet or dialog is open, both move to a top corner above it. */
+
+/* Above the confirmation sheet (z-index 2147482000) and the app's drawers. */
+:root {
+  --dock-raised-z: 2147482100;
+}
 
 .dock {
   position: fixed;
@@ -18,20 +30,7 @@
   border-radius: 999px;
   box-shadow: 0 18px 44px -16px rgba(10, 58, 52, 0.42), 0 2px 6px rgba(18, 33, 31, 0.06);
   font-family: var(--font-ui);
-  animation: dock-in 0.6s var(--ease) 0.3s both;
   transition: opacity 0.25s ease, translate 0.3s var(--ease);
-}
-@keyframes dock-in {
-  from {
-    opacity: 0;
-    translate: 0 20px;
-  }
-}
-@keyframes pop {
-  from {
-    opacity: 0;
-    scale: 0.8;
-  }
 }
 .dock p {
   margin: 0;
@@ -40,6 +39,34 @@
   font: inherit;
   border: 0;
   cursor: pointer;
+}
+/* A primary action under the pill's place: bottom left, just past the app's side navigation. */
+.dock.is-left {
+  right: auto;
+  left: 20px;
+}
+:root:has(.ax-side) .dock.is-left {
+  left: calc(var(--ax-side, 248px) + 20px);
+}
+.dock.is-hidden,
+.dock.is-calling {
+  opacity: 0;
+  translate: 0 24px;
+  pointer-events: none;
+}
+/* A drawer, sheet or dialog is open: the pill moves to a top corner, above it. */
+.dock.is-raised {
+  top: 14px;
+  bottom: auto;
+  z-index: var(--dock-raised-z);
+}
+.dock.is-raised-tl {
+  left: 16px;
+  right: auto;
+}
+.dock.is-raised-tr {
+  right: 16px;
+  left: auto;
 }
 .dock-face {
   width: 46px;
@@ -51,20 +78,17 @@
 .dock-face-slot {
   background: transparent;
 }
-.dock.is-live .dock-face-slot {
-  display: none;
-}
-.dock.is-live {
-  padding-left: 18px;
-}
 .dock-text {
+  display: flex;
+  flex-direction: column;
   min-width: 0;
+  max-width: 200px;
   padding-right: 4px;
+  line-height: 1.25;
 }
 .dock-name {
   font-weight: 750;
   font-size: 14px;
-  line-height: 1.2;
   color: var(--ink);
 }
 .dock-status {
@@ -73,22 +97,10 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 200px;
 }
-.dock.is-listening .dock-status::before {
-  content: "";
-  display: inline-block;
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--teal-600);
-  margin-right: 6px;
-  animation: blink 1.4s ease-in-out infinite;
-}
-@keyframes blink {
-  50% {
-    opacity: 0.3;
-  }
+.dock.is-error .dock-status {
+  color: var(--bad);
+  white-space: normal;
 }
 .lang-toggle {
   display: inline-flex;
@@ -103,11 +115,14 @@
   height: 30px;
   min-width: 38px;
   padding: 0 10px;
+  border: 0;
   border-radius: 999px;
   background: transparent;
+  font: inherit;
   font-size: 13px;
   font-weight: 700;
   color: var(--ink-3);
+  cursor: pointer;
 }
 .lang-toggle button[lang="hi"] {
   font-size: 13.5px;
@@ -127,78 +142,24 @@
   color: var(--ink);
   font-weight: 750;
   font-size: 14px;
+  white-space: nowrap;
   flex: none;
   transition: background 0.2s;
 }
 .dock-cta:hover {
   background: var(--marigold-600);
 }
-.dock-btn {
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  background: var(--sand);
-  color: var(--ink);
-  flex: none;
+.dock-cta:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
-.dock-btn[aria-pressed="true"] {
-  background: var(--ink);
-  color: var(--white);
-}
-.dock-end {
-  background: var(--bad);
-  color: var(--white);
-}
-.dock-note {
-  position: absolute;
-  right: 0;
-  bottom: calc(100% + 10px);
-  width: min(320px, calc(100vw - 32px));
-  background: var(--ink);
-  color: var(--white);
-  font-size: 13px;
-  line-height: 1.45;
-  padding: 10px 14px;
-  border-radius: 12px;
-  box-shadow: var(--shadow-2);
-  animation: pop 0.2s var(--ease);
-}
-.dock.is-compact {
-  gap: 6px;
-  padding: 5px;
-  animation: pop 0.3s var(--ease);
-}
-.dock.is-compact .dock-text,
-.dock.is-compact .dock-cta-label {
-  display: none;
-}
-.dock.is-compact .dock-cta {
-  width: 44px;
-  padding: 0;
-  justify-content: center;
-}
-.dock.is-hidden {
-  opacity: 0;
-  translate: 0 24px;
-  pointer-events: none;
-}
-@media (max-width: 599px) {
-  .dock {
-    right: 12px;
-    bottom: calc(12px + env(safe-area-inset-bottom));
-  }
-  .dock.is-live {
-    left: 12px;
-    padding-left: 14px;
-  }
-  .dock.is-live .dock-text {
-    flex: 1;
+@keyframes blink {
+  50% {
+    opacity: 0.3;
   }
 }
 
-/* ── The call tile: the face, docked, popped out, or minimised ─── */
+/* ── The face: one element, docked on the pill's slot, a tile in a call, or a bubble ── */
 .call-tile {
   position: fixed;
   z-index: 57;
@@ -230,7 +191,6 @@
 }
 .call-tile.is-docked {
   pointer-events: none;
-  animation: dock-in 0.6s var(--ease) 0.3s both;
 }
 .call-tile.is-parked {
   opacity: 0;
@@ -238,62 +198,24 @@
 .call-tile.is-snap {
   transition: none;
 }
+/* Raised above an open drawer, sheet or dialog. */
+.call-tile.is-raised {
+  z-index: var(--dock-raised-z);
+}
 .call-tile.is-tile {
   border-radius: 14px;
   background: var(--teal-900);
   color: var(--white);
-  box-shadow: 0 0 0 5px var(--teal-900), 0 0 0 6px rgba(255, 255, 255, 0.2), 0 26px 50px -18px rgba(10, 58, 52, 0.6);
+  box-shadow: 0 0 0 4px var(--teal-900), 0 0 0 5px rgba(255, 255, 255, 0.2), 0 26px 50px -18px rgba(10, 58, 52, 0.6);
   cursor: grab;
 }
-.call-tile.is-tile .call-face {
-  border-radius: 10px;
-}
-.call-tile.is-tile .call-who {
-  display: none;
-}
-.call-tile.is-tile .call-bar {
-  justify-content: center;
-  padding: 6px;
-}
-.call-tile.is-tile .call-controls {
-  gap: 8px;
-}
-.call-tile.is-tile .call-btn {
-  width: 28px;
-  height: 28px;
-  background: rgba(255, 255, 255, 0.14);
-  color: var(--white);
-}
-.call-tile.is-tile .call-btn:hover {
-  background: rgba(255, 255, 255, 0.26);
-}
-.call-tile.is-tile .call-btn[aria-pressed="true"] {
-  background: var(--white);
-  color: var(--ink);
-}
-.call-tile.is-tile .call-end,
-.call-tile.is-tile .call-end:hover {
-  background: var(--bad);
-}
-.call-tile.is-tile .call-btn svg {
-  width: 14px;
-  height: 14px;
-}
-.call-tag {
-  position: absolute;
-  top: 6px;
-  left: 6px;
-  padding: 2px 7px;
-  border-radius: 999px;
-  background: rgba(10, 58, 52, 0.75);
-  color: var(--white);
-  font-size: 10.5px;
-  font-weight: 700;
+.call-tile.is-speaking.is-tile {
+  box-shadow: 0 0 0 4px var(--teal-900), 0 0 0 6px var(--marigold), 0 26px 50px -18px rgba(10, 58, 52, 0.6);
 }
 .call-tile.is-mini {
   border-radius: 50%;
   cursor: grab;
-  box-shadow: 0 16px 34px -12px rgba(10, 58, 52, 0.45), 0 0 0 2px var(--white), 0 0 0 4px rgba(14, 77, 69, 0.45);
+  box-shadow: 0 16px 34px -12px rgba(10, 58, 52, 0.45), 0 0 0 2px var(--white), 0 0 0 4px var(--marigold);
 }
 .call-tile.is-dragging {
   cursor: grabbing;
@@ -311,6 +233,9 @@
   background: linear-gradient(180deg, #eaf2ef 0%, #d5e6e1 100%);
   transition: height 0.45s var(--ease);
 }
+.call-tile.is-tile .call-face {
+  border-radius: 10px;
+}
 .call-tile.is-docked .call-face,
 .call-tile.is-mini .call-face {
   height: 100% !important;
@@ -321,6 +246,21 @@
   inset: 0;
   width: 100%;
   height: 100%;
+}
+.dock-avatar {
+  display: block;
+}
+/* The idle face: the character's still photo; the live avatar replaces it only when a call is up. */
+.call-face > .face-still {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  object-position: 50% 30%;
+  user-select: none;
+  -webkit-user-drag: none;
 }
 .face-placeholder {
   display: grid;
@@ -334,10 +274,21 @@
   font-size: 22px;
 }
 .call-tile.is-tile .face-placeholder span {
-  font-size: 72px;
+  font-size: 64px;
 }
 .call-tile.is-mini .face-placeholder span {
   font-size: 26px;
+}
+.call-tag {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(10, 58, 52, 0.75);
+  color: var(--white);
+  font-size: 11px;
+  font-weight: 700;
 }
 .call-state {
   position: absolute;
@@ -346,13 +297,14 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  height: 20px;
-  padding: 0 8px;
+  height: 22px;
+  padding: 0 9px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.92);
-  font-size: 10.5px;
+  background: rgba(255, 255, 255, 0.94);
+  color: var(--ink);
+  font-size: 11px;
   font-weight: 650;
-  color: var(--ink-2);
+  white-space: nowrap;
 }
 .call-state::before {
   content: "";
@@ -369,22 +321,58 @@
   background: var(--marigold);
   animation: blink 0.7s ease-in-out infinite;
 }
+.call-state.is-muted::before {
+  background: var(--bad);
+}
 .call-bar {
   flex: 1;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: space-between;
-  gap: 10px;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 4px 4px;
   min-height: 0;
+}
+.call-bar .lang-toggle {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: transparent;
+  padding: 2px;
+}
+.call-bar .lang-toggle button {
+  height: 24px;
+  min-width: 34px;
+  padding: 0 9px;
+  font-size: 12px;
+  color: #b8cdc8;
+}
+.call-bar .lang-toggle button[aria-pressed="true"] {
+  background: var(--white);
+  color: var(--ink);
 }
 .call-controls {
   display: flex;
-  gap: 6px;
+  gap: 8px;
 }
 .call-btn {
+  width: 30px;
+  height: 30px;
   border-radius: 50%;
   display: grid;
   place-items: center;
+  background: rgba(255, 255, 255, 0.14);
+  color: var(--white);
+}
+.call-btn:hover {
+  background: rgba(255, 255, 255, 0.26);
+}
+.call-btn[aria-pressed="true"] {
+  background: var(--white);
+  color: var(--ink);
+}
+.call-end,
+.call-end:hover {
+  background: var(--bad);
 }
 .call-expand {
   position: absolute;
@@ -394,6 +382,57 @@
   padding-bottom: 6px;
   color: var(--white);
   background: transparent;
+  opacity: 0;
+}
+.call-tile.is-mini:hover .call-expand,
+.call-expand:focus-visible {
+  opacity: 1;
+}
+
+@media (max-width: 640px) {
+  .dock {
+    left: 12px;
+    right: 12px;
+    bottom: calc(12px + env(safe-area-inset-bottom));
+    gap: 8px;
+    padding: 5px;
+    max-width: none;
+  }
+  .dock.is-left {
+    left: 12px;
+  }
+  .dock.is-raised-tl,
+  .dock.is-raised-tr {
+    left: 12px;
+    right: 12px;
+  }
+  .dock-text {
+    flex: 1;
+    max-width: none;
+  }
+  .dock-face {
+    width: 40px;
+    height: 40px;
+  }
+  .dock-cta {
+    height: 40px;
+    padding: 0 12px;
+    font-size: 13px;
+  }
+  .lang-toggle button {
+    min-width: 34px;
+    padding: 0 7px;
+  }
+  .call-controls {
+    gap: 6px;
+  }
+  .call-btn {
+    width: 28px;
+    height: 28px;
+  }
+  .call-tile.is-tile .face-placeholder span {
+    font-size: 48px;
+  }
 }
 
 /* ── ?debug=1 move console ───────────────────────────────────── */
@@ -528,7 +567,7 @@
 
 /* The signed-in app's bottom tab bar (phones and small tablets): sit above it. */
 @media (max-width: 900px) {
-  :root:has(.ax-tabs) .dock {
+  :root:has(.ax-tabs) .dock:not(.is-raised) {
     bottom: calc(76px + env(safe-area-inset-bottom));
   }
 }

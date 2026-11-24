@@ -6,7 +6,8 @@
  * `keepAcrossPageLoads`, so a reload mid-call rejoins it), the connect request
  * in `src/config.ts` with `init = {landing, path, lang, signed_in}`, and the
  * assistant's face from `@voqalize/avatar`, reading its state off the same
- * client. Stage attaches to this client through `src/stage/client.ts` and
+ * client; the live avatar mounts only while a call is up, and the idle dock
+ * shows the character's still photo (`Face`). No transcript. Stage attaches to this client through `src/stage/client.ts` and
  * handles its own commands; the only site command is `language_changed`.
  */
 import { type ComponentProps, useCallback, useEffect, useState } from "react";
@@ -15,17 +16,17 @@ import { PipecatClientProvider, useRTVIClientEvent } from "@pipecat-ai/client-re
 import { Avatar } from "@voqalize/avatar/react";
 import { createVoqalizeTransport } from "@voqalize/client-transport";
 import { type VoqalizeMedia, useVoqalizeMedia } from "@voqalize/demo-kit";
-import { Mic, MicOff, PhoneOff } from "lucide-react";
 import { connectRequest, withRealHeaders } from "../config";
-import { persona, type Lang } from "../persona";
-import { setVoiceBegin, setVoiceClient, setVoiceLive } from "../stage/client";
+import { landingOf, persona } from "../persona";
+import { setVoiceClient } from "../stage/client";
 import { currentPath } from "../stage/nav";
 import { useSession } from "../state/session";
 import { CallTile } from "./CallTile";
 import { debugMode, setEventSender } from "./events";
-import { LangToggle } from "./LangToggle";
-import { landingOf, useLang } from "./lang";
-import { useDockMode } from "./useDockMode";
+import { Face } from "./Face";
+import { type CallState, useFakeCall } from "./fake";
+import { languageChanged, useLang } from "./lang";
+import { DockBar } from "./VoiceDock";
 
 type Activity = "idle" | "connecting" | "listening" | "thinking" | "speaking" | "error";
 
@@ -99,21 +100,15 @@ export default function VoiceCall() {
 function Dock({ call }: { call: ReturnType<typeof useCall> }) {
   const [state, setActivity] = useState<Activity>(call.live ? "connecting" : "idle");
   const activity: Activity = call.error ? "error" : state;
-  const [heard, setHeard] = useState("");
   const [muted, setMuted] = useState(false);
-  const setLang = useLang((s) => s.setLang);
+  const fake = useFakeCall();
 
   useRTVIClientEvent(
     RTVIEvent.UICommand,
-    useCallback(
-      ({ command, payload }: UICommandData) => {
-        // Stage's own commands reach Stage through the client; this is the site's one.
-        if (command !== "language_changed") return;
-        const language = (payload as { language?: string } | null)?.language;
-        if (language && (persona.languages as string[]).includes(language)) setLang(language as Lang);
-      },
-      [setLang],
-    ),
+    useCallback(({ command, payload }: UICommandData) => {
+      // Stage's own commands reach Stage through the client; this is the site's one.
+      if (command === "language_changed") languageChanged(payload);
+    }, []),
   );
   useRTVIClientEvent(
     RTVIEvent.BotReady,
@@ -127,7 +122,7 @@ function Dock({ call }: { call: ReturnType<typeof useCall> }) {
     RTVIEvent.Disconnected,
     useCallback(() => {
       setActivity("idle");
-      setHeard("");
+      setMuted(false);
       setEventSender(null);
     }, []),
   );
@@ -135,74 +130,42 @@ function Dock({ call }: { call: ReturnType<typeof useCall> }) {
   useRTVIClientEvent(RTVIEvent.BotLlmStarted, useCallback(() => setActivity("thinking"), []));
   useRTVIClientEvent(RTVIEvent.BotStartedSpeaking, useCallback(() => setActivity("speaking"), []));
   useRTVIClientEvent(RTVIEvent.BotStoppedSpeaking, useCallback(() => setActivity("listening"), []));
-  useRTVIClientEvent(
-    RTVIEvent.UserTranscript,
-    useCallback((d: { text: string; final?: boolean }) => {
-      if (d.text) setHeard(d.text);
-    }, []),
-  );
 
   useEffect(() => () => setEventSender(null), []);
 
   const on = activity !== "idle" && activity !== "error";
-  const mode = useDockMode(on);
-  useEffect(() => {
-    setVoiceBegin(() => {
-      setActivity("connecting");
-      void call.begin();
-    });
-    return () => setVoiceBegin(null);
-  }, [call]);
-  useEffect(() => setVoiceLive(on), [on]);
-  const STATUS: Record<Activity, string> = {
-    idle: persona.role,
-    connecting: "Connecting…",
-    listening: muted ? "Microphone off" : "Listening",
-    thinking: "Thinking",
-    speaking: "Speaking",
-    error: "Could not connect",
-  };
+  // `?debug=1` can fake a call over the real dock, to see and screenshot the tile.
+  const live = on || fake.on;
   const toggleMute = () => {
-    setMuted(!muted);
+    if (fake.on && !on) {
+      useFakeCall.setState({ muted: !fake.muted });
+      return;
+    }
     call.client.enableMic(muted);
+    setMuted(!muted);
   };
 
   return (
     <>
-      <CallTile live={on} state={activity === "idle" ? "connecting" : activity} heard={heard} muted={muted} onMute={toggleMute} onEnd={() => void call.end()}>
-        <Avatar className="dock-avatar" client={call.client} character={persona.character} aria-label={persona.name} />
+      <CallTile
+        live={live}
+        state={on ? (activity as CallState) : fake.on ? fake.state : "connecting"}
+        muted={on ? muted : fake.muted}
+        onMute={toggleMute}
+        onEnd={() => (on ? void call.end() : useFakeCall.setState({ on: false }))}
+      >
+        {/* Idle: the still photo; the live avatar only once the call tile is up. */}
+        <Face live={live} avatar={() => <Avatar className="dock-avatar" client={call.client} character={persona.character} aria-label={persona.name} />} />
       </CallTile>
-      <div className={`dock${on ? " is-live" : ""} is-${activity}${mode.classes}`} role="region" aria-label={`Talk to ${persona.name}`}>
-        <div className="dock-face dock-face-slot" aria-hidden />
-        <div className="dock-text">
-          <p className="dock-name">{persona.name}</p>
-          <p className="dock-status" aria-live="polite">
-            {call.error ?? (on && heard ? `“${heard}”` : STATUS[activity])}
-          </p>
-        </div>
-        <LangToggle live={on} />
-        {on ? (
-          <>
-            <button type="button" className="dock-btn" aria-pressed={muted} aria-label={muted ? "Turn microphone on" : "Turn microphone off"} onClick={toggleMute}>
-              {muted ? <MicOff size={18} /> : <Mic size={18} />}
-            </button>
-            <button type="button" className="dock-btn dock-end" aria-label="End the call" onClick={() => void call.end()}>
-              <PhoneOff size={18} />
-            </button>
-          </>
-        ) : (
-          <button
-            type="button"
-            className="dock-cta"
-            onClick={() => {
-              setActivity("connecting");
-              void call.begin();
-            }}
-          >
-            <Mic size={16} aria-hidden /> <span className="dock-cta-label">Talk to {persona.name}</span>
-          </button>
-        )}
-      </div>
+      <DockBar
+        calling={live}
+        activity={activity}
+        status={call.error}
+        onTalk={() => {
+          setActivity("connecting");
+          void call.begin();
+        }}
+      />
     </>
   );
 }

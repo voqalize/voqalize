@@ -1,11 +1,8 @@
 import { Link } from "react-router-dom";
 import { brand, products } from "../data/bank";
-import { persona } from "../persona";
-import { useVoiceClient } from "../stage/client";
 import { Logo } from "./Logo";
 
 export function Footer() {
-  const begin = useVoiceClient((s) => s.begin);
   return (
     <footer className="site-footer">
       <div className="wrap footer-grid">
@@ -15,9 +12,6 @@ export function Footer() {
           <p className="footer-help">
             Helpline <strong>{brand.helpline}</strong>, every day, 8 am to 10 pm.
           </p>
-          <button type="button" className="btn btn-ghost-light btn-sm" onClick={() => begin?.()}>
-            Talk to {persona.name}
-          </button>
         </div>
         <nav aria-label="Accounts">
           <h2 className="footer-h">Accounts</h2>

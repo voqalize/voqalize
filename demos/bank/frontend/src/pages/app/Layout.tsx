@@ -166,7 +166,7 @@ export function AppLayout() {
       </nav>
 
       {drawer && (
-        <div className="ax-drawer-wrap" onMouseDown={(e) => e.target === e.currentTarget && setDrawer(false)}>
+        <div className="ax-drawer-wrap" data-overlay="left" onMouseDown={(e) => e.target === e.currentTarget && setDrawer(false)}>
           <div className="ax-drawer" role="dialog" aria-label="Menu">
             <div className="ax-drawer__head">
               <Mark light />

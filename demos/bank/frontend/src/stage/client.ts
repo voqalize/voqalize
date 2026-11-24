@@ -1,18 +1,15 @@
 /**
- * The live call's pipecat client, for Stage to attach to, and the dock's own
- * "start the call", for buttons elsewhere on the page ("Ask Arjun"). The voice
- * dock owns both and puts them here; with no agent configured they stay null.
+ * The live call's pipecat client, for Stage to attach to. The voice dock owns
+ * it and puts it here; with no agent configured it stays null (or, with
+ * `?debug=1`, a stand-in that sends nowhere). The dock is the page's one way
+ * to start a call: nothing else on the page starts one (X3).
  */
 import type { StageClient } from "@voqalize/stage";
 import { create } from "zustand";
 
 interface VoiceSeam {
   client: StageClient | null;
-  begin: (() => void) | null;
-  live: boolean;
 }
 
-export const useVoiceClient = create<VoiceSeam>(() => ({ client: null, begin: null, live: false }));
+export const useVoiceClient = create<VoiceSeam>(() => ({ client: null }));
 export const setVoiceClient = (client: StageClient | null) => useVoiceClient.setState({ client });
-export const setVoiceBegin = (begin: (() => void) | null) => useVoiceClient.setState({ begin });
-export const setVoiceLive = (live: boolean) => useVoiceClient.setState({ live });

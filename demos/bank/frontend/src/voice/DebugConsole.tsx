@@ -8,7 +8,7 @@ import { useEffect, useState } from "react";
 import { scene } from "../stage/scene.gen";
 import { runMove } from "./debugHarness";
 import { eventLog, onEventLog } from "./events";
-import { useFakeCall } from "./VoiceDock";
+import { useFakeCall } from "./fake";
 
 const SAMPLES: Record<string, unknown> = {
   "ui.show": { thing: "Available balance" },
@@ -93,10 +93,10 @@ export function DebugConsole() {
           <button type="button" data-fake="connect" onClick={() => useFakeCall.setState({ on: true, state: "listening" })}>
             connect
           </button>
-          <button type="button" data-fake="speak" onClick={() => useFakeCall.setState({ state: "speaking", heard: "Which card suits my spending?" })}>
+          <button type="button" data-fake="speak" onClick={() => useFakeCall.setState({ state: "speaking" })}>
             speak
           </button>
-          <button type="button" data-fake="end" onClick={() => useFakeCall.setState({ on: false, heard: "" })}>
+          <button type="button" data-fake="end" onClick={() => useFakeCall.setState({ on: false })}>
             end
           </button>
         </div>

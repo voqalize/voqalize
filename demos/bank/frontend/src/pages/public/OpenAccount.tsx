@@ -4,7 +4,6 @@ import { Crumbs, FormField } from "../../components/ui";
 import { inr, products } from "../../data/bank";
 import { persona } from "../../persona";
 import { OA_STEPS, choiceLabel, display, fieldDef, useForms } from "../../state/forms";
-import { useVoiceClient } from "../../stage/client";
 
 const FORM = "open_account" as const;
 const explain = products.account_opening.explain;
@@ -15,7 +14,6 @@ export function OpenAccount() {
   const values = useForms((s) => s.values[FORM]);
   const submitted = useForms((s) => s.submitted[FORM]);
   const missing = useForms((s) => s.missing);
-  const begin = useVoiceClient((s) => s.begin);
 
   return (
     <main className="page oa" data-stage-thing="screen:open_account" data-stage-label="Open an account">
@@ -24,11 +22,7 @@ export function OpenAccount() {
         <header className="page-head">
           <h1 className="page-title">Open a savings account</h1>
           <p className="page-lede">
-            Six short steps, about ten minutes. Finish with a video KYC call and your account number arrives the same day. Prefer to talk it through?{" "}
-            <button type="button" className="link-btn" onClick={() => begin?.()}>
-              {persona.name} can fill this in with you
-            </button>
-            .
+            Six short steps, about ten minutes. Finish with a video KYC call and your account number arrives the same day. Prefer to talk it through? {persona.name}, at the bottom of the page, can fill it in with you.
           </p>
         </header>
 

@@ -113,7 +113,7 @@ export function ConfirmSheet() {
     <>
       <Toaster />
       {sheet && (
-        <div className="ax-sheet-wrap" onMouseDown={(e) => e.target === e.currentTarget && (sheet.phase === "open" ? answerConfirm(false) : closeConfirm())}>
+        <div className="ax-sheet-wrap" data-overlay="center" onMouseDown={(e) => e.target === e.currentTarget && (sheet.phase === "open" ? answerConfirm(false) : closeConfirm())}>
           <div
             className={`ax-sheet${sheet.view.danger ? " ax-sheet--danger" : ""}`}
             role="dialog"

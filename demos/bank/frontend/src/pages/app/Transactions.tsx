@@ -272,7 +272,7 @@ export function TxnDetail({ t, onClose }: { t: Txn; onClose: () => void }) {
 
   return (
     <>
-      <div className="ax-detail-scrim" onClick={onClose} aria-hidden />
+      <div className="ax-detail-scrim" data-overlay="bottom" onClick={onClose} aria-hidden />
       <aside className="ax-detail" data-stage-thing="txn-detail" data-stage-label="Transaction details" aria-label="Transaction details">
         <div className="ax-detail__head">
           <CatIcon id={t.category} size={42} />
