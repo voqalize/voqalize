@@ -1891,18 +1891,28 @@ class BankBrain(OpenAIBrain):
         self.screen, self.mode = "cards_compare", "cards"
         landed(line(self.lang, "compare"))
         card = b.card_product(best.card_id) or {}
+        short = card["name"].split(" ", 1)[-1]  # "Daily Cashback", without the bank's name
         fee = (
             f"annual fee {b.inr(best.fee)} waived at their spend"
             if best.fee_waived
             else f"annual fee {b.inr(best.fee)} (waived on {b.inr(card['fee_waiver_spend'])} a year)"
         )
+        # B5: the pitch is two or three short sentences, so the result leads with
+        # exactly what to say (the pick, the one number, the nudge) and keeps the
+        # rest of the working below it, for a follow-up question only.
         out = [
-            assumed
+            "SAY THIS and nothing more (two sentences, in the call's language), e.g.: "
+            f'"{short} is the one for you: about {b.inr(best.net_yearly)} a year back after fees, '
+            'and you qualify. Shall I start your application?"',
+            "Do not read out the detail below (rewards, fees, runner-up, the split); it is only for a "
+            "follow-up question.",
+            "DETAIL: "
+            + assumed
             + "Monthly spend: "
             + ", ".join(f"{k} {b.inr(v)}" for k, v in profile.items() if v)
-            + f"; income {b.inr(income)} a month.",
-            f"RECOMMEND: {card['name']} ({card['tier']}). Worth about {b.inr(best.net_yearly)} a year to "
-            f"them: {b.inr(best.yearly_rewards)} in rewards"
+            + f"; income {b.inr(income)} a month. "
+            f"RECOMMEND: {card['name']} ({card['tier']}), about {b.inr(best.net_yearly)} a year: "
+            f"{b.inr(best.yearly_rewards)} in rewards"
             + (
                 f", {b.inr(best.fuel_saving_yearly)} fuel surcharge saved"
                 if best.fuel_saving_yearly
@@ -1927,10 +1937,8 @@ class BankBrain(OpenAIBrain):
                 "do not pitch it."
             )
         out.append(
-            "Say it in two or three short sentences: the card, what it is worth to them a year and "
-            "why, that they qualify. Then ONE nudge: offer to start the application now, it takes a "
-            f"couple of minutes (on yes: open_screen cards_apply id {best.card_id}, then "
-            "fill_card_application with what you already know)."
+            f"On yes: open_screen cards_apply id {best.card_id}, then fill_card_application with "
+            "what you already know."
         )
         return "\n".join(out)
 
@@ -1994,19 +2002,43 @@ class BankBrain(OpenAIBrain):
         landed(line(self.lang, "loan_emi"))
         years = p.tenure_months / 12
         span = f"{years:g} years" if p.tenure_months % 12 == 0 else f"{p.tenure_months} months"
+        # B5: two or three short sentences. The result leads with what to say: the
+        # plan in one breath (amount, tenure, the EMI: the one number), that it fits
+        # them, one nudge. Interest, the saving, eligibility working and documents
+        # stay below for a follow-up question.
         out: list[str] = []
+        blocked = p.below_min_income or not p.fits
         if p.below_min_income:
             out.append(
                 f"NOT ELIGIBLE: the {loan['short']} needs {b.inr(loan['min_income_monthly'])} a month, "
-                f"they earn {b.inr(income or 0)}. Say so kindly; offer a gold loan (no income proof) if it fits."
+                f"they earn {b.inr(income or 0)}. Say so kindly in one or two short sentences; offer a "
+                "gold loan (no income proof) if it fits."
             )
         elif not p.fits:
             out.append(
                 f"Cannot fit: at {b.inr(income or 0)} a month with {b.inr(existing or 0)} in EMIs the most "
-                f"is {b.inr(p.max_amount)}, below this loan's minimum. Say so kindly."
+                f"is {b.inr(p.max_amount)}, below this loan's minimum. Say so kindly, in one or two short "
+                "sentences."
             )
+        else:
+            why = ""
+            fit = "your gold covers" if req.loan_type == "gold" else "fits your income"
+            if p.capped_by == "income" and req.amount:
+                why = f"They asked for {b.inr(req.amount)}: this is the most their income supports; say so in a few words, inside those two sentences."
+            elif p.capped_by == "gold" and req.amount:
+                why = f"They asked for {b.inr(req.amount)}: this is the most the gold covers; say so in a few words, inside those two sentences."
+            elif p.stretched_from:
+                why = f"Tenure stretched from {p.stretched_from} months so the EMI fits; say so in a few words, inside those two sentences."
+            out += [
+                "SAY THIS and nothing more (two sentences, in the call's language), e.g.: "
+                f'"You can get {b.inr(p.amount)} over {span} at an EMI of {b.inr(p.emi)} a month, '
+                f'which {fit}. Shall I start your application?"',
+                *([why] if why else []),
+                "Do not read out the detail below (rate, interest, a shorter tenure, their own share, "
+                "the eligibility working); it is only for a follow-up question, one figure at a time.",
+            ]
         out.append(
-            f"PLAN: {loan['short']} of {b.inr(p.amount)} over {span} at {p.rate}% (typical rate; "
+            f"DETAIL: PLAN: {loan['short']} of {b.inr(p.amount)} over {span} at {p.rate}% (typical rate; "
             f"{loan['rate_min']}% for the best profiles): EMI {b.inr(p.emi)} a month, total interest "
             f"{b.inr(p.total_interest)}. Processing fee: {loan['processing_fee']}."
         )
@@ -2023,37 +2055,25 @@ class BankBrain(OpenAIBrain):
         if p.capped_by == "ltv" and asset:
             out.append(
                 f"The loan covers at most {b.inr(p.amount)} of the {b.inr(asset)} price "
-                f"({loan['ltv']}); their own share is {b.inr(asset - p.amount)}."
+                f"({loan['ltv']}); own share {b.inr(asset - p.amount)}."
             )
         elif asset and req.amount is None:
             out.append(
                 f"No amount given: this is the most the loan lends on {b.inr(asset)} ({loan['ltv']}); "
-                f"their own share {b.inr(asset - p.amount)}. Ask if they need less."
-            )
-        if p.capped_by == "income" and req.amount:
-            out.append(
-                f"They asked for {b.inr(req.amount)}: more than their income supports; this is the most."
-            )
-        if p.capped_by == "gold" and req.amount:
-            out.append(
-                f"They asked for {b.inr(req.amount)}: more than the gold covers; this is the most."
-            )
-        if p.stretched_from:
-            out.append(
-                f"Tenure stretched from {p.stretched_from} months so the EMI fits their income; say why."
+                f"own share {b.inr(asset - p.amount)}. If they need less, recommend again with the amount."
             )
         if p.shorter:
             n2, e2, saved = p.shorter
             out.append(
-                f"SAVES: over {n2 // 12 if n2 % 12 == 0 else n2} {'years' if n2 % 12 == 0 else 'months'} "
-                f"the EMI is {b.inr(e2)} (still within budget) and they save {b.inr(saved)} in interest."
+                f"If they ask about paying less interest: over {n2 // 12 if n2 % 12 == 0 else n2} "
+                f"{'years' if n2 % 12 == 0 else 'months'} the EMI is {b.inr(e2)} (still within budget) "
+                f"and they save {b.inr(saved)} in interest."
             )
-        out.append(
-            "Say it in two or three short sentences: the plan with its EMI, that they are eligible, and "
-            "the saving if there is one (let them choose). Then ONE nudge: offer to start the "
-            f"application now (on yes: fill_loan_application with loan_type {req.loan_type} and "
-            "what you already know, then ask only for what is missing)."
-        )
+        if not blocked:
+            out.append(
+                f"On yes, offer to start the application: fill_loan_application with loan_type "
+                f"{req.loan_type} and what you already know, then ask only for what is missing."
+            )
         return "\n".join(out)
 
     async def set_language(self, req: LanguageRequest) -> str:
