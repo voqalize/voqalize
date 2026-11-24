@@ -1,12 +1,14 @@
 /**
  * `?debug=1`: fire any Stage move by hand, with editable JSON arguments, through
  * the same `Moves` runtime the call uses (rings and all), and watch the state
- * events the page sends. Works with no call.
+ * events the page sends. Works with no call. "Fake a call" shows the call tile
+ * in any state without a client, to see and screenshot it.
  */
 import { useState } from "react";
 import { addDays, todayIST, visitDays, weekdayOf } from "../data/homes";
 import { runByHand, useStageLog } from "../stage/host";
 import { scene } from "../stage/scene.gen";
+import { FAKE_STATES, type CallState, useFakeCall } from "./fake";
 
 const nextSaturday = () => visitDays().find((d) => weekdayOf(d) === "sat") ?? addDays(todayIST(), 1);
 
@@ -47,6 +49,7 @@ export function DebugConsole() {
           Hide
         </button>
       </div>
+      <FakeCall />
       <select
         aria-label="Move"
         value={move}
@@ -84,6 +87,25 @@ export function DebugConsole() {
           </li>
         ))}
       </ol>
+    </div>
+  );
+}
+
+/** Fake a call (no client): the dock goes away and the face becomes the call tile, in any state. */
+function FakeCall() {
+  const fake = useFakeCall();
+  return (
+    <div className="debug-fake">
+      <label>
+        <input type="checkbox" checked={fake.on} onChange={(e) => useFakeCall.setState({ on: e.target.checked })} data-fake-call /> Fake a call
+      </label>
+      <select value={fake.state} onChange={(e) => useFakeCall.setState({ state: e.target.value as CallState })} aria-label="Fake call state" disabled={!fake.on}>
+        {FAKE_STATES.map((s) => (
+          <option key={s} value={s}>
+            {s}
+          </option>
+        ))}
+      </select>
     </div>
   );
 }

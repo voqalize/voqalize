@@ -82,7 +82,7 @@ export function ListingsPage() {
         </div>
       </div>
       <div className={`listings-grid${mapOpen ? " map-first" : ""}`}>
-        <aside className={`filters${sheet ? " is-open" : ""}`} aria-label="Filters">
+        <aside className={`filters${sheet ? " is-open" : ""}`} aria-label="Filters" data-overlay={sheet ? "full" : undefined}>
           <div className="filters-sheet-head only-phone">
             <b>Filters</b>
             <button type="button" aria-label="Close filters" onClick={() => useStore.getState().setFiltersOpen(false)}>
