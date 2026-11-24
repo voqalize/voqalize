@@ -54,6 +54,7 @@ const DEMOS = [
   'insurance',
   'dental',
   'university',
+  'holidays',
 ];
 
 module.exports = {

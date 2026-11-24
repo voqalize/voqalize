@@ -105,6 +105,11 @@
       "name": "university",
       "title": "Varenya University Admissions",
       "tagline": "A university course advisor and admissions counsellor, in English or Hindi: it narrows 54 programmes to the two or three that fit, compares them side by side, and fills the application as the family talks."
+    },
+    {
+      "name": "holidays",
+      "title": "Wanderloom Holidays",
+      "tagline": "An Indian holiday-package site where a trip planner builds your whole holiday by voice: flights, hotels per city, activities day by day and a priced package you edit item by item."
     }
   ]
 }

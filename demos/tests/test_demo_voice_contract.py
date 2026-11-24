@@ -248,6 +248,10 @@ DEMOS: dict[str, Expected] = {
     # toggle, for Hindi heard or when asked — the same voice in both. Asserted in
     # test_university_e2e.py.
     "university": Expected(voice="omnivoice/aditya", language="en", provider="openai"),
+    # Wanderloom's trip planner (character, name and voice in
+    # holidays/persona.json): English only, Kasia's voice, whatever the page
+    # asks. Asserted in test_holidays_e2e.py.
+    "holidays": Expected(voice="omnivoice/kasia", language="en", provider="openai"),
 }
 
 
