@@ -15,13 +15,24 @@ import { BRAND, SITE } from "../data/product";
 import { startReporting } from "./report";
 import { scene } from "./scene.gen";
 import { performers } from "./performers";
+import { auditRing, installAudit } from "./audit";
+import { wholeMoves } from "./view";
+import { useFakeCall } from "../voice/fakeCall";
+
+const debug = new URLSearchParams(window.location.search).has("debug");
 
 type Spec = typeof scene.spec;
 
 export const moves = new Moves(
   new Spotlight({ color: BRAND.palette.accent, glow: "rgba(232, 163, 61, 0.32)", radius: 12, width: 3 }),
-  { fixed: [".site-header"] },
+  {
+    fixed: [".site-header"],
+    // X1: every scroll a move makes, and every ring, first shows the target's
+    // whole group, clear of the header, the dock, the call tile and the brief (`view.ts`).
+    extend: (c) => wholeMoves(c, debug ? auditRing : undefined),
+  },
 );
+if (debug) installAudit(moves, (on) => useFakeCall.setState({ state: on ? "listening" : "idle" }));
 scene.registerAll(moves, performers());
 
 let page: StagePage | null = null;

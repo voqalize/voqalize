@@ -1,0 +1,981 @@
+{
+  "id": "car-2026",
+  "product": "car",
+  "title": "Private Car Package Policy",
+  "plan": "Chhatri Car Shield",
+  "policy_number": "CHI/MC/26/0048213",
+  "status": "active",
+  "start": "2026-04-12",
+  "end": "2027-04-11",
+  "premium_paid": 24430,
+  "summary": "Comprehensive cover for your Tarang Vega VX, MH 12 RK 4521, with zero depreciation, engine protection and roadside assistance.",
+  "insured": [
+    {
+      "id": "rohan",
+      "name": "Rohan Kulkarni",
+      "role": "Policyholder and owner-driver"
+    }
+  ],
+  "schedule": [
+    {
+      "label": "Policy number",
+      "value": "CHI/MC/26/0048213"
+    },
+    {
+      "label": "Period of insurance",
+      "value": "12 Apr 2026 to 11 Apr 2027 (both days inclusive)"
+    },
+    {
+      "label": "Insured vehicle",
+      "value": "Tarang Vega VX 1.2 Petrol, hatchback"
+    },
+    {
+      "label": "Registration number",
+      "value": "MH 12 RK 4521"
+    },
+    {
+      "label": "Year of registration",
+      "value": "2023"
+    },
+    {
+      "label": "Seating capacity",
+      "value": "5"
+    },
+    {
+      "label": "Insured declared value (IDV)",
+      "value": "₹5,95,000"
+    },
+    {
+      "label": "No Claim Bonus",
+      "value": "25%"
+    },
+    {
+      "label": "Compulsory deductible",
+      "value": "₹1,000 per claim"
+    },
+    {
+      "label": "Voluntary deductible",
+      "value": "None"
+    },
+    {
+      "label": "Third-party property damage limit",
+      "value": "₹7,50,000"
+    },
+    {
+      "label": "Owner-driver personal accident cover",
+      "value": "₹15,00,000"
+    },
+    {
+      "label": "Add-ons",
+      "value": "Zero depreciation, Engine protection, 24x7 roadside assistance"
+    },
+    {
+      "label": "Premium paid (incl. 18% GST)",
+      "value": "₹24,430"
+    }
+  ],
+  "addons": [
+    {
+      "id": "pa_owner",
+      "label": "Owner-driver personal accident cover (₹15,00,000)",
+      "included": true
+    },
+    {
+      "id": "zero_dep",
+      "label": "Zero depreciation",
+      "included": true
+    },
+    {
+      "id": "engine_protect",
+      "label": "Engine protection",
+      "included": true
+    },
+    {
+      "id": "rsa",
+      "label": "24x7 roadside assistance",
+      "included": true
+    },
+    {
+      "id": "return_to_invoice",
+      "label": "Return to invoice",
+      "included": false
+    },
+    {
+      "id": "consumables",
+      "label": "Consumables cover",
+      "included": false
+    },
+    {
+      "id": "key_replacement",
+      "label": "Key replacement",
+      "included": false
+    },
+    {
+      "id": "ncb_protect",
+      "label": "NCB protection",
+      "included": false
+    }
+  ],
+  "sections": [
+    {
+      "id": "s1",
+      "number": "1",
+      "title": "Schedule notes and definitions",
+      "clauses": [
+        {
+          "id": "1.1",
+          "title": "The insured vehicle",
+          "kind": "info",
+          "text": "This policy covers the private car described in the Schedule, a Tarang Vega VX 1.2 Petrol hatchback registered as MH 12 RK 4521, together with its accessories fitted by the manufacturer. Accessories fitted after purchase are covered only if declared and shown in the Schedule. No such accessories have been declared under this policy.",
+          "plain": "Your Tarang Vega VX, MH 12 RK 4521, and its factory-fitted accessories are insured.",
+          "tags": [
+            "car",
+            "vehicle",
+            "gaadi",
+            "registration",
+            "MH 12 RK 4521",
+            "Tarang Vega",
+            "accessories",
+            "what is insured",
+            "music system"
+          ]
+        },
+        {
+          "id": "1.2",
+          "title": "Insured declared value (IDV)",
+          "kind": "info",
+          "text": "The Insured Declared Value is the maximum amount the Company will pay for the insured vehicle in the event of total loss or theft. It is fixed at the start of the policy period as the manufacturer's listed selling price less depreciation for the age of the vehicle. For this policy the IDV is ₹5,95,000 and it does not change during the policy period.",
+          "plain": "The most we pay if your car is stolen or written off is ₹5,95,000.",
+          "tags": [
+            "IDV",
+            "insured declared value",
+            "car value",
+            "market value",
+            "total loss",
+            "maximum payout",
+            "kitna milega",
+            "sum insured"
+          ]
+        },
+        {
+          "id": "1.3",
+          "title": "Period and geographical area",
+          "kind": "info",
+          "text": "This policy is in force from 12 April 2026 to 11 April 2027, both days inclusive. Cover applies to loss or damage occurring within the Republic of India. Loss or damage occurring outside India is not covered.",
+          "plain": "You are covered anywhere in India from 12 April 2026 to 11 April 2027.",
+          "tags": [
+            "policy period",
+            "validity",
+            "expiry",
+            "renewal date",
+            "India",
+            "outside India",
+            "Nepal",
+            "Bhutan",
+            "territory",
+            "kab tak"
+          ]
+        },
+        {
+          "id": "1.4",
+          "title": "Authorised driver",
+          "kind": "condition",
+          "text": "The vehicle may be driven by the insured or by any person driving on the insured's order or with the insured's permission, provided that person holds a valid and effective driving licence for the class of vehicle at the time of the accident and is not disqualified from holding one. A learner may drive only while accompanied as required by law and holding a valid learner's licence.",
+          "plain": "Anyone you allow to drive is covered, as long as they hold a valid licence for a car.",
+          "tags": [
+            "who can drive",
+            "family member driving",
+            "friend driving",
+            "driver",
+            "wife driving",
+            "permission",
+            "learner licence",
+            "authorised driver"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "s2",
+      "number": "2",
+      "title": "Own damage: what is covered",
+      "clauses": [
+        {
+          "id": "2.1",
+          "title": "Accidental damage",
+          "kind": "covered",
+          "text": "The Company will indemnify the insured against loss of or damage to the insured vehicle and its accessories caused by accident by external means, including collision, overturning and skidding. Indemnity will be by repair, replacement of parts or payment in cash, at the Company's option, subject to the deductible and depreciation provisions of this policy.",
+          "plain": "If your car is damaged in an accident, we pay for the repairs.",
+          "tags": [
+            "accident",
+            "collision",
+            "dent",
+            "crash",
+            "takkar",
+            "bumper",
+            "repair",
+            "skid",
+            "own damage",
+            "scratch"
+          ]
+        },
+        {
+          "id": "2.2",
+          "title": "Fire, explosion and lightning",
+          "kind": "covered",
+          "text": "The Company will indemnify the insured against loss of or damage to the insured vehicle caused by fire, explosion, self-ignition or lightning. Damage caused by a fire that starts from an electrical or mechanical fault in the vehicle itself is covered for the resulting fire damage, but not for the original fault.",
+          "plain": "Fire damage to your car is covered, even if the fire started inside the car.",
+          "tags": [
+            "fire",
+            "aag",
+            "explosion",
+            "self ignition",
+            "short circuit",
+            "lightning",
+            "bijli",
+            "burnt",
+            "car caught fire"
+          ]
+        },
+        {
+          "id": "2.3",
+          "title": "Flood, storm and inundation",
+          "kind": "covered",
+          "text": "The Company will indemnify the insured against loss of or damage to the insured vehicle caused by flood, inundation, typhoon, hurricane, storm, tempest, cyclone, hailstorm or frost. This includes damage to the body, interiors and electrical components caused by water entering the vehicle. Damage to the engine from water entering it is governed by Clause 4.3 and Clause 6.6.",
+          "plain": "If your car is damaged in a flood or storm, including water inside the cabin, it is covered.",
+          "tags": [
+            "flood",
+            "baarish",
+            "rain",
+            "waterlogging",
+            "paani",
+            "storm",
+            "cyclone",
+            "hailstorm",
+            "submerged",
+            "monsoon",
+            "toofan"
+          ]
+        },
+        {
+          "id": "2.4",
+          "title": "Earthquake, landslide and rockslide",
+          "kind": "covered",
+          "text": "The Company will indemnify the insured against loss of or damage to the insured vehicle caused by earthquake, fire and shock damage, landslide or rockslide.",
+          "plain": "Damage from an earthquake or a landslide is covered.",
+          "tags": [
+            "earthquake",
+            "bhookamp",
+            "landslide",
+            "rockslide",
+            "ghat",
+            "falling rocks",
+            "natural calamity",
+            "act of god"
+          ]
+        },
+        {
+          "id": "2.5",
+          "title": "Theft of the vehicle",
+          "kind": "covered",
+          "text": "The Company will indemnify the insured against loss of or damage to the insured vehicle caused by burglary, housebreaking or theft. In the case of theft of the entire vehicle, the Company will pay the IDV less the compulsory deductible, provided a First Information Report has been lodged with the police, the vehicle remains untraced, and the insured surrenders all original keys and the registration documents as set out in Clause 7.2.",
+          "plain": "If your car is stolen and not found, we pay the IDV, once you file an FIR and hand over all the keys.",
+          "tags": [
+            "theft",
+            "chori",
+            "stolen car",
+            "car stolen",
+            "missing car",
+            "FIR",
+            "keys",
+            "burglary",
+            "gaadi chori ho gayi"
+          ]
+        },
+        {
+          "id": "2.6",
+          "title": "Riot, strike and malicious act",
+          "kind": "covered",
+          "text": "The Company will indemnify the insured against loss of or damage to the insured vehicle caused by riot, strike, malicious act or terrorist activity, including deliberate damage by a third party such as vandalism, scratching or breaking of windows.",
+          "plain": "If someone deliberately damages your car, or it is damaged in a riot or strike, it is covered.",
+          "tags": [
+            "vandalism",
+            "riot",
+            "danga",
+            "strike",
+            "bandh",
+            "malicious damage",
+            "keyed",
+            "broken window",
+            "terrorism",
+            "protest"
+          ]
+        },
+        {
+          "id": "2.7",
+          "title": "Damage while parked, by an unknown vehicle",
+          "kind": "covered",
+          "text": "Accidental damage to the insured vehicle while it is parked and unattended, including damage caused by another vehicle whose driver or owner cannot be identified, is covered as accidental damage under Clause 2.1. The insured must report the loss within the time set out in Clause 7.1, and the Company may ask for a police report or a society or parking-lot incident note where available.",
+          "plain": "If another car hits yours while it is parked and drives off, the damage is still covered.",
+          "tags": [
+            "parked car",
+            "hit and run",
+            "unknown vehicle",
+            "parking",
+            "someone hit my car",
+            "dent while parked",
+            "society parking",
+            "kisi ne thok diya",
+            "unattended"
+          ]
+        },
+        {
+          "id": "2.8",
+          "title": "Glass breakage",
+          "kind": "covered",
+          "text": "Breakage of the windscreen, windows and other glass of the insured vehicle, whether from accident, flying stones or a malicious act, is covered. No depreciation is applied to glass parts under any circumstances.",
+          "plain": "A cracked or broken windscreen or window is covered, with no depreciation on glass.",
+          "tags": [
+            "windscreen",
+            "windshield",
+            "glass",
+            "shisha",
+            "crack",
+            "stone hit",
+            "window broken",
+            "side mirror glass"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "s3",
+      "number": "3",
+      "title": "Liability and personal accident",
+      "clauses": [
+        {
+          "id": "3.1",
+          "title": "Liability to third parties",
+          "kind": "covered",
+          "text": "The Company will indemnify the insured against legal liability arising out of the use of the insured vehicle for death of or bodily injury to any person, without limit of amount, as required by the Motor Vehicles Act, 1988. The Company will also indemnify the insured against legal liability for damage to property of third parties up to ₹7,50,000 for any one accident. Third-party cover is compulsory under Indian law and cannot be removed from this policy.",
+          "plain": "If your car injures someone or damages their property, your legal liability is covered (property up to ₹7,50,000).",
+          "tags": [
+            "third party",
+            "TP",
+            "injured someone",
+            "hit a pedestrian",
+            "damaged another car",
+            "liability",
+            "court case",
+            "MACT",
+            "dusre ki gaadi",
+            "property damage"
+          ]
+        },
+        {
+          "id": "3.2",
+          "title": "Third-party property damage limit",
+          "kind": "limit",
+          "text": "The Company's liability for damage to property belonging to third parties is limited to ₹7,50,000 in respect of any one accident or series of accidents arising out of one event. Any amount awarded above this limit is payable by the insured.",
+          "plain": "For damage to someone else's property, we pay up to ₹7,50,000 per accident.",
+          "tags": [
+            "third party property",
+            "limit",
+            "7.5 lakh",
+            "wall damage",
+            "shop damage",
+            "other car repair",
+            "maximum",
+            "liability cap"
+          ]
+        },
+        {
+          "id": "3.3",
+          "title": "Owner-driver personal accident cover",
+          "kind": "covered",
+          "text": "The Company will pay compensation of ₹15,00,000 if the owner-driver named in the Schedule sustains bodily injury in an accident while driving, mounting into or dismounting from the insured vehicle, or travelling in it as a co-driver, and that injury results within twelve months in death, loss of two limbs or sight of both eyes, or permanent total disablement. Lower percentages of the sum apply for loss of one limb or one eye as set out in the scale of compensation. The owner-driver must hold a valid driving licence at the time of the accident.",
+          "plain": "If you are killed or permanently disabled in an accident while driving your car, ₹15,00,000 is paid.",
+          "tags": [
+            "personal accident",
+            "PA cover",
+            "owner driver",
+            "death",
+            "disability",
+            "injury",
+            "15 lakh",
+            "accident cover",
+            "nominee",
+            "chot"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "s4",
+      "number": "4",
+      "title": "Add-on covers",
+      "clauses": [
+        {
+          "id": "4.1",
+          "title": "Zero depreciation",
+          "kind": "covered",
+          "text": "In consideration of the additional premium paid, the Company will not deduct depreciation on parts replaced in a claim for partial loss, including parts made of rubber, nylon, plastic and fibreglass, and metal parts. The claim will be settled on the full cost of replacement parts, subject to the compulsory deductible and to the limit on the number of claims in Clause 4.2. This add-on does not apply to tyres and tubes unless they are damaged in the same accident as the vehicle, or to consumables.",
+          "plain": "When parts are replaced, you get their full cost, with no cut for depreciation on plastic, rubber or metal.",
+          "tags": [
+            "zero dep",
+            "zero depreciation",
+            "bumper to bumper",
+            "nil dep",
+            "plastic parts",
+            "rubber parts",
+            "full claim",
+            "depreciation",
+            "katauti"
+          ]
+        },
+        {
+          "id": "4.2",
+          "title": "Zero depreciation: number of claims",
+          "kind": "limit",
+          "text": "The zero depreciation add-on applies to a maximum of two claims during the policy period. For a third or subsequent claim in the same policy period, depreciation will be deducted as set out in Clause 5.2.",
+          "plain": "Zero depreciation applies to two claims a year; from the third claim, normal depreciation applies.",
+          "tags": [
+            "two claims",
+            "claim limit",
+            "zero dep limit",
+            "how many claims",
+            "third claim",
+            "depreciation",
+            "per year",
+            "kitni baar"
+          ]
+        },
+        {
+          "id": "4.3",
+          "title": "Engine protection",
+          "kind": "covered",
+          "text": "In consideration of the additional premium paid, the Company will indemnify the insured for loss of or damage to the engine, gearbox and their internal parts caused by water ingression, leakage of lubricating oil following an accident, or hydrostatic lock, including damage that results from an attempt to start or crank the engine after water has entered it. This add-on overrides the exclusion of consequential engine damage in Clause 6.6. Cover applies only where the insured vehicle has been exposed to flood, waterlogging or an accident during the policy period.",
+          "plain": "Engine damage from water, such as driving through a flooded road or starting the car after it was waterlogged, is covered.",
+          "tags": [
+            "engine",
+            "engine protect",
+            "hydrostatic lock",
+            "water in engine",
+            "flooded road",
+            "waterlogging",
+            "cranking",
+            "baarish",
+            "engine seized",
+            "gearbox",
+            "paani mein gaadi"
+          ]
+        },
+        {
+          "id": "4.4",
+          "title": "24x7 roadside assistance",
+          "kind": "covered",
+          "text": "The Company will arrange, through its assistance partner, the following services if the insured vehicle is immobilised within India: towing to the nearest network garage up to 50 km, on-site minor repairs, battery jump-start, flat tyre change with the vehicle's own spare, emergency fuel delivery of up to 5 litres (fuel cost payable by the insured), and help with a vehicle locked with the keys inside. Services are available by calling the claims helpline at any hour. The cost of parts and fuel is not included.",
+          "plain": "If your car breaks down anywhere in India, call us for towing, a jump-start, a tyre change or fuel delivery.",
+          "tags": [
+            "roadside assistance",
+            "RSA",
+            "towing",
+            "breakdown help",
+            "flat tyre",
+            "puncture",
+            "battery dead",
+            "jump start",
+            "fuel khatam",
+            "locked keys inside",
+            "gaadi band ho gayi"
+          ]
+        },
+        {
+          "id": "4.5",
+          "title": "Consumables cover: not opted",
+          "kind": "excluded",
+          "text": "The consumables add-on has not been opted under this policy. The cost of consumable items such as engine oil, coolant, brake fluid, nuts, bolts, screws, washers, grease, clips and filters used in a repair is therefore not payable and will be borne by the insured.",
+          "plain": "Nuts, bolts, oil and other consumables used in a repair are not covered, because this add-on was not taken.",
+          "tags": [
+            "consumables",
+            "nuts",
+            "bolts",
+            "engine oil",
+            "coolant",
+            "screws",
+            "grease",
+            "filters",
+            "not covered",
+            "add-on not taken"
+          ]
+        },
+        {
+          "id": "4.6",
+          "title": "Key replacement: not opted",
+          "kind": "excluded",
+          "text": "The key replacement add-on has not been opted under this policy. The cost of replacing lost, stolen or damaged keys, or of changing locks, is not payable.",
+          "plain": "If you lose your car keys, the replacement cost is not covered.",
+          "tags": [
+            "lost keys",
+            "chaabi",
+            "key replacement",
+            "smart key",
+            "remote key",
+            "lock change",
+            "keys stolen",
+            "not covered"
+          ]
+        },
+        {
+          "id": "4.7",
+          "title": "Return to invoice: not opted",
+          "kind": "excluded",
+          "text": "The return to invoice add-on has not been opted under this policy. In the event of total loss or theft, the Company will pay the IDV shown in the Schedule and not the original invoice value, road tax or registration charges.",
+          "plain": "If the car is stolen or written off, you get the IDV, not the price you paid for it.",
+          "tags": [
+            "return to invoice",
+            "RTI",
+            "invoice value",
+            "on-road price",
+            "total loss",
+            "theft payout",
+            "road tax",
+            "registration cost"
+          ]
+        },
+        {
+          "id": "4.8",
+          "title": "NCB protection: not opted",
+          "kind": "excluded",
+          "text": "The NCB protection add-on has not been opted under this policy. Any claim under this policy, other than a claim for glass breakage alone, will cause the No Claim Bonus to be forfeited at the next renewal as set out in Clause 5.3.",
+          "plain": "Making a claim this year will reset your No Claim Bonus at renewal, because NCB protection was not taken.",
+          "tags": [
+            "NCB protect",
+            "no claim bonus",
+            "lose NCB",
+            "claim impact",
+            "renewal discount",
+            "bonus protection",
+            "not opted",
+            "NCB bachao"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "s5",
+      "number": "5",
+      "title": "Deductibles, depreciation and No Claim Bonus",
+      "clauses": [
+        {
+          "id": "5.1",
+          "title": "Compulsory deductible",
+          "kind": "deductible",
+          "text": "Each and every claim for loss of or damage to the insured vehicle is subject to a compulsory deductible of ₹1,000, which is borne by the insured. The deductible does not apply to claims for liability to third parties or under the personal accident cover.",
+          "plain": "You pay the first ₹1,000 of every own-damage claim.",
+          "tags": [
+            "deductible",
+            "excess",
+            "1000",
+            "compulsory deductible",
+            "own pocket",
+            "apni jeb se",
+            "claim deduction",
+            "what do I pay"
+          ]
+        },
+        {
+          "id": "5.2",
+          "title": "Depreciation on replaced parts",
+          "kind": "limit",
+          "text": "Where the zero depreciation add-on does not apply, depreciation will be deducted from the cost of parts replaced as follows: 50% on rubber, nylon and plastic parts, tyres, tubes and batteries; 30% on fibreglass components; nil on glass. Metal parts are depreciated by the age of the vehicle, at 15% for a vehicle aged two to three years. Labour charges are paid in full.",
+          "plain": "Without zero depreciation, you would bear part of the cost of replaced parts, such as half the cost of plastic parts.",
+          "tags": [
+            "depreciation",
+            "plastic parts",
+            "rubber",
+            "50 percent",
+            "metal parts",
+            "battery",
+            "tyres",
+            "labour",
+            "katauti"
+          ]
+        },
+        {
+          "id": "5.3",
+          "title": "No Claim Bonus",
+          "kind": "info",
+          "text": "A No Claim Bonus of 25% has been applied to the own-damage premium of this policy, for two consecutive claim-free years. If no claim is made during this policy period, the bonus will rise to 35% at renewal. If a claim is made, the bonus is forfeited and renewal is at 0%, except as provided in Clause 5.4.",
+          "plain": "You have a 25% No Claim Bonus; a claim this year would reset it to zero at renewal.",
+          "tags": [
+            "NCB",
+            "no claim bonus",
+            "discount",
+            "renewal",
+            "25 percent",
+            "claim free",
+            "bonus",
+            "premium discount"
+          ]
+        },
+        {
+          "id": "5.4",
+          "title": "Glass-only claims and NCB",
+          "kind": "info",
+          "text": "A claim solely for breakage of glass, in which no other part of the vehicle is repaired or replaced, does not affect the No Claim Bonus at renewal. The compulsory deductible applies to such a claim.",
+          "plain": "A claim only for a broken windscreen or window does not affect your No Claim Bonus.",
+          "tags": [
+            "windscreen claim",
+            "glass claim",
+            "NCB",
+            "no claim bonus",
+            "windshield",
+            "bonus safe",
+            "renewal",
+            "shisha"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "s6",
+      "number": "6",
+      "title": "Exclusions: what is not covered",
+      "clauses": [
+        {
+          "id": "6.1",
+          "title": "Driving under the influence",
+          "kind": "excluded",
+          "text": "The Company shall not be liable for any loss of or damage to the insured vehicle, or for personal accident compensation, if at the time of the accident the person driving was under the influence of intoxicating liquor or drugs. Liability to third parties remains payable as required by law, but the Company reserves the right to recover such payments from the insured.",
+          "plain": "Damage to your car is not covered if the driver was drunk or on drugs.",
+          "tags": [
+            "drunk driving",
+            "drink and drive",
+            "alcohol",
+            "sharaab",
+            "daaru",
+            "drugs",
+            "intoxicated",
+            "breath test",
+            "not covered"
+          ]
+        },
+        {
+          "id": "6.2",
+          "title": "Driving without a valid licence",
+          "kind": "excluded",
+          "text": "The Company shall not be liable for any loss, damage or liability if at the time of the accident the person driving does not hold a valid and effective driving licence for the class of vehicle, or holds an expired licence, except where the licence has expired and been renewed within the period allowed by law. Liability to third parties remains payable as required by law, subject to the Company's right of recovery.",
+          "plain": "If the driver has no valid licence, the damage to your car is not covered.",
+          "tags": [
+            "no licence",
+            "license",
+            "DL",
+            "expired licence",
+            "underage driver",
+            "unlicensed",
+            "teenager driving",
+            "bina licence",
+            "not covered"
+          ]
+        },
+        {
+          "id": "6.3",
+          "title": "Mechanical and electrical breakdown",
+          "kind": "excluded",
+          "text": "The Company shall not be liable for mechanical or electrical breakdown, failure or breakage of any part of the insured vehicle that is not caused by an insured peril. Roadside assistance under Clause 4.4 may be used to help with a breakdown, but the cost of repairing the fault is not covered.",
+          "plain": "If the car simply breaks down, the repair is not covered; roadside help still is.",
+          "tags": [
+            "breakdown",
+            "mechanical failure",
+            "electrical fault",
+            "clutch",
+            "gearbox failure",
+            "AC not working",
+            "engine failure",
+            "kharab",
+            "not covered"
+          ]
+        },
+        {
+          "id": "6.4",
+          "title": "Wear and tear",
+          "kind": "excluded",
+          "text": "The Company shall not be liable for normal wear and tear, rust, corrosion, gradual deterioration, or depreciation of the insured vehicle, or for servicing and maintenance costs.",
+          "plain": "Normal wear and tear and servicing costs are not covered.",
+          "tags": [
+            "wear and tear",
+            "rust",
+            "servicing",
+            "maintenance",
+            "brake pads",
+            "old car",
+            "deterioration",
+            "purani gaadi"
+          ]
+        },
+        {
+          "id": "6.5",
+          "title": "Tyres and tubes damaged alone",
+          "kind": "excluded",
+          "text": "The Company shall not be liable for damage to tyres and tubes unless the insured vehicle is also damaged in the same accident, in which case the Company's liability for tyres and tubes is limited to 50% of their replacement cost. A puncture, burst or cut tyre without other damage to the vehicle is not covered.",
+          "plain": "A burst or cut tyre on its own is not covered, only when the accident also damages the car.",
+          "tags": [
+            "tyre",
+            "tire",
+            "puncture",
+            "tyre burst",
+            "tube",
+            "pothole",
+            "flat tyre",
+            "tyre cut",
+            "not covered"
+          ]
+        },
+        {
+          "id": "6.6",
+          "title": "Consequential and engine water damage",
+          "kind": "excluded",
+          "text": "The Company shall not be liable for consequential loss, or for damage to the engine and gearbox arising from water entering them, including damage caused by attempting to start or crank the engine after it has been exposed to water, except where the Engine Protection add-on is in force. The Engine Protection add-on is in force under this policy, so such engine damage is covered under Clause 4.3.",
+          "plain": "Engine damage from water is normally excluded, but you have Engine Protection, so it is covered for you.",
+          "tags": [
+            "consequential loss",
+            "engine damage",
+            "water in engine",
+            "cranking",
+            "hydrostatic lock",
+            "flood",
+            "waterlogging",
+            "engine protect",
+            "baarish"
+          ]
+        },
+        {
+          "id": "6.7",
+          "title": "Use for hire or reward",
+          "kind": "excluded",
+          "text": "The insured vehicle is insured for private use only, including use for social, domestic and pleasure purposes and for the insured's business. The Company shall not be liable for any loss, damage or liability while the vehicle is used for hire or reward, carriage of goods other than samples or personal luggage, as a taxi or with a ride-hailing service, for organised racing, pace-making or speed testing, or for driving tuition.",
+          "plain": "Nothing is covered while the car is used as a taxi, rented out or raced.",
+          "tags": [
+            "taxi",
+            "cab",
+            "ride hailing",
+            "commercial use",
+            "hire",
+            "rent out",
+            "racing",
+            "driving school",
+            "kiraye pe",
+            "private use"
+          ]
+        },
+        {
+          "id": "6.8",
+          "title": "War and nuclear risks",
+          "kind": "excluded",
+          "text": "The Company shall not be liable for any loss, damage or liability directly or indirectly caused by war, invasion, act of foreign enemy, hostilities, civil war, rebellion, revolution, mutiny, or nuclear weapons material or ionising radiation.",
+          "plain": "Loss caused by war or nuclear events is not covered.",
+          "tags": [
+            "war",
+            "nuclear",
+            "radiation",
+            "invasion",
+            "civil war",
+            "military",
+            "yuddh",
+            "not covered"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "s7",
+      "number": "7",
+      "title": "Claim conditions",
+      "clauses": [
+        {
+          "id": "7.1",
+          "title": "Claim intimation within 48 hours",
+          "kind": "condition",
+          "text": "Notice of any accident, loss or damage shall be given to the Company by calling the claims helpline or through the website within 48 hours of the event, with full particulars. In the case of theft or a criminal act, the police must also be informed immediately. Late intimation will not by itself lead to rejection where the delay is for reasons beyond the insured's control, but the Company may reduce the claim to the extent the delay has prejudiced its assessment.",
+          "plain": "Tell us about the accident or loss within 48 hours, by phone or online.",
+          "tags": [
+            "claim intimation",
+            "report claim",
+            "48 hours",
+            "how to claim",
+            "deadline",
+            "late claim",
+            "helpline",
+            "claim kaise kare",
+            "inform"
+          ]
+        },
+        {
+          "id": "7.2",
+          "title": "Theft claims: FIR and keys",
+          "kind": "condition",
+          "text": "For a theft claim, the insured must lodge a First Information Report with the police without delay and submit a copy to the Company. The claim will be considered after the police issue a final report stating the vehicle is untraced. The insured must surrender all original keys of the vehicle, the original registration certificate and form 28, 29 and 30 as applicable, and sign a letter of subrogation. Failure to produce all original keys may result in the claim being declined unless the insured shows the keys were lost in the same event.",
+          "plain": "For a stolen car, file an FIR straight away, and give us all original keys and the RC.",
+          "tags": [
+            "theft claim",
+            "FIR",
+            "police",
+            "keys",
+            "chaabi",
+            "untraced report",
+            "RC",
+            "subrogation",
+            "stolen car documents",
+            "chori"
+          ]
+        },
+        {
+          "id": "7.3",
+          "title": "Cashless repairs at network garages",
+          "kind": "info",
+          "text": "Where the insured vehicle is repaired at a garage in the Company's network, the Company will settle the approved repair cost directly with the garage, and the insured pays only the deductible and any amounts not covered. Where the vehicle is repaired at a garage outside the network, the insured pays the garage and the Company reimburses the approved amount to the insured's bank account within 7 working days of receiving the final bill and documents.",
+          "plain": "At a network garage we pay the garage directly; elsewhere you pay and we reimburse you.",
+          "tags": [
+            "cashless",
+            "network garage",
+            "reimbursement",
+            "garage list",
+            "direct payment",
+            "repair bill",
+            "authorised workshop",
+            "cashless garage",
+            "paise kaun dega"
+          ]
+        },
+        {
+          "id": "7.4",
+          "title": "Survey and inspection before repair",
+          "kind": "condition",
+          "text": "The insured shall not authorise repairs, other than urgent repairs to prevent further damage, until the Company's surveyor has inspected the vehicle and approved the estimate. The Company will appoint a surveyor within 24 hours of intimation for claims at network garages. The insured shall keep damaged parts available for inspection until the claim is settled.",
+          "plain": "Don't start repairs until our surveyor has seen the car and approved the estimate.",
+          "tags": [
+            "surveyor",
+            "inspection",
+            "estimate",
+            "approval",
+            "repair start",
+            "damaged parts",
+            "survey",
+            "kab repair karu"
+          ]
+        },
+        {
+          "id": "7.5",
+          "title": "Documents for an own-damage claim",
+          "kind": "condition",
+          "text": "An own-damage claim must be supported by the claim form, a copy of the registration certificate, the driving licence of the person driving at the time, the repair estimate and final invoice, photographs of the damage, and a police report where third-party injury, theft or a criminal act is involved. The Company may ask for further documents reasonably required to assess the claim.",
+          "plain": "Keep your RC, the driver's licence, the repair estimate and bill, and photos ready.",
+          "tags": [
+            "documents",
+            "claim documents",
+            "RC",
+            "driving licence",
+            "photos",
+            "estimate",
+            "invoice",
+            "police report",
+            "kagaz"
+          ]
+        },
+        {
+          "id": "7.6",
+          "title": "Total loss",
+          "kind": "info",
+          "text": "Where the cost of repairs, including labour and parts, exceeds 75% of the IDV, the vehicle will be treated as a constructive total loss. The Company will pay the IDV less the compulsory deductible and less the value of the wreck, or will pay the full IDV less the deductible if the insured transfers the wreck to the Company. Any outstanding loan will be paid first to the financier named in the Schedule.",
+          "plain": "If repairs would cost more than 75% of the IDV, the car is treated as written off and we pay the IDV.",
+          "tags": [
+            "total loss",
+            "write off",
+            "constructive total loss",
+            "wreck",
+            "salvage",
+            "IDV payout",
+            "car beyond repair",
+            "loan"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "s8",
+      "number": "8",
+      "title": "General conditions",
+      "clauses": [
+        {
+          "id": "8.1",
+          "title": "Care of the vehicle",
+          "kind": "condition",
+          "text": "The insured shall take all reasonable steps to safeguard the vehicle from loss or damage and to maintain it in an efficient and roadworthy condition. The vehicle must not be left running unattended or with the keys inside.",
+          "plain": "Look after the car sensibly and keep it roadworthy.",
+          "tags": [
+            "reasonable care",
+            "maintenance",
+            "roadworthy",
+            "keys inside",
+            "safety",
+            "negligence",
+            "condition",
+            "upkeep"
+          ]
+        },
+        {
+          "id": "8.2",
+          "title": "Transfer of ownership",
+          "kind": "condition",
+          "text": "If the insured vehicle is sold or transferred, the insurance may be transferred to the new owner on application within 14 days of the transfer, with the required documents and a fee. Own-damage cover is not transferred automatically; liability to third parties passes to the new owner from the date of transfer as required by law. The No Claim Bonus belongs to the insured and not to the vehicle.",
+          "plain": "If you sell the car, the new owner must apply within 14 days to take over this policy; your NCB stays with you.",
+          "tags": [
+            "sell car",
+            "transfer",
+            "new owner",
+            "14 days",
+            "NCB transfer",
+            "ownership change",
+            "gaadi bechi",
+            "second hand"
+          ]
+        },
+        {
+          "id": "8.3",
+          "title": "Cancellation",
+          "kind": "condition",
+          "text": "The insured may cancel this policy by giving written notice, provided the vehicle is insured elsewhere or has been sold, and the Company will refund premium for the unexpired period on a short-period scale, provided no claim has been made. The Company may cancel the policy only on grounds of fraud or misrepresentation, by giving 7 days' notice.",
+          "plain": "You can cancel and get part of the premium back if you have not claimed.",
+          "tags": [
+            "cancel policy",
+            "refund",
+            "cancellation",
+            "short period",
+            "premium return",
+            "band karna",
+            "terminate",
+            "notice"
+          ]
+        },
+        {
+          "id": "8.4",
+          "title": "Complaints and grievance redressal",
+          "kind": "info",
+          "text": "If the insured is not satisfied with any decision of the Company, a complaint may be raised through the claims helpline 1800 266 4242 or the website. The Company will acknowledge the complaint within 3 working days and respond within 14 days. If the insured remains unsatisfied, the matter may be taken to the Insurance Ombudsman.",
+          "plain": "If you're unhappy with a decision, call the helpline; we reply within 14 days.",
+          "tags": [
+            "complaint",
+            "grievance",
+            "ombudsman",
+            "dispute",
+            "not happy",
+            "escalate",
+            "shikayat",
+            "helpline"
+          ]
+        }
+      ]
+    }
+  ]
+}

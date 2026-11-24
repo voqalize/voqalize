@@ -14,6 +14,7 @@
  * of it and the tile keeps off it (`tileBlockers`). The phone menu lives at
  * the top, so the tile keeps out of the top corners while it is open.
  */
+import { shownNow } from "../stage/view";
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { useSite } from "../state/store";
@@ -39,12 +40,14 @@ export function raisedCorner(): "tl" | "tr" | null {
 }
 
 /** What the floating tile must not cover: primary buttons, an open side
- *  panel and the brief tab, and the phone menu while it is down. */
+ *  panel and the brief tab, the phone menu while it is down, and what the
+ *  agent is showing right now (`shownNow`, stage/view.ts). */
 export function tileBlockers(): DOMRect[] {
   const sel = ["[data-dock-avoid]", "[data-tile-avoid]"];
   if (openOverlay() === "menu") sel.push(".site-header.is-open .header-nav");
   return [...document.querySelectorAll<HTMLElement>(sel.join(","))]
     .map((el) => el.getBoundingClientRect())
+    .concat(shownNow())
     .filter((r) => r.width > 0 && r.bottom > 0 && r.top < window.innerHeight);
 }
 

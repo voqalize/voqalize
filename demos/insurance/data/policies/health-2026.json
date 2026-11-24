@@ -1,0 +1,863 @@
+{
+  "id": "health-2026",
+  "product": "health",
+  "title": "Family Floater Health Insurance Policy",
+  "plan": "Chhatri Health Plus",
+  "policy_number": "CHI/HL/26/0072415",
+  "status": "active",
+  "start": "2026-06-01",
+  "end": "2027-05-31",
+  "premium_paid": 23166,
+  "summary": "A ₹10,00,000 family floater for Rohan, Meera and Aarav, with cashless treatment at network hospitals and a 10% cumulative bonus.",
+  "insured": [
+    {
+      "id": "rohan",
+      "name": "Rohan Kulkarni",
+      "role": "Proposer and insured member (self)"
+    },
+    {
+      "id": "meera",
+      "name": "Meera Kulkarni",
+      "role": "Insured member (spouse)"
+    },
+    {
+      "id": "aarav",
+      "name": "Aarav Kulkarni",
+      "role": "Insured member (son)"
+    }
+  ],
+  "schedule": [
+    {
+      "label": "Policy number",
+      "value": "CHI/HL/26/0072415"
+    },
+    {
+      "label": "Period of insurance",
+      "value": "1 Jun 2026 to 31 May 2027 (both days inclusive)"
+    },
+    {
+      "label": "Cover type",
+      "value": "Family floater"
+    },
+    {
+      "label": "Insured members",
+      "value": "Rohan Kulkarni (self), Meera Kulkarni (spouse), Aarav Kulkarni (son)"
+    },
+    {
+      "label": "Sum insured",
+      "value": "₹10,00,000 per year, shared by all members"
+    },
+    {
+      "label": "Cumulative bonus",
+      "value": "10% (₹1,00,000), total cover ₹11,00,000"
+    },
+    {
+      "label": "Insured with Chhatri since",
+      "value": "1 Jun 2024 (continuous)"
+    },
+    {
+      "label": "Room rent limit",
+      "value": "1% of sum insured per day (₹10,000); ICU 2% per day (₹20,000)"
+    },
+    {
+      "label": "Co-payment",
+      "value": "None for members aged 60 or below"
+    },
+    {
+      "label": "Pre-existing disease declared",
+      "value": "Rohan Kulkarni: hypertension (waiting period ends 31 May 2027)"
+    },
+    {
+      "label": "Pre and post hospitalisation",
+      "value": "60 days before, 90 days after"
+    },
+    {
+      "label": "Add-ons",
+      "value": "None"
+    },
+    {
+      "label": "Premium paid",
+      "value": "₹23,166 (GST exempt)"
+    }
+  ],
+  "addons": [
+    {
+      "id": "room_rent_waiver",
+      "label": "Room rent limit waiver",
+      "included": false
+    },
+    {
+      "id": "opd_cover",
+      "label": "OPD cover (₹10,000 a year)",
+      "included": false
+    },
+    {
+      "id": "maternity",
+      "label": "Maternity cover",
+      "included": false
+    },
+    {
+      "id": "critical_illness",
+      "label": "Critical illness (₹5,00,000 lump sum per adult)",
+      "included": false
+    }
+  ],
+  "sections": [
+    {
+      "id": "s1",
+      "number": "1",
+      "title": "Schedule notes and definitions",
+      "clauses": [
+        {
+          "id": "1.1",
+          "title": "Family floater sum insured",
+          "kind": "info",
+          "text": "The sum insured of ₹10,00,000 is available on a floater basis to all insured members together for each policy year. Any claim paid for one member reduces the amount available for all members for the rest of that policy year. The sum insured is restored in full at renewal.",
+          "plain": "The ₹10,00,000 cover is shared by Rohan, Meera and Aarav for the whole year.",
+          "tags": [
+            "sum insured",
+            "floater",
+            "family cover",
+            "10 lakh",
+            "shared cover",
+            "how much cover",
+            "kitna cover",
+            "members",
+            "balance"
+          ]
+        },
+        {
+          "id": "1.2",
+          "title": "Hospital",
+          "kind": "info",
+          "text": "Hospital means an institution established for in-patient care and day care treatment, registered with the local authorities where required, with at least 10 in-patient beds in towns with a population under ten lakh and 15 beds elsewhere, qualified nursing staff round the clock, qualified medical practitioners in charge round the clock, a fully equipped operation theatre where surgery is carried out, and daily patient records available to the Company.",
+          "plain": "A hospital must be a registered hospital with round-the-clock doctors and nurses, not a clinic.",
+          "tags": [
+            "hospital",
+            "definition",
+            "clinic",
+            "nursing home",
+            "beds",
+            "registered",
+            "aspatal",
+            "which hospital"
+          ]
+        },
+        {
+          "id": "1.3",
+          "title": "Hospitalisation",
+          "kind": "info",
+          "text": "Hospitalisation means admission to a hospital for a minimum period of 24 consecutive in-patient care hours, except for day care procedures listed in this policy where the 24-hour limit does not apply. Admission must be on the advice of a medical practitioner and medically necessary.",
+          "plain": "Normally you must be admitted for at least 24 hours, except for day care procedures.",
+          "tags": [
+            "hospitalisation",
+            "admission",
+            "24 hours",
+            "admit",
+            "bharti",
+            "inpatient",
+            "overnight",
+            "medically necessary"
+          ]
+        },
+        {
+          "id": "1.4",
+          "title": "Continuity of cover",
+          "kind": "info",
+          "text": "The insured members have been covered under this policy without a break since 1 June 2024. Waiting periods are counted from that date for each member, as long as the policy is renewed without a break beyond the grace period.",
+          "plain": "Your waiting periods count from 1 June 2024, when this family first took the policy.",
+          "tags": [
+            "continuous cover",
+            "since 2024",
+            "policy history",
+            "first policy",
+            "inception",
+            "waiting period start",
+            "renewal",
+            "kab se"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "s2",
+      "number": "2",
+      "title": "What is covered",
+      "clauses": [
+        {
+          "id": "2.1",
+          "title": "In-patient hospitalisation",
+          "kind": "covered",
+          "text": "The Company will pay the reasonable and customary medical expenses incurred on hospitalisation of an insured member for an illness or injury contracted or sustained during the policy period, including room and boarding, nursing, intensive care, surgeon, anaesthetist, consultant and specialist fees, anaesthesia, blood, oxygen, operation theatre charges, medicines, drugs, diagnostics, implants and devices. Payment is subject to the sum insured, sub-limits, waiting periods and exclusions of this policy.",
+          "plain": "If any of you is admitted to hospital for an illness or injury, the hospital bills are covered.",
+          "tags": [
+            "hospitalisation",
+            "hospital bill",
+            "admitted",
+            "surgery",
+            "operation",
+            "ICU",
+            "medicines",
+            "doctor fees",
+            "bharti",
+            "ilaaj"
+          ]
+        },
+        {
+          "id": "2.2",
+          "title": "Room rent and ICU limit",
+          "kind": "limit",
+          "text": "Room rent, boarding and nursing charges are payable up to 1% of the sum insured per day, that is ₹10,000 per day. Intensive care unit charges are payable up to 2% of the sum insured per day, that is ₹20,000 per day. Where a room within these limits is not available, the insured may opt for a higher category room, subject to Clause 3.1.",
+          "plain": "We pay up to ₹10,000 a day for a room and ₹20,000 a day for ICU.",
+          "tags": [
+            "room rent",
+            "room limit",
+            "single room",
+            "ICU",
+            "per day",
+            "10000",
+            "deluxe room",
+            "private room",
+            "kamra",
+            "room category"
+          ]
+        },
+        {
+          "id": "2.3",
+          "title": "Pre-hospitalisation expenses",
+          "kind": "covered",
+          "text": "Medical expenses incurred in the 60 days immediately before the date of admission are payable, provided they relate to the same condition for which the insured member was hospitalised and the hospitalisation claim is admissible under this policy.",
+          "plain": "Tests and doctor visits in the 60 days before admission, for the same illness, are covered.",
+          "tags": [
+            "pre hospitalisation",
+            "before admission",
+            "60 days",
+            "tests",
+            "diagnostics",
+            "consultation",
+            "pehle ka kharcha",
+            "x-ray",
+            "blood test"
+          ]
+        },
+        {
+          "id": "2.4",
+          "title": "Post-hospitalisation expenses",
+          "kind": "covered",
+          "text": "Medical expenses incurred in the 90 days immediately after discharge are payable, provided they relate to the same condition for which the insured member was hospitalised and the hospitalisation claim is admissible under this policy.",
+          "plain": "Follow-up visits, medicines and tests for 90 days after discharge are covered.",
+          "tags": [
+            "post hospitalisation",
+            "after discharge",
+            "90 days",
+            "follow up",
+            "medicines",
+            "physiotherapy",
+            "baad ka kharcha",
+            "check-up"
+          ]
+        },
+        {
+          "id": "2.5",
+          "title": "Day care treatment",
+          "kind": "covered",
+          "text": "Medical expenses for day care procedures that require less than 24 hours of hospitalisation because of technological advancement, such as chemotherapy, dialysis, cataract surgery, lithotripsy and tonsillectomy, are covered up to the sum insured. Treatment taken in a doctor's clinic or in the out-patient department is not a day care procedure.",
+          "plain": "Procedures like dialysis, chemotherapy or cataract surgery that need no overnight stay are covered.",
+          "tags": [
+            "day care",
+            "dialysis",
+            "chemotherapy",
+            "chemo",
+            "same day discharge",
+            "lithotripsy",
+            "short procedure",
+            "no overnight stay"
+          ]
+        },
+        {
+          "id": "2.6",
+          "title": "AYUSH treatment",
+          "kind": "covered",
+          "text": "In-patient treatment under Ayurveda, Yoga and Naturopathy, Unani, Siddha and Homeopathy systems of medicine is covered up to the sum insured, provided it is taken in a government hospital or an AYUSH hospital recognised by the government and accredited as required.",
+          "plain": "Ayurvedic or homeopathic in-patient treatment in a government-recognised hospital is covered up to the sum insured.",
+          "tags": [
+            "AYUSH",
+            "ayurveda",
+            "homeopathy",
+            "unani",
+            "siddha",
+            "naturopathy",
+            "panchakarma",
+            "desi ilaaj"
+          ]
+        },
+        {
+          "id": "2.7",
+          "title": "Road ambulance",
+          "kind": "covered",
+          "text": "Expenses on a road ambulance to transfer an insured member to the nearest hospital in an emergency, or from one hospital to another for better care on medical advice, are covered subject to the limit in Clause 3.3.",
+          "plain": "An ambulance to the hospital in an emergency is covered, up to ₹2,000.",
+          "tags": [
+            "ambulance",
+            "emergency",
+            "transfer",
+            "hospital shift",
+            "108",
+            "ambulance charges",
+            "transport",
+            "emergency ride"
+          ]
+        },
+        {
+          "id": "2.8",
+          "title": "Dengue, malaria and other vector-borne illness",
+          "kind": "covered",
+          "text": "Hospitalisation for dengue, malaria, chikungunya and other vector-borne diseases is covered up to the sum insured, provided the illness is first diagnosed after the 30-day initial waiting period in Clause 4.1. As the insured members have been covered since 1 June 2024, this waiting period has been served.",
+          "plain": "Hospital treatment for dengue or malaria is covered.",
+          "tags": [
+            "dengue",
+            "malaria",
+            "chikungunya",
+            "mosquito",
+            "fever",
+            "machhar",
+            "platelets",
+            "monsoon illness",
+            "viral fever"
+          ]
+        },
+        {
+          "id": "2.9",
+          "title": "Modern treatments",
+          "kind": "limit",
+          "text": "Modern treatment methods including robotic surgery, stereotactic radio surgery, immunotherapy by monoclonal antibody injections, oral chemotherapy, deep brain stimulation, intra-vitreal injections, balloon sinuplasty, bronchial thermoplasty and stem cell therapy for haematological conditions are covered, in-patient or as day care, up to 50% of the sum insured, that is ₹5,00,000 in a policy year.",
+          "plain": "Advanced treatments like robotic surgery or immunotherapy are covered up to ₹5,00,000.",
+          "tags": [
+            "robotic surgery",
+            "modern treatment",
+            "immunotherapy",
+            "stem cell",
+            "oral chemo",
+            "advanced treatment",
+            "50 percent",
+            "new technology"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "s3",
+      "number": "3",
+      "title": "Sub-limits and proportionate deduction",
+      "clauses": [
+        {
+          "id": "3.1",
+          "title": "Proportionate deduction for a higher room",
+          "kind": "limit",
+          "text": "If an insured member is admitted to a room or ICU whose daily charges exceed the limits in Clause 2.2, all associated medical expenses, such as doctors' fees, nursing and procedure charges, will be paid in the same proportion as the eligible room rent bears to the actual room rent. Proportionate deduction does not apply to pharmacy and consumables, implants and medical devices, and diagnostics. It does not apply in an ICU that has no room-category pricing.",
+          "plain": "If you take a room costing more than ₹10,000 a day, most of the bill is cut in the same proportion, not just the room rent.",
+          "tags": [
+            "proportionate deduction",
+            "room upgrade",
+            "higher room",
+            "deluxe room",
+            "room rent",
+            "bill cut",
+            "katauti",
+            "suite",
+            "partial payment"
+          ]
+        },
+        {
+          "id": "3.2",
+          "title": "Cataract surgery",
+          "kind": "limit",
+          "text": "Expenses for cataract surgery are payable up to ₹40,000 per eye in a policy year, including the cost of the lens. The 24-month waiting period in Clause 4.2 applies to cataract surgery.",
+          "plain": "Cataract surgery is covered up to ₹40,000 per eye.",
+          "tags": [
+            "cataract",
+            "eye surgery",
+            "motiyabind",
+            "lens",
+            "aankh",
+            "per eye",
+            "sub-limit",
+            "40000"
+          ]
+        },
+        {
+          "id": "3.3",
+          "title": "Ambulance limit",
+          "kind": "limit",
+          "text": "Road ambulance expenses under Clause 2.7 are payable up to ₹2,000 per hospitalisation.",
+          "plain": "Ambulance charges are covered up to ₹2,000 each time.",
+          "tags": [
+            "ambulance",
+            "ambulance limit",
+            "2000",
+            "sub-limit",
+            "emergency transport",
+            "per hospitalisation",
+            "charges",
+            "cap"
+          ]
+        },
+        {
+          "id": "3.4",
+          "title": "Non-medical items",
+          "kind": "excluded",
+          "text": "Items that are not medical in nature are not payable, including toiletries, diapers, gloves bought separately, admission kits, food charges for attendants, telephone and television charges, registration and documentation charges, walking aids, belts and braces, and items listed in the Company's list of non-payable items. A copy of the list is available on request and on the website.",
+          "plain": "Things like toiletries, attendant food and admission kits are not paid.",
+          "tags": [
+            "non-medical",
+            "consumables",
+            "toiletries",
+            "gloves",
+            "diapers",
+            "attendant food",
+            "admission kit",
+            "non payable",
+            "deductions"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "s4",
+      "number": "4",
+      "title": "Waiting periods",
+      "clauses": [
+        {
+          "id": "4.1",
+          "title": "Initial 30-day waiting period",
+          "kind": "waiting",
+          "text": "No expenses are payable for any illness contracted within the first 30 days from the date the insured member was first covered, except for hospitalisation following an accident. This waiting period does not apply on renewal. For all current members it was served by 1 July 2024.",
+          "plain": "Illnesses in the first 30 days of a new policy are not covered, but accidents are; for your family this ended in July 2024.",
+          "tags": [
+            "30 days",
+            "initial waiting",
+            "new policy",
+            "accident",
+            "first month",
+            "waiting period",
+            "turant cover",
+            "cooling period"
+          ]
+        },
+        {
+          "id": "4.2",
+          "title": "24 months for specified illnesses and procedures",
+          "kind": "waiting",
+          "text": "Expenses for the following are payable only after 24 months of continuous cover for the insured member: cataract, benign prostatic hypertrophy, hernia of all types, hydrocele, kidney and gall bladder stones, piles, fissure and fistula, sinusitis and nasal septum surgery, tonsillectomy and adenoidectomy, joint replacement other than following an accident, varicose veins, hysterectomy for a non-cancerous condition, and benign growths or cysts. For all current members this period ended on 31 May 2026, so these conditions are now covered.",
+          "plain": "Conditions like cataract, hernia, kidney stones, piles or joint replacement are covered after 2 years; for your family, from 1 June 2026.",
+          "tags": [
+            "specified illness",
+            "24 months",
+            "two years",
+            "cataract",
+            "hernia",
+            "kidney stone",
+            "piles",
+            "joint replacement",
+            "knee replacement",
+            "tonsils",
+            "pathri"
+          ]
+        },
+        {
+          "id": "4.3",
+          "title": "36 months for pre-existing diseases",
+          "kind": "waiting",
+          "text": "Expenses related to the treatment of a pre-existing disease declared in the proposal, and its direct complications, are payable only after 36 months of continuous cover for the insured member. Rohan Kulkarni declared hypertension at inception on 1 June 2024, so expenses for hypertension and its direct complications are not payable until after 31 May 2027. Meera Kulkarni and Aarav Kulkarni declared no pre-existing disease.",
+          "plain": "Rohan's high blood pressure and its complications are covered only from 1 June 2027.",
+          "tags": [
+            "pre-existing",
+            "PED",
+            "hypertension",
+            "blood pressure",
+            "BP",
+            "36 months",
+            "three years",
+            "existing disease",
+            "purani bimari"
+          ]
+        },
+        {
+          "id": "4.4",
+          "title": "Maternity: not covered",
+          "kind": "excluded",
+          "text": "Expenses for childbirth, including caesarean section, and for lawful medical termination of pregnancy, and pre- and post-natal care are not covered under this policy, as the maternity add-on has not been opted. Ectopic pregnancy is treated as an illness and is covered.",
+          "plain": "Pregnancy and delivery are not covered, because the maternity add-on was not taken.",
+          "tags": [
+            "maternity",
+            "pregnancy",
+            "delivery",
+            "childbirth",
+            "c-section",
+            "baby",
+            "pregnant",
+            "newborn",
+            "not covered"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "s5",
+      "number": "5",
+      "title": "Co-payment",
+      "clauses": [
+        {
+          "id": "5.1",
+          "title": "Age-related co-payment",
+          "kind": "copay",
+          "text": "No co-payment applies to claims for insured members aged 60 years or below. For any insured member aged 61 years or above on the date of admission, each admissible claim is subject to a co-payment of 20%, which is borne by the insured. No current member is subject to this co-payment.",
+          "plain": "There is no co-pay for your family; it would be 20% only for a member aged 61 or more.",
+          "tags": [
+            "co-pay",
+            "copay",
+            "copayment",
+            "senior citizen",
+            "age 60",
+            "20 percent",
+            "share of bill",
+            "apna hissa"
+          ]
+        },
+        {
+          "id": "5.2",
+          "title": "Voluntary co-payment",
+          "kind": "info",
+          "text": "No voluntary co-payment has been chosen under this policy. Admissible claims are paid in full, subject to the sum insured, sub-limits and deductions for non-payable items.",
+          "plain": "You did not choose a voluntary co-pay, so admissible claims are paid in full.",
+          "tags": [
+            "voluntary co-pay",
+            "co-payment",
+            "full claim",
+            "deduction",
+            "no copay",
+            "percentage",
+            "claim amount",
+            "share"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "s6",
+      "number": "6",
+      "title": "Exclusions",
+      "clauses": [
+        {
+          "id": "6.1",
+          "title": "Out-patient treatment",
+          "kind": "excluded",
+          "text": "Expenses for out-patient consultations, diagnostics and medicines that are not related to an admissible hospitalisation, including routine doctor visits, are not covered, as the OPD add-on has not been opted.",
+          "plain": "Doctor visits and medicines without a hospital admission are not covered.",
+          "tags": [
+            "OPD",
+            "outpatient",
+            "doctor visit",
+            "consultation",
+            "clinic",
+            "pharmacy bill",
+            "medicine bill",
+            "checkup",
+            "not covered"
+          ]
+        },
+        {
+          "id": "6.2",
+          "title": "Dental treatment",
+          "kind": "excluded",
+          "text": "Dental treatment, including fillings, root canal treatment, extraction, dentures and orthodontics, is not covered unless it requires hospitalisation as a result of an accident.",
+          "plain": "Dental work is not covered, except treatment needing hospitalisation after an accident.",
+          "tags": [
+            "dental",
+            "teeth",
+            "root canal",
+            "braces",
+            "dentist",
+            "daant",
+            "tooth extraction",
+            "accident"
+          ]
+        },
+        {
+          "id": "6.3",
+          "title": "Cosmetic and plastic surgery",
+          "kind": "excluded",
+          "text": "Cosmetic or plastic surgery or treatment to change appearance is not covered, unless it is for reconstruction following an accident, burn or cancer, or is medically necessary as certified by the attending practitioner.",
+          "plain": "Cosmetic surgery is not covered, except reconstruction after an accident, burns or cancer.",
+          "tags": [
+            "cosmetic",
+            "plastic surgery",
+            "beauty",
+            "hair transplant",
+            "liposuction",
+            "botox",
+            "appearance",
+            "not covered"
+          ]
+        },
+        {
+          "id": "6.4",
+          "title": "Admission for investigation only",
+          "kind": "excluded",
+          "text": "Expenses for admission primarily for diagnostic or evaluation purposes, where no active treatment is given, are not covered.",
+          "plain": "An admission only for tests, with no treatment, is not covered.",
+          "tags": [
+            "tests only",
+            "investigation",
+            "diagnostic admission",
+            "evaluation",
+            "check-up admission",
+            "no treatment",
+            "observation",
+            "not covered"
+          ]
+        },
+        {
+          "id": "6.5",
+          "title": "Alcohol and substance abuse",
+          "kind": "excluded",
+          "text": "Treatment for alcoholism, drug or substance abuse, or any addictive condition, and its consequences, is not covered.",
+          "plain": "Treatment for alcohol or drug addiction is not covered.",
+          "tags": [
+            "alcohol",
+            "drugs",
+            "addiction",
+            "rehab",
+            "sharaab",
+            "substance abuse",
+            "de-addiction",
+            "not covered"
+          ]
+        },
+        {
+          "id": "6.6",
+          "title": "Hazardous activities and self-inflicted injury",
+          "kind": "excluded",
+          "text": "Expenses arising from intentional self-injury, or from participation in hazardous or adventure sports such as para-jumping, rock climbing, mountaineering, motor racing, scuba diving or bungee jumping, are not covered, unless the activity is part of the member's occupation.",
+          "plain": "Injuries from adventure sports or self-harm are not covered.",
+          "tags": [
+            "adventure sports",
+            "trekking",
+            "paragliding",
+            "scuba",
+            "self harm",
+            "racing",
+            "hazardous",
+            "not covered"
+          ]
+        },
+        {
+          "id": "6.7",
+          "title": "Infertility, obesity and other listed exclusions",
+          "kind": "excluded",
+          "text": "Treatment for infertility and assisted reproduction, weight control or obesity surgery other than as permitted under the applicable guidelines, sex change, refractive error correction below 7.5 dioptres, vitamins and tonics not part of treatment, and treatment outside India are not covered.",
+          "plain": "IVF, weight-loss programmes, spectacles-type eye correction and treatment abroad are not covered.",
+          "tags": [
+            "IVF",
+            "infertility",
+            "obesity",
+            "LASIK",
+            "spectacles",
+            "vitamins",
+            "abroad",
+            "outside India",
+            "not covered"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "s7",
+      "number": "7",
+      "title": "Claims",
+      "clauses": [
+        {
+          "id": "7.1",
+          "title": "Cashless treatment at network hospitals",
+          "kind": "condition",
+          "text": "Cashless treatment is available at the Company's network hospitals. The hospital sends a pre-authorisation request to the Company with the insured member's health card and medical details, and the Company will decide on the request within one hour of receiving complete information. On approval, the Company pays the admissible amount directly to the hospital, and the insured pays only non-payable items and amounts above the limits. Final approval at discharge will be given within three hours of the hospital's final bill.",
+          "plain": "At a network hospital, show your health card; we approve and pay the hospital directly.",
+          "tags": [
+            "cashless",
+            "network hospital",
+            "pre-authorisation",
+            "pre auth",
+            "health card",
+            "TPA desk",
+            "direct payment",
+            "no payment",
+            "paise nahi dene"
+          ]
+        },
+        {
+          "id": "7.2",
+          "title": "Claim intimation",
+          "kind": "condition",
+          "text": "The Company must be informed within 24 hours of an emergency admission, and at least 48 hours before a planned admission, through the claims helpline, the website or the hospital's insurance desk. Delay in intimation will not by itself lead to rejection where it is explained by reasonable cause.",
+          "plain": "Tell us within 24 hours of an emergency admission, or 48 hours before a planned one.",
+          "tags": [
+            "claim intimation",
+            "inform",
+            "24 hours",
+            "48 hours",
+            "planned admission",
+            "emergency",
+            "how to claim",
+            "claim kaise kare"
+          ]
+        },
+        {
+          "id": "7.3",
+          "title": "Reimbursement claims",
+          "kind": "condition",
+          "text": "Where treatment is taken at a non-network hospital, or cashless is not approved, the insured pays the hospital and submits a reimbursement claim within 30 days of discharge. Post-hospitalisation bills may be submitted within 15 days of completing that treatment. The Company may condone a delay supported by reasons.",
+          "plain": "If you pay the hospital yourself, send us the claim within 30 days of discharge.",
+          "tags": [
+            "reimbursement",
+            "non-network",
+            "30 days",
+            "claim submission",
+            "pay and claim",
+            "refund",
+            "bills",
+            "deadline",
+            "paise wapas"
+          ]
+        },
+        {
+          "id": "7.4",
+          "title": "Documents for a claim",
+          "kind": "condition",
+          "text": "A claim must be supported by the claim form, the discharge summary, the final hospital bill with a detailed breakup, payment receipts, investigation reports, prescriptions and pharmacy bills, the medical practitioner's referral for admission, KYC of the proposer, and a cancelled cheque or bank details for payment. In an accident case, the FIR or medico-legal certificate, where made, is also required.",
+          "plain": "Keep the discharge summary, the itemised bill, reports and receipts.",
+          "tags": [
+            "documents",
+            "discharge summary",
+            "hospital bill",
+            "reports",
+            "prescriptions",
+            "pharmacy bills",
+            "cancelled cheque",
+            "kagaz",
+            "MLC"
+          ]
+        },
+        {
+          "id": "7.5",
+          "title": "Settlement of claims",
+          "kind": "info",
+          "text": "The Company will settle or reject a reimbursement claim within 30 days of receiving the last necessary document. If it fails to do so, it will pay interest at 2% above the bank rate for the delay. Any rejection will be communicated in writing with reasons.",
+          "plain": "We settle reimbursement claims within 30 days of getting all documents.",
+          "tags": [
+            "settlement",
+            "30 days",
+            "claim status",
+            "payment time",
+            "interest",
+            "rejection",
+            "kab milega",
+            "turnaround"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "s8",
+      "number": "8",
+      "title": "Renewal and general conditions",
+      "clauses": [
+        {
+          "id": "8.1",
+          "title": "Cumulative bonus",
+          "kind": "info",
+          "text": "For each claim-free policy year, the sum insured is increased by a cumulative bonus of 10% of the base sum insured at renewal, up to a maximum of 50%. A claim in a policy year means no bonus is added at that renewal, but bonus already earned is not reduced. The policy year 2024-25 was claim-free and a claim was paid in 2025-26, so the current cumulative bonus is 10%, or ₹1,00,000, making ₹11,00,000 available this year. Room rent, ICU and other percentage limits are calculated on the base sum insured.",
+          "plain": "Your cover this year is ₹11,00,000, because of a 10% bonus for a claim-free year.",
+          "tags": [
+            "cumulative bonus",
+            "no claim bonus",
+            "NCB",
+            "bonus",
+            "claim free",
+            "extra cover",
+            "11 lakh",
+            "50 percent",
+            "renewal"
+          ]
+        },
+        {
+          "id": "8.2",
+          "title": "Renewal and grace period",
+          "kind": "condition",
+          "text": "The policy is renewable for life, except on grounds of fraud or misrepresentation. A grace period of 30 days from the expiry date is allowed for renewal without loss of continuity, but no claim is payable for any illness or treatment occurring during the grace period.",
+          "plain": "Renew within 30 days of expiry to keep your waiting-period credit; treatment in that gap is not covered.",
+          "tags": [
+            "renewal",
+            "grace period",
+            "30 days",
+            "lifelong renewal",
+            "expiry",
+            "lapse",
+            "continuity",
+            "late renewal"
+          ]
+        },
+        {
+          "id": "8.3",
+          "title": "Disclosure of information",
+          "kind": "condition",
+          "text": "The policy is issued on the basis of the information in the proposal. In the event of misrepresentation, misdescription or non-disclosure of any material fact, the policy may be cancelled and the claim rejected. Any change in the health of a member before the policy is issued, and any new member to be added, must be disclosed.",
+          "plain": "Tell us about any illness honestly; hiding one can lead to a claim being rejected.",
+          "tags": [
+            "disclosure",
+            "non-disclosure",
+            "honest",
+            "medical history",
+            "proposal form",
+            "hiding illness",
+            "rejection",
+            "chhupana"
+          ]
+        },
+        {
+          "id": "8.4",
+          "title": "Portability and migration",
+          "kind": "info",
+          "text": "The insured may port this policy to another insurer, or migrate to another plan of the Company, by applying at least 15 days and not more than 60 days before renewal. Waiting periods already served will be credited to the extent of the sum insured ported.",
+          "plain": "You can move to another insurer or plan at renewal and keep credit for waiting periods served.",
+          "tags": [
+            "portability",
+            "port policy",
+            "switch insurer",
+            "migration",
+            "change plan",
+            "waiting credit",
+            "transfer",
+            "badalna"
+          ]
+        },
+        {
+          "id": "8.5",
+          "title": "Tax benefit",
+          "kind": "info",
+          "text": "Premium paid by any mode other than cash may be eligible for deduction under section 80D of the Income-tax Act, 1961, subject to the conditions and limits in that law. The Company does not give tax advice.",
+          "plain": "The premium may help you save tax under section 80D; check with your tax adviser.",
+          "tags": [
+            "tax",
+            "80D",
+            "income tax",
+            "deduction",
+            "tax saving",
+            "premium receipt",
+            "certificate",
+            "tax benefit"
+          ]
+        }
+      ]
+    }
+  ]
+}

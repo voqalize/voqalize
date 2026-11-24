@@ -377,6 +377,37 @@ async def test_pricing_above_the_largest_plan_is_a_custom_quote() -> None:
         assert "custom price" in said
 
 
+async def test_amounts_are_spoken_as_words_and_a_lost_scale_is_confirmed() -> None:
+    """X8 over the wire: a scaled rupee amount the model writes reaches the voice spelled
+    out ("₹16.8 lakh" would be read digit by digit at best, and "₹16.85 lakh" as rupees
+    and paise), and a headcount said with a scale ("dedh sau") that reached the tool
+    without it (15) is confirmed back, never put on the calculator."""
+    llm = ScriptedOpenAI(
+        {
+            "What about tax on a 16.8 lakh salary?": reply(
+                "On a ₹16.8 lakh CTC in Mumbai, the tax page shows both regimes side by side."
+            ),
+            "We're about dedh sau people.": [
+                call("price_plan", headcount=15),
+                reply("Just to check, 150 employees, right?"),
+            ],
+        }
+    )
+    async with demo("payroll_site", llm) as rig:
+        await rig.driver.start_session(init={"page": "/pricing", "lang": "en"})
+        turn = await rig.driver.user_says("What about tax on a 16.8 lakh salary?")
+        check_turn(rig, turn)
+        assert "sixteen point eight lakh rupees CTC" in turn.text and "₹" not in turn.text
+
+        turn = await rig.driver.user_says("We're about dedh sau people.")
+        told = json.dumps(llm.captured_inputs[-1], ensure_ascii=False)
+        assert "'dedh sau' = about 150" in told
+        said = tool_results_of(llm.captured_inputs[-1], "price_plan")[-1]
+        assert said.startswith("Not done") and "150 employees, right?" in said
+        assert not _moves(rig, "pricing.set")
+        assert "150 employees, right?" in turn.text
+
+
 # ─── The demo booker on /book-demo ────────────────────────────────────────────
 
 
