@@ -115,7 +115,7 @@ _LETTERS = "\u0900-\u0963\u0966-\u097f"
 #: lakh and crore as a model writes them; "L" only right after a rupee mark (else litres).
 _SCALE = r"lakhs?|lacs?|crores?|cr|लाख|करो(?:\u095c|\u0921\u093c)|करोड"
 _SCALED = re.compile(
-    rf"(?<![\w.,])(?P<cur>₹|(?<![A-Za-z])Rs\.?|(?<![A-Za-z])INR)?[ \t]*(?P<a>{_NUM})"
+    rf"(?<![\w.,])(?:(?P<cur>₹|(?<![A-Za-z])Rs\.?|(?<![A-Za-z])INR)[ \t]*)?(?P<a>{_NUM})"
     rf"(?:[ \t]*(?:[-\u2013\u2014]|\bto\b|से)[ \t]*(?P<cur2>₹)?[ \t]*(?P<b>{_NUM}))?"
     rf"[ \t]*(?:(?P<scale>{_SCALE})|(?<=[\d \t])(?P<L>L))(?![A-Za-z{_LETTERS}])"
     rf"(?:[ \t]+(?P<word>rupees|रुपये|रुपए))?",
