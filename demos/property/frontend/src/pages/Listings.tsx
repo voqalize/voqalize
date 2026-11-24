@@ -172,7 +172,7 @@ function FilterPanel() {
 
   return (
     <div className="filters-body">
-      <fieldset>
+      <fieldset data-stage-group>
         <legend>City</legend>
         <div className="chips">
           <Chip part="city:any" on={!f.city} onClick={() => patch({ city: null, localities: null, office: null, max_km: null })}>
@@ -185,7 +185,7 @@ function FilterPanel() {
           ))}
         </div>
       </fieldset>
-      <fieldset>
+      <fieldset data-stage-group>
         <legend>Looking to</legend>
         <div className="seg">
           <Chip part="deal:any" on={!f.deal} onClick={() => patch({ deal: null, budget_min: null, budget_max: null })}>
@@ -199,7 +199,7 @@ function FilterPanel() {
           </Chip>
         </div>
       </fieldset>
-      <fieldset>
+      <fieldset data-stage-group>
         <legend>BHK</legend>
         <div className="chips">
           {[1, 2, 3, 4].map((n) => (
@@ -209,7 +209,7 @@ function FilterPanel() {
           ))}
         </div>
       </fieldset>
-      <fieldset data-stage-part="budget">
+      <fieldset data-stage-group data-stage-part="budget">
         <legend>Budget{f.deal === "rent" ? " (rent a month)" : ""}</legend>
         <div className="row2">
           <label>
@@ -238,7 +238,7 @@ function FilterPanel() {
           </label>
         </div>
       </fieldset>
-      <fieldset>
+      <fieldset data-stage-group>
         <legend>Possession</legend>
         <div className="seg">
           <Chip part="possession:any" on={!f.possession} onClick={() => patch({ possession: null })}>
@@ -252,7 +252,7 @@ function FilterPanel() {
           </Chip>
         </div>
       </fieldset>
-      <fieldset data-stage-part="office">
+      <fieldset data-stage-group data-stage-part="office">
         <legend>Commute to an office</legend>
         <select aria-label="Office" value={f.office ?? ""} onChange={(e) => patch({ office: e.target.value || null, max_km: e.target.value ? (f.max_km ?? 8) : null })}>
           <option value="">Any office</option>
@@ -271,7 +271,7 @@ function FilterPanel() {
           ))}
         </div>
       </fieldset>
-      <fieldset data-stage-part="school">
+      <fieldset data-stage-group data-stage-part="school">
         <legend>A school nearby</legend>
         <div className="chips">
           {SCHOOL_KM.map((k) => (
@@ -281,7 +281,7 @@ function FilterPanel() {
           ))}
         </div>
       </fieldset>
-      <fieldset data-stage-part="metro">
+      <fieldset data-stage-group data-stage-part="metro">
         <legend>Metro station</legend>
         <div className="chips">
           {METRO_KM.map((k) => (
@@ -291,7 +291,7 @@ function FilterPanel() {
           ))}
         </div>
       </fieldset>
-      <fieldset>
+      <fieldset data-stage-group>
         <legend>Locality</legend>
         <div className="checks">
           {localities.map((name) => (
@@ -301,7 +301,7 @@ function FilterPanel() {
           ))}
         </div>
       </fieldset>
-      <fieldset>
+      <fieldset data-stage-group>
         <legend>Amenities</legend>
         <div className="checks">
           {[...TOP_AMENITIES.filter((a) => ALL_AMENITIES.includes(a)), ...(f.amenities ?? []).filter((a) => !TOP_AMENITIES.includes(a))].map((name) => (

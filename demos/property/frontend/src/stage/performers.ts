@@ -39,7 +39,8 @@ type Spec = typeof scene.spec;
 
 const phone = () => window.matchMedia("(max-width: 899px)").matches;
 
-async function ringScroll(c: MoveContext, el: Element | null, label: string): Promise<void> {
+/** X1: show the target's whole group (`c.scrollTo` is `showWhole`, see host.ts), then ring it. */
+async function ringScroll(c: MoveContext, el: Element | null | undefined, label: string): Promise<void> {
   if (!el) return;
   await c.scrollTo(el);
   await c.ring(el, label);
@@ -134,6 +135,7 @@ export function performers(): Performers<Spec> {
         (project && thing(`project:${project}`)) ||
         thing("nav:/");
       if (via && currentPath() !== p) {
+        await c.scrollTo(via);
         await c.ring(via, listing ? getListing(listing)!.title : project ? getProject(project)!.name : "Kosha Homes");
       }
       await goTo(p);
@@ -198,7 +200,7 @@ export function performers(): Performers<Spec> {
       c.done(results.length ? `${results.length} homes shown; first ${results[0].id}, ${results[0].title}, ${priceLabel(results[0])}` : "no homes match");
       c.after(async () => {
         const head = await waitFor(() => thing("results"), 600);
-        if (head) await c.ring(head, `${results.length} homes`);
+        await ringScroll(c, head, `${results.length} homes`);
       });
       return null;
     },
@@ -231,7 +233,10 @@ export function performers(): Performers<Spec> {
       c.done(`comparing ${homes.map((l) => l.title).join(" and ")}`);
       c.after(async () => {
         const rows = await waitFor(() => document.querySelectorAll("[data-stage-thing^='row:']").length && [...document.querySelectorAll("[data-stage-thing^='row:']")], 800);
-        for (const row of (rows || []).slice(0, 4)) await c.ring(row, { label: row.getAttribute("data-stage-label") ?? undefined, beatMs: 350 });
+        for (const row of (rows || []).slice(0, 4)) {
+          await c.scrollTo(row);
+          await c.ring(row, { label: row.getAttribute("data-stage-label") ?? undefined, beatMs: 350 });
+        }
       });
       return null;
     },
@@ -255,16 +260,14 @@ export function performers(): Performers<Spec> {
       if (years !== now.tenure_years) steps.push(["emi:tenure", { tenure_years: years }, `${years} years`]);
       if (bank.id !== now.lender) steps.push(["emi:lender", { lender: bank.id }, `${bank.name} · ${bank.rate}%`]);
       for (const [name, patch, label] of steps) {
-        const ctl = part(name);
-        if (ctl) await c.ring(ctl, label);
+        await ringScroll(c, part(name), label);
         useStore.getState().setEmi(l.id, patch);
       }
       useStore.getState().setEmi(l.id, { down_pct: down, tenure_years: years, lender: bank.id });
       const r = emi(l.price ?? 0, down, years, bank.rate);
       c.done(`EMI ${inrPlain(r.emi)} a month: ${down}% down, ${years} years at ${bank.rate}% with ${bank.name}`);
       c.after(async () => {
-        const out = part("emi:result");
-        if (out) await c.ring(out, `${inrPlain(r.emi)} a month`);
+        await ringScroll(c, part("emi:result"), `${inrPlain(r.emi)} a month`);
       });
       return null;
     },
@@ -293,7 +296,7 @@ export function performers(): Performers<Spec> {
       const panel = await waitFor(() => thing("visit"), 900);
       await ringScroll(c, panel, "Book a site visit");
       const tab = await waitFor(() => thing(`visit-day:${day}`), 600);
-      if (tab) await c.ring(tab, `${weekdayLabel(day)} ${dateLabel(day)}`);
+      await ringScroll(c, tab, `${weekdayLabel(day)} ${dateLabel(day)}`);
       const suits = dayPart ?? "any";
       useStore.getState().setVisit({ listing_id: l.id, day, suits, slot: null });
       const fits = slots.filter((s) => s.free && (suits === "any" || s.part === suits));
@@ -305,7 +308,10 @@ export function performers(): Performers<Spec> {
       );
       c.after(async () => {
         const els = await waitFor(() => fits.map((s) => part(`slot:${s.id}`)).filter((x): x is Element => !!x), 600);
-        if (els && els.length) await c.ring(els, { label: "Suits you", separate: true });
+        if (els && els.length) {
+          await c.scrollTo(els[0]!);
+          await c.ring(els, { label: "Suits you", separate: true });
+        }
       });
       return null;
     },
@@ -325,10 +331,10 @@ export function performers(): Performers<Spec> {
       await ringScroll(c, slotEl, timeLabel(slot.slice(11)));
       pickSlot(l.id, slot);
       const nameEl = await waitFor(() => part("visit:name"), 600);
-      if (nameEl) await c.ring(nameEl, "Name");
+      await ringScroll(c, nameEl, "Name");
       useStore.getState().setVisit({ name: name.trim(), visitors: people });
       const btn = part("visit:book");
-      if (btn) await c.ring(btn, "Book visit");
+      await ringScroll(c, btn, "Book visit");
       const booking = bookVisit(l.id, slot, name, people);
       c.done(`visit booked, ${booking.reference}: ${weekdayLabel(slot.slice(0, 10))} ${dateLabel(slot.slice(0, 10))}, ${timeLabel(slot.slice(11))}`);
       c.after(async () => {
