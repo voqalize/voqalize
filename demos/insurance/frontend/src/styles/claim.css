@@ -1,0 +1,550 @@
+/* ── Claim ───────────────────────────────────────────────────────────── */
+.claim-types {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 24px;
+}
+.claim-type {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 22px;
+  text-align: left;
+  border-radius: 16px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.claim-type:hover {
+  border-color: var(--teal-700);
+}
+.claim-type.is-on {
+  border-color: var(--teal-800);
+  box-shadow: inset 0 0 0 1px var(--teal-800), var(--shadow);
+  background: var(--teal-50);
+}
+.claim-type-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  background: var(--teal-900);
+  color: var(--marigold);
+  flex: none;
+}
+.claim-type-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.claim-type-label {
+  font-weight: 700;
+  font-size: 18px;
+}
+.claim-type-hint {
+  color: var(--ink-2);
+  font-size: 14px;
+}
+.claim-types.is-compact {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 14px;
+  background: var(--paper-2);
+  border: 1px solid var(--line);
+  margin-bottom: 18px;
+}
+.claim-types.is-compact .claim-type {
+  padding: 8px 16px 8px 8px;
+  border-radius: 10px;
+  align-items: center;
+  gap: 10px;
+  box-shadow: none;
+  border-color: transparent;
+  background: transparent;
+}
+.claim-types.is-compact .claim-type.is-on {
+  background: var(--card);
+  box-shadow: 0 1px 2px rgba(16, 40, 42, 0.08), 0 0 0 1px var(--line);
+}
+.claim-types.is-compact .claim-type-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+}
+.claim-types.is-compact .claim-type:not(.is-on) .claim-type-icon {
+  background: var(--paper-2);
+  color: var(--muted);
+}
+.claim-types.is-compact .claim-type-label {
+  font-size: 15px;
+}
+@media (max-width: 699px) {
+  .claim-types:not(.is-compact) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.claim-layout {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: 28px;
+  align-items: start;
+}
+.rail {
+  min-width: 0;
+  position: sticky;
+  top: calc(var(--header-h) + 16px);
+}
+.rail ol {
+  position: relative;
+  display: grid;
+  gap: 2px;
+}
+.rail ol::before {
+  content: "";
+  position: absolute;
+  left: 17px;
+  top: 18px;
+  bottom: 18px;
+  width: 2px;
+  background: var(--line);
+}
+.rail-step {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 6px 8px 6px 4px;
+  border-radius: 10px;
+  text-align: left;
+  font-size: 14px;
+  color: var(--ink-2);
+}
+.rail-step:hover {
+  background: var(--paper-2);
+}
+.rail-n {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--card);
+  border: 2px solid var(--line-2);
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--muted);
+  flex: none;
+  z-index: 1;
+}
+.rail-step.is-done .rail-n {
+  background: var(--ok);
+  border-color: var(--ok);
+  color: #fff;
+}
+.rail-step.is-on {
+  color: var(--ink);
+  font-weight: 680;
+}
+.rail-step.is-on .rail-n {
+  border-color: var(--saffron);
+  box-shadow: 0 0 0 3px rgba(229, 121, 27, 0.18);
+  color: var(--saffron-ink);
+}
+.rail-step.is-on.is-done .rail-n {
+  color: #fff;
+}
+.rail-foot {
+  margin-top: 14px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--marigold-50);
+  color: var(--saffron-ink);
+  font-weight: 620;
+}
+.claim-sections {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  min-width: 0;
+}
+.claim-card {
+  border-radius: 16px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  transition: box-shadow 0.25s, border-color 0.25s;
+  scroll-margin-top: calc(var(--header-h) + 16px);
+}
+.claim-card.is-open {
+  box-shadow: var(--shadow);
+  border-color: var(--line-2);
+}
+.claim-card-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 16px 20px;
+  text-align: left;
+}
+.claim-card-n {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--paper-2);
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--muted);
+  flex: none;
+}
+.claim-card.is-open .claim-card-n {
+  background: var(--teal-900);
+  color: #fff;
+}
+.claim-card.is-done .claim-card-n {
+  background: var(--ok);
+  color: #fff;
+}
+.claim-card-title {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  font-weight: 680;
+  font-size: 16.5px;
+}
+.claim-card-sum {
+  font-weight: 500;
+  font-size: 13px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.claim-card-pr {
+  color: var(--muted);
+  font-weight: 620;
+  font-variant-numeric: tabular-nums;
+}
+.chev {
+  color: var(--muted);
+  transition: transform 0.2s;
+  flex: none;
+}
+.claim-card.is-open .chev {
+  transform: rotate(180deg);
+}
+.claim-card-body {
+  padding: 4px 20px 20px 64px;
+  animation: body-in 0.35s var(--ease);
+}
+@keyframes body-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+.section-note {
+  margin-bottom: 14px;
+}
+.onfile {
+  margin-bottom: 16px;
+}
+.claim-card-foot {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+/* Documents */
+.doc-list {
+  display: grid;
+  gap: 10px;
+}
+.doc-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px dashed var(--line-2);
+  background: var(--paper);
+}
+.doc-row.is-done {
+  border-style: solid;
+  border-color: #bfe0cc;
+  background: var(--ok-50);
+}
+.doc-row-main {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  min-width: 0;
+  flex: 1;
+}
+.doc-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+  background: var(--card);
+  border: 1px solid var(--line);
+  color: var(--muted);
+  flex: none;
+}
+.doc-row.is-done .doc-icon {
+  background: var(--ok);
+  border-color: var(--ok);
+  color: #fff;
+}
+.doc-text {
+  min-width: 0;
+  flex: 1;
+}
+.doc-label {
+  font-weight: 640;
+  font-size: 14.5px;
+}
+.doc-file {
+  color: var(--ok);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.tag {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: 5px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  vertical-align: 2px;
+}
+.tag-req {
+  background: var(--marigold-50);
+  color: var(--saffron-ink);
+}
+.tag-opt {
+  background: var(--paper-2);
+  color: var(--muted);
+}
+.upload-bar {
+  height: 6px;
+  margin-top: 8px;
+  border-radius: 99px;
+  background: var(--line);
+  overflow: hidden;
+  max-width: 280px;
+}
+.upload-bar span {
+  display: block;
+  height: 100%;
+  background: var(--teal-700);
+  transition: width 0.08s linear;
+}
+.doc-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex: none;
+}
+.file-btn {
+  position: relative;
+  cursor: pointer;
+}
+.file-btn input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  width: 100%;
+}
+
+/* Review */
+.review-missing {
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: var(--danger-50);
+  border: 1px solid #f0c4ba;
+  margin-bottom: 18px;
+}
+.review-missing p {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--danger);
+}
+.review-missing ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin-top: 8px;
+  padding-left: 24px;
+}
+.review-ok {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: var(--ok-50);
+  color: var(--ok);
+  font-weight: 620;
+  margin-bottom: 18px;
+}
+.review-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.review-block {
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+}
+.review-block-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.review-block h3 {
+  font-size: 14.5px;
+  font-weight: 700;
+}
+.review-block dl {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+}
+.review-block dl > div {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  gap: 10px;
+  font-size: 13.5px;
+}
+.review-block dt {
+  color: var(--muted);
+}
+.review-block dd {
+  margin: 0;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.review-block dd.is-missing {
+  color: var(--danger);
+}
+.declaration {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  margin-top: 18px;
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid var(--line-2);
+  background: var(--paper);
+  font-size: 14px;
+  cursor: pointer;
+}
+.declaration.is-on {
+  border-color: var(--teal-700);
+  background: var(--teal-50);
+}
+.declaration input {
+  width: 20px;
+  height: 20px;
+  margin: 1px 0 0;
+  accent-color: var(--teal-800);
+  flex: none;
+}
+.submit-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 18px;
+}
+
+@media (max-width: 999px) {
+  .claim-layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 14px;
+  }
+  .rail {
+    position: static;
+    overflow-x: auto;
+    scrollbar-width: none;
+    margin: 0 calc(-1 * clamp(16px, 3vw, 32px));
+    padding: 0 clamp(16px, 3vw, 32px);
+  }
+  .rail::-webkit-scrollbar {
+    display: none;
+  }
+  .rail ol {
+    display: flex;
+    gap: 6px;
+  }
+  .rail ol::before {
+    display: none;
+  }
+  .rail-step {
+    width: auto;
+    white-space: nowrap;
+    padding: 4px 12px 4px 4px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--card);
+    font-size: 13px;
+  }
+  .rail-n {
+    width: 24px;
+    height: 24px;
+    font-size: 11.5px;
+  }
+  .rail-foot {
+    display: inline-block;
+    margin-top: 10px;
+  }
+  .review-grid {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 599px) {
+  .claim-card-head {
+    padding: 14px 14px;
+    gap: 10px;
+  }
+  .claim-card-body {
+    padding: 4px 14px 16px;
+  }
+  .doc-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .doc-actions {
+    padding-left: 44px;
+  }
+  .claim-types.is-compact {
+    display: flex;
+  }
+  .claim-types.is-compact .claim-type {
+    flex: 1;
+    padding-right: 10px;
+  }
+  .review-block dl > div {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+}

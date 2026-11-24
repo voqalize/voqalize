@@ -1,0 +1,393 @@
+{
+  "$comment": "Product page copy for Chhatri Insurance (fictional). Must agree with data/products.json and the policy documents. Numbers here come from those files.",
+  "products": [
+    {
+      "id": "car",
+      "name": "Car insurance",
+      "headline": "Car insurance that keeps up with Indian roads",
+      "subhead": "Chhatri Car Shield covers damage to your car, your legal liability to others, and you as the owner-driver, with add-ons you choose.",
+      "starting_from_note": "See your price in under a minute",
+      "highlights": [
+        {
+          "title": "Cashless at network garages",
+          "text": "Get repaired at a network garage and we settle the approved bill with the garage directly."
+        },
+        {
+          "title": "Add-ons you choose",
+          "text": "Zero depreciation, engine protection, roadside assistance and more. Switch each one on or off and see the price change."
+        },
+        {
+          "title": "Your No Claim Bonus counts",
+          "text": "Each claim-free year adds to your discount on the own-damage premium, up to 50%."
+        },
+        {
+          "title": "Help on the road",
+          "text": "With roadside assistance, call us any time for towing, a jump-start, a tyre change or fuel delivery."
+        }
+      ],
+      "covered": [
+        "Accidental damage, including collisions and damage while parked",
+        "Fire, explosion and lightning",
+        "Flood, storm, cyclone and earthquake",
+        "Theft of the car",
+        "Riot, strike and vandalism",
+        "Legal liability for injury to others or damage to their property"
+      ],
+      "not_covered": [
+        "Driving under the influence of alcohol or drugs",
+        "Driving without a valid licence",
+        "Mechanical or electrical breakdown, and wear and tear",
+        "A damaged tyre on its own, without other damage to the car",
+        "Use as a taxi or for hire"
+      ],
+      "addons": {
+        "pa_owner": "Pays ₹15,00,000 if the owner-driver dies or is permanently disabled in an accident involving the car. It is switched on by default.",
+        "zero_dep": "When parts are replaced, you are paid their full cost with no deduction for depreciation on plastic, rubber or metal. Available for cars up to 5 years old, for two claims a year.",
+        "engine_protect": "Covers damage to the engine and gearbox from water getting in, such as driving through a flooded road or starting a waterlogged car. Without it, this kind of engine damage is not covered.",
+        "rsa": "Call us at any hour if your car stops anywhere in India, for towing to a garage, a jump-start, a tyre change or emergency fuel. Parts and fuel are paid by you.",
+        "return_to_invoice": "If the car is stolen or written off, pays the gap between the IDV and the invoice price, including road tax and registration. Available for cars up to 3 years old.",
+        "consumables": "Pays for the nuts, bolts, engine oil, coolant, grease and similar items used in a covered repair, which are otherwise paid by you.",
+        "key_replacement": "Pays to replace lost, stolen or damaged car keys, and to change the locks if needed.",
+        "ncb_protect": "Lets you make a claim without losing your No Claim Bonus at renewal. Available when your NCB is 20% or more."
+      },
+      "faqs": [
+        {
+          "q": "Is third-party cover included?",
+          "a": "Yes. Third-party cover is compulsory in India, so every Chhatri Car Shield policy includes your legal liability for injury to others and damage to their property."
+        },
+        {
+          "q": "What is the IDV?",
+          "a": "The Insured Declared Value is the most we pay if your car is stolen or written off. It is the ex-showroom price less depreciation for the car's age, and it is shown in your quote."
+        },
+        {
+          "q": "Will a claim affect my No Claim Bonus?",
+          "a": "A claim resets your No Claim Bonus to zero at renewal, unless you have NCB protection. A claim only for broken glass does not affect it."
+        },
+        {
+          "q": "How soon must I report a claim?",
+          "a": "Within 48 hours of the accident or loss, by calling the claims helpline or online. For theft, also file an FIR with the police straight away."
+        }
+      ]
+    },
+    {
+      "id": "bike",
+      "name": "Two-wheeler insurance",
+      "headline": "Cover for your scooter or motorcycle",
+      "subhead": "Chhatri Bike Shield covers damage to your two-wheeler, your legal liability to others, and you as the owner-rider.",
+      "starting_from_note": "See your price in under a minute",
+      "highlights": [
+        {
+          "title": "Own damage and third party",
+          "text": "One policy for damage to your two-wheeler and your legal liability to others."
+        },
+        {
+          "title": "Owner-rider accident cover",
+          "text": "₹15,00,000 personal accident cover for you as the owner-rider, on by default."
+        },
+        {
+          "title": "Roadside help",
+          "text": "Add roadside assistance for towing, puncture help or fuel if you are stuck."
+        },
+        {
+          "title": "No Claim Bonus",
+          "text": "Each claim-free year adds to your discount on the own-damage premium."
+        }
+      ],
+      "covered": [
+        "Accidents, skids and falls",
+        "Fire, explosion and lightning",
+        "Flood, storm and earthquake",
+        "Theft of the two-wheeler",
+        "Riot, strike and vandalism",
+        "Legal liability for injury to others or damage to their property"
+      ],
+      "not_covered": [
+        "Riding under the influence of alcohol or drugs",
+        "Riding without a valid licence",
+        "Breakdown and wear and tear",
+        "A damaged tyre on its own",
+        "Use as a bike taxi or for deliveries"
+      ],
+      "addons": {
+        "pa_owner": "Pays ₹15,00,000 if the owner-rider dies or is permanently disabled in an accident on the two-wheeler. It is switched on by default.",
+        "zero_dep": "Pays the full cost of replaced parts, with no deduction for depreciation. Available for two-wheelers up to 5 years old.",
+        "engine_protect": "Covers engine damage from water getting in, for example after riding through a flooded road.",
+        "rsa": "Call us if your two-wheeler stops anywhere in India, for towing, a puncture repair or emergency fuel. Fuel and parts are paid by you.",
+        "consumables": "Pays for engine oil, nuts, bolts, grease and similar items used in a covered repair."
+      },
+      "faqs": [
+        {
+          "q": "Is my pillion rider covered?",
+          "a": "Your legal liability for injury to a pillion rider is covered under third-party cover. Personal accident cover for the pillion is not part of the standard policy."
+        },
+        {
+          "q": "Can I use my scooter for deliveries?",
+          "a": "No. The policy covers private use only. Damage while the two-wheeler is used as a bike taxi or for deliveries is not covered."
+        },
+        {
+          "q": "What happens if my two-wheeler is stolen?",
+          "a": "File an FIR straight away and tell us within 48 hours. Once the police report it untraced, we pay the IDV less the deductible."
+        },
+        {
+          "q": "Is engine damage from rain water covered?",
+          "a": "Only with the engine protection add-on. Without it, damage from water getting into the engine is not covered."
+        }
+      ]
+    },
+    {
+      "id": "health",
+      "name": "Health insurance",
+      "headline": "Health cover for you, or your whole family",
+      "subhead": "Chhatri Health Plus pays hospital bills for illness and injury, with cashless treatment at network hospitals.",
+      "starting_from_note": "See your price in under a minute",
+      "highlights": [
+        {
+          "title": "Cashless at network hospitals",
+          "text": "Show your health card at a network hospital and we settle the approved bill with the hospital."
+        },
+        {
+          "title": "Before and after hospital",
+          "text": "Covers medical costs for 60 days before admission and 90 days after discharge, for the same illness."
+        },
+        {
+          "title": "Cover that grows",
+          "text": "Each claim-free year adds a 10% cumulative bonus to your sum insured, up to 50%."
+        },
+        {
+          "title": "Individual or floater",
+          "text": "Cover just yourself, or share one sum insured across your spouse and up to three children."
+        }
+      ],
+      "covered": [
+        "Hospitalisation for illness or injury",
+        "Day care procedures such as dialysis and chemotherapy",
+        "Pre-hospitalisation (60 days) and post-hospitalisation (90 days)",
+        "AYUSH treatment in government-recognised hospitals",
+        "Road ambulance in an emergency",
+        "Modern treatments such as robotic surgery, up to 50% of the sum insured"
+      ],
+      "not_covered": [
+        "Out-patient doctor visits and medicines, unless you add OPD cover",
+        "Maternity, unless you add maternity cover",
+        "Cosmetic surgery",
+        "Dental treatment, except after an accident",
+        "Non-medical items such as toiletries and attendant food"
+      ],
+      "addons": {
+        "room_rent_waiver": "Removes the room rent limit, so you can choose any room category without your bill being cut in proportion.",
+        "opd_cover": "Pays up to ₹10,000 a year for doctor consultations, tests and medicines that do not need a hospital admission.",
+        "maternity": "Covers childbirth, including caesarean delivery, with pre- and post-natal care. Available on a family floater with two adults, where the eldest adult is 45 or younger.",
+        "critical_illness": "Pays a lump sum of ₹5,00,000 to each covered adult on diagnosis of a listed critical illness, in addition to hospital bills."
+      },
+      "faqs": [
+        {
+          "q": "What are the waiting periods?",
+          "a": "Illnesses in the first 30 days are not covered, except accidents. Listed conditions such as cataract, hernia and kidney stones are covered after 24 months, and declared pre-existing diseases after 36 months of continuous cover."
+        },
+        {
+          "q": "Is there a room rent limit?",
+          "a": "Yes. Room rent is covered up to 1% of the sum insured per day and ICU up to 2%. If you choose a costlier room, most of the bill is paid in proportion, unless you add the room rent limit waiver."
+        },
+        {
+          "q": "Do I have to pay GST on the premium?",
+          "a": "No. Individual health insurance premiums are exempt from GST."
+        },
+        {
+          "q": "How do I claim?",
+          "a": "At a network hospital, show your health card for cashless treatment. Elsewhere, pay the hospital and send us the claim within 30 days of discharge."
+        }
+      ]
+    },
+    {
+      "id": "term",
+      "name": "Term life insurance",
+      "headline": "Life cover that protects your family's future",
+      "subhead": "Chhatri Term Secure pays a lump sum to your nominee if you die during the policy term, for a premium that stays the same every year.",
+      "starting_from_note": "See your price in under a minute",
+      "highlights": [
+        {
+          "title": "Fixed premium",
+          "text": "Your premium is set when you buy and does not rise with age during the term."
+        },
+        {
+          "title": "Choose your cover",
+          "text": "From ₹50,00,000 to ₹2,00,00,000, until age 60, 65, 70 or 75."
+        },
+        {
+          "title": "Optional riders",
+          "text": "Add accidental death benefit, a critical illness rider or waiver of premium on disability."
+        },
+        {
+          "title": "No GST",
+          "text": "Individual life insurance premiums are exempt from GST."
+        }
+      ],
+      "covered": [
+        "Death from any cause during the policy term",
+        "Lump sum paid to your nominee",
+        "Extra payout for accidental death, with the rider",
+        "Lump sum on a listed critical illness, with the rider",
+        "Future premiums waived on disability, with the rider",
+        "30-day grace period to pay each premium"
+      ],
+      "not_covered": [
+        "Suicide in the first 12 months (80% of premiums paid are returned)",
+        "Survival to the end of the term: no maturity benefit",
+        "Accidental death benefit when the death is due to alcohol or drugs",
+        "Accidental death benefit for hazardous sports or war",
+        "Any surrender value"
+      ],
+      "addons": {
+        "accidental_death": "Pays an extra ₹25,00,000 to your nominee if death is caused by an accident, on top of the life cover.",
+        "critical_illness_rider": "Pays ₹10,00,000 on diagnosis of a listed critical illness, such as certain cancers or a heart attack.",
+        "waiver_of_premium": "If you become permanently disabled, your future premiums are waived and the cover continues."
+      },
+      "faqs": [
+        {
+          "q": "Does the premium go up as I get older?",
+          "a": "No. The premium is fixed when the policy starts and stays the same for the whole term."
+        },
+        {
+          "q": "Do I get anything back if I outlive the term?",
+          "a": "No. Chhatri Term Secure is pure protection, so nothing is paid at the end of the term."
+        },
+        {
+          "q": "What if I miss a premium?",
+          "a": "You have a 30-day grace period and stay covered during it. After that the policy lapses, and you can revive it within 5 years."
+        },
+        {
+          "q": "How long must the cover run?",
+          "a": "At least 10 years. You choose cover until age 60, 65, 70 or 75."
+        }
+      ]
+    },
+    {
+      "id": "home",
+      "name": "Home insurance",
+      "headline": "Protect your home and everything in it",
+      "subhead": "Chhatri Ghar Suraksha covers the structure of your home and your belongings against fire, flood, burglary and more.",
+      "starting_from_note": "See your price in under a minute",
+      "highlights": [
+        {
+          "title": "Building and contents",
+          "text": "Cover the rebuilding cost of your home, your belongings, or both. Tenants can cover contents alone."
+        },
+        {
+          "title": "Natural calamities",
+          "text": "Storm, cyclone, flood and landslide are covered, with earthquake as an add-on."
+        },
+        {
+          "title": "Burglary",
+          "text": "Theft after a break-in is covered, along with damage to doors and windows."
+        },
+        {
+          "title": "A discount for security",
+          "text": "Homes with a security system or a guarded gate get a discount on the premium."
+        }
+      ],
+      "covered": [
+        "Fire, including short circuits and gas cylinder blasts",
+        "Lightning",
+        "Storm, cyclone and flood",
+        "Burglary with forced entry",
+        "Bursting or overflowing water tanks and pipes",
+        "Riot, strike and vandalism"
+      ],
+      "not_covered": [
+        "Theft without signs of forced entry",
+        "Wear and tear, damp and slow leaks",
+        "Breakdown of appliances and electronics",
+        "Jewellery and gold, unless you add valuables cover",
+        "Cash and documents"
+      ],
+      "addons": {
+        "earthquake": "Covers damage to the structure and your belongings from an earthquake. Needs building cover.",
+        "valuables": "Covers jewellery, gold, watches and other valuables up to ₹2,00,000.",
+        "electronics": "Covers accidental damage to or loss of laptops, phones, tablets and cameras anywhere in India, up to ₹1,50,000.",
+        "rent_loss": "For owners: pays lost rent or alternative accommodation while the home is repaired after insured damage. Not available to tenants.",
+        "public_liability": "Covers your legal liability, up to ₹10,00,000, for injury to others or damage to their property caused from your home, such as a leak into the flat below."
+      },
+      "faqs": [
+        {
+          "q": "Can I insure my home if I rent it?",
+          "a": "Yes. Tenants can cover their household contents. The building is insured by its owner."
+        },
+        {
+          "q": "Is theft covered?",
+          "a": "Theft is covered when there is forced entry into your home. Items that simply go missing are not covered."
+        },
+        {
+          "q": "What if my home is empty for a long time?",
+          "a": "If it is unoccupied for more than 60 days in a row, tell us first. Otherwise cover for burglary, vandalism and burst pipes stops after 60 days."
+        },
+        {
+          "q": "Is my laptop covered for a fall?",
+          "a": "With the portable electronics add-on, accidental damage is covered. A laptop that simply stops working is not."
+        }
+      ]
+    },
+    {
+      "id": "travel",
+      "name": "Travel insurance",
+      "headline": "Travel abroad with cover for the unexpected",
+      "subhead": "Chhatri Travel covers medical emergencies abroad, flight delays, lost baggage and lost passports, for every traveller on your trip.",
+      "starting_from_note": "See your price in under a minute",
+      "highlights": [
+        {
+          "title": "Medical cover abroad",
+          "text": "Essential covers emergency medical costs up to US$50,000 per traveller; Plus covers up to US$1,00,000."
+        },
+        {
+          "title": "Delays and baggage",
+          "text": "Get paid for long flight delays, delayed bags and lost checked-in baggage."
+        },
+        {
+          "title": "Help at any hour",
+          "text": "Call our assistance service in an emergency and we will guide you to a hospital and try to arrange cashless treatment."
+        },
+        {
+          "title": "Family and group trips",
+          "text": "Cover up to six travellers on one policy, with a discount for three or more."
+        }
+      ],
+      "covered": [
+        "Emergency medical treatment and hospitalisation abroad",
+        "Emergency evacuation and repatriation",
+        "Flight delay of more than 6 hours",
+        "Loss of checked-in baggage",
+        "Baggage delayed by more than 12 hours",
+        "Loss of passport"
+      ],
+      "not_covered": [
+        "Pre-existing illness, except a life-threatening emergency",
+        "Anything caused by alcohol or drugs",
+        "Adventure sports, unless you add adventure sports cover",
+        "Travelling against medical advice",
+        "Cancelling for a change of plans"
+      ],
+      "addons": {
+        "trip_cancellation": "Pays your non-refundable bookings if you must cancel before leaving for a listed reason, such as a death or hospitalisation in the family, serious damage at home, or a visa refusal.",
+        "baggage_plus": "Raises your baggage cover and adds cover for hand baggage, laptops and cameras.",
+        "adventure_sports": "Covers medical costs from activities such as scuba diving, bungee jumping, paragliding and rafting."
+      },
+      "faqs": [
+        {
+          "q": "When does my cover start?",
+          "a": "Medical and travel cover starts when you board your flight from India and ends when you return. Trip cancellation cover applies from purchase until you leave."
+        },
+        {
+          "q": "Is my existing illness covered abroad?",
+          "a": "Only for a sudden, life-threatening emergency arising from it during the trip. Routine treatment is not covered."
+        },
+        {
+          "q": "How does flight delay cover work?",
+          "a": "If your flight is delayed by more than 6 hours, you get ₹1,000 for every full 6 hours of delay, up to the limit in your policy. Keep the airline's letter confirming the delay."
+        },
+        {
+          "q": "What should I do in a medical emergency?",
+          "a": "Call the assistance service on the claims helpline before or within 24 hours of admission. We will try to pay the hospital directly."
+        }
+      ]
+    }
+  ]
+}

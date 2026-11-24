@@ -90,6 +90,11 @@
       "name": "bank",
       "title": "Global Bank",
       "tagline": "A fictional Indian bank's site and full net-banking app where the assistant answers from the customer's own data, opens the right screen, confirms every change, and advises on cards, loans and a new account, in English or Hindi."
+    },
+    {
+      "name": "insurance",
+      "title": "Chhatri Insurance",
+      "tagline": "A bilingual insurance guide for a fictional Indian insurer: quotes built from a few sentences with a live premium breakdown, the exact clause that answers \"am I covered if…\", and a long claim form filled in as the customer talks."
     }
   ]
 }

@@ -51,6 +51,7 @@ const DEMOS = [
   'payroll_site',
   'payroll_app',
   'bank',
+  'insurance',
 ];
 
 module.exports = {

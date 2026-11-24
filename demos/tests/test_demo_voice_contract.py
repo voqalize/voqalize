@@ -232,6 +232,11 @@ DEMOS: dict[str, Expected] = {
     # legs move together on the toggle or set_language. The character and his
     # voice live in demos/bank/persona.json. Asserted in test_bank_e2e.py.
     "bank": Expected(voice="omnivoice/arjun", language="en", provider="openai"),
+    # Ananya, Chhatri Insurance's guide (persona.json): opens in English unless
+    # the page's toggle said Hindi, and moves both legs for the toggle, for
+    # set_language or for Hindi heard — ananya in both. Asserted in
+    # test_insurance_e2e.py.
+    "insurance": Expected(voice="omnivoice/ananya", language="en", provider="openai"),
 }
 
 
