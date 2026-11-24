@@ -38,7 +38,7 @@ The mechanics worth reading before the code:
   and a voice that disagree for even one sentence is the demo's worst failure.
 
 * **The call is capped at two minutes,** because this page is linked from the
-  avatar package's README and the demo tenant pays for every second. The cap is enforced here rather than on the page: a browser tab is not
+  avatar package's README and the demo organization pays for every second. The cap is enforced here rather than on the page: a browser tab is not
   a place to keep a limit. It ends the way the demo started — a wave and a line.
 
 The LLM's ``genai.Client`` is dependency-injected; the brain owns the prompt,

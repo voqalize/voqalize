@@ -38,7 +38,7 @@ substitutions:
   # Per-demo wiring baked into each UI at build (publishable, browser-safe). One agent
   # id + publishable key per demo. Supplied by the trigger.
   #
-  # No workspace is named here: a `pk_` key belongs to exactly one, so the control
+  # No organization is named here: a `pk_` key belongs to exactly one, so the control
   # plane reads it off the key. `_DEMO_TENANT` was removed on 2026-08-09, from both
   # `build-demos-web` triggers first and then from here — a substitution a trigger
   # supplies but the template does not declare is a build error, so that order is
