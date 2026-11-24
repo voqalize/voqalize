@@ -28,12 +28,26 @@ heard, a reply written in Devanagari, the toggle pressed mid-call or
 **What is marked ``@needs_result_now``**: the reads the model must answer from
 — the programme match, a programme's facts, the comparison, the eligibility and
 scholarship check, the screen. ``set_language`` is an act and is not.
+``program_details`` also opens the programme's page at the section asked about
+(``site.open`` with a section), so "show me the curriculum" moves the screen in
+the same turn (U1).
+
+**Never a promise and then silence** (U1, the bank's B1, insurance I1): a read
+the visitor asked to hear owes a written answer (``owe``), said by the brain
+when the model's turn says nothing after the tool ran; a sentence promising the
+screen with no cue is kept by Stage's backstop (``_auto_cues``) or, failing
+that, at the end of the turn (``_keep``); a page the visitor opens by hand gets
+one offer of help in the next quiet spell.
 """
 
 from __future__ import annotations
 
+import contextlib
 import re
-from collections.abc import AsyncGenerator
+import time
+from collections.abc import AsyncGenerator, Sequence
+from contextvars import ContextVar
+from dataclasses import dataclass, field
 from typing import Any, Literal
 from urllib.parse import urlparse
 
@@ -56,12 +70,20 @@ from voqalize.sdk import (
     UserMessage,
 )
 from voqalize.sdk.openai import OpenAIBrain
-from voqalize.sdk.stage import Dropped, Mirror, Move, RawCue, Stage, match_label
-from voqalize.sdk.stage.wire import StageEvent, StageHello, StageProgress, StageResult
+from voqalize.sdk.stage import AutoCue, Dropped, Mirror, Move, RawCue, Stage, match_label
+from voqalize.sdk.stage.wire import (
+    StageCue,
+    StageEvent,
+    StageHello,
+    StageMove,
+    StageProgress,
+    StageResult,
+)
 from voqalize.sdk.wire import Config, IdleConfig, RedialConfig, SttConfig, TtsConfig
 
 from .data import CampusId, Level, Mode, SchoolId, Stream, application, catalogue, persona
 from .finder import (
+    SECTIONS,
     Applicant,
     Profile,
     compare_text,
@@ -72,6 +94,9 @@ from .finder import (
     program_text,
     resolve_facet,
     resolve_program,
+    section_named,
+    section_of,
+    section_text,
 )
 from .prompt import JOB_NOTE, Job, Lang, greeting, job_for, system_instruction
 from .rejoin import Rejoin
@@ -83,6 +108,11 @@ REASONING = "medium"
 
 #: A quiet spell this long is not spoken into: a family reading the screen is not nudged.
 _IDLE_MS = 15000
+#: The quiet spell after the visitor opened another page by hand: one offer of help
+#: there, tied to what they asked for (X4: lead).
+_NAV_IDLE_MS = 7000
+#: A route change this soon after one of the agent's own moves is the agent's.
+_AGENT_NAV_S = 12.0
 #: The quiet spell after the applicant submitted: the congratulation comes now.
 _REACT_IDLE_MS = 1500
 
@@ -143,8 +173,28 @@ class FindRequest(BaseModel):
     )
 
 
+Section = Literal[
+    "overview",
+    "eligibility",
+    "selection",
+    "fees",
+    "scholarships",
+    "deadlines",
+    "outcomes",
+    "curriculum",
+    "highlights",
+]
+
+
 class ProgramRequest(BaseModel):
     program: str = Field(description="A programme id from the catalogue, or its name.")
+    section: Section = Field(
+        "overview",
+        description="The part they asked about: curriculum (modules, subjects, syllabus), fees, "
+        "outcomes (placements, salary), eligibility, scholarships, deadlines, selection "
+        "(entrance), highlights; overview for the programme in general. Its page opens there "
+        "on their screen.",
+    )
 
 
 class CompareRequest(BaseModel):
@@ -335,7 +385,11 @@ def resolve_cue(move: Move, args: list[str]) -> list[str] | None:
             return ids[:3] if len(ids) >= need else None
         case "site.open":
             pid = resolve_program(args[0]) if args else None
-            return [pid] if pid else None
+            if pid is None:
+                return None
+            said = args[1].strip().lower() if len(args) > 1 else ""
+            section = said if said in SECTIONS else section_of(said) if said else None
+            return [pid, section] if section else [pid]
         case "site.go":
             if not args:
                 return None
@@ -348,6 +402,96 @@ def resolve_cue(move: Move, args: list[str]) -> list[str] | None:
             return resolve_fill(args[0], args[1]) if len(args) >= 2 else None
         case _:
             return args
+
+
+# ─── One turn's record: the floor under a read, the words said ───────────────
+
+
+@dataclass
+class _Turn:
+    """What one turn said and owes: how many units of the model's speech went
+    out, the written answer a read owes if nothing is said after it ran (and a
+    move to make with it), and the words spoken, cues taken out."""
+
+    starts: int = 0
+    owed: str | None = None
+    owed_at: int = 0
+    then: tuple[str, dict[str, Any]] | None = None
+    said: list[str] = field(default_factory=list)
+
+
+#: Per turn, like ``landed``'s record: each turn runs in its own task.
+_TURN: ContextVar[_Turn | None] = ContextVar("university_turn", default=None)
+
+
+def owe(line: str, then: tuple[str, dict[str, Any]] | None = None) -> None:
+    """Beside a read the visitor asked to hear: the written answer the brain
+    says if the model's turn says nothing after the tool ran, and the move it
+    makes with it. The floor under "I'll open the page" and then silence (U1),
+    as the bank's B1 fix."""
+    if (record := _TURN.get()) is not None:
+        record.owed = line
+        record.owed_at = record.starts
+        record.then = then
+
+
+async def _counted(
+    turn: AsyncGenerator[Speech, None], record: _Turn
+) -> AsyncGenerator[Speech, None]:
+    """The model's turn, each unit counted and its words kept (not the brain's own lines)."""
+    try:
+        async for s in turn:
+            if isinstance(s, SpeechStart):
+                record.starts += 1
+            elif isinstance(s, SpeechChunk):
+                record.said.append(s.text)
+            yield s
+    finally:
+        await turn.aclose()
+
+
+#: A sentence that promises to put something on screen: "I'll open the page",
+#: "let me show you", "here's the curriculum on your screen".
+_PROMISE = re.compile(
+    r"\b(?:i['\u2019]?ll|i will|i['\u2019]?m|i am|let me|let['\u2019]s|here['\u2019]?s|here is|"
+    r"you can see|you['\u2019]?ll see|on (?:your |the )?screen)\b",
+    re.IGNORECASE,
+)
+_PROMISE_VERB = re.compile(
+    r"\b(?:open|opening|opened|show|showing|pull|pulling|bring|bringing|screen|page)\b",
+    re.IGNORECASE,
+)
+
+#: The sections of the admissions page a sentence can name without a cue.
+_ADMISSIONS_SECTIONS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("hostel", ("hostel", "room", "rooms", "mess")),
+    ("loans", ("loan", "loans")),
+    ("refund", ("refund",)),
+    ("instalments", ("instalment", "instalments", "installment", "installments")),
+    ("documents", ("documents",)),
+    ("vusat", ("vusat", "entrance test")),
+    ("scholarships", ("scholarship", "scholarships")),
+    ("deadlines", ("deadline", "deadlines", "last date")),
+    ("fees", ("fee", "fees")),
+)
+
+
+def _admissions_section(sentence: str) -> str | None:
+    low = f" {sentence.lower()} "
+    best: tuple[int, str] | None = None
+    for name, words in _ADMISSIONS_SECTIONS:
+        for w in words:
+            at = low.find(f" {w}")
+            if at >= 0 and (best is None or at < best[0]):
+                best = (at, name)
+    return best[1] if best else None
+
+
+def _program_named(sentence: str) -> str | None:
+    """A programme named in full in ``sentence`` (the longest name), or ``None``."""
+    low = sentence.lower()
+    hits = [p for p in catalogue().programs if p.name.lower() in low]
+    return max(hits, key=lambda p: len(p.name)).id if hits else None
 
 
 # ─── The brain ──────────────────────────────────────────────────────────────
@@ -373,12 +517,24 @@ class UniversityBrain(OpenAIBrain):
         self.path = "/"
         self.job: Job = "advisor"
         self.stage = Stage(
-            dispatch=lambda a: self.session.dispatch(a),
+            dispatch=self._dispatch,
             moves=MOVES,
-            resolve=resolve_cue,
+            resolve=self._resolve,
             mirror=Mirror(SPEC),
             on_drop=self._dropped,
+            backstop=self._auto_cues,
         )
+        #: The programme the conversation is about: what "show me that" opens.
+        self.focus: str | None = None
+        #: When the agent last sent a move: a route change soon after is its own.
+        self._moved_at = 0.0
+        #: Programme pages opened (or asked to open) this turn, as (id, section):
+        #: a second open of the same one, from a cue or the backstop, is not sent.
+        self._opened: set[tuple[str, str | None]] = set()
+        #: Pages the visitor opened by hand that were offered help once already.
+        self._offered: set[str] = set()
+        #: The application as last told to the model, so a note goes only on a change.
+        self._form_told: str | None = None
         self._fallback = FallbackLine()
         #: What the page asked the agent to say in the next quiet spell.
         self._talk: str | None = None
@@ -488,6 +644,8 @@ class UniversityBrain(OpenAIBrain):
                 "[They are speaking Hindi: the call is now in Hindi. Answer in Hindi.]"
             )
         self._heard_recent = [*self._heard_recent[-2:], msg.text]
+        if self.path == "/apply" and (form := self._form_note()) is not None:
+            self.append_note(form)
         # The turn is in the history once this returns; the model reads it lazily,
         # so a note added now comes right after the visitor's words.
         turn = super().on_user_message(session, msg)
@@ -504,13 +662,30 @@ class UniversityBrain(OpenAIBrain):
             self._confirm = None
             async for event in self.say_line(speak_text(line, self.lang)):
                 yield event
-        # Amounts are rewritten for the voice before the cues come out, so a cue's
-        # anchor words are the words the voice says (spoken.py).
-        model = self._spoken.wrap(super().respond(session))
-        turn = self._fallback.speak_if_silent(self, self._scripted(session, self.stage.cued(model)))
-        async for event in turn:
-            yield event
-        self.stage.end_turn()
+        self._opened = set()
+        record = _Turn()
+        token = _TURN.set(record)
+        try:
+            # Amounts are rewritten for the voice before the cues come out, so a cue's
+            # anchor words are the words the voice says (spoken.py).
+            model = self._spoken.wrap(super().respond(session))
+            cued = _counted(self.stage.cued(model), record)
+            turn = self._fallback.speak_if_silent(self, self._scripted(session, cued))
+            async for event in turn:
+                yield event
+            if record.owed is not None and record.starts == record.owed_at:
+                # A read ran and nothing was said after it: the brain answers from
+                # the data itself, never a promise and then silence (U1, as B1).
+                logger.warning("university: a read went unanswered; saying {!r}", record.owed)
+                if record.then is not None:
+                    self._send(*record.then)
+                async for event in self.say_line(speak_text(record.owed, self.lang), remember=True):
+                    yield event
+        finally:
+            with contextlib.suppress(ValueError):
+                _TURN.reset(token)
+        for unkept in self.stage.end_turn():
+            self._keep(unkept.move.id, unkept.sentence)
 
     async def _scripted(
         self, session: Session, turn: AsyncGenerator[Speech, None]
@@ -537,6 +712,113 @@ class UniversityBrain(OpenAIBrain):
                 yield opening
         finally:
             await turn.aclose()
+
+    # ─── Keeping what the voice promised on screen ──────────────────────
+
+    def _dispatch(self, action: Action) -> None:
+        """Every Stage move goes out here: noted, so a route change soon after
+        is known as the agent's, and a programme page opened is not opened twice."""
+        if isinstance(action, StageMove | StageCue):
+            self._moved_at = time.monotonic()
+        self.session.dispatch(action)
+
+    def _send(self, move: str, args: dict[str, Any]) -> str | None:
+        """A move a tool or the brain makes itself (not a cue in the speech)."""
+        try:
+            return self.stage.send(move, args, queue=False)
+        except KeyError:
+            logger.warning("university: no move {}", move)
+            return None
+
+    def _resolve(self, move: Move, args: list[str]) -> list[str] | None:
+        """``resolve_cue``, and the programme in focus followed: a programme page
+        the voice opens is what "show me that" means next."""
+        out = resolve_cue(move, args)
+        if out is not None and move.id == "site.open":
+            self.focus = out[0]
+            self._opened.add((out[0], out[1] if len(out) > 1 else None))
+        return out
+
+    def _open(self, pid: str, section: str | None) -> bool:
+        """Open a programme page at ``section`` unless this turn already did."""
+        if (pid, section) in self._opened or (
+            section is None and any(p == pid for p, _ in self._opened)
+        ):
+            return False
+        self._opened.add((pid, section))
+        self.focus = pid
+        self._send("site.open", {"program": pid, "section": section})
+        return True
+
+    def _auto_cues(
+        self, sentence: str, index: int, placed: tuple[tuple[str, tuple[str, ...]], ...]
+    ) -> Sequence[AutoCue]:
+        """The backstop under the model's cues, one finished sentence at a time.
+
+        - A sentence that promises the screen ("I'll open the B.Tech CSE (AI & ML)
+          page so you can see it", U1 turn 9) with no cue of its own opens the
+          programme it names, or the one in focus, at the section it names.
+        - On a programme page, a sentence about one of its sections ("The
+          curriculum includes deep learning...") rings that section.
+        - On the admissions page, a sentence about one of its sections rings it.
+        A question is an offer, never a promise."""
+        if placed or sentence.rstrip().endswith(("?", "\uff1f")):
+            return ()
+        here = self.path.removeprefix("/programs/") if self.path.startswith("/programs/") else None
+        section = section_of(sentence)
+        promised = bool(_PROMISE.search(sentence) and _PROMISE_VERB.search(sentence))
+        target = _program_named(sentence) if promised else None
+        target = target or (self.focus if promised else None)
+        if target is not None and catalogue().program(target) is not None:
+            if (target, section) in self._opened:
+                return ()
+            self._opened.add((target, section))
+            self.focus = target
+            logger.info("university: backstop opens {} at {} for {!r}", target, section, sentence)
+            return [("open", [target, section] if section else [target])]
+        # Pointing unasked: once a turn, at a section the sentence names outright,
+        # and never after a tool or cue already put this page's section in view.
+        named = section_named(sentence)
+        if here is not None and named is not None and catalogue().program(here) is not None:
+            if any(p == here for p, _ in self._opened):
+                return ()
+            self._opened.add((here, named))
+            return [("open", [here, named])]
+        if self.path == "/admissions" and (shown := _admissions_section(sentence)) is not None:
+            if any(p == "/admissions" for p, _ in self._opened):
+                return ()
+            self._opened.add(("/admissions", shown))
+            return [("show", [shown])]
+        return ()
+
+    def _keep(self, move_id: str, sentence: str) -> None:
+        """A promise the turn made and nothing kept (the backstop missed it):
+        a programme page is opened now; anything else is told to the model, so
+        the next turn neither repeats the claim nor leaves it standing."""
+        if move_id == "site.open" and self.focus is not None:
+            logger.info("university: keeping {!r} by opening {}", sentence, self.focus)
+            self._open(self.focus, section_of(sentence))
+            return
+        self.append_note(
+            f'[You said "{sentence.strip()}" but nothing moved on their screen. Do it now '
+            "with the cue or tool, or say plainly that you cannot.]"
+        )
+
+    def _form_note(self) -> str | None:
+        """On /apply, what the form holds and still needs, when it changed since
+        the model was last told: it asks only for what is missing, one thing at
+        a time, and never again for what is filled (insurance I1)."""
+        mirror = self.stage.mirror
+        if mirror is None or mirror.value("application") is None:
+            return None
+        text = mirror.read("application")
+        if text == self._form_told:
+            return None
+        self._form_told = text
+        return (
+            f"[{text}\nNever ask again for anything filled. Ask for ONE thing still empty, the "
+            "next in the form's order.]"
+        )
 
     def on_user_idle(self, session: Session, idle: UserIdle) -> AsyncGenerator[Speech, None]:
         return self._idle(session)
@@ -584,6 +866,9 @@ class UniversityBrain(OpenAIBrain):
             if path == self.path:
                 return None
             self.path = path
+            if path.startswith("/programs/") and catalogue().program(path[10:]) is not None:
+                self.focus = path[10:]
+            self._offer_help(path)
             job = job_for(path)
             if job == self.job:
                 return f"[They are now on {path}.]"
@@ -602,6 +887,24 @@ class UniversityBrain(OpenAIBrain):
             return folded.note if event.by == "visitor" else None
         result = self.stage.handle(event)
         return None if result is None else self._settle(result)
+
+    def _offer_help(self, path: str) -> None:
+        """The visitor opened a page by hand: if they stay quiet there, one short
+        offer of help on it, tied to what they asked for (X4: lead). Once a
+        page; never on the form they are typing into; never for the agent's own
+        navigation."""
+        agent = time.monotonic() - self._moved_at < _AGENT_NAV_S or any(
+            r.move.id.startswith(("site.", "catalogue.", "apply.")) for r in self.stage.running()
+        )
+        if agent or path == "/apply" or path in self._offered:
+            return
+        self._offered.add(path)
+        self._talk = (
+            f"They opened {path} themselves and have gone quiet. In one short sentence, offer "
+            "the one most useful thing you can do for them on this page, tied to what they "
+            "told you earlier, as a question. Do not describe the page."
+        )
+        configure_soon(self.session, Config(idle=IdleConfig(timeout_ms=_NAV_IDLE_MS)))
 
     def _settle(self, result: StageResult) -> str | None:
         """A move that landed needs no line: the voice already said it. One
@@ -665,18 +968,60 @@ class UniversityBrain(OpenAIBrain):
             max_fee_per_year=request.max_fee_per_year,
             hours_per_week=request.hours_per_week,
         )
-        logger.info("university: find {} -> {}", profile, len(matches(profile)))
-        return find_text(profile)
+        found = matches(profile)
+        logger.info("university: find {} -> {}", profile, len(found))
+        shown = self.stage.mirror.value("catalogue") if self.stage.mirror else None
+        ticked = [str(f) for f in (shown or {}).get("filters") or []]
+        picks = [str(p) for p in (shown or {}).get("picks") or []]
+        if found:
+            owe(self._found_line(profile, found))
+        return find_text(profile, ticked, picks)
+
+    def _found_line(self, profile: Profile, found: list[Any]) -> str:
+        """What the brain says if the model says nothing after find_programs."""
+        c = catalogue()
+        if self.lang == "hi":
+            return f"आपकी screen पर {len(found)} programmes हैं। इनमें से आपको किसमें सबसे ज़्यादा रुचि है?"
+        if profile.school is None and not profile.interests.strip():
+            areas = ", ".join(dict.fromkeys(c.school(p.school).short for p in found))
+            return f"We have programmes in {areas}. Which area interests you most?"
+        names = ", ".join(p.name for p in found[:3])
+        return f"The closest fits are {names}. Shall I compare them, or open one of them?"
 
     @needs_result_now
     async def program_details(self, request: ProgramRequest) -> str:
-        """Every authored fact about one programme: fees, eligibility, selection,
-        deadlines, scholarships, outcomes, modules."""
+        """One programme's facts, with its page opened on their screen at the part
+        they asked about: "show me the curriculum of …", "what are the fees for
+        this?", "tell me about B.Tech CSE". Every authored fact comes back:
+        fees, eligibility, selection, deadlines, scholarships, outcomes, modules."""
         pid = resolve_program(request.program)
         p = catalogue().program(pid) if pid else None
         if p is None:
             return f"No programme called {request.program!r}. Use an id from the catalogue."
-        return program_text(p)
+        section = None if request.section == "overview" else request.section
+        self._open(p.id, section)
+        where = f"at its {request.section}" if section else "at the top"
+        owe(self._details_line(p, request.section))
+        return (
+            f"Their screen now shows {p.name}'s page {where} (write no open cue for it).\n"
+            f"What they asked about: {section_text(p, request.section)}\n"
+            f"Everything else about it:\n{program_text(p)}\n"
+            "Answer what they asked in one to three sentences from this, in your own words, then "
+            "offer the one next step that helps them decide (fees and scholarships, eligibility "
+            "with their marks, outcomes, comparing, applying), as a question."
+        )
+
+    def _details_line(self, p: Any, section: str) -> str:
+        """What the brain says if the model says nothing after program_details."""
+        if self.lang == "hi":
+            return f"{p.name} आपकी screen पर है। आगे fees देखें या scholarship?"
+        fact = section_text(p, section).rstrip(".")
+        nxt = (
+            "Shall I check which scholarship you could get?"
+            if section in ("fees", "scholarships")
+            else "Shall I show you the fees and scholarships next?"
+        )
+        return f"Here is {p.name} on your screen. {fact}. {nxt}"
 
     @needs_result_now
     async def compare_programs(self, request: CompareRequest) -> str:
@@ -687,6 +1032,17 @@ class UniversityBrain(OpenAIBrain):
         progs = [p for p in found if p is not None][:3]
         if len(progs) < 2:
             return "Name two or three programme ids from the catalogue to compare."
+        ids = [p.id for p in progs]
+        owe(
+            "Here they are side by side on your screen. Which one would you like to look at "
+            "more closely?"
+            if self.lang == "en"
+            else "ये आपकी screen पर साथ-साथ हैं। किसे और करीब से देखना चाहेंगे?",
+            then=(
+                "catalogue.compare",
+                {"first": ids[0], "second": ids[1], "third": ids[2] if len(ids) > 2 else None},
+            ),
+        )
         return compare_text(progs)
 
     @needs_result_now
@@ -700,7 +1056,7 @@ class UniversityBrain(OpenAIBrain):
             return f"No programme called {request.program!r}. Use an id from the catalogue."
         if (why := self._check_amounts(family_income_lakh=request.family_income_lakh)) is not None:
             return why
-        return eligibility_text(
+        text = eligibility_text(
             p,
             Applicant(
                 class12_stream=request.class12_stream,
@@ -714,6 +1070,13 @@ class UniversityBrain(OpenAIBrain):
                 defence_family=request.defence_family,
             ),
         )
+        verdict, _, scholarship = text.partition("\n")
+        owe(
+            f"For {p.name}: {verdict.split(': ', 1)[-1]} {scholarship}"
+            if self.lang == "en"
+            else f"{p.name} के लिए मैंने आपकी eligibility check कर ली है। क्या मैं पूरा हिसाब बताऊँ?"
+        )
+        return text
 
     @needs_result_now
     async def read_screen(self, request: ReadRequest) -> str:

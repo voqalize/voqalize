@@ -60,12 +60,13 @@
       "verb": "open",
       "class": "navigate",
       "args": [
-        {"name": "program", "doc": "A programme id from the catalogue, mba."}
+        {"name": "program", "doc": "A programme id from the catalogue, mba."},
+        {"name": "section", "optional": true, "doc": "A section of the programme page to scroll to and ring once it is open: overview, eligibility, selection, fees, scholarships, deadlines, outcomes, curriculum, highlights."}
       ],
-      "say": "{open: mba} when you start talking about one programme's details; its page opens.",
-      "claims": ["opening the"],
-      "objects": ["programme page"],
-      "doc": "Open a programme's page."
+      "say": "{open: mba | curriculum} when you start talking about one programme's details; its page opens at that section (title alone without one).",
+      "claims": ["opening the", "pulling up"],
+      "objects": ["programme page", "page", "curriculum", "syllabus", "modules"],
+      "doc": "Open a programme's page, or scroll the page already open, and ring the section named (or the title)."
     },
     {
       "id": "site.go",
@@ -82,7 +83,7 @@
       "verb": "show",
       "class": "look",
       "args": [
-        {"name": "target", "doc": "A section of the page in front by its name: fees, eligibility, selection, deadlines, scholarships, outcomes, hostel, loans, documents, vusat, process, faqs, refund, instalments."}
+        {"name": "target", "doc": "A section of the page in front by its name: fees, eligibility, selection, deadlines, scholarships, outcomes, curriculum, highlights, overview, hostel, loans, documents, vusat, process, faqs, refund, instalments."}
       ],
       "say": "{show: hostel} as you start talking about that section; it scrolls into view and is ringed.",
       "doc": "Scroll to a section of the page in front and ring it. Refused with the sections the page has."

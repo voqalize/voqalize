@@ -129,6 +129,9 @@ function valueFor(f: FormField, said: string, values: Record<string, string>, c:
   }
 }
 
+/** The sections of a programme page (`ProgramPage.tsx`), as `site.open` names them. */
+const PROGRAM_SECTIONS = ["overview", "eligibility", "selection", "fees", "scholarships", "deadlines", "outcomes", "curriculum", "highlights"];
+
 const PAGES: Record<string, string> = {
   home: "/",
   programs: "/programs",
@@ -256,23 +259,40 @@ export function performers(): Performers<Spec> {
       return line;
     },
 
-    "site.open": async ({ program: said }, c: MoveContext) => {
+    "site.open": async ({ program: said, section }, c: MoveContext) => {
       const p = program("program", said, c);
-      const link = document.querySelector(`[data-program-link="${CSS.escape(p.id)}"]`);
-      if (link && link.getBoundingClientRect().height > 0) {
-        await c.scrollTo(link);
-        await c.ring(link, p.name);
+      const want = loose(section ?? "");
+      if (want && !PROGRAM_SECTIONS.includes(want)) c.refuse("section", `a programme page has no section "${section}"`, PROGRAM_SECTIONS);
+      const path = `/programs/${p.id}`;
+      const already = currentPath() === path;
+      if (!already) {
+        const link = document.querySelector(`[data-program-link="${CSS.escape(p.id)}"]`);
+        if (link && link.getBoundingClientRect().height > 0) {
+          await c.scrollTo(link);
+          await c.ring(link, p.name);
+        }
+        useFinder.getState().closeCompare();
+        await goTo(path);
       }
-      useFinder.getState().closeCompare();
-      await goTo(`/programs/${p.id}`);
-      const title = await waitFor(() => (currentPath() === `/programs/${p.id}` ? thing("title") : null));
+      const title = await waitFor(() => (currentPath() === path ? thing("title") : null));
       if (!title) c.refuse("program", "the programme page did not open");
-      window.scrollTo({ top: 0 });
+      if (!want) {
+        if (!already) window.scrollTo({ top: 0 });
+        c.after(async () => {
+          await c.scrollTo(title);
+          await c.ring(title, p.name);
+        });
+        return already ? `${p.name} is open` : `opened ${p.name}`;
+      }
+      // The section asked for, scrolled fully into view and ringed (X1): "show me
+      // the curriculum" lands on the curriculum, not the top of the page.
+      const el = await waitFor(() => (currentPath() === path ? thing(want) : null));
+      if (!el) c.refuse("section", `the ${want} section is not on the page`, PROGRAM_SECTIONS);
       c.after(async () => {
-        await c.scrollTo(title);
-        await c.ring(title, p.name);
+        await c.scrollTo(el);
+        await c.ring(el, el.getAttribute("data-stage-label") ?? want);
       });
-      return `opened ${p.name}`;
+      return `${already ? "showing" : "opened"} ${p.name} at its ${want}`;
     },
 
     "site.go": async ({ page }, c: MoveContext) => {

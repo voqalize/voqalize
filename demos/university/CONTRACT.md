@@ -73,12 +73,17 @@ Generated with, from `demos/`:
 | `catalogue.clear` | clear | reversible | `facet?` | unticks a facet or all. |
 | `catalogue.pick` | pick | reversible | `first, second?, third?` (programme ids) | rings each card in turn (navigating to `/programs` if needed; a pick hidden by filters is still shown, pinned at the top), badges 1..3, shortlist tray. |
 | `catalogue.compare` | compare | look | `first, second, third?` | opens the comparison panel (rows below), rings it. |
-| `site.open` | open | navigate | `program` | navigates to `/programs/<id>`, rings the title. |
+| `site.open` | open | navigate | `program, section?` | navigates to `/programs/<id>` (or stays, when it is open), then scrolls the `section` (overview, eligibility, selection, fees, scholarships, deadlines, outcomes, curriculum, highlights) fully into view and rings it, or rings the title. Refuses an unknown section with the list. The brain also sends it from `program_details` (a `stage_move`), so "show me the curriculum of …" lands on the curriculum. |
 | `site.go` | go | navigate | `page` | `home, programs, admissions, scholarships, campus-life, apply, schools, schools/<id>`. |
 | `site.show` | show | look | `target` | scrolls to and rings `[data-stage-thing="<target>"]` on the page in front; refuses with the names on the page. |
 | `apply.fill` | fill | reversible | `field, value` | on `/apply` (navigates there first): opens the field's step, rings the input, sets it. Validates against `application.json` (choice ids or labels; percent 0–100; `program` a catalogue id; `campus` one of the programme's campuses; `intake` the programme's intake label; `scholarship` one of the programme's scholarship ids or `none`; documents `uploaded|later`). |
 | `apply.step` | step | look | `step` 1..5 | opens and rings that step. |
 | `apply.next` | next | reversible | — | as Continue: refuses naming required fields still empty. |
+
+The brain keeps what the voice promises on screen (U1): a sentence that promises to open or show
+something with no cue of its own opens the programme it names, or the one in focus, through Stage's
+backstop; on a programme page a sentence naming one of its sections outright rings it (once a turn);
+on `/admissions` the same for its sections.
 
 Paying is never a move: the applicant presses **Pay ₹<fee> and submit** themselves. The page then shows
 the application number `VRN-27-<5 digits>` and stores the application in localStorage.

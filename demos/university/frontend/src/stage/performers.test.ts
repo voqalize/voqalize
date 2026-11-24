@@ -34,4 +34,11 @@ describe("performers", () => {
     expect(r?.outcome).toBe("refused");
     expect(r?.refused?.[0]?.options).toContain("class12_percent");
   });
+
+  it("refuses a programme page section that does not exist, with the sections", async () => {
+    const r = await moves.run("site.open", { program: "btech-ai-ml", section: "hostel" }, "t-5");
+    expect(r?.outcome).toBe("refused");
+    expect(r?.refused?.[0]).toMatchObject({ arg: "section" });
+    expect(r?.refused?.[0]?.options).toContain("curriculum");
+  });
 });

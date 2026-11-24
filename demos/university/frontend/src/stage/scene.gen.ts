@@ -73,6 +73,10 @@ export const scene = defineScene({
       "args": [
         {
           "name": "program"
+        },
+        {
+          "name": "section",
+          "optional": true
         }
       ]
     },
@@ -240,4 +244,4 @@ export const scene = defineScene({
   ]
 });
 
-export const SPEC_SHA256 = "05631922ba54c020208467a6d7ae7a348abadbce3e08a61ab11cb2aa74c89223";
+export const SPEC_SHA256 = "16265cb4023954893e427488f9a90fec71c4b8428db865b5fb715a969af1f74e";

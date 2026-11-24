@@ -860,3 +860,383 @@ async def test_every_two_chunk_split_speaks_like_the_whole_sentence(
         assert await _ws_streamed([[head, tail]], lang) == whole, (head, tail)
         if tail[0] == " " and tail[1] in "₹0123456789":  # an amount starts the second unit
             assert await _ws_streamed([[head], [tail]], lang) == whole, (head, tail)
+
+
+# ─── U1: the owner's call of 24 Nov, replayed ───────────────────────────────
+#
+# His words, exactly as the recognizer wrote them. The model is scripted, so
+# these pin what the brain now does around it: what the reads return (lead,
+# never pick from a bare area, skip ticks already on screen), the screen
+# moving for "show me", a promise with no cue kept, a read never ending silent,
+# a section talked about ringed, and a page opened by hand offered help once.
+
+U1_EXPLORE = "Uh I'm and wanted to explore few undergraduate programs. What else do you have?"
+U1_ENGINEERING = "Engineering."
+U1_SHOW_BTECH = "Uh can you show me your uh engineering uh uh in BTEC?"
+U1_CSE = "I'm asking for computer science."
+U1_CURRICULUM = (
+    "Can you show me the curriculum of uh BTEC in Art Computer Science, Artificial "
+    "Intelligence and Machine Learning?"
+)
+U1_ON_SCREEN = "Can you show me that on screen?"
+U1_SEE_IT = "Yeah, I can see it now."
+U1_FEES = "What is the fees for this?"
+
+
+def _moves(rig: DemoRig) -> list[tuple[str, dict[str, Any]]]:
+    return [
+        (str(c["payload"]["move"]), dict(c["payload"]["args"]))
+        for c in rig.driver.ui_commands
+        if c.get("command") == "stage_move"
+    ]
+
+
+async def _hello(rig: DemoRig, route: str) -> None:
+    await rig.driver.send_ui_event(
+        "stage_hello",
+        {
+            "runtime": "@voqalize/stage",
+            "contract": 1,
+            "url": f"https://dev.voqalize.com/demos/university{route}",
+        },
+    )
+    await asyncio.sleep(0.1)
+
+
+async def _finder_shows(rig: DemoRig, filters: list[str], picks: list[str]) -> None:
+    await rig.driver.send_ui_event(
+        "stage_event",
+        {
+            "name": "catalogue.changed",
+            "by": "agent",
+            "data": {"filters": filters, "count": 6, "top": [], "picks": picks, "compared": []},
+        },
+    )
+    await asyncio.sleep(0.1)
+
+
+async def test_u1_a_level_alone_asks_for_the_area_and_an_area_alone_picks_nothing() -> None:
+    """Turns 2-4: "explore undergraduate programmes" got a generic list with no
+    screen change; "Engineering." picked civil, data science and EV and left
+    computer science out; "show me your engineering B.Tech" re-ticked what was
+    ticked and swapped the picks. Now a level alone ticks it and gets the
+    areas to ask about; an area alone lists every programme of it, picks
+    nothing and asks which branch; ticks already on screen are not asked for."""
+    llm = ScriptedOpenAI(
+        {
+            U1_EXPLORE: [
+                call("find_programs", level="ug", interests="undergraduate programs"),
+                reply(
+                    "{filter: Level | Undergraduate} We have undergraduate programmes in "
+                    "engineering, business, design, law and health sciences. Which area "
+                    "interests you?"
+                ),
+            ],
+            U1_ENGINEERING: [
+                call("find_programs", level="ug", school="engineering", interests="engineering"),
+                reply(
+                    "{filter: School | Engineering} All six engineering B.Techs are on your "
+                    "screen now: computer science, AI and machine learning, data science, "
+                    "electronics, mechanical with EVs, and civil. Which branch interests you?"
+                ),
+            ],
+            U1_SHOW_BTECH: [
+                call("find_programs", level="ug", school="engineering", interests="B.Tech"),
+                reply("They're all here on your screen. Which branch shall we look at?"),
+            ],
+        }
+    )
+    async with demo("university", llm) as rig:
+        await rig.driver.start_session(init={"landing": "/", "lang": "en"})
+
+        turn = await rig.driver.user_says(U1_EXPLORE)
+        check_turn(rig, turn, units=1)
+        found = "".join(tool_results_of(llm.captured_inputs[1], "find_programs"))
+        assert "by area" in found and "Engineering 6" in found and "Pick nothing yet" in found
+        assert "{filter: Level | Undergraduate}" in found
+        assert _cues(rig) == [("catalogue.filter", ["Level", "Undergraduate"])]
+
+        await _finder_shows(rig, ["Level: Undergraduate"], [])
+        turn = await rig.driver.user_says(U1_ENGINEERING)
+        check_turn(rig, turn, units=1)
+        found = tool_results_of(llm.captured_inputs[-1], "find_programs")[-1]
+        assert "All 6 programmes" in found and "pick nothing yet" in found
+        assert "B.Tech Computer Science & Engineering" in found
+        # The level is ticked already: only the area is left to tick.
+        assert "{filter: School | Engineering}" in found
+        assert "{filter: Level | Undergraduate}" not in found.split("Already ticked")[0]
+        assert "{pick:" not in found.split("\n")[-1]
+        assert not any(m == "catalogue.pick" for m, _ in _cues(rig))
+
+        await _finder_shows(rig, ["Level: Undergraduate", "School: Engineering"], [])
+        turn = await rig.driver.user_says(U1_SHOW_BTECH)
+        check_turn(rig, turn, units=1)
+        found = tool_results_of(llm.captured_inputs[-1], "find_programs")[-1]
+        assert "Every filter for this is already ticked" in found
+
+
+async def test_u1_computer_science_ranks_computer_science_first() -> None:
+    """Turn 6-7: "computer science" ranks the CSE programmes first, and the picks
+    already on screen are named so they are kept unless the fit changes."""
+    llm = ScriptedOpenAI(
+        {
+            U1_CSE: [
+                call(
+                    "find_programs", level="ug", school="engineering", interests="computer science"
+                ),
+                reply(
+                    "{pick: btech-cse | btech-ai-ml | btech-ds} Computer science, then. B.Tech "
+                    "CSE is the broad one, the AI and ML B.Tech goes deeper into machine "
+                    "learning, and data science is about data. Shall I compare them?"
+                ),
+            ]
+        }
+    )
+    async with demo("university", llm) as rig:
+        await rig.driver.start_session(init={"landing": "/programs", "lang": "en"})
+        await _finder_shows(rig, ["Level: Undergraduate", "School: Engineering"], ["btech-civil"])
+        turn = await rig.driver.user_says(U1_CSE)
+        check_turn(rig, turn, units=1)
+        found = tool_results_of(llm.captured_inputs[-1], "find_programs")[-1]
+        first = [line for line in found.splitlines() if line.startswith("- ")][:2]
+        assert first[0].startswith("- btech-cse:") and first[1].startswith("- btech-ai-ml:")
+        assert "Your picks on screen now: btech-civil" in found
+        assert "Do not repeat back what they told you" in found
+
+
+async def test_u1_show_me_the_curriculum_opens_the_page_at_the_curriculum() -> None:
+    """Turn 8: the curriculum was spoken but the screen did not move. Now
+    program_details opens the programme page at its curriculum, in the same
+    turn, and returns the modules to answer from."""
+    p = catalogue().program("btech-ai-ml")
+    assert p is not None
+    llm = ScriptedOpenAI(
+        {
+            U1_CURRICULUM: [
+                call("program_details", program="btech-ai-ml", section="curriculum"),
+                reply(
+                    "Here's its curriculum on your screen: linear algebra for machine learning, "
+                    "deep learning, natural language processing, computer vision and MLOps. "
+                    "Shall I show you the fees and the scholarship you could get?"
+                ),
+            ]
+        }
+    )
+    async with demo("university", llm) as rig:
+        await rig.driver.start_session(init={"landing": "/programs", "lang": "en"})
+        turn = await rig.driver.user_says(U1_CURRICULUM)
+        check_turn(rig, turn, units=1)
+        assert _moves(rig) == [("site.open", {"program": "btech-ai-ml", "section": "curriculum"})]
+        result = tool_results_of(llm.captured_inputs[-1], "program_details")[-1]
+        assert p.modules[0] in result and "write no open cue" in result
+        # The model's "here's its curriculum on your screen" is not opened twice.
+        assert not any(m == "site.open" for m, _ in _cues(rig))
+
+
+async def test_u1_a_promise_to_show_with_no_cue_opens_the_page() -> None:
+    """Turn 9: "I'll open the B.Tech CSE (AI & ML) page so you can see it on
+    screen" with no cue, and nothing moved until he complained. The backstop
+    now opens the programme the sentence names (or the one in focus)."""
+    llm = ScriptedOpenAI(
+        {
+            "Tell me about the AI one.": [
+                call("program_details", program="btech-ai-ml"),
+                reply("It's a four-year B.Tech with a research track. Want to see the modules?"),
+            ],
+            U1_ON_SCREEN: reply(
+                "I\u2019ll open the B.Tech CSE (Artificial Intelligence & Machine Learning) page so "
+                "you can see it on screen."
+            ),
+            "And the data science one?": reply("Sure, I\u2019ll pull up its page for you."),
+        }
+    )
+    async with demo("university", llm) as rig:
+        await rig.driver.start_session(init={"landing": "/programs", "lang": "en"})
+        await rig.driver.user_says("Tell me about the AI one.")
+        before = len(_cues(rig))
+        turn = await rig.driver.user_says(U1_ON_SCREEN)
+        check_turn(rig, turn, units=1)
+        assert _cues(rig)[before:] == [("site.open", ["btech-ai-ml"])]
+        auto = _raw_cues(rig)[-1]
+        assert auto["at"], "the backstop's cue has words to fire at"
+
+        # A promise that names no programme opens the one in focus.
+        brain = rig.brain
+        assert isinstance(brain, UniversityBrain)
+        brain.focus = "btech-ds"
+        turn = await rig.driver.user_says("And the data science one?")
+        check_turn(rig, turn, units=1)
+        assert _cues(rig)[-1] == ("site.open", ["btech-ds"])
+
+
+async def test_u1_a_read_followed_by_silence_is_answered_by_the_brain() -> None:
+    """The silent-turn lesson (bank B1, insurance I1): the curriculum read ran
+    and the model's second hop said nothing. The brain says the section's facts
+    and the next step itself, never a promise and then silence."""
+    p = catalogue().program("btech-ai-ml")
+    assert p is not None
+    llm = ScriptedOpenAI(
+        {
+            U1_CURRICULUM: [
+                call("program_details", program="btech-ai-ml", section="curriculum"),
+                reply(""),
+            ]
+        }
+    )
+    async with demo("university", llm) as rig:
+        await rig.driver.start_session(init={"landing": "/programs", "lang": "en"})
+        turn = await rig.driver.user_says(U1_CURRICULUM)
+        check_turn(rig, turn, units=1)
+        assert p.modules[0] in turn.text and p.name in turn.text
+        assert turn.text.rstrip().endswith("?"), "the floor ends on the next step"
+
+
+async def test_u1_a_section_talked_about_on_its_page_is_rung() -> None:
+    """Turn 11: on the programme page he said "I can see it now" and the
+    curriculum was read out with nothing pointed at. A sentence about a section
+    of the page in front now rings that section; the fees question opens the
+    fees (turn 14)."""
+    llm = ScriptedOpenAI(
+        {
+            U1_SEE_IT: reply(
+                "Great. The curriculum includes deep learning, natural language processing, "
+                "computer vision and MLOps. Shall I show you the fees next?"
+            ),
+            U1_FEES: [
+                call("program_details", program="btech-ai-ml", section="fees"),
+                reply(
+                    "It's ₹3,60,000 a year, ₹14,40,000 for all four years, with hostel and mess "
+                    "separate. Shall I check which scholarship you could get with your Class 12 "
+                    "marks?"
+                ),
+            ],
+        }
+    )
+    async with demo("university", llm) as rig:
+        await rig.driver.start_session(init={"landing": "/programs", "lang": "en"})
+        await _hello(rig, "/programs/btech-ai-ml")
+        turn = await rig.driver.user_says(U1_SEE_IT)
+        check_turn(rig, turn, units=1)
+        assert _cues(rig) == [("site.open", ["btech-ai-ml", "curriculum"])]
+
+        turn = await rig.driver.user_says(U1_FEES)
+        check_turn(rig, turn, units=1)
+        assert _moves(rig)[-1] == ("site.open", {"program": "btech-ai-ml", "section": "fees"})
+        result = tool_results_of(llm.captured_inputs[-1], "program_details")[-1]
+        assert "₹3,60,000 a year" in result and "₹14,40,000" in result
+
+
+async def test_u1_pointing_unasked_is_once_and_only_at_a_section_named() -> None:
+    """The backstop rings a section of the page in front only when a sentence
+    names it outright, once a turn, and never after the turn's tool already put
+    a section of this page in view: a scholarship answer about "tuition" and
+    "eligible women" rings neither the fees nor the eligibility (real-model run)."""
+    llm = ScriptedOpenAI(
+        {
+            "All of them.": reply(
+                "The Class 12 merit award is 10%, 25% or 50% of tuition. Women in STEM adds "
+                "20% for eligible women. What did you score in Class 12?"
+            ),
+            "Show me the scholarships.": [
+                call("program_details", program="btech-ai-ml", section="scholarships"),
+                reply(
+                    "The scholarships are on screen. The fees drop with a merit award. Shall I "
+                    "check yours?"
+                ),
+            ],
+        }
+    )
+    async with demo("university", llm) as rig:
+        await rig.driver.start_session(init={"landing": "/programs", "lang": "en"})
+        await _hello(rig, "/programs/btech-ai-ml")
+        turn = await rig.driver.user_says("All of them.")
+        check_turn(rig, turn, units=1)
+        assert _cues(rig) == []
+        turn = await rig.driver.user_says("Show me the scholarships.")
+        check_turn(rig, turn, units=1)
+        assert _cues(rig) == []
+        assert _moves(rig) == [("site.open", {"program": "btech-ai-ml", "section": "scholarships"})]
+
+
+async def test_u1_a_page_opened_by_hand_is_offered_help_once() -> None:
+    """After the fees he clicked through admissions, scholarships and campus
+    life and heard nothing until he hung up. A page the visitor opens by hand
+    now gets one short offer in the next quiet spell; the agent's own
+    navigation does not."""
+    llm = ScriptedOpenAI(
+        {
+            "opened /scholarships": reply(
+                "Shall I check which scholarship you could get for the AI and ML B.Tech?"
+            ),
+            U1_CURRICULUM: [
+                call("program_details", program="btech-ai-ml", section="curriculum"),
+                reply("Here it is. Shall I show you the fees?"),
+            ],
+        }
+    )
+    async with demo("university", llm) as rig:
+        await rig.driver.start_session(init={"landing": "/programs", "lang": "en"})
+        brain = rig.brain
+        assert isinstance(brain, UniversityBrain)
+        await _hello(rig, "/scholarships")
+        assert brain._talk is not None  # pyright: ignore[reportPrivateUsage]
+        idle = await rig.driver.user_idle()
+        check_turn(rig, idle, units=1)
+        assert "opened /scholarships themselves" in _last_input(llm)
+
+        # Once a page: back on it later, no second offer.
+        await _hello(rig, "/campus-life")
+        await rig.driver.user_says("hmm")
+        await _hello(rig, "/scholarships")
+        assert brain._talk is None  # pyright: ignore[reportPrivateUsage]
+
+        # The agent's own move: the page it opened is not "opened by hand".
+        await rig.driver.user_says(U1_CURRICULUM)
+        await _hello(rig, "/programs/btech-ai-ml")
+        assert brain._talk is None  # pyright: ignore[reportPrivateUsage]
+
+
+async def test_the_form_note_lists_what_is_filled_so_nothing_is_asked_twice() -> None:
+    """The insurance lesson (I1) on /apply: what the form holds reaches the model
+    before its turn, with the rule to ask only for one thing still empty."""
+    llm = ScriptedOpenAI()
+    async with demo("university", llm) as rig:
+        await rig.driver.start_session(init={"landing": "/apply"})
+        await rig.driver.send_ui_event(
+            "stage_event",
+            {
+                "name": "application.changed",
+                "by": "agent",
+                "data": {
+                    "field": "class12_percent",
+                    "filled": ["program", "campus", "class12_percent"],
+                    "missing": ["class12_board"],
+                    "step": 2,
+                    "class12_percent": "92.4",
+                },
+            },
+        )
+        await asyncio.sleep(0.1)
+        await rig.driver.user_says("What next?")
+        sent = _last_input(llm)
+        assert "class12_percent" in sent and "Never ask again for anything filled" in sent
+        await rig.driver.user_says("Okay.")
+        assert _last_input(llm).count("Never ask again for anything filled") == 1
+
+
+def test_the_prompt_leads_and_keeps_screen_promises() -> None:
+    from voqalize_demos._loaded.university.prompt import system_instruction
+
+    text = system_instruction()
+    assert "Every reply ends with ONE concrete next step" in text
+    assert "Never repeat back what they told you" in text
+    assert "without the cue or tool that does it in the same reply" in text
+    assert "{open: mba | curriculum}" in text
+
+
+def test_an_area_or_level_is_not_an_interest() -> None:
+    from voqalize_demos._loaded.university.finder import interest_words
+
+    assert interest_words("engineering") == set()
+    assert interest_words("undergraduate programs B.Tech") == set()
+    assert interest_words("computer science engineering") == {"computer", "science"}
