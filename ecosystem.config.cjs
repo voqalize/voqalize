@@ -50,6 +50,7 @@ const DEMOS = [
   'fernhollow',
   'payroll_site',
   'payroll_app',
+  'bank',
   'insurance',
 ];
 

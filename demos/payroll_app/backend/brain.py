@@ -84,6 +84,7 @@ from .confirm import Acted, Confirmations, Pending, classify
 from .persona import PERSONA
 from .prompt import JOB_NOTE, TOGGLE_CONFIRM, Lang, Mode, greeting, mode_for, system_instruction
 from .rejoin import Rejoin
+from .spoken import SpokenAmounts, amounts_note, implausible, setup_number, speak_text
 from .stage_gen import MOVES, SPEC, ReadRequest
 
 MODEL = "gpt-6-sol"
@@ -522,6 +523,10 @@ class PaynoraBrain(OpenAIBrain):
         #: view. Sticky: only she changes it, by asking or by leaving the view
         #: (round 2, R3).
         self.view_as: str | None = None
+        #: Her last few turns, as heard: what an amount is checked against.
+        self._heard_recent: list[str] = []
+        #: Every amount spoken in the form the voice reads right (spoken.py, X8).
+        self._spoken = SpokenAmounts(lambda: self.lang)
 
     # ─── Session ────────────────────────────────────────────────────────
 
@@ -588,7 +593,7 @@ class PaynoraBrain(OpenAIBrain):
         the admin was greeted when it began."""
         if self.rejoined:
             return None
-        return greeting(self.mode, self.lang)
+        return speak_text(greeting(self.mode, self.lang), self.lang)
 
     def _language_note(self) -> str:
         return f"[The call is in {PERSONA.labels[self.lang]}.]"
@@ -603,10 +608,12 @@ class PaynoraBrain(OpenAIBrain):
             tts=TtsConfig(voice=_voice(PERSONA.voice(lang)), language=_language(lang)),
         )
 
-    async def on_user_message(
-        self, session: Session, msg: UserMessage
-    ) -> AsyncGenerator[Speech, None]:
+    def on_user_message(self, session: Session, msg: UserMessage) -> AsyncGenerator[Speech, None]:
+        return self._spoken.wrap(self._answer(session, msg))
+
+    async def _answer(self, session: Session, msg: UserMessage) -> AsyncGenerator[Speech, None]:
         self.turns += 1
+        self._heard_recent = [*self._heard_recent[-2:], msg.text]
         self.stage.visitor_spoke()
         self._talk = None
         self._settle_expired()
@@ -619,6 +626,8 @@ class PaynoraBrain(OpenAIBrain):
         if self.view_as is not None:
             self.append_note(self._view_note())
         self.append_note(msg.text)
+        if (said := amounts_note(msg.text)) is not None:
+            self.append_note(said)
         if pending is not None and answer == "yes":
             acted = self.confirms.act(pending)
             self.append_note(acted.note)
@@ -645,7 +654,7 @@ class PaynoraBrain(OpenAIBrain):
         self.stage.end_turn()
 
     def on_user_idle(self, session: Session, idle: UserIdle) -> AsyncGenerator[Speech, None]:
-        return self._idle(session)
+        return self._spoken.wrap(self._idle(session))
 
     async def _idle(self, session: Session) -> AsyncGenerator[Speech, None]:
         self._settle_expired()
@@ -1454,6 +1463,10 @@ class PaynoraBrain(OpenAIBrain):
         Never fills PAN or bank details: she types those."""
         if (no := self._admin_only("add an employee")) is not None:
             return no
+        if (
+            wrong := implausible({"annual_ctc": request.annual_ctc}, self._heard_recent[::-1])
+        ) is not None:
+            return wrong
         b = self.books
         fields = request.model_dump()
         e = b.new_employee(fields)
@@ -1748,7 +1761,10 @@ class PaynoraBrain(OpenAIBrain):
             return _not_done(
                 f"{', '.join(wrong)} is not on the {what} step", f"Its fields: {', '.join(names)}."
             )
-        given = {v.field: v.value.strip() for v in request.values}
+        given = {v.field: setup_number(v.field, v.value) for v in request.values}
+        money = {f: float(v) for f, v in given.items() if f.startswith("lta_") and v.isdigit()}
+        if (wrong := implausible(dict(money), self._heard_recent[::-1])) is not None:
+            return wrong
         rest = (
             [(f, d) for f, d in presets if f not in given and f not in self.setup_filled]
             if request.rest == "defaults"
