@@ -86,10 +86,10 @@ export function DebugConsole() {
         <button type="button" data-fake="connect" onClick={() => useFakeCall.setState({ on: true, state: "listening" })}>
           connect
         </button>
-        <button type="button" data-fake="speak" onClick={() => useFakeCall.setState({ on: true, state: "speaking", heard: "Can I move my cleaning to next week?" })}>
+        <button type="button" data-fake="speak" onClick={() => useFakeCall.setState({ on: true, state: "speaking" })}>
           speak
         </button>
-        <button type="button" data-fake="end" onClick={() => useFakeCall.setState({ on: false, heard: "" })}>
+        <button type="button" data-fake="end" onClick={() => useFakeCall.setState({ on: false })}>
           end
         </button>
       </div>

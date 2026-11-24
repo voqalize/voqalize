@@ -1,15 +1,16 @@
-/* ── The front desk's dock and call tile ─────────────────────────────── */
+/* ── Meera's dock and call tile (Paynora's widget) ───────────────────── */
+/* Idle: a pill at the bottom right with her still photo, her name, the job on
+   this page, EN / हिंदी and Talk. In a call the pill fades out and the face
+   (one fixed `.call-tile` for the page's life) becomes a floating call card. */
 .dock {
   position: fixed;
-  left: 50%;
-  bottom: calc(18px + env(safe-area-inset-bottom));
-  transform: translateX(-50%);
+  right: 20px;
+  bottom: calc(20px + env(safe-area-inset-bottom));
   z-index: 55;
   display: flex;
   align-items: center;
   gap: 10px;
   padding: 6px;
-  min-width: 300px;
   max-width: calc(100vw - 32px);
   background: rgba(255, 255, 255, 0.97);
   backdrop-filter: blur(14px);
@@ -17,20 +18,32 @@
   border: 1px solid var(--line);
   border-radius: 999px;
   box-shadow: 0 16px 40px -14px rgba(22, 41, 42, 0.35);
-  animation: dock-in 0.6s var(--ease) 0.4s both;
   transition: opacity 0.25s ease, translate 0.3s var(--ease);
 }
-@keyframes dock-in {
-  from {
-    opacity: 0;
-    translate: 0 20px;
-  }
+/* A primary action under the pill's place: bottom left. */
+.dock.is-left {
+  right: auto;
+  left: 20px;
 }
-@keyframes pop {
-  from {
-    opacity: 0;
-    scale: 0.8;
-  }
+.dock.is-hidden,
+.dock.is-calling {
+  opacity: 0;
+  translate: 0 24px;
+  pointer-events: none;
+}
+/* An overlay reaches the pill's place: it moves to a top corner, under the header. */
+.dock.is-raised {
+  top: calc(var(--header-h) + 12px);
+  bottom: auto;
+  z-index: 72;
+}
+.dock.is-raised-tl {
+  left: 16px;
+  right: auto;
+}
+.dock.is-raised-tr {
+  right: 16px;
+  left: auto;
 }
 .dock-face {
   width: 46px;
@@ -38,24 +51,17 @@
   border-radius: 50%;
   flex: none;
 }
-.dock-face-slot {
-  background: transparent;
-}
-.dock-avatar {
-  width: 100%;
-  height: 100%;
-  display: block;
-}
 .dock-text {
+  display: flex;
+  flex-direction: column;
   min-width: 0;
-  flex: 1;
-  padding-right: 4px;
+  max-width: 200px;
+  line-height: 1.25;
 }
 .dock-name {
   margin: 0;
   font-weight: 650;
   font-size: 14px;
-  line-height: 1.2;
 }
 .dock-status {
   margin: 0;
@@ -64,22 +70,10 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 220px;
 }
-.dock.is-listening .dock-status::before {
-  content: "";
-  display: inline-block;
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--brand-2);
-  margin-right: 6px;
-  animation: blink 1.4s ease-in-out infinite;
-}
-@keyframes blink {
-  50% {
-    opacity: 0.3;
-  }
+.dock.is-error .dock-status {
+  color: var(--danger);
+  white-space: normal;
 }
 .dock-cta {
   display: inline-flex;
@@ -92,6 +86,7 @@
   color: #fff;
   font-weight: 600;
   font-size: 14px;
+  white-space: nowrap;
   flex: none;
 }
 .dock-cta:hover:not(:disabled) {
@@ -100,50 +95,10 @@
 .dock-cta:disabled {
   background: #eef1ec;
   color: var(--muted);
-}
-.dock-btn {
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  background: #eef1ec;
-  flex: none;
-}
-.dock-btn[aria-pressed="true"] {
-  background: var(--ink);
-  color: #fff;
-}
-.dock-end {
-  background: var(--danger);
-  color: #fff;
-}
-.dock.is-compact {
-  left: auto;
-  right: max(16px, env(safe-area-inset-right));
-  transform: none;
-  min-width: 0;
-  width: auto;
-  gap: 6px;
-  padding: 5px;
-  animation: pop 0.3s var(--ease);
-}
-.dock.is-compact .dock-text,
-.dock.is-compact .dock-cta-label {
-  display: none;
-}
-.dock.is-compact .dock-cta {
-  width: 44px;
-  padding: 0;
-  justify-content: center;
-}
-.dock.is-hidden,
-.dock.is-calling {
-  opacity: 0;
-  translate: 0 24px;
-  pointer-events: none;
+  cursor: not-allowed;
 }
 
+/* The face: one element, docked on the pill's slot, a tile in a call, or a bubble. */
 .call-tile {
   position: fixed;
   z-index: 57;
@@ -152,7 +107,6 @@
   border-radius: 50%;
   overflow: hidden;
   background: var(--brand-soft);
-  box-shadow: 0 0 0 2px #fff, 0 0 0 3.5px rgba(13, 92, 94, 0.45);
   transition:
     left 0.45s var(--ease),
     top 0.45s var(--ease),
@@ -165,10 +119,6 @@
 }
 .call-tile.is-docked {
   pointer-events: none;
-  animation: dock-in 0.6s var(--ease) 0.4s both;
-}
-.app:has(.dock.is-compact) .call-tile.is-docked {
-  animation: pop 0.3s var(--ease);
 }
 .call-tile.is-parked {
   opacity: 0;
@@ -176,32 +126,35 @@
 .call-tile.is-snap {
   transition: none;
 }
+/* Raised above an open overlay; docked, it rides the raised pill. */
+.call-tile.is-raised,
+body:has(.dock.is-raised) .call-tile.is-docked {
+  z-index: 73;
+}
 .call-tile.is-tile {
   border-radius: 14px;
   background: var(--brand-ink);
   color: #fff;
   box-shadow:
-    0 0 0 5px var(--brand-ink),
-    0 0 0 6px rgba(255, 255, 255, 0.2),
+    0 0 0 4px var(--brand-ink),
+    0 0 0 5px rgba(255, 255, 255, 0.2),
     0 26px 50px -18px rgba(22, 41, 42, 0.6);
   cursor: grab;
 }
-.call-tile.is-tile .call-face {
-  border-radius: 10px;
-}
-.call-tile.is-tile .call-who {
-  display: none;
-}
-.call-tile.is-tile .call-bar {
-  justify-content: center;
-  padding: 6px;
+.call-tile.is-speaking.is-tile {
+  box-shadow:
+    0 0 0 4px var(--brand-ink),
+    0 0 0 6px var(--accent),
+    0 26px 50px -18px rgba(22, 41, 42, 0.6);
 }
 .call-tile.is-mini {
   border-radius: 50%;
   cursor: grab;
+  box-shadow: 0 16px 34px -12px rgba(22, 41, 42, 0.5), 0 0 0 2px #fff, 0 0 0 4px var(--brand-2);
 }
 .call-tile.is-dragging {
   cursor: grabbing;
+  transition: width 0.45s, height 0.45s, border-radius 0.45s;
 }
 .call-tile:focus-visible {
   outline: 2px solid var(--accent);
@@ -213,26 +166,60 @@
   width: 100%;
   overflow: hidden;
   background: linear-gradient(180deg, #eef4f2 0%, #dfeae7 100%);
+  transition: height 0.45s var(--ease);
+}
+.call-tile.is-tile .call-face {
+  border-radius: 10px;
 }
 .call-tile.is-docked .call-face,
 .call-tile.is-mini .call-face {
   height: 100% !important;
 }
-.call-face > .dock-avatar {
+.call-face > .dock-avatar,
+.call-face > .face-placeholder,
+.call-face > .face-still {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
 }
+.dock-avatar {
+  display: block;
+}
+/* The idle face: her still photo; the live avatar replaces it only in a call. */
+.face-still {
+  display: block;
+  object-fit: cover;
+  object-position: 50% 30%;
+  user-select: none;
+}
+/* With no photo for the character: her initial. */
+.face-placeholder {
+  display: grid;
+  place-items: center;
+  background: radial-gradient(circle at 50% 36%, #fff 0%, var(--brand-soft) 60%, #cfe2de 100%);
+}
+.face-placeholder span {
+  font-family: var(--serif);
+  color: var(--brand);
+  line-height: 1;
+  font-size: 21px;
+}
+.call-tile.is-tile .face-placeholder span {
+  font-size: 64px;
+}
+.call-tile.is-mini .face-placeholder span {
+  font-size: 26px;
+}
 .call-tag {
   position: absolute;
   top: 6px;
   left: 6px;
-  padding: 2px 7px;
+  padding: 2px 8px;
   border-radius: 999px;
   background: rgba(8, 63, 65, 0.78);
   color: #fff;
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 650;
 }
 .call-state {
@@ -242,13 +229,14 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  height: 20px;
-  padding: 0 8px;
+  height: 22px;
+  padding: 0 9px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.92);
-  font-size: 10.5px;
-  font-weight: 620;
+  background: rgba(255, 255, 255, 0.94);
   color: var(--ink-2);
+  font-size: 11px;
+  font-weight: 620;
+  white-space: nowrap;
 }
 .call-state::before {
   content: "";
@@ -265,21 +253,48 @@
   background: var(--accent);
   animation: blink 0.7s ease-in-out infinite;
 }
+.call-state.is-muted::before {
+  background: var(--danger);
+}
+@keyframes blink {
+  50% {
+    opacity: 0.3;
+  }
+}
 .call-bar {
   flex: 1;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: space-between;
-  gap: 10px;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 4px 4px;
   min-height: 0;
+}
+/* The language toggle on the tile's dark bar. */
+.call-bar .lang {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: transparent;
+  padding: 2px;
+}
+.call-bar .lang-opt {
+  height: 24px;
+  min-width: 34px;
+  padding: 0 8px;
+  font-size: 12px;
+  color: #b7cdca;
+}
+.call-bar .lang-opt.is-on {
+  background: #fff;
+  color: var(--brand-ink);
 }
 .call-controls {
   display: flex;
   gap: 8px;
 }
 .call-btn {
-  width: 28px;
-  height: 28px;
+  width: 30px;
+  height: 30px;
   border-radius: 50%;
   display: grid;
   place-items: center;
@@ -293,30 +308,58 @@
   background: #fff;
   color: var(--ink);
 }
-.call-btn svg {
-  width: 14px;
-  height: 14px;
-}
 .call-end,
 .call-end:hover {
   background: var(--danger);
 }
 .call-expand {
   position: absolute;
-  right: 4px;
-  bottom: 4px;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
+  inset: 0;
   display: grid;
-  place-items: center;
-  background: #fff;
-  color: var(--ink);
+  place-items: end center;
+  padding-bottom: 6px;
+  background: transparent;
+  color: #fff;
+  opacity: 0;
 }
-@media (max-width: 599px) {
+.call-tile.is-mini:hover .call-expand,
+.call-expand:focus-visible {
+  opacity: 1;
+}
+@media (max-width: 640px) {
   .dock {
-    min-width: 0;
+    left: 12px;
+    right: 12px;
     bottom: calc(12px + env(safe-area-inset-bottom));
+    gap: 8px;
+    padding: 5px;
+    max-width: none;
+  }
+  .dock.is-left {
+    left: 12px;
+  }
+  .dock-text {
+    flex: 1;
+    max-width: none;
+  }
+  .dock-face {
+    width: 40px;
+    height: 40px;
+  }
+  .dock-cta {
+    height: 40px;
+    padding: 0 12px;
+    font-size: 13px;
+  }
+  .call-controls {
+    gap: 6px;
+  }
+  .call-btn {
+    width: 28px;
+    height: 28px;
+  }
+  .call-tile.is-tile .face-placeholder span {
+    font-size: 48px;
   }
 }
 
@@ -434,20 +477,3 @@
   font-size: 12px;
 }
 
-/* Her initial, under the avatar until its runtime has drawn the face. */
-.face-initial {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  font-family: var(--serif);
-  font-size: clamp(20px, 30%, 80px);
-  color: var(--brand);
-  background: radial-gradient(circle at 50% 36%, #fff 0%, var(--brand-soft) 60%, #cfe2de 100%);
-}
-.call-tile.is-tile .face-initial {
-  font-size: 64px;
-}
-.call-tile.is-docked .face-initial {
-  font-size: 21px;
-}

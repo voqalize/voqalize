@@ -87,7 +87,7 @@ function ChangeSheet({ a }: { a: Appt }) {
             <strong>{ch.fee ? `Fee: ${rupees(ch.fee)}` : "No fee"}</strong>
           </p>
           {ch.error ? <p className="form-error">{ch.error}</p> : null}
-          <div className="sheet-actions">
+          <div className="sheet-actions" data-dock-avoid>
             <button type="button" className="btn btn-primary" data-confirm onClick={() => actions.applyChange()} disabled={!terms.allowed}>
               {ch.action === "cancel" ? "Confirm cancellation" : "Confirm new time"}
             </button>
@@ -163,7 +163,7 @@ function ApptCard({ a }: { a: Appt }) {
   const terms = changeTerms(a, cal);
   const after = aftercareLine(a.service);
   return (
-    <article className={`appt${a.id === pulse ? " is-pulse" : ""}`} data-stage-thing={`appt-${a.id}`} data-stage-label={a.id}>
+    <article className={`appt${a.id === pulse ? " is-pulse" : ""}`} data-stage-group data-stage-thing={`appt-${a.id}`} data-stage-label={a.id}>
       <div className="appt-date" aria-hidden>
         <span>{shortDate(a.date).split(" ")[0]}</span>
         <strong>{a.date.slice(8)}</strong>
@@ -253,7 +253,7 @@ function CallbackForm() {
             <input value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="numeric" />
           </label>
         </div>
-        <button type="submit" className="btn btn-primary" disabled={!reason.trim()}>
+        <button type="submit" className="btn btn-primary" data-dock-avoid disabled={!reason.trim()}>
           Request callback
         </button>
       </form>

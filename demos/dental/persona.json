@@ -1,8 +1,9 @@
 {
-  "$comment": "The front-desk character, in one place. The brain (backend/persona.py) and the page (frontend/src/persona.ts) both read this file: change the character, a voice or a language here and nowhere else. `character` is the @voqalize/avatar face; `voices` maps each offered language to a Voqalize voice id that speaks it; `names` is how she says her own name in each language.",
+  "$comment": "The front-desk character, in one place. The brain (backend/persona.py) and the page (frontend/src/persona.ts) both read this file: change the character, a voice or a language here and nowhere else. `character` is the @voqalize/avatar face, and also names the still photo the idle dock shows (frontend/src/characters/<character>.webp; add one when you change the character, or the dock shows her initial); `voices` maps each offered language to a Voqalize voice id that speaks it; `names` is how she says her own name in each language; `roles` is the label under her name in the dock and the call tile, per page.",
   "character": "meera",
   "names": { "en": "Meera", "hi": "मीरा" },
   "role": "Front desk",
+  "roles": { "home": "Front desk", "book": "Bookings", "my-appointments": "Appointments" },
   "voices": { "en": "omnivoice/meera", "hi": "omnivoice/meera" },
   "languages": [
     { "code": "en", "label": "English", "short": "EN" },

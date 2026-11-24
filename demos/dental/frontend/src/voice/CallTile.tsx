@@ -1,28 +1,34 @@
 /**
- * The agent's face, as one fixed element that moves between three shapes:
+ * Meera's face, as ONE fixed element for the page's whole life, in three
+ * shapes:
  *
- * - **docked**: sitting exactly on the dock's face slot, before and after a call;
- * - **tile**: a floating video-call card once the call connects, with her name,
- *   what she is doing, and mute / minimise / end controls;
+ * - **docked**: sitting exactly on the idle dock's face slot, before and after
+ *   a call;
+ * - **tile**: a floating call card once the call connects (the dock goes
+ *   away), with the name tag, what she is doing, the language toggle and
+ *   mute / minimise / end;
  * - **mini**: a small bubble at the tile's place, after Minimise.
  *
- * It is one element for the whole page life, so the avatar inside it (the
- * `@voqalize/avatar` mount the caller passes as `children`) is never re-created:
- * popping out, dragging, minimising and going back into the dock only change
- * its box. The tile drags with mouse or touch (pointer events), snaps to the
- * nearest corner or side on release, stays below the header, steps aside for
- * Add to cart and checkout buttons, and remembers where it was.
+ * Being one element, the avatar inside it (passed as `children`) is never
+ * re-created: popping out, dragging, minimising and going back into the dock
+ * only change its box. The tile drags with mouse or touch, snaps to the nearest
+ * corner or side on release, stays below the top bar, steps aside for primary
+ * actions (`data-dock-avoid`), moves to a top corner while a drawer or dialog
+ * is open (`raisedCorner`), and remembers where it was. Paynora's widget,
+ * adapted to the clinic's header.
  */
 import { Maximize2, Mic, MicOff, Minus, PhoneOff } from "lucide-react";
-import { debugMode } from "./events";
 import { type ReactNode, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { create } from "zustand";
-import { displayName, persona } from "../persona";
+import { useLocation } from "react-router-dom";
+import { displayName, roleFor } from "../persona";
+import { debugMode } from "./events";
+import type { CallState } from "./fake";
+import { LangToggle } from "../components/LangToggle";
+import { avoidRects, isPhone, raisedCorner } from "./useDockMode";
 
-export type CallState = "connecting" | "listening" | "thinking" | "speaking" | "error";
 type Anchor = "tl" | "tr" | "ml" | "mr" | "bl" | "br";
 const ANCHORS: Anchor[] = ["tl", "tr", "ml", "mr", "bl", "br"];
-const KEY = "dantika-call-tile";
+const KEY = "dantika-call-tile-v2";
 const MARGIN = 16;
 
 interface Saved {
@@ -37,14 +43,15 @@ function load(): Saved {
   } catch {
     /* storage unavailable */
   }
-  // Bottom-left: over a listing's filter column rather than its products.
+  // Bottom right, where the idle dock sits: clear of the hero's and the
+  // booking page's actions, which are on the left and in the middle.
   return { anchor: "br", mini: false };
 }
 function save(s: Saved) {
   try {
     localStorage.setItem(KEY, JSON.stringify(s));
   } catch {
-    /* storage unavailable: the tile just starts bottom-left next time */
+    /* storage unavailable: the tile starts bottom right next time */
   }
 }
 
@@ -55,26 +62,14 @@ interface Box {
   height: number;
 }
 
-const phone = () => window.matchMedia("(max-width: 699px)").matches;
-
-/** The tile's size here: a small framed portrait, smaller on a phone. It
- *  sits over the page, so it is kept to about a quarter of the old card's
- *  area — small enough to park over a listing's filter column. */
+/** The tile's size: a small framed portrait over a bar of controls. */
 function tileSize(mini: boolean): { width: number; height: number; face: number } {
   if (mini) return { width: 64, height: 64, face: 64 };
-  const width = phone() ? 104 : 150;
-  const face = Math.round(width * 1.2);
-  return { width, height: face + (phone() ? 36 : 40), face };
+  const phone = isPhone();
+  const width = phone ? 128 : 172;
+  const face = Math.round(width * (phone ? 0.92 : 1.02));
+  return { width, height: face + (phone ? 72 : 78), face };
 }
-
-/**
- * The side the agent wants the tile on, so it covers what she is not talking
- * about: the left (a listing's filter column) while she shows products, the
- * right while she works the filters. `n` counts requests, so asking for the
- * same side again after a drag moves it back.
- */
-export const useTileSide = create<{ side: "l" | "r" | null; n: number }>(() => ({ side: null, n: 0 }));
-export const preferTileSide = (side: "l" | "r") => useTileSide.setState((s) => ({ side, n: s.n + 1 }));
 
 function headerBottom(): number {
   const h = document.querySelector(".site-header")?.getBoundingClientRect();
@@ -86,36 +81,26 @@ function boxAt(anchor: Anchor, size: { width: number; height: number }): Box {
   const vw = window.innerWidth;
   const vh = window.innerHeight;
   const left = anchor.endsWith("l") ? MARGIN : vw - size.width - MARGIN;
-  const top =
-    anchor[0] === "t" ? top0 : anchor[0] === "m" ? Math.max(top0, (vh - size.height) / 2) : vh - size.height - MARGIN - (phone() ? 8 : 12);
+  const top = anchor[0] === "t" ? top0 : anchor[0] === "m" ? Math.max(top0, (vh - size.height) / 2) : vh - size.height - MARGIN;
   return { left, top: Math.max(top0, top), ...size };
-}
-
-/** The dock's in-flight CSS `translate` (its entrance slide), in px. */
-function restOffset(dock: HTMLElement | null | undefined): [number, number] {
-  const t = dock ? getComputedStyle(dock).translate : "none";
-  if (!t || t === "none") return [0, 0];
-  const [x = 0, y = 0] = t.split(" ").map((v) => parseFloat(v) || 0);
-  return [x, y];
 }
 
 const overlaps = (a: Box, b: DOMRect) => a.left < b.right && a.left + a.width > b.left && a.top < b.bottom && a.top + a.height > b.top;
 
-/** The anchor to use: the shopper's, unless it would cover an Add to cart or checkout button. */
+/** The visitor's anchor, unless it would cover a primary action. */
 function clearAnchor(want: Anchor, size: { width: number; height: number }): Anchor {
-  const blockers = [...document.querySelectorAll<HTMLElement>("[data-dock-avoid]")]
-    .map((el) => el.getBoundingClientRect())
-    .filter((r) => r.width > 0 && r.bottom > 0 && r.top < window.innerHeight);
+  const blockers = avoidRects();
   const free = (a: Anchor) => !blockers.some((r) => overlaps(boxAt(a, size), r));
   if (free(want)) return want;
-  const order: Anchor[] = [want[1] === "r" ? "tr" : "tl", want[1] === "r" ? "mr" : "ml", want[1] === "r" ? "tl" : "tr", "ml", "mr", "bl", "br"];
+  const h = want[1];
+  const o = h === "r" ? "l" : "r";
+  const order = [`b${o}`, `m${h}`, `t${h}`, `m${o}`, `t${o}`] as Anchor[];
   return order.find(free) ?? want;
 }
 
 export function CallTile({
   live,
   state,
-  heard,
   muted,
   onMute,
   onEnd,
@@ -123,7 +108,6 @@ export function CallTile({
 }: {
   live: boolean;
   state: CallState;
-  heard: string;
   muted: boolean;
   onMute: () => void;
   onEnd: () => void;
@@ -132,9 +116,15 @@ export function CallTile({
 }) {
   const [saved, setSaved] = useState<Saved>(load);
   const [box, setBox] = useState<Box | null>(null);
+  const [raised, setRaised] = useState<"tl" | "tr" | null>(null);
   const [drag, setDrag] = useState<{ dx: number; dy: number; left: number; top: number } | null>(null);
-  const [, setTick] = useState(0);
+  // On a phone a drawer is the whole screen: while one is open the tile
+  // shrinks to the bubble (tap it to open the controls again).
+  const [opened, setOpened] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const autoMini = !!raised && isPhone() && !opened;
+  const mode: "docked" | "tile" | "mini" = !live ? "docked" : saved.mini || autoMini ? "mini" : "tile";
+  const role = roleFor(useLocation().pathname);
   // Dev-only handle (?debug=1): the SPA check holds this to one mount for the whole visit.
   const mountId = useRef(Math.random().toString(36).slice(2));
   useEffect(() => {
@@ -142,39 +132,27 @@ export function CallTile({
     const w = window as unknown as { __dentalVoice?: Record<string, unknown> };
     w.__dentalVoice = { ...w.__dentalVoice, face: mountId.current };
   }, []);
-  const mode: "docked" | "tile" | "mini" = !live ? "docked" : saved.mini ? "mini" : "tile";
 
-  // The agent's side: the same height, the other side. Not saved — the shopper's
-  // own drag is what the next visit remembers.
-  const side = useTileSide();
-  useEffect(() => {
-    const want = side.side;
-    if (!want) return;
-    setSaved((s) => (s.anchor[1] === want ? s : { ...s, anchor: `${s.anchor[0]}${want}` as Anchor }));
-  }, [side.n]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Where the element sits right now, recomputed on scroll and resize.
+  // Where the element sits right now, recomputed on scroll, resize and a poll
+  // (an overlay opened by a move, the dock moving, have no event of their own).
   const place = useCallback(() => {
     if (mode === "docked") {
       const slotEl = document.querySelector(".dock-face-slot");
       const slot = slotEl?.getBoundingClientRect();
       const dock = slotEl?.closest<HTMLElement>(".dock");
       const hidden = !!dock?.classList.contains("is-hidden");
-      // Where the slot sits once the dock is at rest. The dock slides in
-      // (`dock-in`) and the face runs the same slide itself, so measuring
-      // mid-slide would count the offset twice: the face sat low on load,
-      // then glided up at the next poll.
-      const [dx, dy] = restOffset(dock);
-      setBox(
-        slot && slot.width && !hidden
-          ? { left: slot.left - dx, top: slot.top - dy, width: slot.width, height: slot.height }
-          : null,
-      );
+      setRaised(null);
+      setBox(slot && slot.width && !hidden ? { left: slot.left, top: slot.top, width: slot.width, height: slot.height } : null);
       return;
     }
-    const size = tileSize(mode === "mini");
-    setBox(boxAt(clearAnchor(saved.anchor, size), size));
-  }, [mode, saved.anchor]);
+    const corner = raisedCorner();
+    setRaised(corner);
+    if (!corner) setOpened(false);
+    const size = tileSize(mode === "mini" || (!!corner && isPhone() && !opened));
+    // Raised, it stays under the header (the clinic's overlays have no scrim
+    // over it): the menu and Book buttons stay reachable.
+    setBox(corner ? boxAt(corner, size) : boxAt(clearAnchor(saved.anchor, size), size));
+  }, [mode, saved.anchor, opened]);
 
   useLayoutEffect(() => {
     place();
@@ -185,8 +163,7 @@ export function CallTile({
     };
     window.addEventListener("scroll", soon, { passive: true });
     window.addEventListener("resize", soon);
-    // The dock moves (compact, hidden) without a scroll event of its own.
-    const t = window.setInterval(soon, 400);
+    const t = window.setInterval(soon, 300);
     return () => {
       cancelAnimationFrame(frame);
       window.clearInterval(t);
@@ -227,13 +204,16 @@ export function CallTile({
   };
 
   const setMini = (mini: boolean) => {
+    if (!mini && autoMini) {
+      setOpened(true);
+      return;
+    }
     const next = { ...saved, mini };
     setSaved(next);
     save(next);
-    setTick((n) => n + 1);
   };
 
-  // Keyboard: arrows move the tile between corners, for anyone not dragging.
+  // Keyboard: arrows move the tile between corners.
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (mode === "docked" || (e.target as Element).closest("button")) return;
     const v = saved.anchor[0];
@@ -252,20 +232,16 @@ export function CallTile({
     save(s);
   };
 
-  // One element always, so the avatar inside is never re-created; with nowhere
-  // to sit (the dock hidden) it is parked out of sight.
+  // With nowhere to sit (the dock hidden) it is parked out of sight; leaving
+  // the park jumps straight to the slot rather than flying in from a corner.
   const parked = !box;
-  // Leaving the park jumps straight to the slot: easing `left`/`top` from
-  // the park would fly the face in from the top-left corner.
   const wasParked = useRef(true);
   const snap = wasParked.current && !parked;
   useLayoutEffect(() => {
-    // Commit the jump while transitions are off: a render in the same frame
-    // that drops `is-snap` would otherwise ease from the park after all.
     if (snap) void ref.current?.offsetHeight;
     wasParked.current = parked;
   });
-  const at = box ?? { left: -200, top: -200, width: 46, height: 46 };
+  const at = box ?? { left: -200, top: -200, width: 44, height: 44 };
   const pos = drag ? { left: drag.left, top: drag.top } : { left: at.left, top: at.top };
   const face = mode === "tile" ? tileSize(false).face : at.height;
   const LABEL: Record<CallState, string> = {
@@ -275,15 +251,17 @@ export function CallTile({
     speaking: "Speaking",
     error: "Could not connect",
   };
+  const shown = muted && state === "listening" ? "muted" : state;
 
   return (
     <div
       ref={ref}
-      className={`call-tile is-${mode} is-${state}${drag ? " is-dragging" : ""}${parked ? " is-parked" : ""}${snap ? " is-snap" : ""}`}
+      className={`call-tile is-${mode} is-${state}${drag ? " is-dragging" : ""}${parked ? " is-parked" : ""}${snap ? " is-snap" : ""}${raised ? " is-raised" : ""}`}
       style={{ left: pos.left, top: pos.top, width: at.width, height: at.height }}
       role={mode === "docked" ? undefined : "region"}
-      aria-label={mode === "docked" ? undefined : `Call with ${displayName}. Drag, or use the arrow keys, to move it.`}
+      aria-label={mode === "docked" ? undefined : `Call with ${displayName}, ${role}. Drag, or use the arrow keys, to move it.`}
       tabIndex={mode === "docked" ? -1 : 0}
+      data-voqalize
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
@@ -294,8 +272,12 @@ export function CallTile({
         {children}
         {mode === "tile" ? (
           <>
-            <span className="call-tag">{displayName}</span>
-            <span className={`call-state is-${state}`}>{LABEL[state]}</span>
+            <span className="call-tag" title={role}>
+              {displayName}
+            </span>
+            <span className={`call-state is-${shown}`} aria-live="polite">
+              {LABEL[state]}
+            </span>
           </>
         ) : null}
         {mode === "mini" ? (
@@ -306,22 +288,15 @@ export function CallTile({
       </div>
       {mode === "tile" ? (
         <div className="call-bar">
-          <div className="call-who">
-            <p className="call-name">{displayName}</p>
-            {!phone() ? (
-              <p className="call-heard" aria-live="polite">
-                {heard ? `“${heard}”` : persona.role}
-              </p>
-            ) : null}
-          </div>
+          <LangToggle compact />
           <div className="call-controls">
-            <button type="button" className="call-btn" aria-pressed={muted} aria-label={muted ? "Turn microphone on" : "Turn microphone off"} onClick={onMute}>
+            <button type="button" className="call-btn" aria-pressed={muted} aria-label={muted ? "Turn microphone on" : "Turn microphone off"} title={muted ? "Unmute" : "Mute"} onClick={onMute}>
               {muted ? <MicOff size={16} /> : <Mic size={16} />}
             </button>
-            <button type="button" className="call-btn" aria-label="Minimise the call" onClick={() => setMini(true)}>
+            <button type="button" className="call-btn" aria-label="Minimise the call" title="Minimise" onClick={() => setMini(true)}>
               <Minus size={16} />
             </button>
-            <button type="button" className="call-btn call-end" aria-label="End the call" onClick={onEnd}>
+            <button type="button" className="call-btn call-end" aria-label="End the call" title="End call" onClick={onEnd}>
               <PhoneOff size={16} />
             </button>
           </div>

@@ -12,7 +12,7 @@ export const DEMO_HINT = "Demo patients: 98450 31726 · 99000 48213 · 98860 551
 export function SignIn({ title = "Sign in with your mobile", note }: { title?: string; note?: string }) {
   const s = useStore((st) => st.signin);
   return (
-    <section className="panel signin" data-stage-thing="signin" data-stage-label="Sign in" aria-labelledby="signin-title">
+    <section className="panel signin" data-stage-group data-stage-thing="signin" data-stage-label="Sign in" aria-labelledby="signin-title">
       <div className="panel-head">
         <ShieldCheck size={18} aria-hidden />
         <h3 id="signin-title">{title}</h3>
@@ -40,7 +40,7 @@ export function SignIn({ title = "Sign in with your mobile", note }: { title?: s
               />
             </span>
           </label>
-          <button type="submit" className="btn btn-primary">
+          <button type="submit" className="btn btn-primary" data-dock-avoid>
             Send code
           </button>
         </form>
@@ -76,7 +76,7 @@ export function SignIn({ title = "Sign in with your mobile", note }: { title?: s
                 onChange={(e) => actions.setCode(e.target.value)}
               />
             </label>
-            <button type="submit" className="btn btn-primary">
+            <button type="submit" className="btn btn-primary" data-dock-avoid>
               Verify
             </button>
           </form>
@@ -100,7 +100,7 @@ export function SignIn({ title = "Sign in with your mobile", note }: { title?: s
             <span>Full name</span>
             <input name="name" autoComplete="name" placeholder="As on your ID" value={s.name} onChange={(e) => actions.setName(e.target.value)} />
           </label>
-          <button type="submit" className="btn btn-primary" disabled={!s.name.trim()}>
+          <button type="submit" className="btn btn-primary" data-dock-avoid disabled={!s.name.trim()}>
             Register
           </button>
         </form>

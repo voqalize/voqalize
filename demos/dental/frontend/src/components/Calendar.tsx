@@ -252,7 +252,7 @@ export function Calendar(props: CalendarProps) {
   const label = week ? weekLabel(mondayOf(props.date)) : `${shortDate(props.date).split(" ")[0]}, ${longDate(props.date)}`;
 
   return (
-    <section className={`cal is-${props.view}${!week && cols.length > 3 ? " is-many" : ""}`} data-stage-thing="calendar" data-stage-label="Calendar" aria-label="Appointment calendar">
+    <section className={`cal is-${props.view}${!week && cols.length > 3 ? " is-many" : ""}`} data-stage-group data-stage-thing="calendar" data-stage-label="Calendar" aria-label="Appointment calendar">
       <div className="cal-bar">
         <div className="cal-title">
           {props.title ?? <strong>{week && weekSubject ? subjectName(weekSubject) : "Calendar"}</strong>}

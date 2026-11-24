@@ -229,7 +229,7 @@ function Summary() {
   const s = hold.slot;
   const rule = checkRule(svc, me, s.date, cal);
   return (
-    <section className="panel summary" data-stage-thing="summary" data-stage-label="Booking summary" aria-live="polite">
+    <section className="panel summary" data-stage-group data-stage-thing="summary" data-stage-label="Booking summary" aria-live="polite">
       <p className="summary-kicker">Held for you, not yet booked</p>
       <h3>{svc.name}</h3>
       <dl className="facts">
@@ -298,7 +298,7 @@ function Summary() {
       ) : null}
       {b.error ? <p className="form-error">{b.error}</p> : null}
       <div className="summary-actions">
-        <button type="button" className="btn btn-primary btn-lg" data-stage-thing="confirm" data-stage-label="Confirm" onClick={() => actions.confirm()} disabled={rule.ok === false}>
+        <button type="button" className="btn btn-primary btn-lg" data-dock-avoid data-stage-thing="confirm" data-stage-label="Confirm" onClick={() => actions.confirm()} disabled={rule.ok === false}>
           {me ? "Confirm booking" : "Confirm"}
         </button>
         <button type="button" className="btn btn-ghost" onClick={() => actions.clearHold()}>
@@ -329,7 +329,7 @@ function Confirmation() {
   const svc = service(a.service)!;
   const later = b.confirmed.sittingIds.map((id) => cal.appts.get(id)).filter(Boolean);
   return (
-    <section className="panel confirmed" data-stage-thing="summary" data-stage-label="Booking confirmed" aria-live="polite">
+    <section className="panel confirmed" data-stage-group data-stage-thing="summary" data-stage-label="Booking confirmed" aria-live="polite">
       <p className="confirmed-tick">
         <Check size={18} aria-hidden /> Booked
       </p>

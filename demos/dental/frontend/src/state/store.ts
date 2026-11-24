@@ -24,7 +24,8 @@ import {
 } from "../data/slots";
 import { type By, emit } from "../voice/events";
 import type { AppointmentIn } from "../voice/events.gen";
-import { LANGS, persona } from "../persona";
+import { LANGS } from "../persona";
+import { loadLang, saveLang } from "../savedLang";
 
 const KEY = "dantika-demo-v1";
 
@@ -167,7 +168,7 @@ export const useStore = create<State>(() => ({
   signin: freshSignin(),
   change: null,
   picker: null,
-  lang: persona.default_language,
+  lang: loadLang(),
   pendingLang: null,
   pulse: null,
   lastCallback: null,
@@ -532,7 +533,9 @@ export const actions = {
 
   // ── Language ──
   setLang(lang: string) {
-    if (LANGS.includes(lang)) set({ lang, pendingLang: null });
+    if (!LANGS.includes(lang)) return;
+    saveLang(lang);
+    set({ lang, pendingLang: null });
   },
   requestLang(lang: string) {
     set({ pendingLang: lang });

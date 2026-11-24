@@ -25,7 +25,7 @@ export function CallbackCard() {
   const cb = useStore((s) => s.callbacks.find((c) => c.id === id));
   if (!cb) return null;
   return (
-    <aside className="callback-card" data-stage-thing="callback" data-stage-label="Callback request" aria-live="polite">
+    <aside className="callback-card" data-overlay="bottom" data-dock-avoid data-stage-thing="callback" data-stage-label="Callback request" aria-live="polite">
       <div className="panel-head">
         <PhoneCall size={18} aria-hidden />
         <h3>Callback requested</h3>

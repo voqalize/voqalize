@@ -21,6 +21,19 @@ she offers are the ones the calendar shows.
 The call starts on whichever page the visitor is on, and that page sets her job; she follows
 the visitor to the others.
 
+## The agent widget
+
+One entry point on every page, the same widget as Paynora's. Idle, a bar at the bottom right
+with Meera's still photo, her name, the job on this page (persona.json `roles`), EN / हिंदी and
+"Talk to Meera". In a call the bar goes away and a draggable face tile holds the live avatar
+(only there does the avatar runtime start), the language toggle (mid-call it asks her to
+switch), mute, minimise and end. No transcript is shown anywhere. The language is remembered in
+the browser across reloads, so the next call and a redial start in it. The bar and the tile step
+aside for the page's main buttons (`data-dock-avoid`: Book an emergency visit, Confirm, the
+sign-in buttons, a change sheet's Confirm and Keep), and move to a top corner under the header
+when the callback card covers their place on a phone (`data-overlay`). Whatever she rings is
+first scrolled fully into view with the group around it (`frontend/src/stage/view.ts`).
+
 ## What is real here
 
 - **Slots are computed** (`backend/clinic.py`, and `frontend/src/data/slots.ts` by the same
@@ -90,7 +103,10 @@ types dental/backend/app_events.py -o dental/frontend/src/voice/events.gen.ts`.
 
 Edit `persona.json` and nothing else for the character:
 
-- `character`: the `@voqalize/avatar` face (a name from `listCharacters()`).
+- `character`: the `@voqalize/avatar` face (a name from `listCharacters()`). It also names the
+  still photo the idle bar shows, `frontend/src/characters/<character>.webp`: add one for a new
+  character (without it the bar shows her initial).
+- `roles`: the label under her name in the bar and the tile, per page.
 - `names`: how she says her own name, per language (greetings and the call button read it).
 - `voices`: a Voqalize voice id per language. The voice must speak that language (the speech
   tier's `/voices.json` lists each voice's languages); `omnivoice/meera` speaks `en` and `hi`.

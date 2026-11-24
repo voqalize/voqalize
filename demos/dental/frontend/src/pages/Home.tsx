@@ -14,9 +14,7 @@ import {
   time12,
 } from "../data/clinic";
 import { shortDate } from "../data/slots";
-import { LangToggle } from "../components/LangToggle";
 import { displayName, persona } from "../persona";
-import { useVoiceClient } from "../stage/client";
 import { useStore } from "../state/store";
 import { callLabel } from "../voice/label";
 
@@ -69,23 +67,6 @@ function NextFree() {
   );
 }
 
-function CallCta() {
-  const begin = useVoiceClient((s) => s.begin);
-  const live = useVoiceClient((s) => s.live);
-  const lang = useStore((s) => s.lang);
-  return (
-    <div className="hero-call">
-      <button type="button" className="btn btn-call" disabled={!begin || live} onClick={() => begin?.()} title={begin ? undefined : "Voice is not switched on for this preview"}>
-        <Mic size={18} aria-hidden /> {live ? `On a call with ${displayName}` : callLabel(lang)}
-      </button>
-      <LangToggle />
-      <p className="hero-call-note">
-        {displayName} at our front desk can book, move or cancel a visit, and explain prices and preparation in English or Hindi.
-      </p>
-    </div>
-  );
-}
-
 export function Home() {
   return (
     <div data-page="home">
@@ -108,7 +89,6 @@ export function Home() {
                 Manage my appointments
               </Link>
             </div>
-            <CallCta />
           </div>
           <NextFree />
         </div>
@@ -121,7 +101,7 @@ export function Home() {
             <strong>In pain today?</strong> Emergency visits can be booked for today from 30 minutes ahead. On Sundays call the on-call dentist at{" "}
             <a href={`tel:${CLINIC.emergency_line.replace(/\s/g, "")}`}>{CLINIC.emergency_line}</a>.
           </p>
-          <Link to="/book" className="btn btn-sm btn-light">
+          <Link to="/book" className="btn btn-sm btn-light" data-dock-avoid>
             Book an emergency visit
           </Link>
         </div>
@@ -318,7 +298,9 @@ export function Home() {
               code on your phone, and asks a dentist to call you about anything clinical.
             </p>
           </div>
-          <CallCta />
+          <p className="talk-hint">
+            <Mic size={18} aria-hidden /> Press <strong>{callLabel(persona.default_language)}</strong> at the bottom of the screen, and pick {persona.languages.map((l) => l.label).join(" or ")} beside it.
+          </p>
         </div>
       </section>
     </div>

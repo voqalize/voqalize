@@ -11,7 +11,8 @@ only in the same PR as the code.
 
 ## Data (read by both sides; nothing else is a source of facts)
 
-- `persona.json` — avatar `character`, `names` per language, `voices` per language, `languages`
+- `persona.json` — avatar `character` (also the still photo `frontend/src/characters/<character>.webp`),
+  `names` per language, `roles` per page (the widget's label), `voices` per language, `languages`
   offered (code, label, short), `default_language`.
 - `data/clinic.json` — clinic, branches (chairs, imaging rooms, parking), dentists (weekly
   schedules), services (category, duration, price range, eligible dentists, chair kinds, imaging

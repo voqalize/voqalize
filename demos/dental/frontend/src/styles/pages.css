@@ -214,22 +214,6 @@
   gap: 10px;
   margin: 26px 0 30px;
 }
-.hero-call {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 12px;
-  padding-top: 22px;
-  border-top: 1px solid var(--line);
-  max-width: 600px;
-}
-.hero-call-note {
-  flex-basis: 100%;
-  margin: 0;
-  font-size: 14px;
-  color: var(--muted);
-  max-width: 54ch;
-}
 
 /* The language toggle */
 .lang {
@@ -592,12 +576,18 @@
   gap: 40px;
   align-items: center;
 }
-.talk-band .hero-call {
-  border-top: 0;
-  padding-top: 0;
+.talk-hint {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.5;
 }
-.talk-band .hero-call-note {
-  color: #b7cdca;
+.talk-hint svg {
+  flex: none;
+  margin-top: 3px;
+  color: var(--accent);
 }
 
 @media (max-width: 1099px) {
@@ -1308,7 +1298,7 @@
 .callback-card {
   position: fixed;
   left: 16px;
-  bottom: 96px;
+  bottom: calc(20px + env(safe-area-inset-bottom));
   z-index: 50;
   width: min(360px, calc(100vw - 32px));
   background: #fff;
