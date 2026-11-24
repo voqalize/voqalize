@@ -17,13 +17,17 @@ This file is the agreement between `frontend/` and `backend/`. Change it only in
 
 `persona.json` is the only place the character lives: avatar `character`, display `name`, `gender`
 (Hindi first-person forms), `voices` per language, `languages`, `default_language`, toggle labels.
-The page imports it (dock copy "Talk to {name}", avatar, alt text, the EN / हिंदी toggle); the brain
+The page imports it (dock copy "Talk to {name}", avatar, the still photo
+`frontend/src/characters/<character>.webp`, the dock's role label per job from `roles`, alt text, the
+EN / हिंदी toggle); the brain
 imports it (voice per language, greetings, prompt). Nothing else names the character.
 
 The visitor picks the language before the call (toggle by the call button); it rides `init.lang`
 (`"en"` | `"hi"`). The brain configures both legs in `on_session_start`. Mid-call the toggle sends the
 app event `language_requested{language}`; the brain also switches when it hears Hindi or is asked, and
-tells the page with the action `language_changed{language}` so the toggle follows.
+tells the page with the action `language_changed{language}` so the toggle follows. The page remembers
+the last language used (localStorage `varenya-lang`), so after a reload the toggle and the next
+call's `init.lang` start in it.
 
 ## Data (single source of truth, read by both halves)
 

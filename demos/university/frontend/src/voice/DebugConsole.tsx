@@ -8,6 +8,7 @@ import { useState } from "react";
 import type { StageResult } from "@voqalize/stage";
 import { runByHand, useStageLog } from "../stage/host";
 import { scene } from "../stage/scene.gen";
+import { FAKE_STATES, useFakeCall } from "./fake";
 
 const EXAMPLES: Record<string, Record<string, string>> = {
   "catalogue.filter": { facet: "Level", value: "Postgraduate" },
@@ -59,6 +60,7 @@ export function DebugConsole() {
           <X size={16} />
         </button>
       </header>
+      <FakeCall />
       <div className="debug-moves">
         {scene.spec.moves.map((m) => {
           const r = results[m.id];
@@ -109,5 +111,29 @@ export function DebugConsole() {
         </ol>
       </div>
     </section>
+  );
+}
+
+/** Fake a call (no client): the dock goes away and the face becomes the call tile, in any state. */
+function FakeCall() {
+  const fake = useFakeCall();
+  return (
+    <div className="debug-fake">
+      <label>
+        <input type="checkbox" checked={fake.on} onChange={(e) => useFakeCall.setState({ on: e.target.checked })} data-fake-call /> Fake a call
+      </label>
+      <select
+        value={fake.state}
+        onChange={(e) => useFakeCall.setState({ state: e.target.value as (typeof FAKE_STATES)[number] })}
+        aria-label="Fake call state"
+        disabled={!fake.on}
+      >
+        {FAKE_STATES.map((st) => (
+          <option key={st} value={st}>
+            {st}
+          </option>
+        ))}
+      </select>
+    </div>
   );
 }

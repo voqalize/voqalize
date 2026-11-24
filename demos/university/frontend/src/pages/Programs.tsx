@@ -130,7 +130,7 @@ export function Programs() {
       </div>
 
       {s.ticked.length > 0 && s.compared.length === 0 ? (
-        <div className="compare-bar" role="region" aria-label="Compare">
+        <div className="compare-bar" data-dock-avoid role="region" aria-label="Compare">
           <span>
             {s.ticked.length} of 3 ticked: {s.ticked.map((id) => programById(id)?.name).join(", ")}
           </span>
@@ -144,7 +144,7 @@ export function Programs() {
       ) : null}
 
       {s.compared.length ? <Comparison ids={s.compared} onClose={s.closeCompare} /> : null}
-      {s.panelOpen ? <div className="facets-scrim" onClick={() => s.setPanel(false)} aria-hidden /> : null}
+      {s.panelOpen ? <div className="facets-scrim" data-overlay="left" onClick={() => s.setPanel(false)} aria-hidden /> : null}
     </div>
   );
 }
@@ -208,7 +208,7 @@ function Comparison({ ids, onClose }: { ids: string[]; onClose(): void }) {
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
   return (
-    <div className="compare-overlay" role="dialog" aria-modal="true" aria-label="Comparison">
+    <div className="compare-overlay" data-overlay="center" role="dialog" aria-modal="true" aria-label="Comparison">
       <div className="compare-scrim" onClick={onClose} aria-hidden />
       <div className="compare-panel" ref={ref} data-stage-thing="comparison" data-stage-label="Comparison">
         <header>

@@ -5,7 +5,9 @@
  * A stock `PipecatClient` over `@voqalize/client-transport` (with
  * `keepAcrossPageLoads`, so a reload mid-call rejoins it), the connect request
  * in `src/config.ts`, and the persona's face from `@voqalize/avatar`, which
- * reads its state off the same client. Stage attaches to this client
+ * reads its state off the same client. The avatar mounts only while a call is
+ * up, inside the call tile; the idle dock shows the character's still photo
+ * (`Face`). No transcript is shown. Stage attaches to this client
  * (`attachCall`); its own ui-commands go to the app-wide `Moves`, and
  * everything else (`language_changed`) comes back here as a site command.
  */
@@ -20,7 +22,10 @@ import { connectRequest, withRealHeaders } from "../config";
 import { PERSONA, isLang } from "../data/persona";
 import { announce, attachCall, currentPath, useCall } from "../stage/host";
 import { sendSnapshot } from "../stage/report";
-import { type Activity, Dock } from "./Dock";
+import { CallTile } from "./CallTile";
+import { type Activity, DockBar } from "./Dock";
+import { Face } from "./Face";
+import { type CallState, useFakeCall } from "./fake";
 import { useLanguage } from "./language";
 
 function useClient(media: VoqalizeMedia) {
@@ -81,9 +86,9 @@ export default function VoiceCall() {
 function LiveDock({ call }: { call: ReturnType<typeof useClient> }) {
   const [state, setActivity] = useState<Activity>(call.live ? "connecting" : "idle");
   const activity: Activity = call.error ? "error" : state;
-  const [heard, setHeard] = useState("");
   const [muted, setMuted] = useState(false);
   const lang = useLanguage((s) => s.lang);
+  const fake = useFakeCall();
 
   // Stage on this client, for as long as the dock lives; again when the language moves.
   useEffect(() => {
@@ -125,7 +130,7 @@ function LiveDock({ call }: { call: ReturnType<typeof useClient> }) {
     RTVIEvent.Disconnected,
     useCallback(() => {
       setActivity("idle");
-      setHeard("");
+      setMuted(false);
       useCall.setState({ live: false });
     }, []),
   );
@@ -133,42 +138,45 @@ function LiveDock({ call }: { call: ReturnType<typeof useClient> }) {
   useRTVIClientEvent(RTVIEvent.BotLlmStarted, useCallback(() => setActivity("thinking"), []));
   useRTVIClientEvent(RTVIEvent.BotStartedSpeaking, useCallback(() => setActivity("speaking"), []));
   useRTVIClientEvent(RTVIEvent.BotStoppedSpeaking, useCallback(() => setActivity("listening"), []));
-  useRTVIClientEvent(
-    RTVIEvent.UserTranscript,
-    useCallback((d: { text: string }) => {
-      if (d.text) setHeard(d.text);
-    }, []),
-  );
 
   useEffect(() => {
     useCall.setState({ client: call.client as unknown as StageClient });
     return () => useCall.setState({ client: null, live: false });
   }, [call.client]);
 
-  const STATUS: Record<Activity, string> = {
-    idle: PERSONA.role,
-    connecting: "Connecting…",
-    listening: muted ? "Microphone off" : "Listening",
-    thinking: "Thinking",
-    speaking: "Speaking",
-    error: "Could not connect",
+  const on = activity !== "idle" && activity !== "error";
+  // `?debug=1` can fake a call over the real dock, to see and screenshot the tile.
+  const live = on || fake.on;
+  const toggleMute = () => {
+    if (fake.on && !on) {
+      useFakeCall.setState({ muted: !fake.muted });
+      return;
+    }
+    call.client.enableMic(muted);
+    setMuted(!muted);
   };
 
   return (
-    <Dock
-      face={<Avatar className="dock-avatar" client={call.client} character={PERSONA.character} aria-label={PERSONA.name} />}
-      activity={activity}
-      status={call.error ?? (activity === "listening" && heard ? `“${heard}”` : STATUS[activity])}
-      muted={muted}
-      onCall={() => {
-        setActivity("connecting");
-        void call.begin();
-      }}
-      onMute={() => {
-        call.client.enableMic(muted);
-        setMuted(!muted);
-      }}
-      onEnd={() => void call.end()}
-    />
+    <>
+      <CallTile
+        live={live}
+        state={on ? (activity as CallState) : fake.on ? fake.state : "connecting"}
+        muted={on ? muted : fake.muted}
+        onMute={toggleMute}
+        onEnd={() => (on ? void call.end() : useFakeCall.setState({ on: false }))}
+      >
+        {/* Idle: the still photo; the live avatar only once the call tile is up. */}
+        <Face live={on} avatar={() => <Avatar className="dock-avatar" client={call.client} character={PERSONA.character} aria-label={PERSONA.name} />} />
+      </CallTile>
+      <DockBar
+        calling={live}
+        activity={activity}
+        status={call.error}
+        onTalk={() => {
+          setActivity("connecting");
+          void call.begin();
+        }}
+      />
+    </>
   );
 }

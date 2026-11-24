@@ -1,88 +1,68 @@
 /**
- * The voice dock, bottom right: the face, who it is, the status line, the
- * EN / हिंदी toggle and the call button (mute and end while live). The live
- * call and the no-voice build both draw this.
+ * The idle dock, the agent's one entry point: a pill at the bottom right with
+ * the character's still photo (the face slot the call tile sits on), the name,
+ * the job on this page (persona.json `roles`), the EN / हिंदी toggle and
+ * "Talk to {name}". In a call the pill goes away and the face becomes the
+ * floating call tile (`CallTile`), which holds the language toggle, mute,
+ * minimise and end. No transcript is shown anywhere.
  */
-import { Loader2, Mic, MicOff, PhoneOff } from "lucide-react";
-import type { ReactNode } from "react";
-import { type Lang, PERSONA } from "../data/persona";
-import { useLanguage } from "./language";
+import { Loader2, Mic } from "lucide-react";
+import { useLocation } from "react-router-dom";
+import { PERSONA, roleFor } from "../data/persona";
+import { LangToggle } from "./LangToggle";
+import { useDockMode } from "./useDockMode";
 
 export type Activity = "idle" | "connecting" | "listening" | "thinking" | "speaking" | "error";
 
-export function LanguageToggle({ live }: { live: boolean }) {
-  const lang = useLanguage((s) => s.lang);
-  const choose = useLanguage((s) => s.choose);
-  return (
-    <div className={`lang-toggle${live ? " is-live" : ""}`} role="group" aria-label="Conversation language">
-      {PERSONA.languages.map((l: Lang) => (
-        <button
-          key={l}
-          type="button"
-          lang={l}
-          aria-pressed={lang === l}
-          title={live ? `Ask to switch to ${PERSONA.language_names[l]}` : `Talk in ${PERSONA.language_names[l]}`}
-          onClick={() => choose(l)}
-        >
-          {PERSONA.language_labels[l]}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-export function Dock(props: {
-  face: ReactNode;
+/** `calling` hides the pill (the tile has the call); `status` replaces the role line (an error, or "voice is off"). */
+export function DockBar({
+  calling,
+  activity,
+  status,
+  onTalk,
+  disabled = false,
+  title,
+}: {
+  calling: boolean;
   activity: Activity;
-  status: string;
-  muted: boolean;
-  onCall(): void;
-  onMute(): void;
-  onEnd(): void;
+  status?: string | null;
+  onTalk?: () => void;
+  disabled?: boolean;
+  title?: string;
 }) {
-  const { activity, muted } = props;
-  const live = activity !== "idle" && activity !== "error";
+  const mode = useDockMode();
+  const role = roleFor(useLocation().pathname);
+  const connecting = activity === "connecting";
   return (
-    <aside className={`dock is-${activity}${live ? " is-live" : ""}`} aria-label={`Talk to ${PERSONA.name}`}>
-      <div className="dock-face">{props.face}</div>
-      <div className="dock-body">
-        <div className="dock-who">
-          <p className="dock-name">{PERSONA.name}</p>
-          <p className="dock-status" aria-live="polite">
-            {props.status}
-          </p>
-        </div>
-        <div className="dock-actions">
-          <LanguageToggle live={live} />
-          {live ? (
-            <>
-              <button type="button" className="dock-btn" aria-pressed={muted} aria-label={muted ? "Turn microphone on" : "Turn microphone off"} onClick={props.onMute}>
-                {muted ? <MicOff size={17} /> : <Mic size={17} />}
-              </button>
-              <button type="button" className="dock-btn dock-end" aria-label="End the call" onClick={props.onEnd}>
-                <PhoneOff size={17} />
-              </button>
-            </>
-          ) : (
-            <button type="button" className="dock-cta" aria-label={`Talk to ${PERSONA.name}`} onClick={props.onCall} disabled={(activity as string) === "connecting"}>
-              {(activity as string) === "connecting" ? <Loader2 size={16} className="spin" /> : <Mic size={16} />}
-              <span className="dock-cta-long">Talk to {PERSONA.name}</span>
-              <span className="dock-cta-short" aria-hidden>
-                Talk
-              </span>
-            </button>
-          )}
-        </div>
+    <div
+      className={`dock is-${activity}${calling ? " is-calling" : ""}${mode.classes}`}
+      role="region"
+      aria-label={`Talk to ${PERSONA.name}`}
+      aria-hidden={calling || undefined}
+    >
+      <div className="dock-face dock-face-slot" aria-hidden />
+      <div className="dock-text">
+        <p className="dock-name">{PERSONA.name}</p>
+        <p className="dock-status" aria-live="polite" title={status ?? role}>
+          {status ?? role}
+        </p>
       </div>
-    </aside>
-  );
-}
-
-/** The face before a call can load: the persona's initial in a ring. */
-export function FacePlaceholder() {
-  return (
-    <div className="face-placeholder" aria-hidden>
-      <span>{PERSONA.name.slice(0, 1)}</span>
+      <LangToggle />
+      <button
+        type="button"
+        className="dock-cta"
+        aria-label={`Talk to ${PERSONA.name}`}
+        disabled={disabled || connecting}
+        title={title}
+        onClick={onTalk}
+        tabIndex={calling ? -1 : undefined}
+      >
+        {connecting ? <Loader2 size={16} className="spin" aria-hidden /> : <Mic size={16} aria-hidden />}
+        <span className="dock-cta-long">Talk to {PERSONA.name}</span>
+        <span className="dock-cta-short" aria-hidden>
+          Talk
+        </span>
+      </button>
     </div>
   );
 }

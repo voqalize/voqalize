@@ -32,8 +32,19 @@ no second greeting (`backend/rejoin.py`; `CONTRACT.md`, Redial).
   `finder.py` (matching, comparison, eligibility and scholarship rules), `prompt.py`,
   `data.py`, `rejoin.py` (live calls by session id, for a redial), `stage_gen.py` (generated),
   `routes.py`.
-- `frontend/`: the Vite + React site, Stage performers in `src/stage/`, the voice dock in
+- `frontend/`: the Vite + React site, Stage performers in `src/stage/`, the agent widget in
   `src/voice/`.
+
+## The agent widget
+
+One entry point on every page, the same widget as Paynora's. Idle, a bar at the bottom right holds
+the character's still photo, the name, the job on this page (persona.json `roles`: course advisor or
+admissions counsellor), EN / हिंदी and the call button. In a call the bar goes away and the face
+becomes a draggable tile with the live avatar (it loads only then), the language toggle, mute,
+minimise and end. No transcript is shown. The tile starts bottom right and steps aside for the page's
+main actions (`data-dock-avoid`: Continue, Pay, the compare bar); the comparison dialog and the
+filters drawer push it (or the idle bar) to the top right corner. The language is remembered in this
+browser, so a reload keeps it and the next call starts in it.
 
 ## Run it
 
@@ -58,8 +69,10 @@ uv run voqalize stage gen university/frontend/src/stage/scene.json --py universi
 
 Edit `persona.json` and nothing else:
 
-- **Character**: `character` (the `@voqalize/avatar` face), `name`, `gender` (picks the Hindi
-  first-person forms in the prompt), `role`, and `voices` (one voice id per language; the voice must
+- **Character**: `character` (the `@voqalize/avatar` face; it also picks the idle bar's still photo,
+  `frontend/src/characters/<character>.webp`, so add that file for a new character), `name`, `gender`
+  (picks the Hindi first-person forms in the prompt), `role`, `roles` (the bar's label per job), and
+  `voices` (one voice id per language; the voice must
   speak that language, as the speech tier's `/voices.json` lists). Then update the voice/language
   row for `university` in `demos/tests/test_demo_voice_contract.py`.
 - **Language**: add it to `languages`, `voices`, `language_labels` and `language_names`. The page's

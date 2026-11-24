@@ -99,18 +99,18 @@ function Form() {
 
         <div className="step-actions">
           {current.step > 1 ? (
-            <button type="button" className="btn btn-ghost" onClick={app.back}>
+            <button type="button" className="btn btn-ghost" data-dock-avoid onClick={app.back}>
               Back
             </button>
           ) : (
             <span />
           )}
           {current.step < STEPS.length ? (
-            <button type="submit" className="btn btn-primary" data-stage-thing="continue" data-stage-label="Continue">
+            <button type="submit" className="btn btn-primary" data-dock-avoid data-stage-thing="continue" data-stage-label="Continue">
               Continue
             </button>
           ) : (
-            <button type="button" className="btn btn-accent btn-lg pay-btn" disabled={app.paying} onClick={() => void app.submit()}>
+            <button type="button" className="btn btn-accent btn-lg pay-btn" data-dock-avoid disabled={app.paying} onClick={() => void app.submit()}>
               {app.paying ? (
                 <>
                   <Loader2 size={18} className="spin" /> Processing payment…
