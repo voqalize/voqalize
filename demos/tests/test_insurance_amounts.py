@@ -144,3 +144,55 @@ def test_a_streamed_amount_split_across_pieces_is_said_whole() -> None:
     stream = amounts.SpokenAmounts("hi")
     out = "".join(stream.feed(p) for p in ["ठीक है, ₹1", ".5 ला", "ख का क्लेम।"]) + stream.flush()
     assert out == "ठीक है, डेढ़ लाख रुपये का क्लेम।"
+
+
+#: A Hindi sentence ends in the danda (U+0964/U+0965, inside the Devanagari block); an
+#: amount right before it, or before "?" or ",", is said as it is mid-sentence.
+_SENTENCE_END_AMOUNTS = [
+    ("hi", "आपका लोन ", "₹13.6 लाख"),
+    ("hi", "कुल ", "₹1.25 करोड़"),
+    ("hi", "", "₹13.6 लाख"),
+    ("hi", "कवर ", "₹10 लाख"),
+    ("en", "Your cover is ", "₹10 lakh"),
+    ("en", "The total is ", "₹1.5 crore"),
+]
+
+
+@pytest.mark.parametrize(("lang", "before", "amount"), _SENTENCE_END_AMOUNTS)
+@pytest.mark.parametrize("end", ["।", "॥", "?", ","])
+def test_an_amount_before_the_danda_is_said_as_mid_sentence(
+    lang: str, before: str, amount: str, end: str
+) -> None:
+    rest = " बाकी" if lang == "hi" else " left"
+    mid = amounts.speakable(f"{before}{amount}{rest}", lang)
+    assert mid.endswith(rest)
+    assert amounts.speakable(f"{before}{amount}{end}", lang) == mid.removesuffix(rest) + end
+
+
+@pytest.mark.parametrize(
+    ("written", "spoken"),
+    [
+        ("आपका लोन ₹13.6 लाख।", "आपका लोन तेरह लाख साठ हज़ार रुपये।"),
+        ("कुल ₹1.25 करोड़।", "कुल सवा करोड़ रुपये।"),
+        ("कुल ₹1.25 करोड़॥", "कुल सवा करोड़ रुपये॥"),
+    ],
+)
+def test_hindi_amounts_before_the_danda(written: str, spoken: str) -> None:
+    assert amounts.speakable(written, "hi") == spoken
+    stream = amounts.SpokenAmounts("hi")
+    out = "".join(stream.feed(p) for p in [written[:-3], written[-3:]]) + stream.flush()
+    assert out == spoken
+
+
+@pytest.mark.parametrize(
+    ("said", "rupees"),
+    [
+        ("दस लाख।", 1_000_000),
+        ("10 लाख।", 1_000_000),
+        ("डेढ़ लाख॥", 150_000),
+        ("सवा करोड़।", 12_500_000),
+    ],
+)
+def test_an_amount_heard_before_the_danda(said: str, rupees: int) -> None:
+    heard = amounts.parse(said)
+    assert heard is not None and heard.rupees == rupees

@@ -274,7 +274,9 @@ _RANGE_SPLIT = re.compile(
     re.IGNORECASE,
 )
 _DEVANAGARI_DIGITS = str.maketrans("०१२३४५६७८९", "0123456789")
-_TOKEN = re.compile(r"\d+(?:\.\d+)?|[a-z]+\.?|[ऀ-ॿ]+")
+#: Devanagari letters and digits, not the danda (।, ॥) that ends a Hindi sentence.
+_DEVANAGARI_WORD = "ऀ-ॣ०-ॿ"
+_TOKEN = re.compile(rf"\d+(?:\.\d+)?|[a-z]+\.?|[{_DEVANAGARI_WORD}]+")
 
 
 @dataclass(frozen=True)
@@ -513,7 +515,8 @@ def words(amount: float, lang: str = "en", *, rupees: bool = True) -> str:
 _WRITTEN = re.compile(
     r"(?P<cur>₹|\bRs\.?|\bINR)?\s?"
     r"(?P<num>(?<![\w./-])\d{1,3}(?:,\d{2,3})+(?:\.\d+)?|(?<![\w./-])\d+(?:\.\d+)?)"
-    r"(?:\s?(?P<unit>lakhs?|lacs?|crores?|cr|Cr|L|k|K|thousand|लाख|करोड़|करोड|हज़ार|हजार)(?![\wऀ-ॿ]))?"
+    r"(?:\s?(?P<unit>lakhs?|lacs?|crores?|cr|Cr|L|k|K|thousand|लाख|करोड़|करोड|हज़ार|हजार)"
+    rf"(?![\w{_DEVANAGARI_WORD}]))?"
     r"(?:\s(?P<tail>rupees|rupee|रुपये|रुपए))?",
 )
 
@@ -559,7 +562,7 @@ def speakable(text: str, lang: str = "en") -> str:
 
 #: The end of a stream that may be a written amount still arriving.
 _PENDING = re.compile(
-    r"(?:(?:₹|\bRs\.?|\bINR)\s?)?\d[\d,.]*(?:\s?[A-Za-zऀ-ॿ]*)?$|(?:₹|\bRs\.?|\bINR)\s?$"
+    rf"(?:(?:₹|\bRs\.?|\bINR)\s?)?\d[\d,.]*(?:\s?[A-Za-z{_DEVANAGARI_WORD}]*)?$|(?:₹|\bRs\.?|\bINR)\s?$"
 )
 
 
