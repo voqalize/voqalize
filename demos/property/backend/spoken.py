@@ -607,15 +607,13 @@ BOUNDS: dict[str, tuple[float, float]] = {
 _BUDGET_NAMES = {"buy": "budget", "rent": "monthly rent budget", "any": "budget"}
 
 
-def implausible(
+def _doubt(
     values: dict[str, float | None], deal: str | None, heard: Sequence[str]
-) -> str | None:
-    """None when every budget is one a buyer could mean for ``deal`` ("buy", "rent" or
-    None); else what the model must confirm back before using it ("₹1.5 crore, right?"),
-    from what they said in ``heard`` (their turns, newest first; zero passes)."""
+) -> tuple[float, list[float], str] | None:
+    """The first budget no buyer would mean for ``deal``, with the amounts in their
+    words that would fit and how they said them; None when every budget is plausible."""
     kind = deal if deal in BOUNDS else "any"
     lo, hi = BOUNDS[kind]
-    name = _BUDGET_NAMES[kind]
     for value in values.values():
         if not value or lo <= value <= hi:  # zero is "no limit"
             continue
@@ -628,15 +626,38 @@ def implausible(
                     fits, said = fits + ends, a.said
             if fits:
                 break
-        if len(fits) == 1:
-            ask = f"Just to check, {h.short(fits[0])}, right?"
-            hint = f" From their words ('{said}') it sounds like {h.inr(fits[0])}."
-        else:
-            ask = f"Sorry, what {name} was that?"
-            hint = ""
-        return (
-            f"Not done: a {name} of {h.inr(value)} is not one a buyer means; nothing changed on "
-            f'screen.{hint} Confirm it back in a few words first (e.g. "{ask}"), then call '
-            "again with the rupees they confirm."
-        )
+        return value, fits, said
     return None
+
+
+def implausible(
+    values: dict[str, float | None], deal: str | None, heard: Sequence[str]
+) -> str | None:
+    """None when every budget is one a buyer could mean for ``deal`` ("buy", "rent" or
+    None); else what the model must confirm back before using it ("₹1.5 crore, right?"),
+    from what they said in ``heard`` (their turns, newest first; zero passes)."""
+    doubt = _doubt(values, deal, heard)
+    if doubt is None:
+        return None
+    value, fits, said = doubt
+    name = _BUDGET_NAMES[deal if deal in BOUNDS else "any"]
+    if len(fits) == 1:
+        ask = f"Just to check, {h.short(fits[0])}, right?"
+        hint = f" From their words ('{said}') it sounds like {h.inr(fits[0])}."
+    else:
+        ask = f"Sorry, what {name} was that?"
+        hint = ""
+    return (
+        f"Not done: a {name} of {h.inr(value)} is not one a buyer means; nothing changed on "
+        f'screen.{hint} Confirm it back in a few words first (e.g. "{ask}"), then call '
+        "again with the rupees they confirm."
+    )
+
+
+def confirm_back(
+    values: dict[str, float | None], deal: str | None, heard: Sequence[str]
+) -> float | None:
+    """For a budget :func:`implausible` refuses: the one amount from their words to
+    confirm back, or None when there is no single one (ask them again)."""
+    doubt = _doubt(values, deal, heard)
+    return doubt[1][0] if doubt is not None and len(doubt[1]) == 1 else None
