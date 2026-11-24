@@ -1,0 +1,590 @@
+/* The agent's dock pill and face tile. Colours from the brand tokens (tokens.css). */
+
+/* ── The dock pill: no call ─────────────────────────────────────────── */
+.dock {
+  position: fixed;
+  left: 50%;
+  bottom: calc(16px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px;
+  max-width: calc(100vw - 24px);
+  background: rgba(255, 255, 255, 0.97);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  box-shadow: 0 18px 40px -16px rgba(19, 33, 43, 0.35), 0 2px 6px rgba(19, 33, 43, 0.06);
+  font-family: var(--ui);
+  color: var(--ink);
+  transition: opacity 0.25s ease, translate 0.3s var(--ease);
+  animation: dock-in 0.5s var(--ease) 0.3s both;
+}
+@keyframes dock-in {
+  from {
+    opacity: 0;
+    translate: 0 16px;
+  }
+}
+@keyframes dock-pop {
+  from {
+    opacity: 0;
+    scale: 0.92;
+  }
+}
+/* The face slot: the face itself is the call tile, sitting on it. */
+.dock-face {
+  width: 44px;
+  height: 44px;
+  flex: none;
+  border-radius: 50%;
+}
+.dock-text {
+  min-width: 0;
+  flex: 1;
+  padding-right: 4px;
+}
+.dock-name {
+  margin: 0;
+  font-weight: 700;
+  font-size: 14px;
+  line-height: 1.2;
+}
+.dock-status {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--ink-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 220px;
+}
+.dock-status.is-error {
+  color: var(--negative);
+}
+.dock-lang {
+  display: inline-flex;
+  flex: none;
+  padding: 3px;
+  border-radius: 999px;
+  background: #f2efe8;
+  border: 1px solid var(--line);
+}
+.dock-lang button {
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-family: var(--ui), "Noto Sans Devanagari Variable", sans-serif;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-muted);
+  padding: 6px 10px;
+  border-radius: 999px;
+  cursor: pointer;
+  min-height: 32px;
+}
+.dock-lang button.is-on {
+  background: #fff;
+  color: var(--primary-dark);
+  box-shadow: 0 1px 3px rgba(19, 33, 43, 0.15);
+}
+.dock-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 44px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--primary);
+  color: #fff;
+  font: inherit;
+  font-weight: 650;
+  font-size: 14px;
+  cursor: pointer;
+  flex: none;
+  transition: background 0.2s;
+}
+.dock-cta:hover {
+  background: var(--primary-dark);
+}
+.dock-cta:disabled {
+  background: #ebe7df;
+  color: var(--ink-muted);
+  cursor: not-allowed;
+}
+/* A call is on: the tile carries the controls, so the pill goes away. */
+.dock.is-calling {
+  opacity: 0;
+  translate: 0 24px;
+  pointer-events: none;
+}
+/* A primary button is under the pill: it steps aside. */
+.dock.is-hidden {
+  opacity: 0;
+  translate: 0 24px;
+  pointer-events: none;
+}
+/* A bottom sheet is open: the pill moves to a top corner, above it. */
+.dock.is-raised {
+  top: calc(12px + env(safe-area-inset-top));
+  bottom: auto;
+  transform: none;
+  z-index: 70;
+  animation: dock-pop 0.3s var(--ease);
+}
+.dock.is-raised-tl {
+  left: max(12px, env(safe-area-inset-left));
+  right: auto;
+}
+.dock.is-raised-tr {
+  left: auto;
+  right: max(12px, env(safe-area-inset-right));
+}
+/* The brief open as a side panel: the pill centres in the room left of it. */
+@media (min-width: 701px) {
+  :root:has(.lead-card) .dock:not(.is-raised) {
+    left: calc((100vw - 364px) / 2);
+  }
+}
+
+/* ── The face: one element, docked in the pill or floating as the tile ── */
+.call-tile {
+  position: fixed;
+  z-index: 61;
+  display: flex;
+  flex-direction: column;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--primary-soft);
+  box-shadow: 0 0 0 2px #fff, 0 0 0 3.5px rgba(11, 110, 95, 0.45);
+  font-family: var(--ui);
+  transition:
+    left 0.45s var(--ease),
+    top 0.45s var(--ease),
+    width 0.45s var(--ease),
+    height 0.45s var(--ease),
+    border-radius 0.45s var(--ease),
+    box-shadow 0.45s var(--ease),
+    opacity 0.25s ease;
+  touch-action: none;
+  outline: none;
+}
+.call-tile.is-docked {
+  pointer-events: none;
+  animation: dock-in 0.5s var(--ease) 0.3s both;
+}
+.call-tile.is-parked {
+  opacity: 0;
+}
+.call-tile.is-snap {
+  transition: none;
+}
+.call-tile.is-raised {
+  z-index: 71;
+}
+/* Docked in a raised pill: the face stays on top of it. */
+:root:has(.dock.is-raised) .call-tile.is-docked {
+  z-index: 71;
+}
+/* The live tile: a small dark call window over the page. */
+.call-tile.is-tile {
+  border-radius: 16px;
+  background: var(--ink);
+  color: #fff;
+  box-shadow:
+    0 0 0 4px var(--ink),
+    0 0 0 5px rgba(255, 255, 255, 0.16),
+    0 26px 50px -18px rgba(19, 33, 43, 0.6);
+  cursor: grab;
+}
+.call-tile.is-tile.is-speaking {
+  box-shadow:
+    0 0 0 4px var(--ink),
+    0 0 0 6px rgba(232, 163, 61, 0.75),
+    0 26px 50px -18px rgba(19, 33, 43, 0.6);
+}
+.call-tile.is-mini {
+  border-radius: 50%;
+  cursor: grab;
+  box-shadow: 0 16px 34px -12px rgba(19, 33, 43, 0.45), 0 0 0 2px #fff, 0 0 0 4px rgba(11, 110, 95, 0.5);
+}
+.call-tile.is-mini.is-speaking {
+  box-shadow: 0 16px 34px -12px rgba(19, 33, 43, 0.45), 0 0 0 2px #fff, 0 0 0 5px rgba(232, 163, 61, 0.8);
+}
+.call-tile.is-dragging {
+  cursor: grabbing;
+  transition: width 0.45s var(--ease), height 0.45s var(--ease), border-radius 0.45s var(--ease);
+}
+.call-tile:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+.call-face {
+  position: relative;
+  flex: none;
+  width: 100%;
+  overflow: hidden;
+  background: radial-gradient(circle at 50% 35%, #1c5a51 0%, #0e2a2a 75%);
+  transition: height 0.45s var(--ease);
+}
+.call-tile.is-tile .call-face {
+  border-radius: 12px;
+}
+.call-tile.is-docked .call-face,
+.call-tile.is-mini .call-face {
+  height: 100% !important;
+  background: var(--primary-soft);
+}
+.call-face > .agent-avatar,
+.call-face > .face-placeholder {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.face-placeholder {
+  display: grid !important;
+  place-items: center;
+  background: radial-gradient(circle at 50% 36%, #f4fbf9 0%, #c9e6df 60%, #a6d3c8 100%);
+}
+.face-placeholder span {
+  font-family: var(--display);
+  color: var(--primary-dark);
+  line-height: 1;
+  font-size: 20px;
+}
+.call-tile.is-tile .face-placeholder span {
+  font-size: 72px;
+}
+.call-tile.is-mini .face-placeholder span {
+  font-size: 26px;
+}
+.call-tag {
+  position: absolute;
+  top: 7px;
+  left: 7px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(19, 33, 43, 0.74);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+}
+.call-state {
+  position: absolute;
+  left: 7px;
+  bottom: 7px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 22px;
+  padding: 0 9px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.94);
+  font-size: 11px;
+  font-weight: 650;
+  color: var(--ink);
+  white-space: nowrap;
+}
+.call-state::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ink-muted);
+}
+.call-state.is-listening::before {
+  background: var(--primary);
+  animation: call-blink 1.4s ease-in-out infinite;
+}
+.call-state.is-speaking::before {
+  background: var(--accent);
+  animation: call-blink 0.7s ease-in-out infinite;
+}
+.call-state.is-thinking::before {
+  background: var(--accent-ink);
+}
+.call-state.is-muted::before {
+  background: var(--negative);
+}
+@keyframes call-blink {
+  50% {
+    opacity: 0.3;
+  }
+}
+.call-bar {
+  flex: 1;
+  display: grid;
+  align-content: center;
+  gap: 7px;
+  padding: 8px 6px 6px;
+  min-height: 0;
+}
+.call-lang {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  padding: 2px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+}
+.call-lang button {
+  border: 0;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.72);
+  font: inherit;
+  font-family: var(--ui), "Noto Sans Devanagari Variable", sans-serif;
+  font-size: 12px;
+  font-weight: 650;
+  min-height: 26px;
+  padding: 0 6px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.call-lang button:hover {
+  color: #fff;
+}
+.call-lang button.is-on {
+  background: #fff;
+  color: var(--primary-dark);
+}
+.call-controls {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+}
+.call-btn {
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.call-btn:hover {
+  background: rgba(255, 255, 255, 0.26);
+}
+.call-btn[aria-pressed="true"] {
+  background: #fff;
+  color: var(--ink);
+}
+.call-end,
+.call-end:hover {
+  background: var(--negative);
+}
+.call-expand {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: end center;
+  padding-bottom: 6px;
+  border: 0;
+  background: transparent;
+  color: var(--primary-dark);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.call-tile.is-mini:hover .call-expand,
+.call-expand:focus-visible {
+  opacity: 1;
+}
+
+/* ── Overlays: nothing in an open sheet sits under the raised agent ── */
+@media (max-width: 700px) {
+  /* The raised pill (top 12px, 58px tall) or tile: the sheet stops below it. */
+  :root:has(.dock.is-raised) .lead-card {
+    max-height: calc(100dvh - 84px);
+  }
+  :root:has(.call-tile.is-tile.is-raised) .lead-card {
+    max-height: calc(100dvh - 226px);
+  }
+  :root:has(.call-tile.is-mini.is-raised) .lead-card {
+    max-height: calc(100dvh - 92px);
+  }
+  /* The agent is above the sheet, so its foot needs no room for the pill. */
+  :root:has(.dock.is-raised) .lead-foot,
+  :root:has(.call-tile.is-raised) .lead-foot {
+    padding-bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* ── Phone ── */
+@media (max-width: 700px) {
+  .dock {
+    left: 12px;
+    right: 12px;
+    transform: none;
+    gap: 8px;
+    bottom: calc(10px + env(safe-area-inset-bottom));
+  }
+  .dock.is-raised {
+    right: auto;
+  }
+  .dock.is-raised .dock-text {
+    display: none;
+  }
+  .dock-status {
+    max-width: 120px;
+  }
+  .dock-cta {
+    padding: 0 14px;
+  }
+  .dock-cta-label {
+    display: none;
+  }
+  .dock-lang button {
+    padding: 6px 8px;
+  }
+  .call-tile.is-tile .face-placeholder span {
+    font-size: 52px;
+  }
+  .call-tag {
+    top: 5px;
+    left: 5px;
+    font-size: 10.5px;
+    padding: 1px 7px;
+  }
+  .call-state {
+    left: 5px;
+    bottom: 5px;
+    height: 20px;
+    padding: 0 7px;
+    font-size: 10.5px;
+    gap: 5px;
+  }
+  .call-bar {
+    gap: 6px;
+    padding: 6px 5px 5px;
+  }
+  .call-controls {
+    gap: 6px;
+  }
+  .call-btn {
+    width: 30px;
+    height: 30px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dock,
+  .dock.is-raised,
+  .call-tile,
+  .call-tile.is-docked,
+  .call-state::before {
+    animation: none;
+    transition: none;
+  }
+}
+
+/* ?debug=1 console, top right under the header. */
+.debug {
+  position: fixed;
+  top: 84px;
+  left: 16px;
+  z-index: 80;
+  width: 340px;
+  max-width: calc(100vw - 32px);
+  background: #13212b;
+  color: #e9eef1;
+  border-radius: 12px;
+  box-shadow: 0 20px 40px -16px rgba(0, 0, 0, 0.5);
+  font: 12px/1.4 "JetBrains Mono Variable", ui-monospace, monospace;
+}
+.debug button,
+.debug select,
+.debug textarea {
+  font: inherit;
+  color: inherit;
+}
+.debug-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 8px 10px;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+.debug-chev {
+  margin-left: auto;
+}
+.debug:not(.is-open) .debug-chev {
+  rotate: -90deg;
+}
+.debug-body {
+  padding: 0 10px 10px;
+  display: grid;
+  gap: 6px;
+}
+.debug-row {
+  display: flex;
+  gap: 6px;
+}
+.debug-row select {
+  flex: 1;
+}
+.debug select,
+.debug textarea {
+  background: #0b161d;
+  border: 1px solid #2c3b46;
+  border-radius: 6px;
+  padding: 4px 6px;
+  width: 100%;
+  box-sizing: border-box;
+}
+.debug-scripts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+.debug-body button {
+  background: #22343f;
+  border: 1px solid #2c3b46;
+  border-radius: 6px;
+  padding: 3px 7px;
+  cursor: pointer;
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+}
+.debug-body button.is-on {
+  background: #0b6e5f;
+}
+.debug-body button:disabled {
+  opacity: 0.5;
+}
+.debug-log {
+  margin: 0;
+  padding: 0 0 0 16px;
+  max-height: 120px;
+  overflow: auto;
+  color: #a9b6be;
+}
+.debug-log .is-result {
+  color: #f4c47a;
+}
+
+/* The idle face: the character's still photo (round 2, R5); the live avatar
+   replaces it only when a call is up. */
+.call-face > .face-still {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  object-position: 50% 30%;
+  user-select: none;
+}

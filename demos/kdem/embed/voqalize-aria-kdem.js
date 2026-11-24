@@ -22,7 +22,7 @@
     agentId: tag?.dataset.agent || "",
     publishableKey: tag?.dataset.key || "", // a pk_ key; Voqalize accepts it only from the site's own addresses
     character: "tara",                      // female avatar; voice (Gauri) is set by Voqalize
-    api: "https://app.dev.voqalize.com/api/v1/sessions.connect", // dev hosting for the pilot
+    api: "https://signal.dev.voqalize.com/api/v1/sessions.connect", // dev hosting for the pilot
   };
   if (!VQ.agentId || !VQ.publishableKey) {
     console.warn("[Voqalize] Aria not started: the script tag needs data-agent and data-key.");
