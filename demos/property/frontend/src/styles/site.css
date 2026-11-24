@@ -1715,8 +1715,10 @@ textarea {
 .call-tile.is-snap {
   transition: none;
 }
-/* Raised above an open sheet (the phone's filter sheet is z-index 80). */
-.call-tile.is-raised {
+/* Raised above an open sheet (the phone's filter sheet is z-index 80); the
+   still face rides on the raised pill. */
+.call-tile.is-raised,
+body:has(.dock.is-raised) .call-tile.is-docked {
   z-index: 83;
 }
 .call-tile.is-tile {

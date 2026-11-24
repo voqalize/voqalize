@@ -53,6 +53,26 @@ function scrollable(el: Element): { y: boolean; x: boolean } {
   };
 }
 
+/**
+ * Things drawn over a scroll area that a highlight must not end up under: the
+ * phone filter sheet's floating "Show N homes" button, and the agent raised
+ * to a top corner over a sheet (the pill or the call tile). Each narrows the
+ * area's usable band from the edge it sits on.
+ */
+const COVERS = [".filters-done", ".dock.is-raised:not(.is-calling)", ".call-tile.is-raised:not(.is-docked)"];
+
+function usableBand(box: DOMRect, top: number, bottom: number): [number, number] {
+  let lo = top;
+  let hi = bottom;
+  for (const el of document.querySelectorAll(COVERS.join(","))) {
+    const r = el.getBoundingClientRect();
+    if (!r.width || !r.height || r.right <= box.left || r.left >= box.right || r.bottom <= top || r.top >= bottom) continue;
+    if (r.top + r.height / 2 < (top + bottom) / 2) lo = Math.max(lo, r.bottom + MARGIN);
+    else hi = Math.min(hi, r.top - MARGIN);
+  }
+  return [lo, hi];
+}
+
 /** How far to move one axis so `want` (or, if it cannot fit, `min`) is inside [lo, hi]. */
 function delta(want: [number, number], min: [number, number], lo: number, hi: number): number {
   const fits = want[1] - want[0] <= hi - lo;
@@ -97,7 +117,8 @@ export async function showWhole(target: Element | Element[], scrollWindow?: (el:
     const left = box.left + n.clientLeft;
     const g = group();
     const o = own();
-    const dy = can.y ? delta([g.top, g.bottom], [o.top, o.bottom], top + MARGIN, top + n.clientHeight - MARGIN) : 0;
+    const [lo, hi] = usableBand(box, top + MARGIN, top + n.clientHeight - MARGIN);
+    const dy = can.y ? delta([g.top, g.bottom], [o.top, o.bottom], lo, hi) : 0;
     const dx = can.x ? delta([g.left, g.right], [o.left, o.right], left + 4, left + n.clientWidth - 4) : 0;
     if (Math.abs(dy) > 1 || Math.abs(dx) > 1) {
       n.scrollBy({ top: dy, left: dx, behavior: reduced() ? "auto" : "smooth" });
