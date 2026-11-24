@@ -1,4 +1,4 @@
-"""Anvaya Bank's data as the brain reads it: the same JSON the page reads
+"""Global Bank's data as the brain reads it: the same JSON the page reads
 (``demos/bank/data``), the persona (``demos/bank/persona.json``), dates made from
 ``days_ago`` against today, and the transaction filter both sides apply.
 

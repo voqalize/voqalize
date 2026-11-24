@@ -135,7 +135,7 @@ export function Offers() {
           ) : (
             <div className="ax-offer__ctas">
               <Link to={`/cards/apply?card=${voyage.id}`} className="ax-btn ax-btn--primary">
-                Apply for {voyage.name.replace("Anvaya ", "")}
+                Apply for {voyage.name.replace("Global ", "")}
               </Link>
               <Link to={`/cards/${voyage.id}`} className="ax-btn ax-btn--ghost">
                 See card details

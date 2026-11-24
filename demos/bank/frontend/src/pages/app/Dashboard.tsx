@@ -38,12 +38,12 @@ export function Dashboard() {
   const dues = [
     ...customer.registered_billers.map((b) => ({
       key: b.biller_id,
-      name: b.biller_id === "anvaya-card" ? `Credit card bill •••• ${credit.last4}` : (billerById(b.biller_id)?.name ?? b.biller_id),
+      name: b.biller_id === "globalbank-card" ? `Credit card bill •••• ${credit.last4}` : (billerById(b.biller_id)?.name ?? b.biller_id),
       amount: billDue(b.biller_id),
       days: b.due_days_from_now,
       autopay: b.autopay,
       paid: !!billsPaid[b.biller_id],
-      to: b.biller_id === "anvaya-card" ? "/app/cards/credit" : "/app/bills",
+      to: b.biller_id === "globalbank-card" ? "/app/cards/credit" : "/app/bills",
     })),
     { key: loan.id, name: `${loan.name} EMI`, amount: loan.emi, days: loan.next_emi_days_from_now, autopay: true, paid: false, to: "/app/accounts/sb" },
   ]
@@ -207,14 +207,14 @@ export function Dashboard() {
               </div>
               <div>
                 <span className="ax-k">Total due</span>
-                <span>{billsPaid["anvaya-card"] ? "Paid" : inr(st.total_due)}</span>
+                <span>{billsPaid["globalbank-card"] ? "Paid" : inr(st.total_due)}</span>
               </div>
               <div>
                 <span className="ax-k">Min due</span>
-                <span>{billsPaid["anvaya-card"] ? "Paid" : inr(st.min_due)}</span>
+                <span>{billsPaid["globalbank-card"] ? "Paid" : inr(st.min_due)}</span>
               </div>
             </div>
-            {!billsPaid["anvaya-card"] && (
+            {!billsPaid["globalbank-card"] && (
               <div className="ax-cctile__due">
                 <CalendarClock size={15} /> Due {inDays(st.due_days_from_now)}, {fmtDate(daysFromNow(st.due_days_from_now))}
               </div>
@@ -286,7 +286,7 @@ export function Dashboard() {
             <p>{cardOffer.line}</p>
             <div className="ax-offer__ctas">
               <Link to={`/cards/${voyage.id}`} className="ax-btn ax-btn--light ax-btn--sm">
-                See {voyage.name.replace("Anvaya ", "")}
+                See {voyage.name.replace("Global ", "")}
               </Link>
               <Link to="/app/offers" className="ax-link ax-link--light">
                 All offers
@@ -310,6 +310,6 @@ export function Dashboard() {
 }
 
 function cardDue(paid: Record<string, unknown>) {
-  return paid["anvaya-card"] ? 0 : cardById("credit")!.statement!.total_due;
+  return paid["globalbank-card"] ? 0 : cardById("credit")!.statement!.total_due;
 }
 

@@ -309,7 +309,7 @@ function buildLead(v: Record<string, string>): Lead {
     gold_grams: Number(v.gold_grams) || 0,
   });
   return {
-    id: `ANV-LD-${digits6()}`,
+    id: `GLB-LD-${digits6()}`,
     loan_type: loan.id,
     product: loan.name,
     amount,
@@ -386,7 +386,7 @@ export const useForms = create<FormsState>((set, get) => ({
       return { missing: miss };
     }
     const lead = form === "loan_apply" ? buildLead(values) : undefined;
-    const prefix = form === "open_account" ? "ANV-SB-" : form === "card_apply" ? "ANV-CC-" : "";
+    const prefix = form === "open_account" ? "GLB-SB-" : form === "card_apply" ? "GLB-CC-" : "";
     const reference = lead ? lead.id : `${prefix}${digits6()}`;
     const sub: Submission = { reference, summary: summarise(form, values, lead), at: Date.now(), values: { ...values }, lead };
     set({ submitted: { ...s.submitted, [form]: sub } });

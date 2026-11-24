@@ -65,7 +65,7 @@ export interface BankState {
   reset: () => void;
 }
 
-const KEY = "anvaya-bank-state";
+const KEY = "globalbank-state";
 
 function seed() {
   const card = (c: BankCard): CardState => ({ controls: { ...c.controls }, limits: { ...c.limits } });

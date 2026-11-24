@@ -3,7 +3,7 @@ import { defineConfig } from "vite";
 import { avatarRuntime } from "../../shared/avatar-runtime.mjs";
 import { noDaily } from "../../shared/no-daily.mjs";
 
-// Anvaya Bank routes on the path (/demos/bank/app/cards, /demos/bank/loans/home…).
+// Global Bank routes on the path (/demos/bank/app/cards, /demos/bank/loans/home…).
 // `scripts/route-shells.mjs` writes a copy of index.html at every route after the
 // build, so a deep link or a refresh on static hosting finds a file of its own.
 // The bank's data (../data/*.json) and the persona (../persona.json) are read by

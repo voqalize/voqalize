@@ -43,7 +43,7 @@ function Mark({ light }: { light?: boolean }) {
     <span className={`ax-mark${light ? " ax-mark--light" : ""}`}>
       <LogoMark size={light ? 34 : 30} />
       <span className="ax-mark__word">
-        Anvaya<em>Bank</em>
+        Global<em>Bank</em>
       </span>
     </span>
   );
@@ -130,7 +130,7 @@ export function AppLayout() {
           </div>
           <span className="ax-top__login">Last login {lastLogin}</span>
           <Link to="/" className="ax-top__link">
-            <ExternalLink size={15} /> <span>Anvaya website</span>
+            <ExternalLink size={15} /> <span>Global Bank website</span>
           </Link>
           <button type="button" className="ax-btn ax-btn--ghost ax-btn--sm ax-top__out" onClick={out}>
             <LogOut size={15} /> <span>Sign out</span>
@@ -177,7 +177,7 @@ export function AppLayout() {
             <NavList path={pathname} onPick={() => setDrawer(false)} />
             <div className="ax-drawer__foot">
               <span>Last login {lastLogin}</span>
-              <Link to="/">Anvaya website</Link>
+              <Link to="/">Global Bank website</Link>
               <button type="button" onClick={out}>
                 <LogOut size={15} /> Sign out
               </button>

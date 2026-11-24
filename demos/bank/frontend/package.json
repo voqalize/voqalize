@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Anvaya Bank (fictional): a public site and a signed-in banking app where Arjun, the bank's voice assistant, answers from the customer's own data and drives the screen. A standalone Vite app served at /demos/bank.",
+  "description": "Global Bank (fictional): a public site and a signed-in banking app where Arjun, the bank's voice assistant, answers from the customer's own data and drives the screen. A standalone Vite app served at /demos/bank.",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build && node scripts/route-shells.mjs",

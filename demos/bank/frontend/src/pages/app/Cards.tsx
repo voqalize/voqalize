@@ -198,7 +198,7 @@ export function CardsHub() {
           );
         })}
       </div>
-      <Panel title="Explore other Anvaya credit cards">
+      <Panel title="Explore other Global Bank credit cards">
         <div className="ax-catalogue">
           {products.credit_cards
             .filter((p) => p.id !== credit.product_id)
@@ -267,7 +267,7 @@ export function DebitCardPage() {
 export function CreditCardPage() {
   const st = useBank((s) => s.cards.credit);
   const cc = useBank((s) => s.cc);
-  const paid = useBank((s) => s.billsPaid["anvaya-card"]);
+  const paid = useBank((s) => s.billsPaid["globalbank-card"]);
   const emiMap = useBank((s) => s.emi);
   const all = useAllTxns();
   const c = cardById("credit")!;
@@ -338,7 +338,7 @@ export function CreditCardPage() {
                 <span>
                   <CalendarClock size={15} /> Due {inDays(stmt.due_days_from_now)}
                 </span>
-                <button type="button" className="ax-btn ax-btn--primary ax-btn--sm" data-stage-thing="biller:anvaya-card" data-stage-label="Pay card bill" onClick={() => askConfirm({ kind: "bill_pay", target: "anvaya-card", from_account: "sb" })}>
+                <button type="button" className="ax-btn ax-btn--primary ax-btn--sm" data-stage-thing="biller:globalbank-card" data-stage-label="Pay card bill" onClick={() => askConfirm({ kind: "bill_pay", target: "globalbank-card", from_account: "sb" })}>
                   Pay {inr(stmt.total_due)}
                 </button>
               </div>

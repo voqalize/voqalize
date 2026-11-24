@@ -1,54 +1,54 @@
 {
-  "_note": "Anvaya Bank is fictional. Every product, rate, fee and number here is authored sample data for a demo, not an offer.",
+  "_note": "Global Bank is fictional. Every product, rate, fee and number here is authored sample data for a demo, not an offer.",
   "brand": {
-    "name": "Anvaya Bank",
-    "short": "Anvaya",
+    "name": "Global Bank",
+    "short": "Global Bank",
     "tagline": "Banking that listens.",
     "helpline": "1800 120 4747",
-    "ifsc_prefix": "ANVB0",
-    "disclaimer": "Anvaya Bank is a fictional bank built for a Voqalize demo. All products, rates, fees, customers and figures are sample data."
+    "ifsc_prefix": "GLBB0",
+    "disclaimer": "Global Bank is a fictional bank built for a Voqalize demo. All products, rates, fees, customers and figures are sample data."
   },
   "savings_variants": [
     {
       "id": "basic",
-      "name": "Anvaya Basic Savings",
+      "name": "Global Basic Savings",
       "tagline": "Zero balance, full digital banking.",
       "min_balance": 0,
       "rates": [{ "upto": null, "rate": 2.75 }],
-      "debit_card": "Anvaya Basic RuPay debit card",
+      "debit_card": "Global Basic RuPay debit card",
       "debit_card_fee": 0,
       "free_atm_withdrawals": 4,
       "features": ["No minimum balance", "Free UPI and IMPS", "4 free ATM withdrawals a month", "RuPay debit card, no annual fee"]
     },
     {
       "id": "classic",
-      "name": "Anvaya Classic Savings",
+      "name": "Global Classic Savings",
       "tagline": "Everyday banking with better interest.",
       "min_balance": 10000,
       "rates": [{ "upto": 100000, "rate": 3.0 }, { "upto": null, "rate": 3.5 }],
-      "debit_card": "Anvaya Classic Visa debit card",
+      "debit_card": "Global Classic Visa debit card",
       "debit_card_fee": 299,
       "free_atm_withdrawals": 8,
       "features": ["Average monthly balance ₹10,000", "3.0% up to ₹1 lakh, 3.5% above", "8 free ATM withdrawals a month", "Personal accident cover of ₹5 lakh"]
     },
     {
       "id": "privilege",
-      "name": "Anvaya Privilege Savings",
+      "name": "Global Privilege Savings",
       "tagline": "More rewards, a relationship manager, lounge access.",
       "min_balance": 25000,
       "rates": [{ "upto": 100000, "rate": 3.0 }, { "upto": 500000, "rate": 3.75 }, { "upto": null, "rate": 4.0 }],
-      "debit_card": "Anvaya Privilege Visa Signature debit card",
+      "debit_card": "Global Privilege Visa Signature debit card",
       "debit_card_fee": 599,
       "free_atm_withdrawals": null,
-      "features": ["Average monthly balance ₹25,000", "Up to 4.0% interest", "Unlimited free ATM withdrawals at Anvaya ATMs", "2 domestic lounge visits a quarter on the debit card", "Dedicated relationship manager"]
+      "features": ["Average monthly balance ₹25,000", "Up to 4.0% interest", "Unlimited free ATM withdrawals at Global Bank ATMs", "2 domestic lounge visits a quarter on the debit card", "Dedicated relationship manager"]
     },
     {
       "id": "shakti",
-      "name": "Anvaya Shakti Savings for Women",
+      "name": "Global Shakti Savings for Women",
       "tagline": "Savings designed for women, with locker and loan benefits.",
       "min_balance": 10000,
       "rates": [{ "upto": 100000, "rate": 3.0 }, { "upto": null, "rate": 3.5 }],
-      "debit_card": "Anvaya Shakti RuPay Select debit card",
+      "debit_card": "Global Shakti RuPay Select debit card",
       "debit_card_fee": 0,
       "free_atm_withdrawals": 10,
       "features": ["Average monthly balance ₹10,000", "50% off the first year's locker rent", "0.25% lower rate on a home loan", "Free debit card for life"]
@@ -85,7 +85,7 @@
   "credit_cards": [
     {
       "id": "spark",
-      "name": "Anvaya Spark",
+      "name": "Global Spark",
       "tier": "Starter rewards",
       "network": "Visa",
       "color": "#E8613C",
@@ -108,7 +108,7 @@
     },
     {
       "id": "daily",
-      "name": "Anvaya Daily Cashback",
+      "name": "Global Daily Cashback",
       "tier": "Cashback",
       "network": "RuPay",
       "color": "#2E8B6E",
@@ -130,7 +130,7 @@
     },
     {
       "id": "voyage",
-      "name": "Anvaya Voyage",
+      "name": "Global Voyage",
       "tier": "Travel",
       "network": "Visa Signature",
       "color": "#1F4E79",
@@ -153,7 +153,7 @@
     },
     {
       "id": "fuelone",
-      "name": "Anvaya FuelOne",
+      "name": "Global FuelOne",
       "tier": "Fuel",
       "network": "RuPay",
       "color": "#B8860B",
@@ -175,7 +175,7 @@
     },
     {
       "id": "prism",
-      "name": "Anvaya Prism",
+      "name": "Global Prism",
       "tier": "Premium",
       "network": "Visa Infinite",
       "color": "#2B2B33",
@@ -221,7 +221,7 @@
   "loans": [
     {
       "id": "home",
-      "name": "Anvaya Home Loan",
+      "name": "Global Home Loan",
       "short": "Home loan",
       "rate_min": 8.65,
       "rate_max": 9.4,
@@ -241,7 +241,7 @@
     },
     {
       "id": "personal",
-      "name": "Anvaya Personal Loan",
+      "name": "Global Personal Loan",
       "short": "Personal loan",
       "rate_min": 10.75,
       "rate_max": 16.0,
@@ -261,7 +261,7 @@
     },
     {
       "id": "gold",
-      "name": "Anvaya Gold Loan",
+      "name": "Global Gold Loan",
       "short": "Gold loan",
       "rate_min": 9.25,
       "rate_max": 11.5,
@@ -284,7 +284,7 @@
     },
     {
       "id": "car",
-      "name": "Anvaya Car Loan",
+      "name": "Global Car Loan",
       "short": "Car loan",
       "rate_min": 8.9,
       "rate_max": 10.5,
@@ -338,7 +338,7 @@
     { "id": "nimbus-mobile", "name": "Nimbus Mobile Postpaid", "category": "Mobile" },
     { "id": "aqua-city-water", "name": "City Water Board", "category": "Water" },
     { "id": "gasline", "name": "Gasline Piped Gas", "category": "Gas" },
-    { "id": "anvaya-card", "name": "Anvaya Credit Card", "category": "Credit card" }
+    { "id": "globalbank-card", "name": "Global Bank Credit Card", "category": "Credit card" }
   ],
   "spend_categories": [
     { "id": "food", "name": "Food & dining", "card_category": "dining" },

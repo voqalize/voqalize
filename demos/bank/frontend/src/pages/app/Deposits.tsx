@@ -279,7 +279,7 @@ export function Statements() {
 }
 
 function CardStatus({ due }: { due: number }) {
-  const paid = useBank((s) => s.billsPaid["anvaya-card"]);
+  const paid = useBank((s) => s.billsPaid["globalbank-card"]);
   if (paid) return <span className="ax-status ax-status--ok">Paid today</span>;
   return <span className="ax-status ax-status--warn">Due {fmtDate(daysFromNow(due))}</span>;
 }

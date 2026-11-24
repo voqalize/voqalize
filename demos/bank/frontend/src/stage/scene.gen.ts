@@ -2,10 +2,10 @@
 //   voqalize stage gen bank/frontend/src/stage/scene.json --py bank/backend/stage_gen.py --ts bank/frontend/src/stage/scene.gen.ts
 import { defineScene } from "@voqalize/stage";
 
-/** The moves of anvaya_bank, from its Stage Spec. */
+/** The moves of global_bank, from its Stage Spec. */
 export const scene = defineScene({
   "stage": 1,
-  "id": "anvaya_bank",
+  "id": "global_bank",
   "moves": [
     {
       "id": "ui.show",
@@ -423,4 +423,4 @@ export const scene = defineScene({
   ]
 });
 
-export const SPEC_SHA256 = "71db4acf9f7c00cc94d25a8549653f3fe8183e637ce89ce4604edd5723098baa";
+export const SPEC_SHA256 = "85f59443fd9ee99ebe6d59103c23a9a7b4f5ae382f465081580423df37127d3b";

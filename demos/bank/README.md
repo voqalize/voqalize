@@ -1,7 +1,7 @@
-# Anvaya Bank
+# Global Bank
 
 A fictional Indian retail bank: a public website and a complete signed-in banking app, with one
-voice assistant who drives the screen while he talks. Anvaya Bank, its products, rates, fees and its
+voice assistant who drives the screen while he talks. Global Bank, its products, rates, fees and its
 customer (Aditi Sharma) are all sample data; nothing here is a real bank, product or person.
 
 It replaces three older demos (aura, kiosk, lead_qual) with one suite.

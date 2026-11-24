@@ -157,7 +157,7 @@ function VariantPicker() {
             onClick={() => setField(FORM, "variant", v.id)}
           >
             <span className="vp-head">
-              <span className="vp-name">{v.name.replace("Anvaya ", "")}</span>
+              <span className="vp-name">{v.name.replace("Global ", "")}</span>
               <span className="vp-radio" aria-hidden>
                 {value === v.id ? <Check size={13} /> : null}
               </span>

@@ -142,7 +142,7 @@ export function Home() {
           <div className="variants">
             {products.savings_variants.map((v) => (
               <article key={v.id} className="variant" data-stage-thing={`variant:${v.id}`} data-stage-label={v.name}>
-                <h3 className="variant-name">{v.name.replace("Anvaya ", "")}</h3>
+                <h3 className="variant-name">{v.name.replace("Global ", "")}</h3>
                 <p className="variant-tag">{v.tagline}</p>
                 <dl className="variant-facts">
                   <div>

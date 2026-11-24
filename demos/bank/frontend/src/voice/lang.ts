@@ -11,7 +11,7 @@ import { emit, isLive } from "./events";
 
 export { landingOf } from "../persona";
 
-export const LANG_KEY = "anvaya-lang";
+export const LANG_KEY = "globalbank-lang";
 
 function stored(): Lang {
   try {

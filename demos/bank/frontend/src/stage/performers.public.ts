@@ -262,7 +262,7 @@ export function usePublicPerformers(stage: AppStage): void {
     const profile = useAdvisor.getState().profile;
     const vals = unique.map((id) => cardValue(creditCardProduct(id)!, profile));
     const best = vals.reduce((b, v) => (v.net_yearly > b.net_yearly ? v : b), vals[0]);
-    const detail = `comparing ${unique.map((id) => creditCardProduct(id)!.name.replace("Anvaya ", "")).join(", ")}; best for this spend: ${creditCardProduct(best.card_id)!.name} at ${inr(best.net_yearly)} a year`;
+    const detail = `comparing ${unique.map((id) => creditCardProduct(id)!.name.replace("Global ", "")).join(", ")}; best for this spend: ${creditCardProduct(best.card_id)!.name} at ${inr(best.net_yearly)} a year`;
     c.done(detail);
     for (const id of unique) {
       const el = thing(`compare:${id}`);

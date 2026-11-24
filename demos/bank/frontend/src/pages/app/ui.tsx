@@ -180,7 +180,7 @@ export function CardFace({ card, blocked, small, color, name, network, last4, ex
   return (
     <div className={`ax-cardface${small ? " ax-cardface--sm" : ""}${blocked ? " is-blocked" : ""} ax-cardface--${kind}`} style={{ ["--card" as string]: bg }}>
       <div className="ax-cardface__top">
-        <span className="ax-cardface__brand">Anvaya</span>
+        <span className="ax-cardface__brand">Global Bank</span>
         <span className="ax-cardface__name">{name ?? c?.name}</span>
       </div>
       <div className="ax-cardface__chip" aria-hidden />

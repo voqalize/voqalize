@@ -1,4 +1,4 @@
-"""Anvaya Bank — demo backend (brain + route). See `routes.py`."""
+"""Global Bank — demo backend (brain + route). See `routes.py`."""
 
 from .routes import NAME, build, router
 

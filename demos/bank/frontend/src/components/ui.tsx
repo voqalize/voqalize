@@ -37,12 +37,12 @@ export function CardFace({ card, size = "md" }: { card: CreditCardProduct; size?
   return (
     <div className={`card-face card-face-${size}`} style={{ ["--card" as string]: card.color }} role="img" aria-label={`${card.name} card`}>
       <div className="cf-top">
-        <span className="cf-brand">Anvaya</span>
+        <span className="cf-brand">Global Bank</span>
         <span className="cf-tier">{card.tier}</span>
       </div>
       <div className="cf-chip" aria-hidden />
       <div className="cf-bottom">
-        <span className="cf-name">{card.name.replace("Anvaya ", "")}</span>
+        <span className="cf-name">{card.name.replace("Global ", "")}</span>
         <span className="cf-network">{card.network}</span>
       </div>
     </div>

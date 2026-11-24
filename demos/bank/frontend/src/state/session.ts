@@ -3,7 +3,7 @@ import { create } from "zustand";
 import { customer } from "../data/bank";
 import { emit } from "../voice/events";
 
-const KEY = "anvaya-signed-in";
+const KEY = "globalbank-signed-in";
 const stored = () => {
   try {
     return sessionStorage.getItem(KEY) === "1";

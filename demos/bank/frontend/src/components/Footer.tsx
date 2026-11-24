@@ -18,7 +18,7 @@ export function Footer() {
           <Link to="/open-account">Open a savings account</Link>
           {products.savings_variants.map((v) => (
             <Link key={v.id} to="/open-account">
-              {v.name.replace("Anvaya ", "")}
+              {v.name.replace("Global ", "")}
             </Link>
           ))}
         </nav>

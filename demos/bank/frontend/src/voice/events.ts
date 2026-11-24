@@ -68,8 +68,8 @@ export function onEventLog(fn: () => void) {
 
 export function debugMode(): boolean {
   try {
-    if (new URLSearchParams(window.location.search).has("debug")) sessionStorage.setItem("anvaya-debug", "1");
-    return sessionStorage.getItem("anvaya-debug") === "1";
+    if (new URLSearchParams(window.location.search).has("debug")) sessionStorage.setItem("globalbank-debug", "1");
+    return sessionStorage.getItem("globalbank-debug") === "1";
   } catch {
     return new URLSearchParams(window.location.search).get("debug") === "1";
   }

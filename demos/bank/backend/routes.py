@@ -1,4 +1,4 @@
-"""Anvaya Bank — the demo's own FastAPI brain route.
+"""Global Bank — the demo's own FastAPI brain route.
 
 Voqalize dials ``/bank?session_id=…`` once per session; the shared
 ``make_openai_brain_router`` owns the socket lifecycle and token verification,

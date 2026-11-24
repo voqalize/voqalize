@@ -21,7 +21,7 @@ export function Payments() {
 
   return (
     <div className="ax-page" data-stage-thing="screen:payments" data-stage-label="Payments">
-      <PageHead title="Payments" sub="Send money to people you have added. Transfers within Anvaya are instant; to other banks by IMPS, or RTGS from ₹2,00,000." />
+      <PageHead title="Payments" sub="Send money to people you have added. Transfers within Global Bank are instant; to other banks by IMPS, or RTGS from ₹2,00,000." />
       <div className="ax-split ax-split--pay">
         <Panel title="Beneficiaries" pad={false} thing="beneficiaries" label="Beneficiaries" action={<button type="button" className="ax-link" onClick={() => toast("Adding a beneficiary needs an OTP; this demo keeps the five you have.", "info")}><Plus size={14} /> Add</button>}>
           <ul className="ax-benes">
@@ -79,7 +79,7 @@ export function Payments() {
               <UserRound size={18} />
               <span>
                 {b.name}, {b.account_masked}, IFSC {b.ifsc}
-                <small>{b.bank === brand.name ? "Within Anvaya, instant" : "IMPS, usually within seconds"}</small>
+                <small>{b.bank === brand.name ? "Within Global Bank, instant" : "IMPS, usually within seconds"}</small>
               </span>
             </div>
             <label className="ax-field">

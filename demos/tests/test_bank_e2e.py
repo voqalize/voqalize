@@ -1,4 +1,4 @@
-"""Anvaya Bank (fictional) — the brain over the real wire, the model scripted.
+"""Global Bank (fictional) — the brain over the real wire, the model scripted.
 
 One brain, four landing pages (CONTRACT.md): the banking assistant in the app,
 the account-opening guide, the card advisor and the loan advisor. Each test
@@ -217,13 +217,13 @@ async def test_banking_answers_from_her_data_and_confirms_a_block() -> None:
         assert answer["args"] == {"action_id": "A1", "yes": True}
 
         await _result(
-            rig, answer, "applied", "done, reference ANVCB482113: Debit card ending 7712 blocked"
+            rig, answer, "applied", "done, reference GLBCB482113: Debit card ending 7712 blocked"
         )
         brain = rig.brain
         assert isinstance(brain, BankBrain)
         assert brain.cards["debit"]["controls"]["blocked"] is True
         idle = await rig.driver.user_idle()
-        assert "ANVCB482113" in idle.text and "Done" in idle.text
+        assert "GLBCB482113" in idle.text and "Done" in idle.text
 
 
 # ─── B1: "show me my accounts" is answered with her balances, never silence ──
@@ -459,9 +459,9 @@ async def test_account_opening_fills_the_form_and_submits_on_yes() -> None:
         assert any("still needed" in r for r in _results(llm, "submit_application"))
         submit = _move(rig, "form.submit")
         assert submit["args"] == {"form": "open_account"}
-        await _result(rig, submit, "applied", "submitted, reference ANV-SB-104233")
+        await _result(rig, submit, "applied", "submitted, reference GLB-SB-104233")
         idle = await rig.driver.user_idle()
-        assert "ANV-SB-104233" in idle.text
+        assert "GLB-SB-104233" in idle.text
 
 
 # ─── Cards: ranked from spend, compare, EMI ──────────────────────────────────
@@ -525,7 +525,7 @@ async def test_her_real_spend_ranks_cards_she_qualifies_for_first() -> None:
         # Prism has the highest raw value but needs ₹2,00,000 a month; she earns ₹1,42,500.
         assert _move(rig, "cards.compare")["args"]["card_ids"] == ["voyage", "daily", "spark"]
         ranking = _results(llm, "rank_cards")[-1]
-        assert "1. Anvaya Voyage" in ranking
+        assert "1. Global Voyage" in ranking
         prism = next(x for x in ranking.splitlines() if "Prism" in x)
         assert prism.startswith("5. ") and "Income below requirement" in prism
         assert "₹2,00,000" in prism
@@ -601,10 +601,10 @@ async def test_loan_advisor_works_out_eligibility_emi_and_ends_in_a_lead() -> No
         assert "Everything is filled" in _results(llm, "fill_loan_application")[-1]
         await rig.driver.user_says("Yes, submit.")
         submit = _move(rig, "form.submit")
-        await _result(rig, submit, "applied", "submitted, reference ANV-LD-552210: qualified lead")
+        await _result(rig, submit, "applied", "submitted, reference GLB-LD-552210: qualified lead")
         idle = await rig.driver.user_idle()
         assert (
-            "ANV-LD-552210" in idle.text
+            "GLB-LD-552210" in idle.text
             and "home loan team" in idle.text
             and "evening" in idle.text
         )
@@ -989,13 +989,13 @@ async def test_a_dropped_socket_rejoins_the_call_where_it_was() -> None:
                 "call_ref": answer["call_ref"],
                 "move": "confirm.answer",
                 "outcome": "applied",
-                "detail": "done, reference ANVCB482113: Debit card ending 7712 blocked",
+                "detail": "done, reference GLBCB482113: Debit card ending 7712 blocked",
             },
         )
         await asyncio.sleep(0.1)
         assert after.cards["debit"]["controls"]["blocked"] is True
         idle = await second.user_idle()
-        assert "ANVCB482113" in idle.text
+        assert "GLBCB482113" in idle.text
 
         # The model's history came across: the next model turn still holds it.
         await second.user_says("How much did I spend on food last month?")

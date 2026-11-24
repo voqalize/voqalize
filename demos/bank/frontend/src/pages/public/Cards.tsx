@@ -64,7 +64,7 @@ function useKnownIncome(): number | undefined {
 /** The note on a card whose minimum income is above hers. */
 function IncomeNote({ card, income }: { card: CreditCardProduct; income: number }) {
   return (
-    <p className="cr-income" data-stage-thing={`income:${card.id}`} data-stage-label={`${card.name.replace("Anvaya ", "")} income requirement`}>
+    <p className="cr-income" data-stage-thing={`income:${card.id}`} data-stage-label={`${card.name.replace("Global ", "")} income requirement`}>
       <CircleAlert size={14} aria-hidden />
       <span>
         <strong>Income below requirement.</strong> Needs {inr(card.min_income_monthly)} a month; yours is {inr(income)}.
@@ -239,7 +239,7 @@ export function CardsPage() {
                       </Link>
                     </div>
                   </div>
-                  <div className="cr-value" data-stage-thing={`value:${c.id}`} data-stage-label={`${c.name.replace("Anvaya ", "")} yearly value`}>
+                  <div className="cr-value" data-stage-thing={`value:${c.id}`} data-stage-label={`${c.name.replace("Global ", "")} yearly value`}>
                     <span className="cr-value-label">Worth to you a year</span>
                     <span className={`cr-value-num num${v.net_yearly < 0 ? " is-neg" : ""}`}>{inr(v.net_yearly)}</span>
                     <ValueBreakdown card={c} v={v} />
@@ -301,7 +301,7 @@ export function CardDetail() {
             </ul>
             <div className="head-actions">
               <Link to={`/cards/apply?card=${card.id}`} className="btn btn-accent btn-lg" data-stage-thing="cta:apply" data-stage-label="Apply">
-                Apply for {card.name.replace("Anvaya ", "")}
+                Apply for {card.name.replace("Global ", "")}
               </Link>
               <Link
                 to="/cards/compare"
@@ -480,7 +480,7 @@ export function CardsCompare() {
                         <Trophy size={12} aria-hidden /> Best for you
                       </span>
                     ) : values[i].below_income ? (
-                      <span className="chip chip-warn ct-best" data-stage-thing={`income:${c.id}`} data-stage-label={`${c.name.replace("Anvaya ", "")} income requirement`}>
+                      <span className="chip chip-warn ct-best" data-stage-thing={`income:${c.id}`} data-stage-label={`${c.name.replace("Global ", "")} income requirement`}>
                         <CircleAlert size={12} aria-hidden /> Income below requirement
                       </span>
                     ) : (
@@ -499,7 +499,7 @@ export function CardsCompare() {
                 <tr key={r.thing} className={r.thing === "value" ? "ct-value-row" : undefined}>
                   <th scope="row">{r.label}</th>
                   {cards.map((c, i) => (
-                    <td key={c.id} className={i === best ? "is-best" : undefined} data-stage-thing={r.thing === "value" ? `compare-value:${c.id}` : undefined} data-stage-label={r.thing === "value" ? `${c.name.replace("Anvaya ", "")} yearly value` : undefined}>
+                    <td key={c.id} className={i === best ? "is-best" : undefined} data-stage-thing={r.thing === "value" ? `compare-value:${c.id}` : undefined} data-stage-label={r.thing === "value" ? `${c.name.replace("Global ", "")} yearly value` : undefined}>
                       {r.cell(c, values[i])}
                     </td>
                   ))}

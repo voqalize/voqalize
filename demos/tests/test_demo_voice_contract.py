@@ -227,7 +227,7 @@ DEMOS: dict[str, Expected] = {
     # test_payroll_site_e2e.py / test_payroll_app_e2e.py.
     "payroll_site": Expected(voice="omnivoice/aditya", language="en", provider="openai"),
     "payroll_app": Expected(voice="omnivoice/priya", language="en", provider="openai"),
-    # Arjun, Anvaya Bank's assistant (a fictional bank): the visitor picks English
+    # Arjun, Global Bank's assistant (a fictional bank): the visitor picks English
     # or Hindi on the page's toggle and it rides `init`; with none, English. Both
     # legs move together on the toggle or set_language. The character and his
     # voice live in demos/bank/persona.json. Asserted in test_bank_e2e.py.

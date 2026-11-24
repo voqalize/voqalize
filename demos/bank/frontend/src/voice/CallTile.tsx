@@ -28,7 +28,7 @@ import { avoidRects, isPhone, raisedCorner, tabBar } from "./useDockMode";
 
 type Anchor = "tl" | "tr" | "ml" | "mr" | "bl" | "br";
 const ANCHORS: Anchor[] = ["tl", "tr", "ml", "mr", "bl", "br"];
-const KEY = "anvaya-call-tile-v2";
+const KEY = "globalbank-call-tile-v2";
 const MARGIN = 16;
 
 interface Saved {

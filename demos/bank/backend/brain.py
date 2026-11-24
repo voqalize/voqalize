@@ -1,4 +1,4 @@
-"""BankBrain — the assistant of Anvaya Bank, a fictional Indian retail bank.
+"""BankBrain — the assistant of Global Bank, a fictional Indian retail bank.
 
 An :class:`~voqalize.sdk.openai.OpenAIBrain`. One brain, four jobs, one per
 landing page (CONTRACT.md): the banking assistant in the signed-in app, the
@@ -2072,7 +2072,7 @@ class BankBrain(OpenAIBrain):
 
 
 def _reference(detail: str) -> str | None:
-    hit = re.search(r"\b(ANV[-A-Z0-9]*\d{4,})\b", detail)
+    hit = re.search(r"\b(GLB[-A-Z0-9]*\d{4,})\b", detail)
     return hit.group(1) if hit else None
 
 

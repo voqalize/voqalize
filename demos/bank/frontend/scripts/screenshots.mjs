@@ -218,7 +218,7 @@ for (const width of [1440, 390]) {
     const errors = [];
     page.on("pageerror", (e) => errors.push(e.message));
     page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
-    if (shot.signedIn) await page.addInitScript(() => sessionStorage.setItem("anvaya-signed-in", "1"));
+    if (shot.signedIn) await page.addInitScript(() => sessionStorage.setItem("globalbank-signed-in", "1"));
     await page.goto(`${base}${shot.path}`, { waitUntil: "networkidle" });
     await settle(page);
     if (shot.run) await shot.run(page);

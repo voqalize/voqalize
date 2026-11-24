@@ -1,6 +1,6 @@
-# Anvaya Bank — UI ↔ brain contract
+# Global Bank — UI ↔ brain contract
 
-Anvaya Bank is a **fictional** Indian retail bank and a Voqalize voice demo: a public website and a
+Global Bank is a **fictional** Indian retail bank and a Voqalize voice demo: a public website and a
 complete signed-in banking app. One brain (`backend/brain.py`, `OpenAIBrain`) plays the bank's
 assistant, whose character, voice and languages live in **`persona.json`** only (today: Arjun,
 voice `omnivoice/arjun`, English and Hindi). It has four jobs, one per landing page:
@@ -139,11 +139,11 @@ Plain action (not a Stage move): `language_changed {language}` — the dock's to
   step 2 `address_line, city, state, pincode (6 digits), residence_type`; step 3 `pan (AAAAA9999A),
   aadhaar (12 digits), occupation, annual_income`; step 4 `nominee_name, nominee_relation, nominee_dob`;
   step 5 `variant, debit_card, cheque_book`; step 6 review. Choices: `products.account_opening.choices`.
-  Submit → reference `ANV-SB-<6 digits>`, "video KYC link sent" confirmation.
-- `card_apply`: `card_id, full_name, mobile, pan, employment, monthly_income, city`. Submit → `ANV-CC-<6 digits>`.
+  Submit → reference `GLB-SB-<6 digits>`, "video KYC link sent" confirmation.
+- `card_apply`: `card_id, full_name, mobile, pan, employment, monthly_income, city`. Submit → `GLB-CC-<6 digits>`.
 - `loan_apply`: `loan_type, full_name, mobile, city, employment, employer, monthly_income, existing_emis,
   amount, tenure_months, property_value (home), gold_grams (gold), car_price (car), preferred_time`.
-  Submit → a **qualified lead card**: lead id `ANV-LD-<6 digits>`, product, amount, tenure, EMI,
+  Submit → a **qualified lead card**: lead id `GLB-LD-<6 digits>`, product, amount, tenure, EMI,
   eligibility verdict (amount within the eligible maximum or not), documents to keep ready, callback
   slot, "assigned to the <product> team, <city>".
 

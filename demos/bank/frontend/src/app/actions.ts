@@ -83,7 +83,7 @@ const INITIALS: Record<ActionKind, string> = {
   emi_convert: "EC",
   offer_accept: "OA",
 };
-const reference = (kind: ActionKind) => `ANV${INITIALS[kind]}${String(Math.floor(Math.random() * 1e6)).padStart(6, "0")}`;
+const reference = (kind: ActionKind) => `GLB${INITIALS[kind]}${String(Math.floor(Math.random() * 1e6)).padStart(6, "0")}`;
 
 const cardName = (id: CardId) => {
   const c = cardById(id)!;
@@ -136,10 +136,10 @@ const offerById = (id: string) => customer.offers.find((o) => o.id === id);
 /** What is left to pay on a biller (0 once paid here). */
 export const billDue = (id: string) => {
   if (useBank.getState().billsPaid[id]) return 0;
-  if (id === "anvaya-card") return cardStatementDue();
+  if (id === "globalbank-card") return cardStatementDue();
   return registered(id)?.due ?? 0;
 };
-export const cardStatementDue = () => (useBank.getState().billsPaid["anvaya-card"] ? 0 : cardById("credit")!.statement!.total_due);
+export const cardStatementDue = () => (useBank.getState().billsPaid["globalbank-card"] ? 0 : cardById("credit")!.statement!.total_due);
 
 /** The personal-loan offer's default tenure: the product's default, within the offer's maximum. */
 export const offerTenureDefault = (max: number) => Math.min(max, loanProduct("personal")?.tenure_default_months ?? 36);
@@ -243,7 +243,7 @@ export function describeAction(a: ConfirmArgs): Described {
       if (amount > b.limit) refuse("amount", `the limit for ${b.name} is ${inr(b.limit)} a transfer`, [`up to ${inr(b.limit)}`]);
       const from = fromAccount(a);
       checkFunds(from, amount);
-      const mode = b.bank === brand.name ? "Within Anvaya" : amount >= 200000 ? "RTGS" : "IMPS";
+      const mode = b.bank === brand.name ? "Within Global Bank" : amount >= 200000 ? "RTGS" : "IMPS";
       return {
         title: `Send ${inr(amount)} to ${b.name}?`,
         lines: [
@@ -400,8 +400,8 @@ export function applyAction(a: ConfirmArgs): Applied {
       const from = fromAccount(a);
       const bal = moveBalance(from, -amount);
       const s = useBank.getState();
-      if (id === "anvaya-card") {
-        addTxn({ account: from, description: "BILLPAY ANVAYA CREDIT CARD 3094", merchant: "Anvaya Spark credit card bill", category: "transfers", amount, direction: "debit", mode: "Bill pay", balance_after: bal, note: `Reference ${ref}` });
+      if (id === "globalbank-card") {
+        addTxn({ account: from, description: "BILLPAY GLOBAL CREDIT CARD 3094", merchant: "Global Spark credit card bill", category: "transfers", amount, direction: "debit", mode: "Bill pay", balance_after: bal, note: `Reference ${ref}` });
         addTxn({ account: "cc", description: "PAYMENT RECEIVED THANK YOU", merchant: "Payment received from savings", category: "transfers", amount, direction: "credit", mode: "Bill pay" });
         useBank.setState({ cc: { outstanding: Math.max(0, s.cc.outstanding - amount), available: s.cc.available + amount } });
       } else {
@@ -419,7 +419,7 @@ export function applyAction(a: ConfirmArgs): Applied {
       addTxn({ account: from, description: `${mode.toUpperCase()} DR ${b.name.toUpperCase()}`, merchant: b.name, category: "transfers", amount, direction: "debit", mode, balance_after: bal, note: `Reference ${ref}` });
       const s = useBank.getState();
       useBank.setState({ transfers: [{ reference: ref, beneficiary: b.id, amount, from }, ...s.transfers] });
-      return { reference: ref, summary: `${inr(amount)} sent to ${b.name} ${mode === "Transfer" ? "within Anvaya" : `by ${mode}`}` };
+      return { reference: ref, summary: `${inr(amount)} sent to ${b.name} ${mode === "Transfer" ? "within Global Bank" : `by ${mode}`}` };
     }
     case "fd_book": {
       const amount = a.amount!;
@@ -457,7 +457,7 @@ export function applyAction(a: ConfirmArgs): Applied {
       const months = a.tenure_months ?? offerTenureDefault(o.tenure_max_months!);
       const m = Math.round(emi(amount, o.rate!, months));
       const bal = moveBalance("sb", amount);
-      addTxn({ account: "sb", description: "PERSONAL LOAN DISBURSAL", merchant: "Anvaya personal loan credited", category: "income", amount, direction: "credit", mode: "Transfer", balance_after: bal, note: `${months} months at ${o.rate}%, EMI ${inr(m)}. Reference ${ref}` });
+      addTxn({ account: "sb", description: "PERSONAL LOAN DISBURSAL", merchant: "Global Bank personal loan credited", category: "income", amount, direction: "credit", mode: "Transfer", balance_after: bal, note: `${months} months at ${o.rate}%, EMI ${inr(m)}. Reference ${ref}` });
       useBank.setState({ offers: { ...useBank.getState().offers, [o.id]: { reference: ref, amount, tenure_months: months, emi: m } } });
       return { reference: ref, summary: `${inr(amount)} credited to savings; ${months} EMIs of ${inr(m)}` };
     }
