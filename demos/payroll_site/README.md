@@ -42,6 +42,12 @@ Everything also works by click alone: clicks, the agent's moves and the `?debug=
 through one store controller (`frontend/src/state/store.ts`). `?debug=1` fires any move by hand,
 runs each agent's main flow as a script, and fakes a live call for screenshots.
 
+Every ring first brings the target's whole group (`data-stage-group`) into view: inner scroll areas,
+then the window, under the top bars and clear of the dock and the call tile when there is room
+(`frontend/src/stage/view.ts`). With `?debug=1`, `window.__paynoraRings` records, for each ring,
+whether that group was fully in view as it rang (`frontend/src/stage/audit.ts`), and
+`window.__paynoraMove(id, args)` fires a move by hand.
+
 The contract between the two halves is `CONTRACT.md`; the moves are `frontend/src/stage/scene.json`.
 
 ## Facts the agent may state

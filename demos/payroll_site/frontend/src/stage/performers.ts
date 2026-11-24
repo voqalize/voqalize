@@ -39,9 +39,25 @@ async function open(path: string, c: MoveContext): Promise<void> {
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
+/**
+ * On a phone the open brief is a sheet over most of the screen: a move that
+ * rings something on the page under it (a module card) folds the brief down
+ * first, as the visitor would, so the ring is not hidden (X1 audit). The
+ * brief's tab stays, and its next field reopens it.
+ */
+async function clearOfBrief(els: Element[]): Promise<void> {
+  const card = thing("lead-card");
+  if (!card || !useSite.getState().leadOpen || els.every((e) => card.contains(e))) return;
+  if (card.getBoundingClientRect().height < window.innerHeight * 0.5) return;
+  actions.openLead(false);
+  await waitFor(() => !thing("lead-card"), 600);
+  await new Promise((r) => setTimeout(r, 250));
+}
+
 /** Bring `el` and its group into view, then ring it. */
 async function ringAt(c: MoveContext, el: Element | null, label: string): Promise<void> {
   if (!el) return;
+  await clearOfBrief([el]);
   await bringIntoView(c, el);
   await c.ring(el, label);
 }
@@ -151,6 +167,7 @@ export function performers(): Performers<Spec> {
       // The whole set first (all the cards together when they fit on screen),
       // then each card in turn, scrolling again only for one still cut off.
       const cards = list.map((id) => thing(`module:${id}`)).filter((e): e is Element => !!e);
+      await clearOfBrief(cards);
       await bringIntoView(c, cards);
       const marked: string[] = [];
       for (const id of list) {

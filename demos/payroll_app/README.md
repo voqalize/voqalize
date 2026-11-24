@@ -71,6 +71,12 @@ Without `VITE_AGENT_ID` and `VITE_PUBLISHABLE_KEY` (see `.env.example`) the app 
 Add `?debug=1` for the dev console, which fires any Stage move through the same performers the agent
 uses.
 
+Every ring first brings the target's whole group (`data-stage-group`) into view: inner scroll areas,
+then the window, under the top bars and clear of the dock and the call tile when there is room
+(`frontend/src/stage/view.ts`). With `?debug=1`, `window.__paynoraRings` records, for each ring,
+whether that group was fully in view as it rang (`frontend/src/stage/audit.ts`), and
+`window.__paynoraMove(id, args)` fires a move by hand.
+
 ## A dropped socket does not end the call
 
 Where Voqalize offers redial, the brain turns it on. If its socket drops without a hang-up (a

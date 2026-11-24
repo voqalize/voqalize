@@ -399,6 +399,16 @@ p {
   padding: 28px var(--pad) 120px;
   outline: none;
 }
+/* While the call tile is up, the foot of every screen can scroll clear of it
+   (X1: a ring on the last panel, a regime switch, was under the tile). */
+body:has(.call-tile.is-tile) .main {
+  padding-bottom: 290px;
+}
+@media (max-width: 640px) {
+  body:has(.call-tile.is-tile) .main {
+    padding-bottom: 220px;
+  }
+}
 .page {
   max-width: 1240px;
   margin: 0 auto;
