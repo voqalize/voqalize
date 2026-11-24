@@ -27,6 +27,12 @@ One brain, one job per landing page; it follows the visitor to another page and 
   `uv run --project demos voqalize stage gen demos/property/frontend/src/stage/scene.json --py demos/property/backend/stage_gen.py --ts demos/property/frontend/src/stage/scene.gen.ts`
 - `backend/` — `PropertyBrain` (`voqalize.sdk.openai.OpenAIBrain`, `reasoning="medium"`), the shared
   rules in `homes.py`, the written lines in `lines.py`, the prompt in `prompt.py`.
+- `backend/spoken.py` — amounts in speech, both ways. Everything the agent says (the model's words and
+  its own lines) is rewritten before the voice gets it, so a price the screen shows as "₹1.14 crore" is
+  read "one point one four crore rupees" (Hindi: whole rupees, or सवा / डेढ़ / साढ़े with लाख and करोड़),
+  never as rupees and paise. What the buyer says ("1 to 1.5 crore", "dedh crore", "45k a month",
+  "सवा करोड़") reaches the model as rupees, and a budget no buyer would mean (₹15) is confirmed back
+  before the search uses it.
 - `frontend/` — a standalone Vite + React app on `@voqalize/stage`, `@voqalize/avatar` and
   `@voqalize/client-transport`. `?debug=1` opens a console that fires any Stage move by hand and can
   fake a call to show the call tile.

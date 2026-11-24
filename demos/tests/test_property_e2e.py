@@ -635,3 +635,187 @@ async def test_no_redial_is_asked_of_a_voqalize_that_does_not_offer_it() -> None
         check_greeting(rig, greeting)
         assert _redials(rig.driver) == []
         check_voice_pair(rig, voice=PERSONA.voices["en"], language="en")
+
+
+# ─── Amounts in speech, both ways (X8) ────────────────────────────────────────
+
+from voqalize_demos._loaded.property.spoken import (  # noqa: E402
+    SpokenAmounts,
+    amounts_note,
+    implausible,
+    parse_amounts,
+    speak_text,
+)
+
+
+@pytest.mark.parametrize(
+    ("written", "lang", "spoken"),
+    [
+        # Every price over a crore had the shape Voqalize's TTS reads as rupees and paise
+        # ("₹1.14 crore" → "one rupee and fourteen paisa crore"). Spelled out, it passes.
+        (
+            f"BLR-101 is {h.short(11400000)}, 1085 sq ft.",
+            "en",
+            "BLR-101 is one point one four crore rupees, 1085 sq ft.",
+        ),
+        ("Under 1.5 crore, two fit.", "en", "Under one point five crore, two fit."),
+        ("It's ₹94 lakh.", "en", "It's ninety four lakh rupees."),
+        (
+            "₹42,000 a month, deposit ₹2.5 lakh.",
+            "en",
+            "₹42,000 a month, deposit two point five lakh rupees.",
+        ),
+        (
+            "Homes from ₹80 lakh to ₹1.2 crore.",
+            "en",
+            "Homes from eighty lakh rupees to one point two crore rupees.",
+        ),
+        (
+            "Prices of ₹1.14\u20131.5 crore.",
+            "en",
+            "Prices of one point one four to one point five crore rupees.",
+        ),
+        (
+            "Loan ₹91.2 lakh, total interest ₹1.07 Cr.",
+            "en",
+            "Loan ninety one point two lakh rupees, total interest one point zero seven crore rupees.",
+        ),
+        ("Rates of 8.25\u20138.9% a year.", "en", "Rates of 8.25% to 8.9% a year."),
+        # Plain amounts, percentages, ids, references and times are left to the TTS.
+        ("An EMI of ₹88,123 a month at 8.4%, ₹10,507 per sq ft.", "en", None),
+        ("Reference KV-104-221030, Saturday 22 Nov at 10:30 am.", "en", None),
+        # Hindi: Devanagari scale with the ₹ mark (सवा, डेढ़, साढ़े); any other decimal
+        # as whole rupees, never एक दशमलव एक चार करोड़.
+        ("यह ₹1.14 करोड़ का है।", "hi", "यह ₹1,14,00,000 का है।"),
+        ("यह ₹1.25 crore का है।", "hi", "यह ₹1.25 करोड़ का है।"),
+        ("बजट ₹1.5 Cr तक।", "hi", "बजट ₹1.5 करोड़ तक।"),
+        ("यह ₹92.5 लाख का है।", "hi", "यह ₹92.5 लाख का है।"),
+        ("₹80 लाख से ₹1.2 करोड़ तक।", "hi", "₹80 लाख से ₹1,20,00,000 तक।"),
+        ("EMI ₹88,123 महीना, ब्याज 8.4%।", "hi", None),
+    ],
+)
+def test_amounts_are_written_the_way_the_voice_reads_them(
+    written: str, lang: str, spoken: str | None
+) -> None:
+    assert speak_text(written, lang) == (written if spoken is None else spoken)
+
+
+@pytest.mark.parametrize(
+    ("heard", "rupees"),
+    [
+        # (value, low end of a range or None) for each amount said.
+        (
+            "Two or three BHK in Bengaluru under 1.5 crore.",
+            [(2, None), (3, None), (15000000, None)],
+        ),
+        ("under 1.5 Cr", [(15000000, None)]),
+        ("around 94 lakhs", [(9400000, None)]),
+        ("1 to 1.5 crore", [(15000000, 10000000)]),
+        ("1-1.5 cr", [(15000000, 10000000)]),
+        ("between 80 lakh and 1.2 crore", [(12000000, 8000000)]),
+        ("between 1 and 1.5 crore", [(15000000, 10000000)]),
+        ("80 lakh and 1.2 crore", [(8000000, None), (12000000, None)]),
+        ("one and a half crore", [(15000000, None)]),
+        ("dedh crore tak", [(15000000, None)]),
+        ("1 crore 25 lakh", [(12500000, None)]),
+        ("one point two crore", [(12000000, None)]),
+        ("rent around 40 to 50 thousand a month", [(50000, 40000)]),
+        ("45k a month", [(45000, None)]),
+        ("45 hazaar mahina", [(45000, None)]),
+        ("forty two thousand a month", [(42000, None)]),
+        ("सवा करोड़ तक", [(12500000, None)]),
+        ("90 लाख से सवा करोड़ के बीच", [(12500000, 9000000)]),
+        ("पचास हज़ार महीना", [(50000, None)]),
+        ("साढ़े तीन लाख deposit", [(350000, None)]),
+        ("लगभग ₹\u0967,\u0968\u096b,\u0966\u0966\u0966", [(125000, None)]),
+        ("₹1,25,000 and ₹2 lakh", [(125000, None), (200000, None)]),
+    ],
+)
+def test_spoken_amounts_parse_to_rupees(
+    heard: str, rupees: list[tuple[float, float | None]]
+) -> None:
+    assert [(a.value, a.low) for a in parse_amounts(heard)] == rupees
+
+
+async def test_an_amount_split_across_streamed_chunks_is_still_said_whole() -> None:
+    """A model streams tokens: "₹1." then "14 cr" then "ore". The rewrite waits for the
+    amount to finish; the unit's start and end pass through as they came."""
+    from voqalize.sdk import SpeechChunk, SpeechEnd, SpeechStart
+
+    async def stream() -> Any:
+        yield SpeechStart()
+        for piece in ["Kosha Aranya is ₹1.", "14 cr", "ore; a rent of ₹42,", "000 a month."]:
+            yield SpeechChunk(piece)
+        yield SpeechEnd()
+
+    out = [e async for e in SpokenAmounts(lambda: "en").wrap(stream())]
+    assert isinstance(out[0], SpeechStart) and isinstance(out[-1], SpeechEnd)
+    text = "".join(e.text for e in out if isinstance(e, SpeechChunk))
+    assert text == "Kosha Aranya is one point one four crore rupees; a rent of ₹42,000 a month."
+
+
+def test_an_implausible_budget_is_confirmed_back_never_used() -> None:
+    why = implausible({"budget_max": 15}, "buy", ["under 1.5 crore"])
+    assert why is not None and why.startswith("Not done")
+    assert "₹1,50,00,000" in why and "₹1.5 crore, right?" in why
+    rent = implausible({"budget_max": 45}, "rent", ["around 45 thousand a month"])
+    assert rent is not None and "₹45,000, right?" in rent
+    # A buy budget of a rent's size is not one a buyer means either.
+    assert implausible({"budget_max": 45000}, "buy", ["45 thousand"]) is not None
+    assert implausible({"budget_min": 10000000, "budget_max": 15000000}, "buy", []) is None
+    assert implausible({"budget_max": 45000}, "rent", []) is None
+    assert implausible({"budget_max": 45000}, None, []) is None
+    assert amounts_note("between 1 and 1.5 crore") == (
+        "[Amounts they said, in rupees: '1 and 1.5 crore' = 10000000 to 15000000 rupees.]"
+    )
+    assert amounts_note("yes please") is None
+
+
+_BUDGET = "Two BHK in Bengaluru, between 1 and 1.5 crore."
+_MISHEARD = "Actually make it under dedh crore."
+
+
+async def test_amounts_are_spoken_as_words_and_a_wrong_budget_is_confirmed() -> None:
+    """Over the wire: the budget he said reaches the model in rupees; the price the model
+    writes as "₹1.14 crore" reaches the voice as words; and a budget passed as ₹15 for
+    "dedh crore" never reaches the listings: the tool asks for "₹1.5 crore" back."""
+    s = h.Search(city="bengaluru", bhk=[2], budget_min=10000000, budget_max=15000000)
+    first = h.search(s)[0]
+    llm = ScriptedOpenAI(
+        {
+            _BUDGET: [
+                reply_and_call(
+                    "Let me narrow that down.",
+                    "search_homes",
+                    city="bengaluru",
+                    bhk=[2],
+                    budget_min=10000000,
+                    budget_max=15000000,
+                ),
+                reply(f"{{show: {first['id']}}} {first['title']} is {h.short(first['price'])}."),
+            ],
+            _MISHEARD: [
+                reply_and_call("Let me change that.", "search_homes", budget_max=15),
+                reply("Just to check, ₹1.5 crore, right?"),
+            ],
+        }
+    )
+    async with demo("property", llm) as rig:
+        await rig.driver.start_session(init={"page": "/listings", "lang": "en"})
+        turn = await rig.driver.user_says(_BUDGET)
+        check_turn(rig, turn)
+        told = _inputs(llm)
+        assert "'1 and 1.5 crore' = 10000000 to 15000000 rupees" in told
+        (move,) = _moves(rig, "listings.filter")
+        assert move["args"]["budget_min"] == 10000000 and move["args"]["budget_max"] == 15000000
+        said = " ".join(u.text for u in turn.units)
+        assert speak_text(h.short(first["price"]), "en") in said and "₹" not in said
+        await _answer(rig, "listings.filter")
+
+        turn = await rig.driver.user_says(_MISHEARD)
+        result = tool_results_of(llm.captured_inputs[-1], "search_homes")[-1]
+        assert result.startswith("Not done") and "₹1,50,00,000" in result
+        assert len(_moves(rig, "listings.filter")) == 1
+        assert _brain(rig).search.budget_max == 15000000
+        said = " ".join(u.text for u in turn.units)
+        assert "one point five crore rupees, right?" in said

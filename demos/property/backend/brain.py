@@ -14,7 +14,11 @@ visitor does as Stage events, folded into the brain's own state (the search,
 the shortlist, the page in front, the slots taken).
 
 Every number comes from ``data/homes.json`` and the shared rules in
-:mod:`.homes`. The character — name, voice per language, the languages offered
+:mod:`.homes`. Everything the agent says, the model's words and its own lines,
+reaches the voice through :mod:`.spoken`, which writes each amount the way the
+voice reads it right ("₹1.14 crore" as "one point one four crore rupees"); a
+budget the buyer said is read back to the model in rupees, and one no buyer
+would mean is confirmed before the search uses it (FEEDBACK X8). The character — name, voice per language, the languages offered
 and the default — comes from ``persona.json`` (:mod:`.persona`).
 """
 
@@ -52,6 +56,7 @@ from .lines import BOOKING, BRING_SHORT, GREETING, LANDED, NO_WORDS, YES_WORDS
 from .persona import PERSONA, Persona
 from .prompt import system_instruction
 from .rejoin import Rejoin
+from .spoken import SpokenAmounts, amounts_note, implausible, speak_text
 from .stage_gen import MOVES as STAGE_MOVES
 from .stage_gen import SPEC, ReadRequest
 
@@ -235,6 +240,10 @@ class PropertyBrain(OpenAIBrain):
             mirror=Mirror(SPEC),
         )
         self._fallback = FallbackLine()
+        #: Every amount spoken in the form the voice reads right (spoken.py, X8).
+        self._spoken = SpokenAmounts(lambda: self.lang)
+        #: The buyer's last few turns, as heard: what a budget is checked against.
+        self._heard_recent: list[str] = []
         # This socket's brain took over a call a dropped socket left (rejoin.py).
         self._rejoined = False
 
@@ -293,7 +302,8 @@ class PropertyBrain(OpenAIBrain):
         if self._rejoined:
             return None
         title = h.LISTINGS[self.listing_id]["title"] if self.listing_id else ""
-        return GREETING[self.job][self.lang].format(name=self.persona.name, title=title)
+        line = GREETING[self.job][self.lang].format(name=self.persona.name, title=title)
+        return speak_text(line, self.lang)
 
     def _at(self, path: str) -> bool:
         """The visitor is on ``path``; True when the job changed."""
@@ -307,10 +317,12 @@ class PropertyBrain(OpenAIBrain):
 
     # ─── The turn ───────────────────────────────────────────────────────
 
-    async def on_user_message(
-        self, session: Session, msg: UserMessage
-    ) -> AsyncGenerator[Speech, None]:
+    def on_user_message(self, session: Session, msg: UserMessage) -> AsyncGenerator[Speech, None]:
+        return self._spoken.wrap(self._answer(session, msg))
+
+    async def _answer(self, session: Session, msg: UserMessage) -> AsyncGenerator[Speech, None]:
         self.turns += 1
+        self._heard_recent = [*self._heard_recent[-2:], msg.text]
         self.stage.visitor_spoke()
         self._talk = None
         self._settle_expired()
@@ -318,6 +330,8 @@ class PropertyBrain(OpenAIBrain):
             await session.configure(self._speaking("hi"))
         self.append_note(self.screen_now())
         self.append_note(msg.text)
+        if (said := amounts_note(msg.text)) is not None:
+            self.append_note(said)
         pending = self.pending
         if pending is not None and pending.turn < self.turns:
             answer = _yes_no(msg.text)
@@ -341,7 +355,7 @@ class PropertyBrain(OpenAIBrain):
         self.stage.end_turn()
 
     def on_user_idle(self, session: Session, idle: UserIdle) -> AsyncGenerator[Speech, None]:
-        return self._idle(session)
+        return self._spoken.wrap(self._idle(session))
 
     async def _idle(self, session: Session) -> AsyncGenerator[Speech, None]:
         """A quiet spell: a line the brain owes (a booking's outcome) or the
@@ -530,6 +544,13 @@ class PropertyBrain(OpenAIBrain):
     async def search_homes(self, request: SearchRequest) -> str:
         """Set the listings page's search from what the buyer said: the sidebar
         filters tick one by one and the map follows. Pass only what changed."""
+        why = implausible(
+            {"budget_min": request.budget_min, "budget_max": request.budget_max},
+            request.deal or (None if request.reset else self.search.deal),
+            self._heard_recent[::-1],
+        )
+        if why is not None:
+            return why
         s = h.Search() if request.reset else h.Search(**vars(self.search))
         for name in request.clear or []:
             if hasattr(s, name):
