@@ -11,13 +11,15 @@
  * The workspace is not one of them: the `pk_` key belongs to exactly one, so the
  * control plane reads it off the key.
  *
- * `apiBase` is always `/api/v1`: in local dev Vite proxies it to the control
- * plane; in a deploy the apex domain that serves the demo UI rewrites `/api/*`
- * to the control plane. Either way the browser calls same-origin, so a
- * publishable key's `allowed_origins` only needs the domain the UI is served on.
+ * `apiBase` is `connectApiBase()`: on `voqalize.com` and `dev.voqalize.com` the
+ * environment's signalling host, elsewhere same-origin `/api/v1`, which Vite
+ * proxies to the control plane in local dev. Either way the request carries the
+ * page's origin, so a publishable key's `allowed_origins` only needs the domain
+ * the UI is served on.
  */
 
 import type { APIRequest } from "@pipecat-ai/client-js";
+import { connectApiBase } from "@voqalize/demo-kit";
 
 /** Resolved wiring for this demo agent. */
 export interface DemoConfig {
@@ -30,7 +32,7 @@ export interface DemoConfig {
 }
 
 export const demo: DemoConfig = {
-  apiBase: "/api/v1",
+  apiBase: connectApiBase(),
   // Empty when unprovisioned — the connect request 401s with a clear message.
   agentId: (import.meta.env.VITE_AGENT_ID as string | undefined) ?? "",
   publishableKey: import.meta.env.VITE_PUBLISHABLE_KEY as string | undefined,

@@ -34,6 +34,7 @@ Find the symptom, check the cause, apply the fix. If no row fits,
 | Symptom | Usual cause | Fix |
 |---|---|---|
 | It refers to things the user never heard | History records what the brain generated, not what was heard. | Record `fin.heard` from `on_finalize`. See [Transcripts and heard truth](/build/brain/transcripts/). |
+| The user hears "Mm-hm." in the middle of their turn | The continuer: the user paused, and Voqalize could not yet tell whether they were done. It is expected, and the turn stays open. | Nothing to fix. Turning ack off removes it too. See [Speaking](/build/brain/speaking/#voqalize-says-mm-hm-while-the-user-pauses). |
 | The user hears two acknowledgements | Voqalize's acknowledgement is on, and your brain opens with its own. | Turn ack off, or drop your own opener. See [Speaking](/build/brain/speaking/#turn-ack-off-when-your-brain-writes-its-own). |
 | Right words, wrong accent | Only one language leg was changed, or `tts.language` was never set. | Set both legs every time. See [Voice and language](/build/voice-and-language/). |
 | A `configure` raises `RequestRejected` | The voice does not speak that language, or the recognizer does not hear it. | Read `code` and `detail`. See [Error codes](/reference/errors/#a-rejected-request-comes-back-on-the-request). |

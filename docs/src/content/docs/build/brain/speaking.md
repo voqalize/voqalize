@@ -124,6 +124,16 @@ class MyBrain(Brain):
 ```
 
 Acknowledgements are said only in the languages Voqalize has a vocabulary for.
+
+### Voqalize says "Mm-hm." while the user pauses
+
+When the user stops in the middle of a thought ("I was thinking we could go
+to… umm…") and Voqalize cannot yet tell whether they are done, it says "Mm-hm."
+and the avatar nods, so the user knows they are still being heard. The line is
+the same in every language. It never reaches your brain: the turn stays open,
+your `on_user_message` receives the whole turn once it ends, and that turn's
+`heard_text` never contains the "Mm-hm.". It belongs to ack, so turning ack off
+turns it off too.
 [Voice and language](/build/voice-and-language/) covers the rest of the session
 settings.
 
