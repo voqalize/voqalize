@@ -1,0 +1,39 @@
+/* Hotel Belmonte: coastal California, quiet luxury. Ink and sand, brass and
+   sea glass. Bodoni Moda for the voice of the brand, Manrope for the app. */
+:root {
+  --ink: #13212b;
+  --ink-2: #33434d;
+  --muted: #6e7a81;
+  --faint: #9aa4a9;
+  --sand: #f5efe6;
+  --sand-2: #ece3d5;
+  --paper: #fffdf9;
+  --line: #e5dccf;
+  --line-2: #d7cbb9;
+  --brass: #a67c3d;
+  --brass-2: #c9a467;
+  --brass-soft: #f3e8d4;
+  --sea: #2c5a5e;
+  --sea-2: #3f7a7c;
+  --sea-soft: #e1ebe8;
+  --coral: #c0603a;
+  --coral-soft: #f8e4da;
+  --ok: #2d7656;
+  --ok-soft: #e0efe7;
+  --night: #0d1a22;
+
+  --display: "Bodoni Moda Variable", "Bodoni 72", "Didot", Georgia, serif;
+  --sans: "Manrope Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  --r-sm: 10px;
+  --r: 16px;
+  --r-lg: 22px;
+  --shadow: 0 1px 2px rgba(19, 33, 43, 0.06), 0 8px 24px -12px rgba(19, 33, 43, 0.18);
+  --shadow-lg: 0 24px 60px -24px rgba(19, 33, 43, 0.45);
+
+  /* The phone's chrome, inside the screen. */
+  --status-h: 50px;
+  --tabbar-h: 78px;
+  --dock-band: 74px;
+  --gutter: 16px;
+}
