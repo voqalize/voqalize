@@ -193,9 +193,8 @@ async def test_wrong_key_is_rejected_directly() -> None:
 
 
 def test_minted_tokens_mirror_production_claims_with_no_account_parameter():
-    """Voqalize's brain token names the account (organization_id, and tenant_id
-    for the two weeks after the switch, which a brain on 0.15.0 reads); the kit's
-    does too, without any public account parameter."""
+    """Voqalize's brain token names the account as organization_id only; the
+    kit's does too, without any public account parameter."""
     import asyncio
 
     import jwt
@@ -209,7 +208,7 @@ def test_minted_tokens_mirror_production_claims_with_no_account_parameter():
     token = mint_voqalize_token(private_key_pem=kp.private_pem, session_id="s", agent_id="a")
     claims = jwt.decode(token, options={"verify_signature": False})
     assert claims["organization_id"] == "organization_conformance"
-    assert claims["tenant_id"] == "organization_conformance"  # RENAME-CLEANUP
+    assert "tenant_id" not in claims
 
     guidance = "(tenant_id=) was removed in 0.16.0: identify calls by session.agent_id"
     with pytest.raises(TypeError) as e:

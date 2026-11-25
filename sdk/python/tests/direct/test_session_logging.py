@@ -150,9 +150,8 @@ def _signed(session_id: str, **claims) -> tuple[str, str]:
 async def test_brain_lines_carry_the_identity_from_the_verified_token():
     """The customer's own ``logger.info`` inside a callback is tagged for free."""
     sid = str(uuid.uuid4())
-    # The platform's token during the grace names the account twice; the SDK
-    # logs no account field.
-    token, pub = _signed(sid, organization_id="org-7", tenant_id="org-7", agent_id="agent-9")
+    # The platform's token names the account; the SDK logs no account field.
+    token, pub = _signed(sid, organization_id="org-7", agent_id="agent-9")
     server_ch, client_ch = _pipe()
 
     with _Capture() as cap:

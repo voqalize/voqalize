@@ -142,9 +142,8 @@ def mint_voqalize_token(
     Claims: ``iss=pygato``, ``aud=brain`` (a wire constant),
     ``sub=session_id``, ``kind=pygato``, plus ``agent_id`` for the recipient to
     decide. Like production's, the token also names the agent's account
-    (``organization_id``, and ``tenant_id`` for the two weeks after the
-    organization switch, which a brain on an SDK older than 0.16.0 reads); the
-    SDK does not expose it, so the value is a fixed placeholder. The header
+    (``organization_id``); the SDK does not expose it, so the value is a fixed
+    placeholder. The header
     names the signing key as ``kid``
     (:func:`voqalize.sdk.session.key_id`). The same shape Voqalize signs in
     production, so a brain that accepts this one accepts production.
@@ -180,7 +179,6 @@ def _mint(
         "kind": "pygato",
         "agent_id": agent_id,
         "organization_id": account,
-        "tenant_id": account,  # RENAME-CLEANUP: drop the tenant_id claim
         "iat": now,
         "exp": now + timedelta(seconds=ttl_seconds),
     }

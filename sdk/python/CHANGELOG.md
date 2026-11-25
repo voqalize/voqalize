@@ -39,11 +39,11 @@ with session_context(session_id, agent_id=agent):
 If your brain needs the organization, keep your own map from agent id to
 organization: an agent never moves between organizations.
 
-**A brain on 0.15.0 keeps working unchanged for two weeks after the
-organization switch**, because for those two weeks the token Voqalize signs
-still carries the `tenant_id` claim it reads. After them its
-`session.tenant_id` is empty, so upgrade to 0.16.0 and move to `agent_id`
-within those two weeks.
+From the organization switch, the token Voqalize signs carries
+`organization_id` and no `tenant_id`. A brain on 0.15.0 or earlier keeps
+working, because verifying the token uses no account id, but its
+`session.tenant_id` is empty. Upgrade to 0.16.0 and identify calls by
+`agent_id`.
 
 ### Removed
 
@@ -58,8 +58,8 @@ within those two weeks.
 - **The conformance kit's `tenant_id=`** on `run_suite`, `ScenarioContext` and
   `mint_voqalize_token` (now `TypeError` with the same guidance), and
   `ScenarioContext.tenant_id`. The kit has no account parameter: its tokens
-  name a fixed internal account the way Voqalize's do (`organization_id`, and
-  `tenant_id` for the two weeks), and `mint_voqalize_token` no longer needs one.
+  name a fixed internal account the way Voqalize's do (`organization_id`),
+  and `mint_voqalize_token` no longer needs one.
 
 ## 0.15.0
 
