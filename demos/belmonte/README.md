@@ -17,8 +17,8 @@ On a desktop or tablet the app runs inside an iPhone-style device (dynamic islan
 indicator) on a branded backdrop with the caption "Hotel Belmonte guest app, a Voqalize demo" and the demo
 scenario switch. On a real phone (≤ 700 px wide, or ≤ 620 px tall) the frame's chrome goes and the app is
 the whole screen. It is one document, no iframe: the app lives in `#screen`, which is the containing block
-for everything fixed inside it (`transform`), so the concierge's dock and call tile, the sheets and the
-toast stay inside the phone; the one scroll area is `#app-scroll`, and the concierge's rings are brought
+for everything fixed inside it (`transform`), so the concierge's widget, the sheets and the toast stay
+inside the phone; the one scroll area is `#app-scroll`, and the concierge's rings are brought
 fully into view inside it (`frontend/src/stage/view.ts`).
 
 ## Landing pages and the concierge's jobs
@@ -41,7 +41,18 @@ Experiences, Requests, Stay.
 
 Everything works by tap alone; the voice is an adapter over the same store controller
 (`frontend/src/state/store.ts`). `?debug=1` opens a console that fires every Stage move by hand and fakes
-the call tile's states.
+the in-call widget's states.
+
+## The concierge's widget (`frontend/src/voice/Widget.tsx`)
+
+One entry point, no transcript. By default, before and during a call, she is a circle with her face (the
+still photo when idle, the live avatar in a call), with a subtle ring while she listens or speaks. A tap
+or click expands it: before a call to her name, her job on this tab and Talk; in a call to a larger face
+with exactly two buttons, Mute and End. There is no minimise button: after 4.5 seconds untouched it folds
+back to the circle by itself (a tap on the face or Escape folds it at once). It sits bottom right above
+the tab bar, takes another corner when a guest-only or primary button (`data-dock-avoid`) would be under
+it, and moves to the top right while a sheet is open, so it never covers the tab bar or a sheet's main
+button. The face button carries `aria-expanded` and a label naming her and the call's state.
 
 ## How it fits together
 
@@ -64,7 +75,7 @@ The one place the character lives, read by the brain (`backend/persona.py`) and 
   `kasia`, voice `omnivoice/kasia`, **English only**. Her idle still is
   `frontend/src/characters/kasia.webp`.
 - **To change the character**, edit `character`, `name` and each language's `voice` in `persona.json`, and
-  add the still as `frontend/src/characters/<character>.webp`. Nothing else names her. `roles` is the dock's
+  add the still as `frontend/src/characters/<character>.webp`. Nothing else names her. `roles` is the widget's
   label per tab.
 - **One language, no toggle.** With one language the app shows no language toggle and the brain has no
   language switch. **To add a language**, add it under `languages` (label, name, voice, greetings, switch

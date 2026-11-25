@@ -49,8 +49,8 @@ const call = async (p, state) => {
   await p.locator(".debug-row", { has: p.locator("b", { hasText: /^Call$/ }) }).locator("button", { hasText: state }).click({ force: true });
   await p.waitForTimeout(500);
 };
-const tap = async (p, thing) => {
-  await p.evaluate((t) => document.querySelector(`[data-stage-thing="${t}"]`)?.click(), thing);
+const tap = async (p, thing, sel) => {
+  await p.evaluate(([t, q]) => document.querySelector(q || `[data-stage-thing="${t}"]`)?.click(), [thing, sel]);
   await p.waitForTimeout(400);
 };
 
@@ -77,6 +77,25 @@ for (const size of ["desktop", "phone"]) {
       await p.waitForTimeout(500);
       await shot(p, `${name}-${size}`);
     }
+    await p.context().close();
+  }
+
+  if (!ONLY || ONLY === "widget") {
+    // The widget: a circle by default; a tap expands it; it folds back by itself.
+    const p = await open(size, "/");
+    await shot(p, `widget-idle-${size}`);
+    await tap(p, "", ".bw-face");
+    await shot(p, `widget-idle-open-${size}`);
+    await call(p, "speaking");
+    await p.waitForTimeout(5200);
+    await shot(p, `widget-call-${size}`);
+    await tap(p, "", ".bw-face");
+    await shot(p, `widget-call-open-${size}`);
+    await p.goto(`${BASE}/dining?debug=1`);
+    await p.waitForTimeout(600);
+    await tap(p, "item-belmonte-burger");
+    await p.waitForTimeout(600);
+    await shot(p, `widget-over-sheet-${size}`);
     await p.context().close();
   }
 

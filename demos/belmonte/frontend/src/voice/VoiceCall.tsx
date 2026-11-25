@@ -21,12 +21,11 @@ import { PERSONA } from "../persona";
 import { setVoiceClient } from "../stage/client";
 import { currentPath, pageOfPath } from "../stage/nav";
 import { stayForInit } from "../state/store";
-import { CallTile } from "./CallTile";
 import { debugMode } from "./debug";
 import { Face } from "./Face";
 import { type CallState, useFakeCall } from "./fake";
 import { languageChanged, useLang } from "./lang";
-import { DockBar } from "./VoiceDock";
+import { Widget } from "./Widget";
 
 type Activity = "idle" | CallState;
 
@@ -134,7 +133,7 @@ function Dock({ call }: { call: ReturnType<typeof useCall> }) {
   useEffect(() => () => useLang.setState({ sender: null }), []);
 
   const on = activity !== "idle" && activity !== "error";
-  // `?debug=1` can fake a call over the real bar, to see and screenshot the tile.
+  // `?debug=1` can fake a call to see and screenshot the in-call widget.
   const live = on || fake.on;
   const toggleMute = () => {
     if (fake.on && !on) {
@@ -146,26 +145,20 @@ function Dock({ call }: { call: ReturnType<typeof useCall> }) {
   };
 
   return (
-    <>
-      <CallTile
-        live={live}
-        state={on ? (activity as CallState) : fake.on ? fake.state : "connecting"}
-        muted={on ? muted : fake.muted}
-        onMute={toggleMute}
-        onEnd={() => (on ? void call.end() : useFakeCall.setState({ on: false }))}
-      >
-        {/* Idle (and a faked call): the still photo; the live avatar only once a real call's tile is up. */}
-        <Face live={on} avatar={() => <Avatar className="dock-avatar" client={call.client as never} character={PERSONA.character} aria-label={PERSONA.name} />} />
-      </CallTile>
-      <DockBar
-        calling={live}
-        activity={activity}
-        status={call.error}
-        onTalk={() => {
-          setActivity("connecting");
-          void call.begin();
-        }}
-      />
-    </>
+    <Widget
+      live={live}
+      state={on ? (activity as CallState) : fake.on ? fake.state : "connecting"}
+      muted={on ? muted : fake.muted}
+      onMute={toggleMute}
+      onEnd={() => (on ? void call.end() : useFakeCall.setState({ on: false }))}
+      status={call.error}
+      onTalk={() => {
+        setActivity("connecting");
+        void call.begin();
+      }}
+    >
+      {/* Idle (and a faked call): the still photo; the live avatar only once a real call is up. */}
+      <Face live={on} avatar={() => <Avatar className="dock-avatar" client={call.client as never} character={PERSONA.character} aria-label={PERSONA.name} />} />
+    </Widget>
   );
 }

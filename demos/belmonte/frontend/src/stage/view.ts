@@ -8,7 +8,7 @@
  * `showWhole` scrolls every scroll area on the way out from the target,
  * innermost first, on both axes: a chip row, a sheet's body, and the app's own
  * scroll area (`#app-scroll`), where it keeps the group clear of the sticky
- * page header above and of the concierge's bar or tile below. The window
+ * page header above and of the concierge's widget below. The window
  * itself never scrolls (the app lives in the phone). Every performer reaches it
  * through `inView(c)` (performers.ts), so it is the move's `c.scrollTo`, and
  * Stage's own `showThing` uses it too.
@@ -61,13 +61,13 @@ function delta(want: [number, number], min: [number, number], lo: number, hi: nu
   return 0;
 }
 
-/** What covers the app's scroll area at the top (the sticky page header) and the bottom (the dock bar or call tile). */
+/** What covers the app's scroll area at the top (the sticky page header) and the bottom (the concierge's widget). */
 function appInsets(area: Element): { top: number; bottom: number } {
   const box = area.getBoundingClientRect();
   const head = area.querySelector(".page-header")?.getBoundingClientRect();
   const top = head ? Math.max(0, head.bottom - box.top) : 0;
   let bottom = 0;
-  for (const sel of [".dock:not(.is-calling):not(.is-hidden):not(.is-raised)", ".call-tile.is-tile", ".call-tile.is-mini"]) {
+  for (const sel of [".bw:not(.is-raised)"]) {
     const r = document.querySelector(sel)?.getBoundingClientRect();
     if (r && r.height && !(r.top < box.top + box.height / 2)) bottom = Math.max(bottom, box.bottom - r.top);
   }
