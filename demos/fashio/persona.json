@@ -1,7 +1,8 @@
 {
-  "$comment": "The one place the character lives. The frontend (avatar, still photo, UI copy) and the backend (voice, prompt, greeting, tests) both read this file. To change the character, edit character/name/voices and add the still photo the idle dock shows at frontend/src/characters/<character>.webp; roles is the label under the name for each of the agent's jobs (by landing page). To add a language, add it to languages and voices (and give the brain written lines for it in backend/lines.py).",
-  "character": "rohan",
-  "name": "Rohan",
+  "$comment": "The one place the character lives. The frontend (avatar, still photo, UI copy) and the backend (voice, prompt, greeting, tests) both read this file. To change the character, edit character/name/voices and add the still photo the idle dock shows at frontend/src/characters/<character>.webp; roles is the label under the name for each of the agent's jobs (by landing page). gender (female/male) is how the character speaks of itself: the prompt tells the model to use matching Hindi verb forms, and the written Hindi lines in backend/lines.py are in the feminine first person (switch them for a male character). To add a language, add it to languages and voices (and give the brain written lines for it in backend/lines.py).",
+  "character": "riya",
+  "name": "Riya",
+  "gender": "female",
   "role": "Shopping assistant",
   "roles": {
     "shopping": "Shopping assistant",
@@ -12,8 +13,8 @@
     "kiosk": "Store kiosk"
   },
   "voices": {
-    "en": "omnivoice/rohan",
-    "hi": "omnivoice/rohan"
+    "en": "omnivoice/riya",
+    "hi": "omnivoice/riya"
   },
   "languages": [
     { "tag": "en", "label": "EN", "name": "English" },

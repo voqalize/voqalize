@@ -9,6 +9,7 @@ describe("the agent's widget", () => {
     expect(jobFor("/compare")).toBe("shopping");
     expect(jobFor("/bag")).toBe("shopping");
     expect(jobFor("/p/7412")).toBe("fit");
+    expect(jobFor("/p/")).toBe("fit");
     expect(jobFor("/gifts")).toBe("gifts");
     expect(jobFor("/orders")).toBe("orders");
     expect(jobFor("/returns")).toBe("returns");

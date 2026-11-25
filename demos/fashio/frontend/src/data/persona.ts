@@ -29,7 +29,7 @@ export const PERSONA = raw as unknown as Persona;
 
 /** The job for a route under the app's base, as the brain picks it. */
 export function jobFor(path: string): Job {
-  if (/^\/p\/\d+/.test(path)) return "fit";
+  if (/^\/p(\/|$)/.test(path)) return "fit";
   if (path.startsWith("/gifts")) return "gifts";
   if (path.startsWith("/orders")) return "orders";
   if (path.startsWith("/returns")) return "returns";

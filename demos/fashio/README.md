@@ -8,8 +8,8 @@ names, brands, prices, sizes, descriptions and images are the dataset's, used as
 demo store: it is not Myntra and is not affiliated with any brand shown. Every page carries the credit
 in its footer, and `/about` says it in full.
 
-A voice agent (today **Rohan**, from `persona.json`) talks with the shopper and drives the screen with
-Stage while he talks.
+A voice agent (today **Riya**, from `persona.json`) talks with the shopper and drives the screen with
+Stage while she talks.
 
 ## Landing pages and the agent's jobs
 
@@ -18,7 +18,7 @@ One brain, one job per landing page; it follows the shopper to another page and 
 | Route | Job | What the agent does |
 | --- | --- | --- |
 | `/demos/fashio/` and every shop page (`/shop…`, `/compare`, `/wishlist`, `/bag`, `/checkout`) | Shopping assistant | Takes a whole request ("a kurta for my sister's mehendi under ₹2,000, she's an M"), sets the listing's filters one by one on screen, names the best products with the card ringed, compares, explains, and adds to the bag after the shopper's yes to a named product and size. Guides checkout without ever asking for personal details: the shopper types them and presses Place order. |
-| `/demos/fashio/p/<id>` | Size and fit advisor | Asks the usual size and fit preference (height when length matters), fills the Find my size panel, recommends a size from that product's sizes, cut and size chart, and when that size is out of stock says so and offers the nearest in stock. |
+| `/demos/fashio/p/?id=<id>` | Size and fit advisor | Asks the usual size and fit preference (height when length matters), fills the Find my size panel, recommends a size from that product's sizes, cut and size chart, and when that size is out of stock says so and offers the nearest in stock. |
 | `/demos/fashio/gifts` | Gift finder | Asks who it is for and the occasion in one breath, then the budget ("or shall I not worry about it?"), then size, colour, pattern or material only if useful; shows a short list with a reason each; gift wrap (₹49) and a note. |
 | `/demos/fashio/orders` | Order tracking | Finds the order and reads its tracking. Once placed, an order's delivery date and address cannot be changed; it says so plainly and offers what is possible: cancel before dispatch (the shopper presses Cancel order). |
 | `/demos/fashio/returns` | Returns | Only within 7 days of delivery, only unused with the original tags (fragrance is not returnable). Checks the delivery date from the data, asks the shopper to confirm unused and tags on, fills the form, and leaves Submit return to the shopper; refuses politely, with dates, otherwise. |
@@ -76,8 +76,8 @@ Rebuild the catalogue: `uv run python demos/fashio/data/build_catalog.py --zip <
 ## Change the character or add a language
 
 - **Character:** edit `persona.json` — `character` (an avatar character id), `name`, `role`, `roles` and
-  `voices` — and add the idle dock's still photo at `frontend/src/characters/<character>.webp`. Nothing
-  else names him: greetings, prompt, UI copy, alt text and tests read the file. Update the voice-contract
+  `voices`, plus `gender` (how she speaks of herself; the written Hindi lines in `backend/lines.py` are in the feminine first person, so switch them for a male character) — and add the idle dock's still photo at `frontend/src/characters/<character>.webp`. Nothing
+  else names her: greetings, prompt, UI copy, alt text and tests read the file. Update the voice-contract
   row in `demos/tests/test_demo_voice_contract.py` if the English voice changes.
 - **Language:** add it to `languages` and `voices` in `persona.json` (the voice must speak it) and add its
   written lines to every table in `backend/lines.py` (the brain refuses to import without them).
