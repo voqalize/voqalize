@@ -615,18 +615,21 @@ from voqalize_demos._loaded.university.spoken import (  # noqa: E402
 @pytest.mark.parametrize(
     ("written", "lang", "spoken"),
     [
-        # Voqalize's TTS reads a rupee amount with two decimals as rupees and paise even
-        # before lakh ("one rupee and seventy five paisa lakh"): spelled out, it passes.
+        # A range with the scale said once is still read wrong by the TTS ("eight rupees to 12 lakh"): each end in full.
+        ("Fees run ₹2 to 3.5 lakh.", "en", "Fees run two to three point five lakh rupees."),
+        # Voqalize's TTS read a rupee amount with two decimals as rupees and paise even
+        # before lakh ("one rupee and seventy five paisa lakh"); since speech 174bd6ef it
+        # reads it right, so it goes as written.
         (
             "The B.Tech in AI is ₹1.75 lakh a year.",
             "en",
-            "The B.Tech in AI is one point seven five lakh rupees a year.",
+            None,
         ),
-        ("That is ₹13.6 lakh in all.", "en", "That is thirteen point six lakh rupees in all."),
+        ("That is ₹13.6 lakh in all.", "en", None),
         (
             "Fees run ₹1.75 lakh to ₹2.25 lakh.",
             "en",
-            "Fees run one point seven five lakh rupees to two point two five lakh rupees.",
+            None,
         ),
         (
             "Both are in the ₹1\u20132 lakh band.",
@@ -636,7 +639,7 @@ from voqalize_demos._loaded.university.spoken import (  # noqa: E402
         (
             "Udaan gives 60% below ₹4 lakh a year.",
             "en",
-            "Udaan gives 60% below four lakh rupees a year.",
+            None,
         ),
         ("A median of 8.4 LPA.", "en", "A median of eight point four lakh a year."),
         (
@@ -656,7 +659,7 @@ from voqalize_demos._loaded.university.spoken import (  # noqa: E402
         (
             "{filter: Fee | ₹1\u20132 lakh} Under ₹2 lakh a year.",
             "en",
-            "{filter: Fee | ₹1\u20132 lakh} Under two lakh rupees a year.",
+            None,
         ),
         # Hindi: the scale in Devanagari with ₹, so the TTS says डेढ़ / पौने दो; any
         # other decimal is whole rupees (तीन लाख चालीस हज़ार, not तीन दशमलव चार).
@@ -729,7 +732,7 @@ async def test_an_amount_split_across_streamed_chunks_is_still_said_whole() -> N
     assert isinstance(out[0], SpeechStart) and isinstance(out[-1], SpeechEnd)
     text = "".join(e.text for e in out if isinstance(e, SpeechChunk))
     assert text == (
-        "{filter: Fee | ₹1\u20132 lakh} It is one point seven five lakh rupees a year; "
+        "{filter: Fee | ₹1\u20132 lakh} It is ₹1.75 lakh a year; "
         "two to three point five lakh rupees too."
     )
 
@@ -757,8 +760,8 @@ BUDGET_ASK = (
 async def test_amounts_are_spoken_as_words_and_a_wrong_budget_is_confirmed() -> None:
     """Over the wire: the model is told the budget in rupees, a mis-read ₹15 never
     reaches the finder (the tool asks for a confirmation first), and "₹1.75 lakh" is
-    given to the voice as "one point seven five lakh rupees", with the cue in front
-    of it anchored to those very words and still naming the page's label."""
+    given to the voice as written (the TTS reads it), with the cue in front of it
+    anchored to those very words and still naming the page's label."""
     llm = ScriptedOpenAI(
         {
             BUDGET_ASK: [
@@ -783,20 +786,19 @@ async def test_amounts_are_spoken_as_words_and_a_wrong_budget_is_confirmed() -> 
         refused = "".join(tool_results_of(llm.captured_inputs[-1], "find_programs"))
         assert refused.startswith("Not done") and "₹1,50,000" in refused
         assert _cues(rig) == []
-        assert "one point five lakh rupees a year, right?" in turn.text
-        assert "₹" not in turn.text
+        assert "₹1.5 lakh a year, right?" in turn.text
 
         turn = await rig.driver.user_says("Yes, one and a half lakh.")
         check_turn(rig, turn, units=1)
         found = "".join(tool_results_of(llm.captured_inputs[-1], "find_programs"))
         assert "programmes meet the limits" in found
-        assert "one point seven five lakh" in turn.text and "₹" not in turn.text
+        assert "₹1.75 lakh" in turn.text
         cues = _raw_cues(rig)
         assert [(c["move"], c["args"]) for c in cues] == [
             ("catalogue.filter", ["Fee", "₹1\u20132 lakh"]),
             ("catalogue.pick", ["btech-cse"]),
         ]
-        assert cues[0]["at"].startswith("Within one point five lakh rupees")
+        assert cues[0]["at"].startswith("Within ₹1.5 lakh a year")
         assert all(c["at"] in turn.text for c in cues)
 
 

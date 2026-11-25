@@ -184,3 +184,13 @@ def test_the_spec_is_frozen() -> None:
     spec = StageSpec.model_validate(SPEC)
     with pytest.raises(ValidationError):
         spec.id = "x"  # type: ignore[misc]
+
+
+def test_a_python_keyword_argument_is_refused_by_the_python_generator() -> None:
+    """``from`` loads as data, but as a field of the generated model it is a
+    file that does not import: the generator says so instead of writing it."""
+    show = {**SPEC["moves"][0], "args": [{"name": "from"}]}
+    spec = load_spec(_spec(moves=[show]))
+    with pytest.raises(ValueError, match="'from' is a Python keyword"):
+        render_python(spec, source="scene.json", command="voqalize stage gen")
+    assert "from" in render_typescript(spec, source="scene.json", command="x")

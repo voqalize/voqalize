@@ -81,15 +81,16 @@ and the dock says voice is not configured in this build.
 ## Amounts in speech
 
 The screen shows ₹1,25,000 and ₹1.25 crore; the voice has to say them as an Indian banker
-would. Voqalize's TTS normalises text before the voice model reads it, and in English it reads
-a rupee amount with two decimals before a scale word as rupees and paise: "₹1.25 crore" became
-"one rupee and twenty five paisa crore". `backend/spoken.py` rewrites every amount the brain
-speaks (the model's words and the brain's own lines) before it goes out, and keeps the screen's
-formatting as it is:
+would. Voqalize's TTS normalises text before the voice model reads it. Until speech 174bd6ef
+(24 Nov 2026) it read a rupee amount with two decimals before a scale word as rupees and paise
+("₹1.25 crore" became "one rupee and twenty five paisa crore"); it reads that right now, but it
+still reads a range with the scale said once wrong ("₹8 to 12 lakh" is "eight rupees to 12
+lakh"), and Hindi decimals stiffly. `backend/spoken.py` rewrites what it still gets wrong in
+everything the brain speaks (the model's words and the brain's own lines), and keeps the
+screen's formatting as it is:
 
-- English: an amount with lakh or crore is spelled out ("one point two five crore rupees",
-  "eight to twelve lakh rupees"). Plain amounts (₹1,57,332, ₹3,42,815.40) go as written; the
-  TTS reads them in lakh and thousand.
+- English: one amount goes as written (₹1.25 crore, ₹1,57,332, ₹3,42,815.40); a range is
+  spelled out ("eight to twelve lakh rupees") until the TTS reads one with the scale said once.
 - Hindi: lakh and crore in Devanagari with the ₹ mark ("₹1.25 करोड़"), which the TTS says as
   सवा करोड़ / डेढ़ लाख / ढाई लाख. Any other decimal becomes whole rupees ("₹1.85 करोड़" is said
   एक करोड़ पचासी लाख, not एक दशमलव आठ पाँच करोड़).

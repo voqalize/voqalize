@@ -32,31 +32,33 @@ from voqalize_demos._loaded.holidays.spoken import (  # noqa: E402
 @pytest.mark.parametrize(
     ("written", "lang", "spoken"),
     [
+        # A range with the scale said once is still read wrong by the TTS ("eight rupees to 12 lakh"): each end in full.
+        ("Packages run ₹1.5 to 2 lakh.", "en", "Packages run one point five to two lakh rupees."),
         # Package totals and per-person prices as the tools give them (₹, Indian
         # grouping): left to the TTS, which reads them in lakh and thousand.
         ("Here's your whole package, ₹2,28,975 all in.", "en", None),
         ("Total ₹2,28,975, ₹1,14,488 per person.", "en", None),
         ("Goa from ₹15,840 per person, Switzerland from ₹1,30,765.", "en", None),
         ("यह रहा आपका पूरा पैकेज, सब मिलाकर ₹2,28,975।", "hi", None),
-        # Lakh written by the model: spelled out in English, two decimals never reach the TTS.
+        # Lakh written by the model: as written in English (the TTS reads it since speech 174bd6ef).
         (
             "That's ₹1.25 lakh over your ₹2 lakh budget.",
             "en",
-            "That's one point two five lakh rupees over your two lakh rupees budget.",
+            None,
         ),
         (
             "Bali comes to about ₹2.29 lakh.",
             "en",
-            "Bali comes to about two point two nine lakh rupees.",
+            None,
         ),
         ("Packages run ₹1.5\u20132 lakh.", "en", "Packages run one point five to two lakh rupees."),
-        ("₹1.5 lakh\u2013₹2 lakh.", "en", "one point five lakh rupees to two lakh rupees."),
+        ("₹1.5 lakh\u2013₹2 lakh.", "en", "₹1.5 lakh to ₹2 lakh."),
         (
             "Nine of you in Switzerland: ₹14.2 L.",
             "en",
-            "Nine of you in Switzerland: fourteen point two lakh rupees.",
+            None,
         ),
-        ("Under ₹1.14 Cr.", "en", "Under one point one four crore rupees."),
+        ("Under ₹1.14 Cr.", "en", None),
         ("A 5 L water bottle is included.", "en", None),
         ("Peak-season surcharge is 8\u201318%.", "en", "Peak-season surcharge is 8% to 18%."),
         # Hindi: lakh in Devanagari with the ₹ mark (the TTS says डेढ़ / सवा / ढाई); any
@@ -153,10 +155,7 @@ async def test_an_amount_split_across_streamed_chunks_is_still_said_whole() -> N
     out = [e async for e in SpokenAmounts(lambda: "en").wrap(stream())]
     assert isinstance(out[0], SpeechStart) and isinstance(out[-1], SpeechEnd)
     text = "".join(e.text for e in out if isinstance(e, SpeechChunk))
-    assert text == (
-        "That's one point two five lakh rupees over budget; one point five to two lakh rupees "
-        "is typical."
-    )
+    assert text == ("That's ₹1.25 lakh over budget; one point five to two lakh rupees is typical.")
 
 
 # ─── Whitespace around a rewritten amount ─────────────────────────────────────

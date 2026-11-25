@@ -28,9 +28,10 @@ One brain, one job per landing page; it follows the visitor to another page and 
 - `backend/` — `PropertyBrain` (`voqalize.sdk.openai.OpenAIBrain`, `reasoning="medium"`), the shared
   rules in `homes.py`, the written lines in `lines.py`, the prompt in `prompt.py`.
 - `backend/spoken.py` — amounts in speech, both ways. Everything the agent says (the model's words and
-  its own lines) is rewritten before the voice gets it, so a price the screen shows as "₹1.14 crore" is
-  read "one point one four crore rupees" (Hindi: whole rupees, or सवा / डेढ़ / साढ़े with लाख and करोड़),
-  never as rupees and paise. What the buyer says ("1 to 1.5 crore", "dedh crore", "45k a month",
+  its own lines) is rewritten where the TTS still needs it: a range with the scale said once is spelled
+  out ("₹1 to 1.5 crore" would be read "one rupee to 1.5 crore"), and in Hindi a price is whole rupees, or
+  सवा / डेढ़ / साढ़े with लाख and करोड़. A single English price ("₹1.14 crore") goes as written: the TTS
+  reads it right since speech 174bd6ef. What the buyer says ("1 to 1.5 crore", "dedh crore", "45k a month",
   "सवा करोड़") reaches the model as rupees, and a budget no buyer would mean (₹15) is confirmed back
   before the search uses it.
 - `frontend/` — a standalone Vite + React app on `@voqalize/stage`, `@voqalize/avatar` and

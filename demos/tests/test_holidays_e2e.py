@@ -687,7 +687,7 @@ async def test_a_budget_is_heard_in_rupees_and_amounts_are_said_the_indian_way()
         assert "₹1.5 lakh, right?" in result
         assert brain.trip.budget == 0 and "budget" not in _move(rig, "trip.brief")["args"]
         said = " ".join(u.text for u in t1.units)
-        assert "one point five lakh rupees" in said and "₹" not in said, said
+        assert "₹1.5 lakh, right?" in said, said
         await _page_answers(rig, answered)
 
         t2 = await rig.driver.user_says("Yes, one and a half lakh")
@@ -695,7 +695,7 @@ async def test_a_budget_is_heard_in_rupees_and_amounts_are_said_the_indian_way()
         assert brain.trip.budget == 150000
         assert _move(rig, "trip.brief")["args"] == {"budget": 150000}
         said = " ".join(u.text for u in t2.units)
-        assert "one point two five lakh rupees" in said and "₹1.25" not in said, said
+        assert "₹1.25 lakh" in said, said
 
 
 # ─── H1: she leads, and no step ends silent (the owner's call, 24 Nov) ────────

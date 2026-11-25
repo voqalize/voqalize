@@ -15,8 +15,8 @@ the shortlist, the page in front, the slots taken).
 
 Every number comes from ``data/homes.json`` and the shared rules in
 :mod:`.homes`. Everything the agent says, the model's words and its own lines,
-reaches the voice through :mod:`.spoken`, which writes each amount the way the
-voice reads it right ("₹1.14 crore" as "one point one four crore rupees"); a
+reaches the voice through :mod:`.spoken`, which rewrites the amounts the voice
+still reads wrong (a range with the scale said once, Hindi decimals); a
 budget the buyer said is read back to the model in rupees, and one no buyer
 would mean is confirmed before the search uses it (FEEDBACK X8).
 

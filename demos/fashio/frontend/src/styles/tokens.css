@@ -1,0 +1,82 @@
+/*
+ * Fashio's design tokens: one palette and type scale for every page. The
+ * store's own pages style themselves in site.css (shop: home, listing,
+ * product, bag, checkout) and service.css (orders, returns, gifts, kiosk);
+ * the agent widget in voice.css.
+ *
+ * Brand: ink and paper with a rani-pink accent and a saffron second colour.
+ * Display: Bricolage Grotesque. Editorial accents: Instrument Serif (italic).
+ * Body and UI: Instrument Sans. Devanagari: Noto Sans Devanagari.
+ */
+:root {
+  --ink: #16121f;
+  --ink-2: #3a3442;
+  --muted: #6e6878;
+  --line: #e8e2da;
+  --line-2: #d8d0c6;
+  --paper: #fbf8f4;
+  --paper-2: #f4efe8;
+  --card: #ffffff;
+  --rani: #d6246e;
+  --rani-dark: #ab1555;
+  --rani-soft: #fde7f0;
+  --saffron: #f2a400;
+  --saffron-soft: #fff3d6;
+  --leaf: #1f7a4d;
+  --leaf-soft: #e3f4ea;
+  --danger: #c0352b;
+  --danger-soft: #fdecea;
+  --focus: #d6246e;
+
+  --font-display: "Bricolage Grotesque Variable", "Instrument Sans Variable", system-ui, sans-serif;
+  --font-serif: "Instrument Serif", Georgia, serif;
+  --font-body: "Instrument Sans Variable", "Noto Sans Devanagari Variable", system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  --radius-s: 6px;
+  --radius: 10px;
+  --radius-l: 18px;
+  --shadow-1: 0 1px 2px rgba(22, 18, 31, 0.06), 0 2px 8px rgba(22, 18, 31, 0.05);
+  --shadow-2: 0 10px 30px rgba(22, 18, 31, 0.12);
+  --header-h: 72px;
+  --page-max: 1360px;
+  --gutter: clamp(16px, 3vw, 32px);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+html {
+  -webkit-text-size-adjust: 100%;
+}
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+:lang(hi) {
+  font-family: "Noto Sans Devanagari Variable", var(--font-body);
+}
+img {
+  max-width: 100%;
+  display: block;
+}
+a {
+  color: inherit;
+}
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}

@@ -685,24 +685,31 @@ from voqalize_demos._loaded.property.spoken import (  # noqa: E402
 @pytest.mark.parametrize(
     ("written", "lang", "spoken"),
     [
-        # Every price over a crore had the shape Voqalize's TTS reads as rupees and paise
-        # ("₹1.14 crore" → "one rupee and fourteen paisa crore"). Spelled out, it passes.
+        # A range with the scale said once is still read wrong by the TTS ("eight rupees to 12 lakh"): each end in full.
+        (
+            "Homes from ₹1.25 to 1.5 crore.",
+            "en",
+            "Homes from one point two five to one point five crore rupees.",
+        ),
+        # Every price over a crore had the shape Voqalize's TTS read as rupees and paise
+        # ("₹1.14 crore" → "one rupee and fourteen paisa crore"); since speech 174bd6ef it
+        # reads it right, so it goes as written.
         (
             f"BLR-101 is {h.short(11400000)}, 1085 sq ft.",
             "en",
-            "BLR-101 is one point one four crore rupees, 1085 sq ft.",
+            "BLR-101 is ₹1.14 crore, 1085 sq ft.",
         ),
         ("Under 1.5 crore, two fit.", "en", "Under one point five crore, two fit."),
-        ("It's ₹94 lakh.", "en", "It's ninety four lakh rupees."),
+        ("It's ₹94 lakh.", "en", None),
         (
             "₹42,000 a month, deposit ₹2.5 lakh.",
             "en",
-            "₹42,000 a month, deposit two point five lakh rupees.",
+            None,
         ),
         (
             "Homes from ₹80 lakh to ₹1.2 crore.",
             "en",
-            "Homes from eighty lakh rupees to one point two crore rupees.",
+            None,
         ),
         (
             "Prices of ₹1.14\u20131.5 crore.",
@@ -712,7 +719,7 @@ from voqalize_demos._loaded.property.spoken import (  # noqa: E402
         (
             "Loan ₹91.2 lakh, total interest ₹1.07 Cr.",
             "en",
-            "Loan ninety one point two lakh rupees, total interest one point zero seven crore rupees.",
+            None,
         ),
         ("Rates of 8.25\u20138.9% a year.", "en", "Rates of 8.25% to 8.9% a year."),
         # Plain amounts, percentages, ids, references and times are left to the TTS.
@@ -785,7 +792,7 @@ async def test_an_amount_split_across_streamed_chunks_is_still_said_whole() -> N
     out = [e async for e in SpokenAmounts(lambda: "en").wrap(stream())]
     assert isinstance(out[0], SpeechStart) and isinstance(out[-1], SpeechEnd)
     text = "".join(e.text for e in out if isinstance(e, SpeechChunk))
-    assert text == "Kosha Aranya is one point one four crore rupees; a rent of ₹42,000 a month."
+    assert text == "Kosha Aranya is ₹1.14 crore; a rent of ₹42,000 a month."
 
 
 def test_an_implausible_budget_is_confirmed_back_never_used() -> None:
@@ -811,7 +818,7 @@ _MISHEARD = "Actually make it under dedh crore."
 
 async def test_amounts_are_spoken_as_words_and_a_wrong_budget_is_confirmed() -> None:
     """Over the wire: the budget he said reaches the model in rupees; the price the model
-    writes as "₹1.14 crore" reaches the voice as words; and a budget passed as ₹15 for
+    writes as "₹1.14 crore" reaches the voice as written (the TTS reads it); and a budget passed as ₹15 for
     "dedh crore" never reaches the listings: the tool asks for "₹1.5 crore" back."""
     s = h.Search(city="bengaluru", bhk=[2], budget_min=10000000, budget_max=15000000)
     first = h.search(s)[0]
@@ -837,7 +844,7 @@ async def test_amounts_are_spoken_as_words_and_a_wrong_budget_is_confirmed() -> 
         (move,) = _moves(rig, "listings.filter")
         assert move["args"]["budget_min"] == 10000000 and move["args"]["budget_max"] == 15000000
         said = " ".join(u.text for u in turn.units)
-        assert speak_text(h.short(first["price"]), "en") in said and "₹" not in said
+        assert speak_text(h.short(first["price"]), "en") in said
         await _answer(rig, "listings.filter")
 
         turn = await rig.driver.user_says(_MISHEARD)
@@ -846,7 +853,7 @@ async def test_amounts_are_spoken_as_words_and_a_wrong_budget_is_confirmed() -> 
         assert len(_moves(rig, "listings.filter")) == 1
         assert _brain(rig).search.budget_max == 15000000
         said = " ".join(u.text for u in turn.units)
-        assert "one point five crore rupees, right?" in said
+        assert "₹1.5 crore, right?" in said
 
 
 #: A Hindi sentence ends in the danda (U+0964/U+0965, inside the Devanagari block); an
@@ -877,7 +884,7 @@ def test_an_amount_before_the_danda_is_said_as_mid_sentence(
     [
         ("₹13.6 लाख।", "₹13,60,000।"),
         ("आपका लोन ₹13.6 लाख॥", "आपका लोन ₹13,60,000॥"),
-        ("Your cover is ₹10 lakh।", "Your cover is ten lakh rupees।"),
+        ("Your cover is ₹10 lakh।", "Your cover is ₹10 lakh।"),
     ],
 )
 def test_amounts_before_the_danda(written: str, spoken: str) -> None:
@@ -1031,7 +1038,7 @@ async def test_around_a_budget_offers_a_home_a_little_over_but_shows_the_budget(
         assert move["args"]["budget_max"] == 9000000, "the screen shows what they said"
         assert _brain(rig).wanted.budget_max == 9000000
         assert "Palm Grove Residency" in turn.text and "4% over" in turn.text
-        assert turn.text.count("ninety four lakh") == 1, "the price said once"
+        assert turn.text.count("₹94 lakh") == 1, "the price said once"
         assert len(llm.requests) == 1
 
 
@@ -1090,7 +1097,7 @@ async def test_a_stretch_never_leaks_into_the_next_search() -> None:
         first = await rig.driver.user_says("Three BHK in Bangalore, around 1 crore.")
         assert "Saffron Court" in first.text and "about 29% over" in first.text
         assert "raise the budget" in first.text
-        assert first.text.count("one point two nine crore") == 1, "the price said once"
+        assert first.text.count("₹1.29 crore") == 1, "the price said once"
         await _answer(rig, "listings.filter")
         second = await rig.driver.user_says("Make it between 80 lakh and 1.2 crore.")
         assert "about 8% over" in second.text

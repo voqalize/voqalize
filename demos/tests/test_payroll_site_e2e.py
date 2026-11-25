@@ -378,9 +378,8 @@ async def test_pricing_above_the_largest_plan_is_a_custom_quote() -> None:
 
 
 async def test_amounts_are_spoken_as_words_and_a_lost_scale_is_confirmed() -> None:
-    """X8 over the wire: a scaled rupee amount the model writes reaches the voice spelled
-    out ("₹16.8 lakh" would be read digit by digit at best, and "₹16.85 lakh" as rupees
-    and paise), and a headcount said with a scale ("dedh sau") that reached the tool
+    """X8 over the wire: a scaled rupee amount the model writes reaches the voice as
+    written ("₹16.8 lakh", which the TTS reads right), and a headcount said with a scale ("dedh sau") that reached the tool
     without it (15) is confirmed back, never put on the calculator."""
     llm = ScriptedOpenAI(
         {
@@ -397,7 +396,7 @@ async def test_amounts_are_spoken_as_words_and_a_lost_scale_is_confirmed() -> No
         await rig.driver.start_session(init={"page": "/pricing", "lang": "en"})
         turn = await rig.driver.user_says("What about tax on a 16.8 lakh salary?")
         check_turn(rig, turn)
-        assert "sixteen point eight lakh rupees CTC" in turn.text and "₹" not in turn.text
+        assert "₹16.8 lakh CTC" in turn.text
 
         turn = await rig.driver.user_says("We're about dedh sau people.")
         told = json.dumps(llm.captured_inputs[-1], ensure_ascii=False)
