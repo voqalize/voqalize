@@ -27,14 +27,16 @@ BOTH = pytest.mark.parametrize("spoken", [site_spoken, app_spoken], ids=["site",
 @pytest.mark.parametrize(
     ("written", "lang", "said"),
     [
+        # A range with the scale said once is still read wrong by the TTS ("eight rupees to 12 lakh"): each end in full.
+        ("CTCs of ₹8 to 12 lakh.", "en", "CTCs of eight to twelve lakh rupees."),
         # The tax page's worked example, as a model writes it from the title.
         (
             "For a ₹16.8 lakh CTC in Mumbai, the new regime costs less.",
             "en",
-            "For a sixteen point eight lakh rupees CTC in Mumbai, the new regime costs less.",
+            None,
         ),
-        ("A CTC of ₹7.25 lakh.", "en", "A CTC of seven point two five lakh rupees."),
-        ("Surcharge applies above ₹50 lakh.", "en", "Surcharge applies above fifty lakh rupees."),
+        ("A CTC of ₹7.25 lakh.", "en", None),
+        ("Surcharge applies above ₹50 lakh.", "en", None),
         (
             "Salaries of ₹6\u201312 lakh a year.",
             "en",
@@ -89,14 +91,22 @@ async def test_an_amount_split_across_streamed_chunks_is_said_whole(spoken: Modu
 
     async def stream() -> Any:
         yield SpeechStart()
-        for piece in ["A ₹16.", "8 la", "kh CTC, net pay ", "₹1,26,374 a month."]:
+        for piece in [
+            "A ₹16.",
+            "8 la",
+            "kh CTC, net pay ",
+            "₹1,26,374 a month; bands of ₹8 to",
+            " 12 lakh.",
+        ]:
             yield SpeechChunk(piece)
         yield SpeechEnd()
 
     out = [e async for e in spoken.SpokenAmounts(lambda: "en").wrap(stream())]
     assert isinstance(out[0], SpeechStart) and isinstance(out[-1], SpeechEnd)
     text = "".join(e.text for e in out if isinstance(e, SpeechChunk))
-    assert text == "A sixteen point eight lakh rupees CTC, net pay ₹1,26,374 a month."
+    assert text == (
+        "A ₹16.8 lakh CTC, net pay ₹1,26,374 a month; bands of eight to twelve lakh rupees."
+    )
 
 
 def test_a_headcount_that_lost_its_scale_is_confirmed_back() -> None:

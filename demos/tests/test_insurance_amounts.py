@@ -115,17 +115,13 @@ def test_amounts_are_said_the_indian_way(amount: int, en: str, hi: str) -> None:
 
 
 def test_written_amounts_reach_the_voice_as_words() -> None:
-    # The TTS reads a two-decimal ₹ amount as rupees and paise ("₹1.25 Cr" →
-    # "one rupee and twenty five paisa crore"): never hand it one.
-    assert amounts.speakable("Cover of ₹1.25 Cr.") == "Cover of one crore twenty-five lakh rupees."
+    # In English a rupee amount goes as written: the TTS reads "₹1.25 Cr" right since
+    # speech 174bd6ef. In Hindi every amount is said in words (सवा, not एक दशमलव दो पाँच).
+    for text in ("Cover of ₹1.25 Cr.", "Your premium is ₹31,395 a year.", "₹5,000 to ₹10,000"):
+        assert amounts.speakable(text) == text
     assert amounts.speakable("₹1.25 करोड़ का कवर", "hi") == "सवा करोड़ रुपये का कवर"
-    assert (
-        amounts.speakable("Your premium is ₹31,395 a year.")
-        == "Your premium is thirty-one thousand three hundred and ninety-five rupees a year."
-    )
     assert amounts.speakable("about 1.5 lakh rupees") == "about one lakh fifty thousand rupees"
     assert amounts.speakable("10 lakh of cover") == "ten lakh of cover"
-    assert amounts.speakable("₹5,000 to ₹10,000") == "five thousand rupees to ten thousand rupees"
     # What is not an amount stays as written.
     for text in (
         "Policy CHI/HL/26/0072415, clause 4.4.",
@@ -140,7 +136,7 @@ def test_a_streamed_amount_split_across_pieces_is_said_whole() -> None:
     stream = amounts.SpokenAmounts("en")
     pieces = ["Got it, ", "₹1,", "50,", "000. Shall I use ", "your account ending 4821?"]
     out = "".join(stream.feed(p) for p in pieces) + stream.flush()
-    assert out == "Got it, one lakh fifty thousand rupees. Shall I use your account ending 4821?"
+    assert out == "Got it, ₹1,50,000. Shall I use your account ending 4821?"
     stream = amounts.SpokenAmounts("hi")
     out = "".join(stream.feed(p) for p in ["ठीक है, ₹1", ".5 ला", "ख का क्लेम।"]) + stream.flush()
     assert out == "ठीक है, डेढ़ लाख रुपये का क्लेम।"

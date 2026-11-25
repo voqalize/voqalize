@@ -1,0 +1,657 @@
+/* The frame (desktop backdrop + device) and the app's chrome inside the
+   screen: status bar, sticky page header, tab bar, sheets, toast. */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+html,
+body,
+#root {
+  height: 100%;
+}
+body {
+  margin: 0;
+  background: var(--night);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 15px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+button {
+  cursor: pointer;
+}
+a {
+  color: inherit;
+}
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+
+/* ── The frame: a branded backdrop with the device in the middle ── */
+.frame {
+  position: relative;
+  min-height: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(32px, 6vw, 96px);
+  padding: 24px;
+  background:
+    radial-gradient(1200px 600px at 78% 110%, rgba(201, 164, 103, 0.22), transparent 60%),
+    radial-gradient(900px 520px at 8% -10%, rgba(63, 122, 124, 0.35), transparent 60%),
+    linear-gradient(160deg, #0f1f28 0%, #13262f 45%, #1b2d33 100%);
+  overflow: hidden;
+}
+/* Faint waves along the bottom of the backdrop. */
+.frame::before {
+  content: "";
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 38%;
+  background:
+    repeating-radial-gradient(ellipse 140% 60% at 50% 120%, transparent 0 22px, rgba(201, 164, 103, 0.07) 22px 23px);
+  pointer-events: none;
+}
+.backdrop-copy {
+  position: relative;
+  z-index: 1;
+  width: min(360px, 32vw);
+  color: #e9e2d6;
+}
+.backdrop-brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  color: var(--brass-2);
+  margin-bottom: 28px;
+}
+.backdrop-name {
+  font-family: var(--display);
+  font-size: 30px;
+  letter-spacing: 0.04em;
+  color: #f6efe2;
+  line-height: 1.1;
+}
+.backdrop-place {
+  font-size: 12px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--brass-2);
+  margin-top: 4px;
+}
+.backdrop-caption {
+  font-family: var(--display);
+  font-style: italic;
+  font-size: 22px;
+  line-height: 1.3;
+  color: #f6efe2;
+  margin-bottom: 12px;
+}
+.backdrop-lede {
+  font-size: 14.5px;
+  color: #b9c2c2;
+  margin-bottom: 28px;
+}
+.backdrop-fine {
+  margin-top: 28px;
+  font-size: 12px;
+  color: #7f8d90;
+}
+.scenario {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.scenario-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #8fa3a3;
+}
+.scenario-buttons {
+  display: inline-flex;
+  padding: 4px;
+  gap: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.07);
+  width: fit-content;
+}
+.scenario-buttons button {
+  border: 0;
+  border-radius: 999px;
+  padding: 8px 14px;
+  background: transparent;
+  color: #cfd6d4;
+  font-weight: 700;
+  font-size: 13px;
+}
+.scenario-buttons button[aria-pressed="true"] {
+  background: var(--brass-2);
+  color: var(--ink);
+}
+.scenario-reset {
+  width: fit-content;
+  border: 0;
+  background: none;
+  padding: 0;
+  color: #9fb0b0;
+  font-size: 13px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* ── The device ── */
+.device {
+  --dev-h: min(880px, calc(100dvh - 48px));
+  --dev-w: calc(var(--dev-h) * 0.4615);
+  position: relative;
+  z-index: 1;
+  flex: none;
+  width: var(--dev-w);
+  height: var(--dev-h);
+  padding: 12px;
+  border-radius: 62px;
+  background: linear-gradient(145deg, #2b3236, #0b0f12 40%, #1c2226);
+  box-shadow:
+    0 0 0 2px #3c454a,
+    0 0 0 3px #0a0d0f,
+    0 50px 100px -30px rgba(0, 0, 0, 0.7),
+    0 30px 60px -40px rgba(201, 164, 103, 0.35);
+}
+.device-buttons::before,
+.device-buttons::after {
+  content: "";
+  position: absolute;
+  width: 4px;
+  border-radius: 2px;
+  background: #2a3135;
+}
+.device-buttons::before {
+  left: -5px;
+  top: 150px;
+  height: 64px;
+  box-shadow: 0 84px 0 #2a3135;
+}
+.device-buttons::after {
+  right: -5px;
+  top: 200px;
+  height: 96px;
+}
+.screen {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 50px;
+  overflow: hidden;
+  background: var(--sand);
+  /* The containing block for everything fixed inside the app (dock, tile, sheets, toast). */
+  transform: translateZ(0);
+  isolation: isolate;
+}
+
+/* ── Status bar and home indicator (drawn only in the frame) ── */
+.status-bar {
+  position: absolute;
+  inset: 0 0 auto 0;
+  z-index: 40;
+  height: var(--status-h);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 30px 0 34px;
+  color: var(--ink);
+  background: linear-gradient(var(--sand) 70%, rgba(245, 239, 230, 0));
+  pointer-events: none;
+}
+.status-time {
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: 0.01em;
+  width: 54px;
+}
+.status-island {
+  position: absolute;
+  left: 50%;
+  top: 11px;
+  width: 112px;
+  height: 32px;
+  border-radius: 20px;
+  background: #050708;
+  transform: translateX(-50%);
+}
+.status-icons {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+.home-indicator {
+  position: absolute;
+  left: 50%;
+  bottom: 8px;
+  z-index: 70;
+  width: 134px;
+  height: 5px;
+  border-radius: 3px;
+  background: var(--ink);
+  transform: translateX(-50%);
+  opacity: 0.85;
+  pointer-events: none;
+}
+
+/* ── The app's one scroll area ── */
+.app-scroll {
+  position: absolute;
+  top: var(--status-h);
+  left: 0;
+  right: 0;
+  bottom: var(--tabbar-h);
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+.app-scroll::-webkit-scrollbar {
+  display: none;
+}
+.page {
+  min-height: 100%;
+  padding-bottom: 104px;
+}
+
+/* ── Page header (sticky inside the scroll area) ── */
+.page-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: rgba(245, 239, 230, 0.94);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid transparent;
+  padding: 10px var(--gutter) 10px;
+}
+.page-header-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+}
+.page-header-text {
+  flex: 1;
+  min-width: 0;
+}
+.page-header h1 {
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: 26px;
+  line-height: 1.1;
+  letter-spacing: 0.005em;
+}
+.page-header p {
+  font-size: 13px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+.page-header-tabs {
+  margin-top: 10px;
+}
+.icon-btn {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  color: var(--ink);
+}
+.icon-btn:hover {
+  background: #fff;
+}
+
+.segments {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 999px;
+  background: var(--sand-2);
+}
+.segments button {
+  flex: 1;
+  border: 0;
+  border-radius: 999px;
+  padding: 8px 10px;
+  background: transparent;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+.segments button.is-on {
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: 0 1px 3px rgba(19, 33, 43, 0.12);
+}
+
+/* ── Tab bar ── */
+.tab-bar {
+  position: absolute;
+  inset: auto 0 0 0;
+  z-index: 30;
+  height: var(--tabbar-h);
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-around;
+  padding: 8px 6px calc(18px + env(safe-area-inset-bottom, 0px));
+  background: rgba(255, 253, 249, 0.96);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-top: 1px solid var(--line);
+}
+.tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  text-decoration: none;
+  color: var(--faint);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.tab.is-on {
+  color: var(--ink);
+}
+.tab.is-on .tab-icon {
+  color: var(--brass);
+}
+.tab-icon {
+  position: relative;
+  display: grid;
+  place-items: center;
+  height: 26px;
+}
+.tab-badge {
+  position: absolute;
+  top: -3px;
+  right: -10px;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border-radius: 9px;
+  background: var(--coral);
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 800;
+  display: grid;
+  place-items: center;
+  border: 2px solid var(--paper);
+}
+
+/* ── Sheets ── */
+.sheet-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+.sheet-scrim {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  padding: 0;
+  background: rgba(13, 26, 34, 0.42);
+  animation: fade-in 0.2s ease;
+}
+.sheet {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100% - 124px);
+  background: var(--paper);
+  border-radius: 26px 26px 0 0;
+  box-shadow: 0 -20px 50px -20px rgba(13, 26, 34, 0.4);
+  animation: sheet-up 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.sheet-grip {
+  width: 38px;
+  height: 5px;
+  border-radius: 3px;
+  background: var(--line-2);
+  margin: 8px auto 0;
+}
+.sheet-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px var(--gutter) 10px;
+  border-bottom: 1px solid var(--line);
+}
+.sheet-head > div {
+  flex: 1;
+  min-width: 0;
+}
+.sheet-head h2 {
+  font-family: var(--display);
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.15;
+}
+.sheet-head p {
+  font-size: 13px;
+  color: var(--muted);
+  margin-top: 3px;
+}
+.sheet-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 14px var(--gutter) 18px;
+  overscroll-behavior: contain;
+}
+.sheet-foot {
+  padding: 12px var(--gutter) calc(22px + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--line);
+  background: var(--paper);
+}
+@keyframes sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/* ── Toast ── */
+.toast {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  top: calc(var(--status-h) + 8px);
+  z-index: 80;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: var(--ink);
+  color: #f3eee5;
+  box-shadow: var(--shadow-lg);
+  font-size: 13px;
+  animation: toast-in 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+  cursor: pointer;
+}
+.toast b {
+  font-size: 14px;
+  color: var(--brass-2);
+}
+@keyframes toast-in {
+  from {
+    transform: translateY(-16px);
+    opacity: 0;
+  }
+}
+
+/* ── Small shared bits ── */
+.wordmark {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--ink);
+}
+.wordmark b {
+  display: block;
+  font-family: var(--display);
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  font-size: 15px;
+  line-height: 1;
+}
+.wordmark i {
+  display: block;
+  font-style: normal;
+  font-size: 9.5px;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--brass);
+  margin-top: 3px;
+}
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  background: var(--sand-2);
+  color: var(--ink-2);
+}
+.pill.is-brass {
+  background: var(--brass-soft);
+  color: #7d5a26;
+}
+.pill.is-sea {
+  background: var(--sea-soft);
+  color: var(--sea);
+}
+.pill.is-ok {
+  background: var(--ok-soft);
+  color: var(--ok);
+}
+.pill.is-coral {
+  background: var(--coral-soft);
+  color: var(--coral);
+}
+
+/* The dev console (?debug=1) sits outside the phone. */
+.debug {
+  position: fixed;
+  left: 12px;
+  top: 12px;
+  z-index: 2147483000;
+  max-width: 360px;
+  max-height: calc(100vh - 24px);
+  overflow: auto;
+  background: rgba(10, 18, 24, 0.94);
+  color: #dfe7e6;
+  border-radius: 12px;
+  font: 12px/1.35 ui-monospace, Menlo, monospace;
+  box-shadow: var(--shadow-lg);
+}
+.debug-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  border: 0;
+  background: none;
+  color: inherit;
+  padding: 8px 10px;
+  font: inherit;
+}
+.debug-body {
+  padding: 0 10px 10px;
+}
+.debug-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+  margin-top: 6px;
+}
+.debug-row b {
+  width: 100%;
+  color: var(--brass-2);
+  font-weight: 600;
+}
+.debug-row button {
+  border: 1px solid #355;
+  background: #18262e;
+  color: #cfe;
+  border-radius: 6px;
+  padding: 2px 6px;
+  font: inherit;
+}
+.debug-row button.is-on {
+  background: var(--brass-2);
+  color: #111;
+}
+.debug-out {
+  white-space: pre-wrap;
+  margin: 8px 0 0;
+  color: #fde7b5;
+}
+
+/* ── A real phone: no frame, the app is the screen ── */
+@media (max-width: 700px), (max-height: 620px) {
+  .frame {
+    display: block;
+    padding: 0;
+    background: var(--sand);
+  }
+  .frame::before,
+  .backdrop-copy,
+  .device-buttons,
+  .status-bar,
+  .home-indicator {
+    display: none;
+  }
+  .device {
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    border-radius: 0;
+    background: none;
+    box-shadow: none;
+  }
+  .screen {
+    border-radius: 0;
+    --status-h: env(safe-area-inset-top, 0px);
+  }
+}

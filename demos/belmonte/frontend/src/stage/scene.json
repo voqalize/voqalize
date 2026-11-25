@@ -1,0 +1,339 @@
+{
+  "$schema": "../../../../../sdk/js/stage/stage.schema.json",
+  "stage": 1,
+  "id": "belmonte",
+  "languages": ["en"],
+  "moves": [
+    {
+      "id": "app.go",
+      "verb": "go",
+      "class": "navigate",
+      "args": [
+        {
+          "name": "page",
+          "enum": ["home", "dining", "bar", "spa", "activities", "meetings", "requests", "visitors", "stay", "checkin", "checkout", "info"],
+          "doc": "A screen of the guest app: home, dining (in-room dining menu), bar (drinks menu), spa, activities (things to do and the resort map), meetings (meeting rooms), requests (front desk requests), visitors, stay (the reservation and room key), checkin, checkout, info (hotel information)."
+        }
+      ],
+      "say": "{go: spa} at the start of the sentence that takes them to another screen: home, dining, bar, spa, activities, meetings, requests, visitors, stay, checkin, checkout or info.",
+      "claims": ["taking you to", "opening the", "pulling up the"],
+      "objects": ["menu", "spa", "activities", "meeting rooms", "requests", "visitors", "folio", "check-in"],
+      "doc": "Go to a screen of the app, ringing its tab first."
+    },
+    {
+      "id": "app.show",
+      "verb": "show",
+      "class": "look",
+      "args": [{ "name": "target", "doc": "Something on the screen by the name it shows: an item, a treatment, a room, a charge, the total, the key." }],
+      "say": "{show: total} right before the sentence about something on screen, to ring it: an item or a charge by name, the total, a time slot, the key.",
+      "doc": "Scroll to a named thing on the screen and ring it. Changes nothing."
+    },
+    {
+      "id": "sheet.close",
+      "class": "reversible",
+      "args": [],
+      "claims": ["closing that"],
+      "objects": ["sheet"],
+      "doc": "Close the sheet that is open over the screen."
+    },
+    {
+      "id": "info.open",
+      "class": "navigate",
+      "args": [
+        {
+          "name": "topic",
+          "enum": ["checkin", "house_rules", "quiet", "pets", "smoking", "pools", "wifi", "parking", "dining_hours", "fitness", "accessibility", "contact"]
+        }
+      ],
+      "claims": ["opening the policy"],
+      "objects": ["policy", "house rules", "information"],
+      "doc": "Open hotel information at one section, expanded and ringed."
+    },
+    {
+      "id": "checkin.open",
+      "class": "navigate",
+      "args": [{ "name": "step", "enum": ["reservation", "id", "room", "early", "review"], "default": "reservation" }],
+      "claims": ["starting your check-in", "opening check-in"],
+      "objects": ["check-in"],
+      "doc": "Open the check-in flow at a step it has reached (an earlier one is fine; a later one is refused with what is missing)."
+    },
+    {
+      "id": "checkin.confirm",
+      "class": "reversible",
+      "args": [],
+      "claims": ["confirming your reservation"],
+      "objects": ["reservation"],
+      "doc": "Ring and press \"Yes, that's my reservation\" on the first step, after the guest said it is theirs."
+    },
+    {
+      "id": "checkin.prefs",
+      "class": "reversible",
+      "args": [
+        { "name": "arrival", "optional": true, "enum": ["now", "15:00", "16:00", "17:00", "19:00"] },
+        { "name": "floor", "optional": true, "enum": ["high", "low", "any"] },
+        { "name": "bed", "optional": true, "enum": ["king", "queens"] },
+        { "name": "quiet", "optional": true, "enum": ["yes", "no"] }
+      ],
+      "claims": ["setting your arrival", "noting your preferences"],
+      "objects": ["arrival time", "preferences", "floor"],
+      "doc": "On the room step, ring and set each preference that is given."
+    },
+    {
+      "id": "checkin.early",
+      "class": "reversible",
+      "args": [{ "name": "want", "enum": ["yes", "no"] }],
+      "claims": ["adding early check-in"],
+      "objects": ["early check-in"],
+      "doc": "On the early check-in step, ring and choose whether to take the room now for the fee."
+    },
+    {
+      "id": "checkout.open",
+      "class": "navigate",
+      "args": [{ "name": "part", "enum": ["folio", "late", "express"], "default": "folio" }],
+      "claims": ["opening your bill", "pulling up your folio"],
+      "objects": ["bill", "folio", "charges", "late check-out", "check-out"],
+      "doc": "Open check-out at the folio, the late check-out options or the express check-out review."
+    },
+    {
+      "id": "folio.dispute",
+      "class": "reversible",
+      "args": [
+        { "name": "line_id", "doc": "A folio line id: minibar-1124, spa-1123." },
+        { "name": "reason", "doc": "What the guest says is wrong, in their words." },
+        { "name": "send", "type": "boolean", "default": false, "doc": "Press Send, only after the guest said yes to sending it." }
+      ],
+      "claims": ["flagging that charge", "questioning that charge"],
+      "objects": ["charge", "dispute"],
+      "doc": "Ring a folio line and open its question form with the reason filled; with send, press Send to the front desk."
+    },
+    {
+      "id": "late.pick",
+      "class": "reversible",
+      "args": [{ "name": "time", "enum": ["12:00", "13:00", "14:00", "16:00"] }],
+      "claims": ["picking the late check-out"],
+      "objects": ["late check-out"],
+      "doc": "Ring and select a late check-out option. The guest presses Request."
+    },
+    {
+      "id": "menu.open",
+      "class": "navigate",
+      "args": [
+        { "name": "outlet", "enum": ["dining", "bar"] },
+        { "name": "section", "optional": true, "doc": "dining: breakfast, all_day, late_night. bar: cocktails, beer, wine, zero_proof, bites." }
+      ],
+      "claims": ["opening the menu", "pulling up the menu"],
+      "objects": ["menu", "drinks", "breakfast", "cocktails", "wine"],
+      "doc": "Open the in-room dining or drinks menu at a section, its tab ringed."
+    },
+    {
+      "id": "menu.item",
+      "class": "reversible",
+      "args": [
+        { "name": "outlet", "enum": ["dining", "bar"] },
+        { "name": "item_id" },
+        { "name": "qty", "type": "integer", "default": 1 },
+        { "name": "choices", "type": "array", "optional": true, "doc": "Option choices as group:choice, side:salad, burger_mods:no_onions; a wine as size:bottle." },
+        { "name": "note", "optional": true },
+        { "name": "add", "type": "boolean", "default": true, "doc": "Press Add to order once the choices are set." }
+      ],
+      "claims": ["adding the", "adding a", "adding two"],
+      "objects": ["order", "item"],
+      "doc": "Ring an item, open its sheet, set its choices and quantity (each ringed), and add it to the order."
+    },
+    {
+      "id": "cart.remove",
+      "class": "reversible",
+      "args": [{ "name": "outlet", "enum": ["dining", "bar"] }, { "name": "item_id" }],
+      "claims": ["taking off the", "removing the"],
+      "objects": ["order"],
+      "doc": "Ring an order line and take it off."
+    },
+    {
+      "id": "cart.open",
+      "class": "navigate",
+      "args": [
+        { "name": "outlet", "enum": ["dining", "bar"] },
+        { "name": "tip", "type": "integer", "optional": true, "doc": "Extra tip percent: 0, 10, 15 or 20." },
+        { "name": "deliver_to", "optional": true, "enum": ["room", "cabana"] },
+        { "name": "cabana", "optional": true, "doc": "Cabana number, 1 to 8." }
+      ],
+      "claims": ["opening your order"],
+      "objects": ["order", "cart", "basket"],
+      "doc": "Open the order sheet (lines, charges, delivery time) and set the tip and delivery place if given. The guest presses Place order."
+    },
+    {
+      "id": "spa.open",
+      "class": "navigate",
+      "args": [{ "name": "category", "optional": true, "enum": ["massage", "facial", "ritual", "nails"] }],
+      "claims": ["opening the spa"],
+      "objects": ["spa", "treatments"],
+      "doc": "Open the spa menu, at a category."
+    },
+    {
+      "id": "spa.treatment",
+      "class": "navigate",
+      "args": [
+        { "name": "treatment_id" },
+        { "name": "date", "optional": true, "doc": "YYYY-MM-DD." },
+        { "name": "therapist", "optional": true, "doc": "any, female, male, or a therapist id." }
+      ],
+      "claims": ["checking the times", "pulling up the times"],
+      "objects": ["times", "slots", "availability"],
+      "doc": "Open a treatment's booking sheet with its free times for a date and a therapist preference."
+    },
+    {
+      "id": "spa.slot",
+      "class": "reversible",
+      "args": [
+        { "name": "treatment_id" },
+        { "name": "date" },
+        { "name": "time", "doc": "HH:MM, 24 hour." },
+        { "name": "therapist_id" }
+      ],
+      "claims": ["holding the", "picking the"],
+      "objects": ["slot", "appointment", "time"],
+      "doc": "Ring and pick a free time with a therapist on the treatment's sheet. The guest presses Book."
+    },
+    {
+      "id": "activity.show",
+      "class": "look",
+      "args": [{ "name": "activity_id" }, { "name": "map", "type": "boolean", "default": false }],
+      "claims": ["showing you on the map"],
+      "objects": ["map"],
+      "doc": "Ring an activity's card; with map, pin and ring its place on the resort map."
+    },
+    {
+      "id": "activity.pick",
+      "class": "reversible",
+      "args": [
+        { "name": "activity_id" },
+        { "name": "date" },
+        { "name": "time" },
+        { "name": "guests", "type": "integer", "default": 1 }
+      ],
+      "claims": ["booking the", "reserving the"],
+      "objects": ["booking", "spot", "tee time", "court"],
+      "doc": "Open an activity's booking sheet with the date, time and guests set. The guest presses Book."
+    },
+    {
+      "id": "meeting.filter",
+      "class": "navigate",
+      "args": [
+        { "name": "headcount", "type": "integer", "optional": true },
+        { "name": "layout", "optional": true, "enum": ["boardroom", "u_shape", "classroom", "theatre", "banquet"] },
+        { "name": "date", "optional": true }
+      ],
+      "claims": ["finding a room"],
+      "objects": ["meeting rooms", "rooms", "halls"],
+      "doc": "Open meeting rooms with the rooms that fit a headcount and layout, and their availability on a date."
+    },
+    {
+      "id": "meeting.pick",
+      "class": "reversible",
+      "args": [
+        { "name": "room_id" },
+        { "name": "date" },
+        { "name": "block", "enum": ["morning", "afternoon", "full", "hours"] },
+        { "name": "start", "optional": true, "doc": "HH:MM, for block hours." },
+        { "name": "hours", "type": "integer", "optional": true, "doc": "For block hours." },
+        { "name": "headcount", "type": "integer" },
+        { "name": "layout", "enum": ["boardroom", "u_shape", "classroom", "theatre", "banquet"] },
+        { "name": "catering", "type": "array", "optional": true, "doc": "Catering ids: coffee, breakfast, lunch, snack." },
+        { "name": "av", "type": "array", "optional": true, "doc": "AV add-on ids: mics, recording, tech." }
+      ],
+      "claims": ["putting the booking together", "setting up the booking"],
+      "objects": ["booking", "quote"],
+      "doc": "Open a room's booking form with everything set, each field ringed, and the price. The guest presses Request booking."
+    },
+    {
+      "id": "visitor.open",
+      "class": "reversible",
+      "args": [{ "name": "visitor_id" }, { "name": "meet", "optional": true, "enum": ["room", "lobby"] }],
+      "claims": ["opening the request"],
+      "objects": ["visitor", "request"],
+      "doc": "Ring a pending visitor and open their request, with where to meet set. The guest presses Approve or Decline."
+    },
+    {
+      "id": "visitor.expect",
+      "class": "reversible",
+      "args": [
+        { "name": "name" },
+        { "name": "arrive_from", "doc": "HH:MM, start of the arrival window." },
+        { "name": "arrive_to", "doc": "HH:MM, end of the arrival window." },
+        { "name": "meet", "optional": true, "enum": ["room", "lobby"] },
+        { "name": "note", "optional": true }
+      ],
+      "claims": ["adding your visitor"],
+      "objects": ["visitor", "guest list"],
+      "doc": "Fill the expected visitor form. The guest presses Add visitor."
+    },
+    {
+      "id": "request.fill",
+      "class": "reversible",
+      "args": [
+        { "name": "kind", "enum": ["housekeeping", "maintenance", "wakeup", "valet", "transport", "lost_found"] },
+        { "name": "items", "type": "array", "optional": true, "doc": "housekeeping item ids: towels, pillows, toiletries, robes, crib, turndown, clean, dnd." },
+        { "name": "issue", "optional": true, "doc": "maintenance issue id: ac, tv, plumbing, lights, door, other." },
+        { "name": "option", "optional": true, "doc": "transport option id: house-car, airport, taxi." },
+        { "name": "date", "optional": true },
+        { "name": "time", "optional": true, "doc": "HH:MM." },
+        { "name": "details", "optional": true, "doc": "Free text: what is wrong, where to, what was lost and where." },
+        { "name": "send", "type": "boolean", "default": false, "doc": "Press Send, only after the guest said yes and when it costs nothing." }
+      ],
+      "claims": ["sending that to", "putting in the request", "setting your wake-up call"],
+      "objects": ["request", "wake-up call", "towels", "car"],
+      "doc": "Open a front desk request with its fields filled, each ringed; with send, press Send."
+    }
+  ],
+  "slices": [
+    {
+      "id": "stay",
+      "doc": "the last change on screen, by ids, as the app reports it",
+      "fields": [
+        { "name": "page", "optional": true },
+        { "name": "scenario", "optional": true },
+        { "name": "step", "optional": true },
+        { "name": "field", "optional": true },
+        { "name": "value", "optional": true },
+        { "name": "id", "optional": true },
+        { "name": "outlet", "optional": true },
+        { "name": "qty", "type": "integer", "optional": true },
+        { "name": "choices", "type": "array", "optional": true },
+        { "name": "date", "optional": true },
+        { "name": "time", "optional": true },
+        { "name": "therapist", "optional": true },
+        { "name": "guests", "type": "integer", "optional": true },
+        { "name": "room", "optional": true },
+        { "name": "kind", "optional": true },
+        { "name": "total", "type": "number", "optional": true },
+        { "name": "label", "optional": true }
+      ]
+    }
+  ],
+  "events": [
+    { "id": "stay.page", "slice": "stay", "react": "silent", "note": "{by} is on the {page} screen" },
+    { "id": "stay.scenario", "slice": "stay", "note": "{by} switched the demo to {label}" },
+    { "id": "checkin.step", "slice": "stay", "react": "silent", "note": "{by} is on the check-in step {step}" },
+    { "id": "checkin.confirmed", "slice": "stay", "note": "{by} confirmed the reservation" },
+    { "id": "checkin.id_verified", "slice": "stay", "note": "{by} scanned their ID and it is verified" },
+    { "id": "checkin.prefs", "slice": "stay", "note": "{by} set {label}" },
+    { "id": "checkin.early", "slice": "stay", "note": "{by} set early check-in to {value}" },
+    { "id": "checkin.done", "slice": "stay", "note": "{by} completed check-in: room {room}" },
+    { "id": "cart.changed", "slice": "stay", "note": "{by} changed the {outlet} order: {label}" },
+    { "id": "order.placed", "slice": "stay", "note": "{by} placed the {outlet} order: {label}" },
+    { "id": "spa.picked", "slice": "stay", "note": "{by} picked {label}" },
+    { "id": "spa.booked", "slice": "stay", "note": "{by} booked {label}" },
+    { "id": "activity.picked", "slice": "stay", "note": "{by} set up {label}" },
+    { "id": "activity.booked", "slice": "stay", "note": "{by} booked {label}" },
+    { "id": "meeting.picked", "slice": "stay", "note": "{by} set up {label}" },
+    { "id": "meeting.booked", "slice": "stay", "note": "{by} requested {label}" },
+    { "id": "visitor.decided", "slice": "stay", "note": "{by} {value} the visitor {label}" },
+    { "id": "visitor.added", "slice": "stay", "note": "{by} added an expected visitor: {label}" },
+    { "id": "request.sent", "slice": "stay", "note": "{by} sent a request: {label}" },
+    { "id": "folio.disputed", "slice": "stay", "note": "{by} questioned the charge {label}" },
+    { "id": "late.picked", "slice": "stay", "note": "{by} picked late check-out at {label}" },
+    { "id": "late.requested", "slice": "stay", "note": "{by} requested late check-out at {label}" },
+    { "id": "checkout.done", "slice": "stay", "note": "{by} checked out: {label}" },
+    { "id": "sheet.closed", "slice": "stay", "react": "silent", "note": "{by} closed the {kind} sheet" }
+  ]
+}

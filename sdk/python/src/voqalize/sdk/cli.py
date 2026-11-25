@@ -473,7 +473,11 @@ def _stage_gen(args: argparse.Namespace) -> int:
     )
     moves = _tally(len(spec.moves), "move")
     if args.py:
-        _write(args.py, render_python(spec, source=args.spec, command=command), moves)
+        try:
+            py = render_python(spec, source=args.spec, command=command)
+        except ValueError as err:
+            raise SystemExit(f"voqalize stage gen: {args.spec}: {err}") from None
+        _write(args.py, py, moves)
     if args.ts:
         _write(args.ts, render_typescript(spec, source=args.spec, command=command), moves)
     if args.json:

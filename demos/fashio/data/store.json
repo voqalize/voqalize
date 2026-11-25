@@ -1,0 +1,203 @@
+{
+  "$comment": "Fashio's own authored content: the brand, policies, size charts, campaigns and gift options. Read by the page (imported) and the brain. Products live in catalog.json (built from the dataset); orders in orders.json. Every policy the agent states comes from here.",
+  "brand": {
+    "name": "Fashio",
+    "tagline": "Wear the moment",
+    "support_phone": "1800 120 4466",
+    "support_hours": "9 am to 9 pm, every day",
+    "store": { "name": "Fashio Studio, Phoenix Palladium", "city": "Mumbai", "floor": "Level 2" }
+  },
+  "currency": "INR",
+  "timezone": "Asia/Kolkata",
+  "policies": {
+    "delivery": {
+      "free_over": 799,
+      "fee": 79,
+      "days_min": 3,
+      "days_max": 5,
+      "cod": true,
+      "summary": "Free delivery on orders of ₹799 and above, otherwise ₹79. Delivered in 3 to 5 days. Cash on delivery available."
+    },
+    "changes": {
+      "summary": "Once an order is placed, its delivery date and delivery address cannot be changed. An order can be cancelled until it is dispatched (while it is Placed or Packed); once it has shipped it cannot be cancelled, but it can be returned after delivery under the returns policy."
+    },
+    "cancel_statuses": ["placed", "packed"],
+    "returns": {
+      "window_days": 7,
+      "conditions": ["unused, unwashed and unworn", "original tags intact", "in the original packaging"],
+      "not_returnable_types": ["perfume-and-body-mist", "fragrance-gift-set"],
+      "refund": "Refunded to the original payment method within 5 to 7 days of pickup; cash on delivery orders are refunded to the bank account you add.",
+      "pickup": "We pick it up from the delivery address within 2 days.",
+      "summary": "Returns within 7 days of delivery, only for unused products with the original tags intact. Fragrances cannot be returned."
+    },
+    "gift_wrap": {
+      "price": 49,
+      "note_max": 150,
+      "summary": "Gift wrap for ₹49 an item, with a printed note of up to 150 characters. Gift-wrapped items ship without a price on the invoice slip."
+    }
+  },
+  "statuses": {
+    "placed": "Order placed",
+    "packed": "Packed",
+    "shipped": "Shipped",
+    "out_for_delivery": "Out for delivery",
+    "delivered": "Delivered",
+    "cancelled": "Cancelled",
+    "return_requested": "Return requested"
+  },
+  "size_charts": {
+    "tops-men": {
+      "title": "Men's topwear",
+      "unit": "in",
+      "columns": ["Size", "Chest", "Shoulder", "Length"],
+      "rows": [
+        ["XS", "36", "16.5", "27"],
+        ["S", "38", "17", "28"],
+        ["M", "40", "17.5", "29"],
+        ["L", "42", "18", "30"],
+        ["XL", "44", "18.5", "31"],
+        ["XXL", "46", "19", "31.5"],
+        ["3XL", "48", "19.5", "32"],
+        ["4XL", "50", "20", "32.5"]
+      ],
+      "how": "Chest: measure around the fullest part, under the arms, tape level."
+    },
+    "tops-women": {
+      "title": "Women's topwear and dresses",
+      "unit": "in",
+      "columns": ["Size", "Bust", "Waist", "Hip"],
+      "rows": [
+        ["XS", "32", "26", "35"],
+        ["S", "34", "28", "37"],
+        ["M", "36", "30", "39"],
+        ["L", "38", "32", "41"],
+        ["XL", "40", "34", "43"],
+        ["XXL", "42", "36", "45"],
+        ["3XL", "44", "38", "47"],
+        ["4XL", "46", "40", "49"]
+      ],
+      "how": "Bust: around the fullest part. Waist: around the narrowest part. Hip: around the fullest part."
+    },
+    "bottoms-men": {
+      "title": "Men's bottomwear",
+      "unit": "in",
+      "columns": ["Size", "Waist", "Letter size", "Inseam"],
+      "rows": [
+        ["28", "28", "XS", "31"],
+        ["30", "30", "S", "32"],
+        ["32", "32", "M", "32"],
+        ["34", "34", "L", "33"],
+        ["36", "36", "XL", "33"],
+        ["38", "38", "XXL", "33"],
+        ["40", "40", "3XL", "34"]
+      ],
+      "how": "Waist: measure where you wear your trousers, tape snug but not tight."
+    },
+    "bottoms-women": {
+      "title": "Women's bottomwear",
+      "unit": "in",
+      "columns": ["Size", "Waist", "Letter size", "Hip"],
+      "rows": [
+        ["26", "26", "XS", "35"],
+        ["28", "28", "S", "37"],
+        ["30", "30", "M", "39"],
+        ["32", "32", "L", "41"],
+        ["34", "34", "XL", "43"],
+        ["36", "36", "XXL", "45"],
+        ["38", "38", "3XL", "47"]
+      ],
+      "how": "Waist: around the narrowest part. Hip: around the fullest part."
+    },
+    "footwear-men": {
+      "title": "Men's footwear",
+      "unit": "cm",
+      "columns": ["Size", "EU", "US", "Foot length"],
+      "rows": [
+        ["UK 5", "39", "6", "24.0"],
+        ["UK 6", "40", "7", "24.8"],
+        ["UK 7", "41", "8", "25.6"],
+        ["UK 8", "42", "9", "26.5"],
+        ["UK 9", "43", "10", "27.3"],
+        ["UK 10", "44", "11", "28.2"],
+        ["UK 11", "45", "12", "29.0"],
+        ["UK 12", "46", "13", "29.8"]
+      ],
+      "how": "Stand on paper, mark heel and longest toe, measure between the marks."
+    },
+    "footwear-women": {
+      "title": "Women's footwear",
+      "unit": "cm",
+      "columns": ["Size", "EU", "US", "Foot length"],
+      "rows": [
+        ["UK 2", "35", "4", "21.6"],
+        ["UK 3", "36", "5", "22.4"],
+        ["UK 4", "37", "6", "23.2"],
+        ["UK 5", "38", "7", "24.0"],
+        ["UK 6", "39", "8", "24.8"],
+        ["UK 7", "40", "9", "25.6"],
+        ["UK 8", "41", "10", "26.5"],
+        ["UK 9", "42", "11", "27.3"]
+      ],
+      "how": "Stand on paper, mark heel and longest toe, measure between the marks."
+    },
+    "kids": {
+      "title": "Kids",
+      "unit": "cm",
+      "columns": ["Size", "Age", "Height", "Chest"],
+      "rows": [
+        ["2-3Y", "2 to 3 years", "92-98", "53"],
+        ["3-4Y", "3 to 4 years", "98-104", "55"],
+        ["4-5Y", "4 to 5 years", "104-110", "57"],
+        ["5-6Y", "5 to 6 years", "110-116", "59"],
+        ["6-7Y", "6 to 7 years", "116-122", "62"],
+        ["7-8Y", "7 to 8 years", "122-128", "64"],
+        ["8-9Y", "8 to 9 years", "128-134", "67"],
+        ["9-10Y", "9 to 10 years", "134-140", "70"],
+        ["10-11Y", "10 to 11 years", "140-146", "73"],
+        ["11-12Y", "11 to 12 years", "146-152", "76"],
+        ["12-13Y", "12 to 13 years", "152-158", "79"],
+        ["13-14Y", "13 to 14 years", "158-164", "82"]
+      ],
+      "how": "Go by height first; the age is a guide."
+    }
+  },
+  "fit": {
+    "$comment": "The size advisor's rule, implemented twice (backend/fashio.py `recommend`, frontend/src/data/fit.ts). See CONTRACT.md, Fit.",
+    "slim_words": ["slim", "skinny", "fitted", "body fit", "super slim"],
+    "loose_words": ["loose", "relaxed", "oversized", "boxy", "comfort", "regular fit loose"],
+    "tall_cm": 185,
+    "short_cm": 152,
+    "length_types": ["kurtas", "kurtis", "tunics", "dresses", "shirts", "tshirts", "tops", "jumpsuit", "kurta-sets", "jeans", "trousers"]
+  },
+  "campaigns": [
+    { "id": "festive", "title": "The festive edit", "kicker": "Mehendi to Diwali", "copy": "Kurtas, sarees and sets in silk, chanderi and cotton.", "filter": { "dept": "ethnic", "types": ["kurtas", "kurta-sets", "sarees"] }, "tone": "saffron" },
+    { "id": "work", "title": "Monday, sorted", "kicker": "Workwear", "copy": "Shirts, trousers and formal shoes that do the talking.", "filter": { "usage": ["Formal"] }, "tone": "ink" },
+    { "id": "sneakers", "title": "Sneaker drop", "kicker": "Footwear", "copy": "Everyday trainers and court classics.", "filter": { "types": ["casual-shoes", "sports-shoes"] }, "tone": "lime" },
+    { "id": "sale", "title": "Up to 50% off", "kicker": "On sale now", "copy": "Real markdowns from the brands you know.", "filter": { "discount_min": 10 }, "tone": "rose" }
+  ],
+  "home_rails": [
+    { "title": "Kurtas for every day", "filter": { "dept": "women", "types": ["kurtas"] } },
+    { "title": "Watches that make the outfit", "filter": { "types": ["watches"] } },
+    { "title": "Weekend tees", "filter": { "dept": "men", "types": ["tshirts"] } },
+    { "title": "Heels and flats", "filter": { "types": ["heels", "flats"] } }
+  ],
+  "gifts": {
+    "recipients": ["Her", "Him", "Mom", "Dad", "Sister", "Brother", "Friend", "Partner", "Kid"],
+    "occasions": ["Birthday", "Anniversary", "Diwali", "Raksha Bandhan", "Wedding", "Mehendi", "Housewarming", "Thank you", "Just because"],
+    "recipient_gender": { "Her": "women", "Mom": "women", "Sister": "women", "Partner": null, "Him": "men", "Dad": "men", "Brother": "men", "Friend": null, "Kid": "kids" },
+    "budgets": [999, 1999, 2999, 4999],
+    "ideas": {
+      "$comment": "Article types the gift finder draws from per recipient side; ethnic types are weighted up for festive occasions (CONTRACT.md, Gifts).",
+      "women": ["watches", "handbags", "clutches", "earrings", "jewellery-set", "pendant", "stoles", "scarves", "perfume-and-body-mist", "fragrance-gift-set", "sunglasses", "kurtas", "sarees", "dresses", "wallets"],
+      "men": ["watches", "wallets", "belts", "sunglasses", "perfume-and-body-mist", "fragrance-gift-set", "accessory-gift-set", "cufflinks", "ties", "kurtas", "shirts", "backpacks", "casual-shoes"],
+      "kids": ["watches", "backpacks", "tshirts", "dresses", "casual-shoes", "caps"],
+      "any": ["watches", "sunglasses", "wallets", "perfume-and-body-mist", "fragrance-gift-set", "backpacks", "accessory-gift-set", "scarves"]
+    },
+    "festive_occasions": ["Diwali", "Raksha Bandhan", "Wedding", "Mehendi"]
+  },
+  "kiosk": {
+    "floor_assistant": "A floor assistant is on the way to the kiosk.",
+    "idle_title": "Find it in seconds",
+    "idle_copy": "Tell Fashio what you are looking for. Every product in our catalogue, with the QR code to buy on your phone."
+  }
+}

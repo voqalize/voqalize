@@ -1,0 +1,294 @@
+/* The concierge's widget, inside the phone (voice/Widget.tsx): a circle with
+   her face that a tap expands and that folds back by itself. Everything is
+   `fixed` inside `#screen`, which contains it; its place is computed (corner,
+   clear of guest-only buttons, top right over a sheet). No transcript. */
+
+:root {
+  --bw-deep: #0f1c24;
+  --bw-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.bw {
+  position: fixed;
+  z-index: 62;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px;
+  border-radius: 999px;
+  background: var(--bw-deep);
+  color: #fff;
+  font-family: var(--sans);
+  box-shadow: 0 16px 34px -12px rgba(19, 33, 43, 0.55), 0 2px 6px rgba(19, 33, 43, 0.1);
+  transition: left 0.35s var(--bw-ease), top 0.35s var(--bw-ease), border-radius 0.3s var(--bw-ease), opacity 0.2s ease;
+}
+.bw.is-parked {
+  opacity: 0;
+  left: -200px;
+  top: -200px;
+}
+/* Over an open sheet: above it. */
+.bw.is-raised {
+  z-index: 2147482101;
+}
+.bw p {
+  margin: 0;
+}
+.bw button {
+  font: inherit;
+  border: 0;
+  cursor: pointer;
+}
+.bw button:focus-visible {
+  outline: 2px solid var(--brass-2);
+  outline-offset: 2px;
+}
+
+/* ── The face ── */
+.bw-face {
+  position: relative;
+  flex: none;
+  width: 52px;
+  height: 52px;
+  padding: 0;
+  border-radius: 50%;
+  background: none;
+  transition: width 0.3s var(--bw-ease), height 0.3s var(--bw-ease), border-radius 0.3s var(--bw-ease);
+}
+.bw-face-img {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: inherit;
+  background: linear-gradient(180deg, #f6efe4 0%, #e6d5bb 100%);
+}
+.bw-face-img > .face-still,
+.bw-face-img > .face-placeholder,
+.bw-face-img > .dock-avatar {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.dock-avatar,
+.dock-avatar > * {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.face-still {
+  display: block;
+  object-fit: cover;
+  object-position: 50% 30%;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+.face-placeholder {
+  display: grid;
+  place-items: center;
+  background: radial-gradient(circle at 40% 35%, var(--brass-soft), var(--brass));
+}
+.face-placeholder span {
+  font-family: var(--display);
+  font-weight: 700;
+  color: var(--ink);
+  font-size: 22px;
+}
+/* The subtle state ring around the face. */
+.bw-ring {
+  position: absolute;
+  inset: -3px;
+  border-radius: inherit;
+  box-shadow: 0 0 0 2px var(--brass-2);
+  pointer-events: none;
+}
+.bw.is-live .bw-ring {
+  box-shadow: 0 0 0 2px rgba(201, 164, 103, 0.55);
+}
+.bw.is-listening .bw-ring {
+  box-shadow: 0 0 0 2px #7fb3a4;
+  animation: bw-breathe 2.4s ease-in-out infinite;
+}
+.bw.is-speaking .bw-ring {
+  box-shadow: 0 0 0 3px var(--brass-2);
+  animation: bw-speak 0.9s ease-in-out infinite;
+}
+.bw.is-connecting .bw-ring,
+.bw.is-thinking .bw-ring {
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.5);
+  animation: bw-breathe 1.2s ease-in-out infinite;
+}
+.bw.is-muted .bw-ring {
+  box-shadow: 0 0 0 2px var(--coral);
+}
+@keyframes bw-breathe {
+  50% {
+    opacity: 0.35;
+  }
+}
+@keyframes bw-speak {
+  50% {
+    box-shadow: 0 0 0 6px rgba(201, 164, 103, 0.35);
+  }
+}
+
+/* ── Expanded, before a call: face, name, role, Talk ── */
+.bw.is-open.is-idle {
+  padding: 6px 8px 6px 6px;
+  border-radius: 999px;
+}
+.bw-panel.is-idle {
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: center;
+  column-gap: 10px;
+}
+.bw-panel.is-idle .bw-name,
+.bw-panel.is-idle .bw-role {
+  grid-column: 1;
+}
+.bw-panel.is-idle .bw-talk,
+.bw-panel.is-idle .lang-toggle {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+}
+.bw-name {
+  font-weight: 800;
+  font-size: 14px;
+  line-height: 1.2;
+}
+.bw-role {
+  font-size: 12px;
+  color: #c9bfa9;
+  max-width: 120px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bw-talk {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 40px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: var(--brass-2);
+  color: var(--ink);
+  font-weight: 800;
+  font-size: 13px;
+  white-space: nowrap;
+}
+.bw-talk:hover {
+  background: #d8b57a;
+}
+.bw-talk:disabled {
+  background: #5f7f7d;
+  color: #d7e3e0;
+  cursor: not-allowed;
+}
+
+/* ── Expanded, in a call: a bigger face, what she is doing, Mute and End ── */
+.bw.is-open.is-live {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  width: 168px;
+  padding: 8px;
+  border-radius: 20px;
+}
+.bw.is-open.is-live .bw-face {
+  width: 152px;
+  height: 140px;
+  border-radius: 14px;
+}
+.bw-panel.is-call {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.bw-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #e7dfd0;
+}
+.bw-state::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--faint);
+}
+.bw-state.is-listening::before {
+  background: #7fb3a4;
+}
+.bw-state.is-speaking::before {
+  background: var(--brass-2);
+}
+.bw-state.is-muted::before {
+  background: var(--coral);
+}
+.bw-controls {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+.bw-btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 38px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+}
+.bw-btn:hover {
+  background: rgba(255, 255, 255, 0.24);
+}
+.bw-btn[aria-pressed="true"] {
+  background: #fff;
+  color: var(--ink);
+}
+.bw-end,
+.bw-end:hover {
+  background: var(--coral);
+}
+
+.lang-toggle {
+  display: inline-flex;
+  flex: none;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  padding: 3px;
+  gap: 2px;
+}
+.lang-toggle button {
+  height: 26px;
+  min-width: 34px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: transparent;
+  font-size: 12px;
+  font-weight: 700;
+  color: #cfe0dc;
+}
+.lang-toggle button[aria-pressed="true"] {
+  background: var(--paper);
+  color: var(--ink);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bw,
+  .bw-face,
+  .bw-ring {
+    animation: none !important;
+    transition: none !important;
+  }
+}

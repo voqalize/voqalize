@@ -87,13 +87,14 @@ first brought fully into view with its group, inner scroll areas included (`fron
 ## Amounts in speech
 
 Prices come from the engine as whole rupees in Indian grouping (₹2,28,975), which Voqalize's TTS
-reads right in both languages. What it reads wrong is a rupee amount with two decimals before a
-scale word: in English "₹1.25 lakh" reaches the voice model as "one rupee and twenty five paisa
-lakh". `backend/spoken.py` (adapted from the bank demo) rewrites everything the planner speaks,
-the model's words and the brain's own lines, as it streams; the screen keeps its formatting:
+reads right in both languages, and since speech 174bd6ef also "₹1.25 lakh" (it used to say "one
+rupee and twenty five paisa lakh"). What it still reads wrong is a range with the scale said once
+("₹1.5 to 2 lakh" is "one rupee fifty paisa to 2 lakh"). `backend/spoken.py` (adapted from the
+bank demo) rewrites everything the planner speaks, the model's words and the brain's own lines,
+as it streams; the screen keeps its formatting:
 
-- English: an amount with lakh or crore is spelled out ("one point two five lakh rupees",
-  "one point five to two lakh rupees"); plain ₹ amounts go as written.
+- English: one amount goes as written (₹1.25 lakh, ₹2,28,975); a range is spelled out ("one
+  point five to two lakh rupees").
 - Hindi: lakh and crore in Devanagari with the ₹ mark ("₹1.5 लाख", said डेढ़ लाख); any other
   decimal becomes whole rupees ("₹2.3 लाख" → ₹2,30,000, said दो लाख तीस हज़ार).
 - Ranges say both ends ("₹1.5 lakh to ₹2 lakh", "8% to 18%").

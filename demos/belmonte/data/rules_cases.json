@@ -1,0 +1,237 @@
+{
+ "orders": [
+  {
+   "outlet": "dining",
+   "tip": 15,
+   "lines": [
+    {
+     "item_id": "belmonte-burger",
+     "qty": 2,
+     "choices": [
+      "burger_cook:medium",
+      "side:sweet_fries",
+      "burger_mods:no_onions"
+     ],
+     "note": ""
+    },
+    {
+     "item_id": "kale-caesar",
+     "qty": 1,
+     "choices": [
+      "salad_protein:salmon"
+     ],
+     "note": ""
+    },
+    {
+     "item_id": "chocolate-cake",
+     "qty": 1,
+     "choices": [],
+     "note": ""
+    }
+   ],
+   "totals": {
+    "subtotal": 99.0,
+    "service": 19.8,
+    "delivery": 5.0,
+    "tax": 8.66,
+    "tip": 14.85,
+    "total": 147.31
+   }
+  },
+  {
+   "outlet": "bar",
+   "tip": 0,
+   "lines": [
+    {
+     "item_id": "pinot-noir",
+     "qty": 1,
+     "choices": [
+      "size:bottle"
+     ],
+     "note": ""
+    },
+    {
+     "item_id": "halcyon-spritz",
+     "qty": 2,
+     "choices": [
+      "cocktail_mods:double"
+     ],
+     "note": ""
+    }
+   ],
+   "totals": {
+    "subtotal": 108.0,
+    "service": 21.6,
+    "delivery": 0.0,
+    "tax": 9.45,
+    "tip": 0.0,
+    "total": 139.05
+   }
+  }
+ ],
+ "spa": [
+  {
+   "scenario": "arrival",
+   "treatment": "deep-80",
+   "date": "2026-11-25",
+   "pref": "any",
+   "slots": [
+    [
+     "17:00",
+     "owen"
+    ],
+    [
+     "18:00",
+     "owen"
+    ]
+   ]
+  },
+  {
+   "scenario": "departure",
+   "treatment": "couples-80",
+   "date": "2026-11-25",
+   "pref": "any",
+   "slots": [
+    [
+     "09:00",
+     "jasmine"
+    ],
+    [
+     "10:00",
+     "jasmine"
+    ],
+    [
+     "12:00",
+     "elena"
+    ],
+    [
+     "13:00",
+     "elena"
+    ],
+    [
+     "16:00",
+     "jasmine"
+    ],
+    [
+     "17:00",
+     "jasmine"
+    ],
+    [
+     "18:00",
+     "elena"
+    ]
+   ]
+  },
+  {
+   "scenario": "arrival",
+   "treatment": "swedish-50",
+   "date": "2026-11-26",
+   "pref": "male",
+   "slots": [
+    [
+     "11:00",
+     "owen"
+    ],
+    [
+     "12:00",
+     "owen"
+    ],
+    [
+     "13:00",
+     "owen"
+    ],
+    [
+     "14:00",
+     "owen"
+    ],
+    [
+     "15:00",
+     "owen"
+    ],
+    [
+     "16:00",
+     "owen"
+    ],
+    [
+     "18:00",
+     "owen"
+    ]
+   ]
+  }
+ ],
+ "rooms": [
+  {
+   "floor": "high",
+   "bed": "king",
+   "quiet": true,
+   "room": "1412"
+  },
+  {
+   "floor": "low",
+   "bed": "king",
+   "quiet": false,
+   "room": "0516"
+  },
+  {
+   "floor": "high",
+   "bed": "queens",
+   "quiet": true,
+   "room": "0921"
+  },
+  {
+   "floor": null,
+   "bed": null,
+   "quiet": null,
+   "room": "1412"
+  },
+  {
+   "floor": "low",
+   "bed": "queens",
+   "quiet": true,
+   "room": "0304"
+  }
+ ],
+ "quotes": [
+  {
+   "room": "marina",
+   "block": "morning",
+   "hours": null,
+   "headcount": 30,
+   "catering": [
+    "coffee",
+    "lunch"
+   ],
+   "av": [
+    "mics"
+   ],
+   "quote": {
+    "room": 900.0,
+    "catering": 1980.0,
+    "fb_service": 435.6,
+    "tax": 173.25,
+    "av": 120.0,
+    "total": 3608.85,
+    "hours": 4
+   }
+  },
+  {
+   "room": "cypress",
+   "block": "hours",
+   "hours": 3,
+   "headcount": 10,
+   "catering": [],
+   "av": [
+    "tech"
+   ],
+   "quote": {
+    "room": 450.0,
+    "catering": 0.0,
+    "fb_service": 0.0,
+    "tax": 0.0,
+    "av": 285.0,
+    "total": 735.0,
+    "hours": 3
+   }
+  }
+ ]
+}

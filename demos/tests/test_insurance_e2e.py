@@ -485,8 +485,8 @@ async def test_the_owners_health_claim_is_led_question_by_question_with_no_silen
         # The misheard turn: the next question, never "It's this section here."
         assert "section" not in heard[3].lower() and heard[3].endswith(asks["admission_date"])
         assert heard[5].endswith(asks["treating_doctor"]), heard[5]
-        # The amount said back in words, then the bank on file offered.
-        assert "one lakh fifty thousand rupees" in heard[6], heard[6]
+        # The amount said back (the TTS reads ₹1,50,000 in lakh), then the bank on file offered.
+        assert "₹1,50,000" in heard[6], heard[6]
         assert heard[6].endswith(asks["account_holder"]), heard[6]
         # Every field filled: the one upload left, ringed on screen.
         assert "patient's photo ID" in heard[7], heard[7]
@@ -560,7 +560,7 @@ async def test_an_amount_that_lost_its_lakh_is_confirmed_never_filled() -> None:
         assert "claim_amount" not in {
             m["args"].get("field") for m in _moves(rig) if m["move"] == "claim.fill"
         }
-        assert "fifteen rupees" in _said(rig, turn) and "lakh" in _said(rig, turn)
+        assert "₹15." in _said(rig, turn) and "lakh" in _said(rig, turn)
         assert "too small" in _tool_outputs(llm)[-1]
 
 
@@ -606,7 +606,7 @@ async def test_a_motor_claim_with_an_estimate_in_thousands_and_a_quiet_model() -
             "Yes it still drives, and the garage estimate is around 25 thousand."
         )
         check_turn(rig, second)
-        assert "twenty-five thousand rupees" in _said(rig, second)
+        assert "₹25,000" in _said(rig, second)
         assert _said(rig, second).endswith(cl_lines.ASKS["en"]["driver_is_policyholder"])
         fills = {
             m["args"]["field"]: m["args"]["value"] for m in _moves(rig) if m["move"] == "claim.fill"

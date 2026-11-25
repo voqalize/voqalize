@@ -374,8 +374,8 @@ def test_the_session_exposes_no_account():
 @pytest.mark.parametrize(
     "claims",
     [
-        {"organization_id": "o-1", "tenant_id": "o-1"},  # the brain token, in the grace
-        {"organization_id": "o-1"},  # after the grace
+        {"organization_id": "o-1", "tenant_id": "o-1"},  # both names at once
+        {"organization_id": "o-1"},  # the brain token from the organization switch
         {"tenant_id": "o-1"},  # a platform from before the rename
     ],
     ids=["both-claims", "organization-only", "tenant-only"],

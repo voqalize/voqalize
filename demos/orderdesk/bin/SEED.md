@@ -34,7 +34,7 @@ consequences worth knowing before you debug anything here:
   until 2026-08-04 no console account could administer the prod demos organization
   (`agents.list` → `401 not_authenticated`, not a member). It
   was repaired by writing one owner member doc into
-  `organizations/06a210d7-76ce-7aa5-8000-d527fbd51277/members` in `voqal-cloud-prod`
+  `organizations/<demos-organization-id>/members` in `voqal-cloud-prod`
   Firestore, mirroring the dev doc's shape. If a fresh migration ever re-creates
   the organization, expect to redo that.
 
