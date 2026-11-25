@@ -46,7 +46,7 @@ export function SizeChartDrawer({ product: p }: { product: Product }) {
           </button>
         </div>
         {chart ? (
-          <div className="chart-wrap" data-stage-group>
+          <div className="chart-wrap" data-stage-group data-stage-part="size-chart:table">
             <table className="chart">
               <thead>
                 <tr>
@@ -75,7 +75,7 @@ export function SizeChartDrawer({ product: p }: { product: Product }) {
         ) : (
           <p className="muted">This product comes in one size.</p>
         )}
-        {p.model ? <p className="chart-model">The {p.model.replace(/^model/, "model")}.</p> : null}
+        {p.model ? <p className="chart-model">{p.model}</p> : null}
         <p className="chart-note">Measurements are body measurements. Between two sizes? Use Find my size on the product page, or pick the larger for a relaxed fit.</p>
       </aside>
     </div>

@@ -23,7 +23,8 @@ Curation (decided here, documented in the README):
   headwear, ties, cufflinks, scarves and stoles, fragrance and gift sets.
   Dropped: innerwear and nightwear, socks, personal care other than fragrance,
   free gifts, sporting goods, home, shoe accessories, and any record without a
-  JSON, an image in the zip, a name, or a price of at least ₹149.
+  JSON, an image in the zip, a name, or a price of at least ₹149, and the ids in
+  ``image_exclusions.json`` (source image narrower than 1080 px).
 - At most ``CAPS[type]`` products per article type for adults and
   ``KIDS_CAP`` per type for kids, picked round-robin across brands (so no
   brand floods a listing), best first: a description, attributes, a discount,
@@ -69,6 +70,8 @@ from typing import Any
 
 HERE = Path(__file__).resolve().parent
 INDEX = HERE / "catalog.json"
+#: Ids whose source image is too small for the product page (image_exclusions.json).
+EXCLUDED = set(json.loads((HERE / "image_exclusions.json").read_text(encoding="utf-8"))["ids"])
 ROOT = "fashion-dataset/fashion-dataset"
 BUCKET = "gs://voqalize-fashio-assets"
 VERSION = "v1"
@@ -579,6 +582,33 @@ KEY_ATTRS = ["Fit", "Pattern", "Fabric", "Sleeve Length", "Neck", "Length", "Sha
              "Strap Material", "Dial Shape", "Heel Height", "Heel Type", "Waist Rise"]  # fmt: skip
 
 
+#: Garment words a "model wears" line may name; a line naming another garment than
+#: the product's own ("model wears size M in t-shirts" on a kurta) is the
+#: dataset's copy-paste and is dropped.
+_GARMENTS = {
+    "t-shirt": "Tshirts", "tshirt": "Tshirts", "tee": "Tshirts", "shirt": "Shirts",
+    "kurta": "Kurtas", "kurti": "Kurtis", "jeans": "Jeans", "trouser": "Trousers",
+    "dress": "Dresses", "top": "Tops", "shorts": "Shorts", "skirt": "Skirts",
+    "jacket": "Jackets", "sweater": "Sweaters", "sweatshirt": "Sweatshirts",
+    "tunic": "Tunics", "legging": "Leggings", "capri": "Capris",
+}  # fmt: skip
+
+
+def model_line(raw: str, article: str) -> str | None:
+    """The "model wears" line, tidied, or None when it names another garment."""
+    line = re.sub(r"\s+", " ", raw).strip().rstrip(".")[:120]
+    named: set[str] = set()
+    rest = line
+    for word, art in _GARMENTS.items():  # t-shirt before shirt: "t-shirts" is not "shirts"
+        pattern = rf"(?<![\w-]){re.escape(word)}s?\b"
+        if re.search(pattern, rest, re.I):
+            named.add(art)
+            rest = re.sub(pattern, " ", rest, flags=re.I)
+    if named and article not in named:
+        return None
+    return line[:1].upper() + line[1:] + "."
+
+
 def name_stem(name: str, brand: str) -> str:
     words = [w for w in re.split(r"\s+", name) if w]
     bwords = {w.lower() for w in brand.split()}
@@ -611,6 +641,8 @@ def build(zip_path: Path, out: Path) -> dict[str, Any]:
         if article not in CAPS:
             continue
         pid = int(r["id"])
+        if pid in EXCLUDED:
+            continue
         jname = f"{ROOT}/styles/{pid}.json"
         if jname not in names or f"{ROOT}/images/{pid}.jpg" not in names:
             continue
@@ -784,8 +816,8 @@ def build(zip_path: Path, out: Path) -> dict[str, Any]:
         key_attrs = {k: attrs_all[k] for k in KEY_ATTRS if k in attrs_all}
         if key_attrs:
             row["attrs"] = key_attrs
-        if model_m:
-            row["model"] = re.sub(r"\s+", " ", model_m.group(0)).strip()[:120]
+        if model_m and (line := model_line(model_m.group(0), article)):
+            row["model"] = line
         products.append(row)
         details[pid] = {
             "id": pid,
