@@ -7,15 +7,30 @@
 #
 # This is a virtual root (`package = false`) — nothing is built or installed
 # from the repo root itself.
+#
+# It depends on its own members, so a bare `uv sync` (or `uv run`) at the root
+# gives the full workspace venv. `uv sync` is exact: when the root depended on
+# nothing, a bare sync removed the SDK, the demos and uvicorn from `.venv`, and
+# the local stack's `brains` process (platform's ecosystem.config.cjs runs
+# `.venv/bin/python -m uvicorn voqalize_demos.umbrella:app`) died with
+# "No module named uvicorn" on its next start. `--all-packages` is no longer
+# needed for a complete venv; CI keeps it, which is harmless.
 
 [project]
 name = "voqalize-workspace"
 version = "0"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "voqalize-agent-sdk",
+    "voqalize-demos",
+]
 
 [tool.uv]
 package = false
+
+[tool.uv.sources]
+voqalize-agent-sdk = { workspace = true }
+voqalize-demos = { workspace = true }
 
 [tool.uv.workspace]
 members = [
