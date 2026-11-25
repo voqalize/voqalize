@@ -178,7 +178,6 @@ async def test_wrong_key_is_rejected_directly() -> None:
         private_key_pem=wrong_kp.private_pem,
         session_id=session_id,
         agent_id="a",
-        tenant_id="t",
     )
     driver = VoqalizeDriver(
         DirectConnection(f"ws://127.0.0.1:{port}", session_id, token=token),
@@ -191,3 +190,39 @@ async def test_wrong_key_is_rejected_directly() -> None:
         await driver.aclose()
         await server.aclose()
     assert code == 4000
+
+
+def test_minted_tokens_mirror_production_claims_with_no_account_parameter():
+    """Voqalize's brain token names the account as organization_id only; the
+    kit's does too, without any public account parameter."""
+    import asyncio
+
+    import jwt
+
+    from voqalize.conformance import mint_voqalize_token, run_suite
+    from voqalize.conformance.scenarios import ScenarioContext
+
+    assert not hasattr(ScenarioContext("ws://x", private_key_pem=None), "tenant_id")
+
+    kp = generate_keypair()
+    token = mint_voqalize_token(private_key_pem=kp.private_pem, session_id="s", agent_id="a")
+    claims = jwt.decode(token, options={"verify_signature": False})
+    assert claims["organization_id"] == "organization_conformance"
+    assert "tenant_id" not in claims
+
+    guidance = "(tenant_id=) was removed in 0.16.0: identify calls by session.agent_id"
+    with pytest.raises(TypeError) as e:
+        mint_voqalize_token(
+            private_key_pem=kp.private_pem, session_id="s", agent_id="a", tenant_id="t"
+        )
+    assert str(e.value) == "mint_voqalize_token" + guidance
+    with pytest.raises(TypeError) as e:
+        ScenarioContext("ws://x", private_key_pem=None, tenant_id="t")
+    assert str(e.value) == "ScenarioContext" + guidance
+    with pytest.raises(TypeError) as e:
+        asyncio.run(run_suite("ws://x", private_key_pem=None, tenant_id="t"))
+    assert str(e.value) == "run_suite" + guidance
+    with pytest.raises(TypeError, match="unexpected keyword argument 'organization_id'"):
+        mint_voqalize_token(
+            private_key_pem=kp.private_pem, session_id="s", agent_id="a", organization_id="o"
+        )

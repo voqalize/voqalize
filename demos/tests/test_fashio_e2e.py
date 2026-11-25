@@ -898,7 +898,7 @@ async def test_a_dropped_socket_rejoins_the_call_where_it_was() -> None:
 
     def driver() -> VoqalizeDriver:
         token = mint_voqalize_token(
-            private_key_pem=keypair.private_pem, session_id=sid, agent_id="fashio", tenant_id="demo"
+            private_key_pem=keypair.private_pem, session_id=sid, agent_id="fashio"
         )
         return VoqalizeDriver(
             DirectConnection(f"ws://127.0.0.1:{port}", sid, token=token),

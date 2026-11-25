@@ -26,7 +26,7 @@ route wherever your backend can take one.
 Point an agent at your inbound route with the [MCP server](/reference/mcp/):
 
 ```text
-update_agent(tenant="acme", agent_id="06a2…", brain_url="wss://brain.example.com/voice")
+update_agent(organization="acme", agent_id="06a2…", brain_url="wss://brain.example.com/voice")
 ```
 
 `create_agent` takes the same `brain_url` argument up front.
@@ -53,7 +53,7 @@ the query string, and hand the socket to the SDK's `run_session`. It verifies th
 connection, runs the session, and returns when the session ends.
 
 ```bash
-pip install "voqalize-agent-sdk==0.15.0" fastapi "uvicorn[standard]"
+pip install "voqalize-agent-sdk==0.16.0" fastapi "uvicorn[standard]"
 ```
 
 ```python
@@ -200,7 +200,7 @@ sessions share your one outbound socket.
 Get the credentials over the [MCP server](/reference/mcp/):
 
 ```text
-create_agent_credentials(tenant="acme", agent_id="06a2…")
+create_agent_credentials(organization="acme", agent_id="06a2…")
 ```
 
 | Field | Where it goes |
@@ -259,10 +259,10 @@ code `4000`, as the route above does.
 
 ### Check the token names your agent
 
-The token also names the workspace and the agent the session was started for.
+The token also names the organization and the agent the session was started for.
 Voqalize signs a genuine token for every agent it calls, so a route at a public
 URL that checks only the signature also answers any other agent pointed at that
-URL, from any workspace. Pass your agent's id as `expect_agent=`, and
+URL, from any organization. Pass your agent's id as `expect_agent=`, and
 `run_session` refuses a token signed for any other agent with
 `SessionRejected`, exactly as it refuses a forged one:
 
@@ -280,10 +280,12 @@ Your agent's id is the `agent_id` that `create_agent` returned, and `get_agent`
 reports it. `expect_agent` is optional in this release, and leaving it out logs
 a warning once per process. A future release will require it.
 
-Inside the brain, `session.tenant_id` and `session.agent_id` hold the workspace
-and agent the verified token names. Branch on `agent_id` when one brain serves
-several agents. Both are `None` behind Cortex, which already admits only your
-agent's sessions, and under `allow_unverified=True`.
+Inside the brain, `session.agent_id` holds the agent the verified token names:
+the call's identity. An agent belongs to exactly one organization, and the SDK
+does not expose the organization; map agent to organization yourself if you
+need it. Branch on `agent_id` when one brain serves several agents. It is `None`
+behind Cortex, which already admits only your agent's sessions, and under
+`allow_unverified=True`.
 
 The claims are listed in [the wire reference](/reference/wire/#connection-and-auth),
 and the harness in [Test the brain](/build/testing/) mints the same token for tests.
@@ -308,7 +310,7 @@ the page that started the session, and never log it.
   session, neither pooled nor shared.
 - **Its turn-taking, idle and acknowledgement state.**
 - **Its call record, recording and logs**, each written under its own
-  `session_id`, in your workspace's storage path.
+  `session_id`, in your organization's storage path.
 
 **What is shared, and why it is safe:**
 
@@ -319,7 +321,7 @@ the page that started the session, and never log it.
 - **The speech tier.** Its models are read-only. It caches rendered sentences
   by voice, language and text, so the same sentence spoken by two customers
   may be rendered once.
-- **The control plane and its database.** Every record carries its workspace,
+- **The control plane and its database.** Every record carries its organization,
   and every read checks your membership of it. No browser or SDK reaches the
   database directly: only our services do.
 - **Cortex**, for brains that dial out. Both legs authenticate, and the pair is

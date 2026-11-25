@@ -10,7 +10,8 @@ Two pieces the driver builds on:
 
 2. :func:`generate_keypair` / :func:`mint_voqalize_token` — the RS256 brain token
    Voqalize presents, claim for claim (``iss=pygato``, ``aud=brain``,
-   ``sub=session_id``, plus ``agent_id`` / ``tenant_id``). A conformance run mints
+   ``sub=session_id``, ``agent_id``, and the account claims production carries).
+   A conformance run mints
    with an ephemeral keypair and hands the public half to the brain under test.
 
 Decoding is not one of them: ``WireSerializer`` decodes every body in the
@@ -21,6 +22,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from typing import Any
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import jwt
@@ -28,6 +30,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from websockets.asyncio.client import ClientConnection, connect
 
+from voqalize.sdk._identity import reject_removed_kwargs
 from voqalize.sdk.session import key_id
 
 # Same wire constant every brain verifies (voqalize.sdk.session.BRAIN_AUDIENCE).
@@ -128,8 +131,8 @@ def mint_voqalize_token(
     private_key_pem: bytes,
     session_id: str,
     agent_id: str,
-    tenant_id: str,
     ttl_seconds: int = 60,
+    **removed: Any,
 ) -> str:
     """Mint the short-lived RS256 token Voqalize presents on a brain connection.
 
@@ -137,11 +140,37 @@ def mint_voqalize_token(
     verifies against, not because you have to know what it stands for.
 
     Claims: ``iss=pygato``, ``aud=brain`` (a wire constant),
-    ``sub=session_id``, ``kind=pygato``, plus ``agent_id`` / ``tenant_id`` for the
-    recipient to decide. The header names the signing key as ``kid``
+    ``sub=session_id``, ``kind=pygato``, plus ``agent_id`` for the recipient to
+    decide. Like production's, the token also names the agent's account
+    (``organization_id``); the SDK does not expose it, so the value is a fixed
+    placeholder. The header
+    names the signing key as ``kid``
     (:func:`voqalize.sdk.session.key_id`). The same shape Voqalize signs in
     production, so a brain that accepts this one accepts production.
     """
+    reject_removed_kwargs("mint_voqalize_token", removed)
+    return _mint(
+        private_key_pem=private_key_pem,
+        session_id=session_id,
+        agent_id=agent_id,
+        ttl_seconds=ttl_seconds,
+        account=CONFORMANCE_ACCOUNT,
+    )
+
+
+#: The account the kit's tokens name, mirroring production's claims. Internal:
+#: the SDK identifies a call by ``agent_id``.
+CONFORMANCE_ACCOUNT = "organization_conformance"
+
+
+def _mint(
+    *,
+    private_key_pem: bytes,
+    session_id: str,
+    agent_id: str,
+    ttl_seconds: int,
+    account: str,
+) -> str:
     now = datetime.now(UTC)
     claims = {
         "iss": "pygato",
@@ -149,7 +178,7 @@ def mint_voqalize_token(
         "sub": session_id,
         "kind": "pygato",
         "agent_id": agent_id,
-        "tenant_id": tenant_id,
+        "organization_id": account,
         "iat": now,
         "exp": now + timedelta(seconds=ttl_seconds),
     }

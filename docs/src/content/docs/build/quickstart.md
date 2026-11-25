@@ -32,7 +32,7 @@ agent can do from there. The steps below are what it will do.
 ### 1. Install the SDK
 
 ```bash
-pip install voqalize-agent-sdk==0.15.0
+pip install voqalize-agent-sdk==0.16.0
 ```
 
 Pin the version: releases before 1.0 may change the brain API, and the 0.0.x

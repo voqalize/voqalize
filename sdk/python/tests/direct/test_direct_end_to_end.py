@@ -217,7 +217,7 @@ async def test_direct_auth_accepts_valid_token_rejects_bad():
                 "sub": session_id,
                 "kind": "voqal-voice",
                 "agent_id": "echo",
-                "tenant_id": "t1",
+                "organization_id": "t1",
                 "iat": now,
                 "exp": now + timedelta(seconds=300),
             },
@@ -295,7 +295,7 @@ async def test_brain_server_expect_agent_closes_another_agents_session():
     try:
         sid = str(uuid.uuid4())
         token = mint_voqalize_token(
-            private_key_pem=keys.private_pem, session_id=sid, agent_id="mine", tenant_id="t"
+            private_key_pem=keys.private_pem, session_id=sid, agent_id="mine"
         )
         wire = await _connect(port, sid, headers={"Authorization": f"Bearer {token}"})
         client = _Client(wire)
@@ -305,7 +305,9 @@ async def test_brain_server_expect_agent_closes_another_agents_session():
 
         other_sid = str(uuid.uuid4())
         stranger = mint_voqalize_token(
-            private_key_pem=keys.private_pem, session_id=other_sid, agent_id="theirs", tenant_id="u"
+            private_key_pem=keys.private_pem,
+            session_id=other_sid,
+            agent_id="theirs",
         )
         with pytest.raises(PermanentClose):
             bad = Wire(

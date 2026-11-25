@@ -15,6 +15,52 @@ The public series has now caught up to them, so **a heading carrying
 are different releases that happen to share a number; the pre-restart entries are
 kept for the history, and nothing installable was ever cut from them.
 
+## 0.16.0
+
+**Breaking: the SDK identifies a call by its agent, and no longer exposes the
+account.** `session.agent_id` is globally unique, and an agent belongs to
+exactly one organization (what Voqalize used to call a tenant). Every
+`tenant_id` is removed, and nothing replaces it. Nothing on the wire changes.
+
+### Migrate
+
+```python
+# before (0.15.0)
+account = session.tenant_id
+with session_context(session_id, tenant_id=account):
+    ...
+
+# after (0.16.0)
+agent = session.agent_id
+with session_context(session_id, agent_id=agent):
+    ...
+```
+
+If your brain needs the organization, keep your own map from agent id to
+organization: an agent never moves between organizations.
+
+From the organization switch, the token Voqalize signs carries
+`organization_id` and no `tenant_id`. A brain on 0.15.0 or earlier keeps
+working, because verifying the token uses no account id, but its
+`session.tenant_id` is empty. Upgrade to 0.16.0 and identify calls by
+`agent_id`.
+
+### Removed
+
+- **`Session.tenant_id`.** Reading it raises `AttributeError`:
+  `Session.tenant_id was removed in 0.16.0: identify calls by session.agent_id`.
+- **`session_context(tenant_id=...)`.** Raises `TypeError` with the same
+  guidance. It takes `session_id` and `agent_id`.
+- **The `tenant_id` log field.** Session log lines carry `service`,
+  `session_id` and `agent_id` (`configure_logging(json_logs=True)` promotes
+  the ids to the top level). Move any log query or dashboard that filtered on
+  `tenant_id` to `agent_id`.
+- **The conformance kit's `tenant_id=`** on `run_suite`, `ScenarioContext` and
+  `mint_voqalize_token` (now `TypeError` with the same guidance), and
+  `ScenarioContext.tenant_id`. The kit has no account parameter: its tokens
+  name a fixed internal account the way Voqalize's do (`organization_id`),
+  and `mint_voqalize_token` no longer needs one.
+
 ## 0.15.0
 
 A call can outlive its brain's socket, and a brain can quiet, delay or reword

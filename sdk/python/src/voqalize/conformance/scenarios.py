@@ -29,7 +29,9 @@ from __future__ import annotations
 import uuid
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
+from typing import Any
 
+from voqalize.sdk._identity import reject_removed_kwargs
 from voqalize.sdk.wire import SpeechChunkFrame, SpeechEndFrame
 
 from . import checks
@@ -53,7 +55,7 @@ from .reference import (
     TWO_SECOND,
     story_opening,
 )
-from .wire_voqalize import DirectConnection, mint_voqalize_token
+from .wire_voqalize import CONFORMANCE_ACCOUNT, DirectConnection, _mint
 
 
 class ScenarioContext:
@@ -68,13 +70,13 @@ class ScenarioContext:
         *,
         private_key_pem: bytes | None,
         agent_id: str = "agent_conformance",
-        tenant_id: str = "tenant_conformance",
         default_timeout: float = 5.0,
+        **removed: Any,
     ) -> None:
+        reject_removed_kwargs("ScenarioContext", removed)
         self.brain_url = brain_url
         self.private_key_pem = private_key_pem
         self.agent_id = agent_id
-        self.tenant_id = tenant_id
         self.default_timeout = default_timeout
         self._drivers: list[VoqalizeDriver] = []
 
@@ -100,11 +102,12 @@ class ScenarioContext:
             if key is None:
                 token: str | None = None
             else:
-                token = mint_voqalize_token(
+                token = _mint(
                     private_key_pem=key,
                     session_id=sid,
                     agent_id=self.agent_id,
-                    tenant_id=self.tenant_id,
+                    ttl_seconds=60,
+                    account=CONFORMANCE_ACCOUNT,
                 )
         elif auth == "none":
             token = None

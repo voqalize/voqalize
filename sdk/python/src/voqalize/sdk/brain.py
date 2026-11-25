@@ -79,7 +79,7 @@ from typing import Any
 
 from loguru import logger
 
-from ._identity import verified_identity
+from ._identity import TENANT_ID_REMOVED, verified_identity
 from .actions import Action
 from .engine import Emitter, SessionAdapter, SessionFactory
 from .events import (
@@ -254,14 +254,14 @@ class Session:
         #: than this set.
         self.capabilities = capabilities
         identity = verified_identity.get()
-        #: The workspace this session was signed for, from the connection's
-        #: verified token. ``None`` when nothing verified one: a brain behind the
-        #: Cortex relay (the relay already admits only your agent's sessions) or
-        #: a ``run_session(..., allow_unverified=True)`` in local development.
-        self.tenant_id: str | None = identity.tenant_id if identity else None
-        #: The agent this session was signed for, on the same terms as
-        #: :attr:`tenant_id`. Branch on it when one brain serves several agents;
-        #: to refuse every other agent, pass ``expect_agent=`` to ``run_session``.
+        #: The agent this session was signed for, from the connection's
+        #: verified token: the call's identity (an agent belongs to exactly one
+        #: account, which the SDK does not expose). ``None`` when nothing
+        #: verified one: a brain behind the Cortex relay (the relay already
+        #: admits only your agent's sessions) or a
+        #: ``run_session(..., allow_unverified=True)`` in local development.
+        #: Branch on it when one brain serves several agents; to refuse every
+        #: other agent, pass ``expect_agent=`` to ``run_session``.
         self.agent_id: str | None = identity.agent_id if identity else None
         # One id per speech unit, session-monotonic. Voqalize never reads it — it
         # comes back on the Finalize naming the unit it belongs to, and nothing
@@ -285,6 +285,13 @@ class Session:
         self._finals: dict[int, asyncio.Future[Finalize]] = {}
         # When each recent turn's stimulus arrived, on the monotonic clock.
         self._turn_began: OrderedDict[int, float] = OrderedDict()
+
+    def __getattr__(self, name: str) -> Any:
+        # Only reached for a name the session does not have: point the one
+        # removed attribute a 0.15 brain may still read at its replacement.
+        if name == "tenant_id":
+            raise AttributeError(f"Session.tenant_id {TENANT_ID_REMOVED}")
+        raise AttributeError(f"{type(self).__name__!r} object has no attribute {name!r}")
 
     # ─── The app ────────────────────────────────────────────────────────
 

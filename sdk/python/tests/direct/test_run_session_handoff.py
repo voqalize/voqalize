@@ -13,6 +13,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import uuid
+import warnings
 from datetime import UTC, datetime, timedelta
 
 import jwt
@@ -226,7 +227,16 @@ def _keypair() -> tuple[bytes, str]:
     return priv, pub
 
 
-def _token(priv: bytes, sid: str, *, agent_id: str, tenant_id: str = "t-1", **headers) -> str:
+def _token(
+    priv: bytes,
+    sid: str,
+    *,
+    agent_id: str,
+    account: dict[str, str] | None = None,
+    **headers,
+) -> str:
+    """``account`` is the account claim(s) to sign (``organization_id`` by
+    default, as the platform does); the SDK reads none of them."""
     now = datetime.now(UTC)
     return jwt.encode(
         {
@@ -235,7 +245,7 @@ def _token(priv: bytes, sid: str, *, agent_id: str, tenant_id: str = "t-1", **he
             "sub": sid,
             "kind": "pygato",
             "agent_id": agent_id,
-            "tenant_id": tenant_id,
+            **(account if account is not None else {"organization_id": "t-1"}),
             "iat": now,
             "exp": now + timedelta(seconds=60),
         },
@@ -249,7 +259,7 @@ class _IdentityBrain(Brain):
     """Greets with what its session says it was signed for."""
 
     async def greet(self, session) -> str:
-        return f"for {session.tenant_id}/{session.agent_id}"
+        return f"for {session.agent_id}"
 
     async def on_user_message(self, session, msg):
         yield SpeechStart()
@@ -279,7 +289,7 @@ async def test_expect_agent_refuses_a_token_for_another_agent():
     """The attack this exists for: a genuine token, for someone else's agent."""
     priv, pub = _keypair()
     sid = str(uuid.uuid4())
-    stranger = _token(priv, sid, agent_id="agent-stranger", tenant_id="t-other")
+    stranger = _token(priv, sid, agent_id="agent-stranger", account={"organization_id": "t-other"})
     server_ch, _client_ch = _pipe()
     with pytest.raises(SessionRejected, match="another agent"):
         await run_session(
@@ -301,7 +311,7 @@ async def test_expect_agent_accepts_its_own_agent_and_says_who_on_the_session():
         public_keys=pub,
         expect_agent="agent-mine",
     )
-    assert text == "for t-1/agent-mine"
+    assert text == "for agent-mine"
 
 
 async def test_expect_agent_takes_a_list():
@@ -313,7 +323,7 @@ async def test_expect_agent_takes_a_list():
         public_keys=pub,
         expect_agent=["agent-a", "agent-b"],
     )
-    assert text == "for t-1/agent-b"
+    assert text == "for agent-b"
 
 
 async def test_an_empty_expect_agent_is_a_mistake_not_accept_all():
@@ -339,13 +349,90 @@ async def test_without_expect_agent_any_agent_still_runs(monkeypatch):
             token=f"Bearer {_token(priv, sid, agent_id='anyone')}",
             public_keys=pub,
         )
-        assert text == "for t-1/anyone"
+        assert text == "for anyone"
     assert sum("expect_agent" in w for w in warned) == 1
 
 
 async def test_unverified_sessions_carry_no_identity():
     text = await _greeting(session_id=str(uuid.uuid4()), allow_unverified=True)
-    assert text == "for None/None"
+    assert text == "for None"
+
+
+# ─── the account: not exposed (0.16.0 removed tenant_id) ─────────────────────
+
+
+def test_the_session_exposes_no_account():
+    """A call is identified by its agent; no account field is left."""
+    from voqalize.sdk import Session
+    from voqalize.sdk._identity import VerifiedIdentity
+
+    for name in ("organization_id", "tenant_id"):
+        assert not hasattr(Session, name)
+        assert name not in VerifiedIdentity.__dataclass_fields__
+
+
+@pytest.mark.parametrize(
+    "claims",
+    [
+        {"organization_id": "o-1", "tenant_id": "o-1"},  # both names at once
+        {"organization_id": "o-1"},  # the brain token from the organization switch
+        {"tenant_id": "o-1"},  # a platform from before the rename
+    ],
+    ids=["both-claims", "organization-only", "tenant-only"],
+)
+async def test_the_session_is_identified_by_agent_id_whatever_the_account_claims(claims):
+    priv, pub = _keypair()
+    sid = str(uuid.uuid4())
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", DeprecationWarning)
+        text = await _greeting(
+            session_id=sid,
+            token=f"Bearer {_token(priv, sid, agent_id='agent-mine', account=claims)}",
+            public_keys=pub,
+            expect_agent="agent-mine",
+        )
+    assert text == "for agent-mine"
+
+
+class _TenantReadingBrain(_IdentityBrain):
+    """A brain written against 0.15: it reads ``session.tenant_id``."""
+
+    async def greet(self, session) -> str:
+        try:
+            return f"for {session.tenant_id}"
+        except AttributeError as e:
+            return f"for error: {e}"
+
+
+async def test_reading_session_tenant_id_says_to_use_agent_id():
+    priv, pub = _keypair()
+    sid = str(uuid.uuid4())
+    server_ch, client_ch = _pipe()
+    token = _token(
+        priv, sid, agent_id="agent-mine", account={"organization_id": "o-1", "tenant_id": "o-1"}
+    )
+    task = asyncio.create_task(
+        run_session(
+            server_ch,
+            brain=_TenantReadingBrain,
+            session_id=sid,
+            token=f"Bearer {token}",
+            public_keys=pub,
+            expect_agent="agent-mine",
+        )
+    )
+    client = _Client(client_ch)
+    try:
+        await client.send(SessionStartFrame(turn_id=1, session_id=sid))
+        frames = await client.collect_until(_has_text("for "))
+    finally:
+        await client_ch.close()
+        with contextlib.suppress(*_TEARDOWN_ERRORS):
+            await asyncio.wait_for(task, timeout=2.0)
+    text = next(f.text for f in frames if isinstance(f, SpeechChunkFrame))
+    assert text == (
+        "for error: Session.tenant_id was removed in 0.16.0: identify calls by session.agent_id"
+    )
 
 
 # ─── kid: the token names its key; old tokens without one still verify ──────

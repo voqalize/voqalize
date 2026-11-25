@@ -24,6 +24,9 @@ from __future__ import annotations
 import time
 import traceback
 from dataclasses import dataclass, field
+from typing import Any
+
+from voqalize.sdk._identity import reject_removed_kwargs
 
 from .scenarios import CATALOG, Scenario, ScenarioContext
 
@@ -179,7 +182,7 @@ async def run_suite(
     only: list[str] | None = None,
     default_timeout: float = 5.0,
     agent_id: str = "agent_conformance",
-    tenant_id: str = "tenant_conformance",
+    **removed: Any,
 ) -> Report:
     """Run the catalog against ``brain_url`` and return a :class:`Report`.
 
@@ -199,12 +202,13 @@ async def run_suite(
     restricts to named scenarios.
     """
 
+    reject_removed_kwargs("run_suite", removed)
+
     def _ctx() -> ScenarioContext:
         return ScenarioContext(
             brain_url,
             private_key_pem=private_key_pem,
             agent_id=agent_id,
-            tenant_id=tenant_id,
             default_timeout=default_timeout,
         )
 

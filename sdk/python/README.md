@@ -6,7 +6,7 @@
 write a `Brain` of callbacks; the wire is plain protobuf and the Brain surface is
 plain dataclasses. (Pipecat lives only inside the Voqalize voice runtime, on
 the far side of the socket.) The wire is language-neutral — see
-[the wire](https://github.com/voqalize/voqalize/blob/python-sdk-v0.15.0/docs/src/content/docs/reference/wire.md)
+[the wire](https://github.com/voqalize/voqalize/blob/python-sdk-v0.16.0/docs/src/content/docs/reference/wire.md)
 for the contract.
 
 The **`Brain` is the sole customer surface** — there is no raw `FrameProcessor`
@@ -34,9 +34,9 @@ ephemeral localhost port. It is a test bench, not a hosting option.
 ## Install
 
 ```bash
-pip install voqalize-agent-sdk               # core, pipecat-free
-pip install "voqalize-agent-sdk[gemini]"     # + `GeminiBrain` (google-genai)
-pip install "voqalize-agent-sdk[examples]"   # + deps used only by examples/
+pip install voqalize-agent-sdk==0.16.0                # core, pipecat-free
+pip install "voqalize-agent-sdk[gemini]==0.16.0"      # + `GeminiBrain` (google-genai)
+pip install "voqalize-agent-sdk[examples]==0.16.0"    # + deps used only by examples/
 ```
 
 ## The smallest complete brain
@@ -113,7 +113,7 @@ has the whole contract.
 
 Beyond its tools, most of what a real agent needs is carried by
 `system_instruction` and `append_to_context()`. `system_instruction` is settable, so facts known only once the session opens — who
-called, which tenant — go in from `on_session_start`. And `append_to_context()`
+called, which organization — go in from `on_session_start`. And `append_to_context()`
 adds to the conversation the model sees, for context the app knows and the
 conversation does not — typically what the person just did on screen, arriving at
 `on_rtvi` as a typed `AppEvent`, which takes no floor and starts no turn:
@@ -302,8 +302,8 @@ speak. Rejection is all-or-nothing, and `detail` is written to be shown.
 
 ## Read next
 
-- [The protobuf contract](https://github.com/voqalize/voqalize/blob/python-sdk-v0.15.0/proto/voqalize/frames/frames.proto) — the wire contract of record: envelope, frame vocabulary, direction table.
-- [The wire reference](https://github.com/voqalize/voqalize/blob/python-sdk-v0.15.0/docs/src/content/docs/reference/wire.md) — the wire in full, and why the Brain has the shape it has.
+- [The protobuf contract](https://github.com/voqalize/voqalize/blob/python-sdk-v0.16.0/proto/voqalize/frames/frames.proto) — the wire contract of record: envelope, frame vocabulary, direction table.
+- [The wire reference](https://github.com/voqalize/voqalize/blob/python-sdk-v0.16.0/docs/src/content/docs/reference/wire.md) — the wire in full, and why the Brain has the shape it has.
 - The module docstrings in `src/voqalize/sdk/` (`brain.py`, `engine.py`, `session.py`) — the canonical narratives, and they move with the code.
 - `examples/` — runnable brains: `echo` (the smallest complete brain),
   `fastapi_inbound` (mount a brain in your own FastAPI app).

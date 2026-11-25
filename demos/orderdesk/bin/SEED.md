@@ -12,38 +12,38 @@ claude mcp add --transport http voqalize https://app.voqalize.com/mcp/
 `/mcp/` is the streamable endpoint and the URL to configure; `/mcp` redirects to
 it. The OAuth is interactive, so if you are
 already signed in to the console it is usually faster to just drive the console
-UI (`https://app.voqalize.com/{tenant}`) — it exposes every field this runbook
+UI (`https://app.voqalize.com/{organization}`) — it exposes every field this runbook
 needs, including the STT/TTS ones the MCP `create_agent` does not.
 
 ## 1. Identify
 
 ```
 whoami()                      # sanity: the authenticated developer
-list_tenants()                # confirm membership of the demos tenant (slug: aCxzYVYr)
+list_organizations()          # confirm membership of the demos organization (slug: aCxzYVYr)
 ```
 
-The demos tenant is `aCxzYVYr` in **both** environments — dev and prod hold
-tenant docs with the same id, and most demo agents carry the same agent id in
+The demos organization is `aCxzYVYr` in **both** environments — dev and prod hold
+organization docs with the same id, and most demo agents carry the same agent id in
 both, because prod was seeded by copying the dev data on 2026-07-15. Two
 consequences worth knowing before you debug anything here:
 
 - The two are still separate databases. A few agents diverge (`forge`, `sugar`
   have distinct prod ids) because they were re-created per environment to carry a
   different `brain_url`. Never assume a dev agent id resolves in prod — check.
-- That copy did **not** bring the tenant's `members` subcollection across, so
-  until 2026-08-04 no console account could administer the prod demos tenant
-  (`agents.list` → `401 not_authenticated: "Not a member of this tenant"`). It
+- That copy did **not** bring the organization's `members` subcollection across, so
+  until 2026-08-04 no console account could administer the prod demos organization
+  (`agents.list` → `401 not_authenticated`, not a member). It
   was repaired by writing one owner member doc into
-  `tenants/06a210d7-76ce-7aa5-8000-d527fbd51277/members` in `voqal-cloud-prod`
+  `organizations/<demos-organization-id>/members` in `voqal-cloud-prod`
   Firestore, mirroring the dev doc's shape. If a fresh migration ever re-creates
-  the tenant, expect to redo that.
+  the organization, expect to redo that.
 
 ## 2. Create the agent (idempotent by name — check first)
 
 ```
-list_agents(tenant="aCxzYVYr")   # if "OrderDesk" already exists, skip to update_agent
+list_agents(organization="aCxzYVYr")   # if "OrderDesk" already exists, skip to update_agent
 create_agent(
-  tenant      = "aCxzYVYr",
+  organization = "aCxzYVYr",
   name        = "OrderDesk",
   description = "B2B order intake for a pharma distributor — Hindi voice, 20k-SKU catalog resolution on screen.",
   brain_url   = "wss://brain.voqalize.com/orderdesk",   # dev: wss://brain.dev.voqalize.com/orderdesk
@@ -52,7 +52,7 @@ create_agent(
 ```
 
 If the agent pre-exists or the brain URL changes:
-`update_agent(tenant="aCxzYVYr", agent_id=<AGENT_ID>, brain_url="wss://brain.voqalize.com/orderdesk")`
+`update_agent(organization="aCxzYVYr", agent_id=<AGENT_ID>, brain_url="wss://brain.voqalize.com/orderdesk")`
 
 Already seeded (2026-08-04) — dev `06a718d5-5146-72ee-8000-a21174efbf9a`,
 prod `06a71907-1d6a-7bab-8000-9812748d2673`. They differ, as they must: the
@@ -91,7 +91,7 @@ bad recognition rather than bad config:
 
 ```
 create_api_key(
-  tenant          = "aCxzYVYr",
+  organization    = "aCxzYVYr",
   label           = "orderdesk-demos-prod",           # dev: orderdesk-demos-dev
   kind            = "publishable",
   allowed_origins = ["https://voqalize.com"],         # dev: https://dev.voqalize.com
@@ -162,8 +162,8 @@ into the app's `VITE_AGENT_ID` / `VITE_PUBLISHABLE_KEY`.)
    step 4 rather than trusting the push-triggered one.
 3. Smoke: open the agent's `test_url` (from `get_agent`) for a bare brain check,
    then `https://voqalize.com/demos/orderdesk` for the full flow.
-4. If a call misbehaves: `list_sessions(tenant="aCxzYVYr")` → `get_session_events` →
-   `get_session_logs(tenant="aCxzYVYr", session_id=...)`.
+4. If a call misbehaves: `list_sessions(organization="aCxzYVYr")` → `get_session_events` →
+   `get_session_logs(organization="aCxzYVYr", session_id=...)`.
 
 ## Local dev
 

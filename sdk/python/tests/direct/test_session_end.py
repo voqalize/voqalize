@@ -58,7 +58,6 @@ async def _run(brain: Brain) -> list:
         private_key_pem=keypair.private_pem,
         session_id=SESSION_ID,
         agent_id="bye",
-        tenant_id="demo",
     )
     driver = VoqalizeDriver(
         DirectConnection(f"ws://127.0.0.1:{port}", SESSION_ID, token=token),

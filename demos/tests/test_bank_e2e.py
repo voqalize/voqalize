@@ -1098,7 +1098,6 @@ class _Redial:
             private_key_pem=self.keypair.private_pem,
             session_id=self.sid,
             agent_id="bank",
-            tenant_id="demo",
         )
         return VoqalizeDriver(
             DirectConnection(f"ws://127.0.0.1:{self.port}", self.sid, token=token),

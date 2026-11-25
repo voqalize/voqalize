@@ -890,8 +890,10 @@ Voqalize dials `{brain_url}?session_id={session_id}`, presenting **the
 brain-connection token**: a short-lived RS256 JWT, sent as a bare token or as
 `Authorization: Bearer <jwt>` and verified against Voqalize's public key.
 Required claims: `iss="pygato"`, `aud="brain"`, `sub == session_id`, and `exp`.
-`agent_id` and `tenant_id` are informational: the recipient decides from them
-whether it serves this agent.
+`agent_id` and `organization_id` are informational: the recipient decides from
+`agent_id` whether it serves this agent. From 0.16.0 the Python SDK identifies
+a call by `agent_id` and does not expose the organization. A brain on 0.15.0 or
+earlier still verifies the token; the account id that version exposed is empty.
 
 The path is yours and is used verbatim; the session rides as a query parameter.
 A brain is therefore one ordinary WebSocket route rather than a wildcard path
