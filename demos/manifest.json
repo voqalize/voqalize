@@ -115,6 +115,11 @@
       "name": "property",
       "title": "Kosha Homes",
       "tagline": "A residential property site where Karthik, a property guide, narrows homes by budget, BHK and commute as the filters and map move, compares them, works out the EMI and books a site visit, in English or Hindi."
+    },
+    {
+      "name": "fashio",
+      "title": "Fashio",
+      "tagline": "An Indian fashion store on 4,600 real products where one shopping assistant finds the look from a whole sentence, advises the right size from each product's chart and stock, picks gifts, tracks orders, handles returns by the policy, and runs the in-store kiosk, in English or Hindi."
     }
   ]
 }
