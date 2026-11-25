@@ -1148,7 +1148,7 @@ facts:
     value: [travel, shopping, support, servicing, interview_bot, sugar, legal,
             lead_qual, aura, forge, avatar, orderdesk, kiosk, petwell, fernhollow,
             payroll_site, payroll_app, bank, insurance, dental, university,
-            holidays, property, belmonte]
+            holidays, property, fashio, belmonte]
     source: demos/manifest.json
     verified: 2026-11-24
     derive:

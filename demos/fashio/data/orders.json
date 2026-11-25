@@ -1,0 +1,135 @@
+{
+  "$comment": "The signed-in customer's sample orders. Dates are offsets in days from today in Asia/Kolkata (negative: in the past), so the demo stays current: both sides turn them into dates the same way (CONTRACT.md, Orders). Items name catalogue product ids with the size and the price paid. Orders placed in this browser at checkout are added by the page and told to the brain.",
+  "customer": {
+    "name": "Neha Sharma",
+    "first": "Neha",
+    "city": "Mumbai"
+  },
+  "orders": [
+    {
+      "id": "FSH-48711",
+      "placed": -1,
+      "status": "packed",
+      "eta": 3,
+      "payment": "UPI",
+      "address": { "name": "Neha Sharma", "line": "Flat 1203, Lotus Heights, Hiranandani Gardens, Powai", "city": "Mumbai", "pin": "400076" },
+      "items": [
+        { "product_id": 6980, "size": "L", "qty": 1, "price": 1999 },
+        { "product_id": 11339, "size": "32", "qty": 1, "price": 1999 }
+      ],
+      "events": [
+        { "day": -1, "time": "20:14", "status": "placed", "text": "Order placed" },
+        { "day": 0, "time": "09:40", "status": "packed", "text": "Packed at the Bhiwandi warehouse" }
+      ],
+      "courier": null
+    },
+    {
+      "id": "FSH-48602",
+      "placed": -3,
+      "status": "shipped",
+      "eta": 2,
+      "payment": "Card ending 4417",
+      "address": { "name": "Neha Sharma", "line": "Flat 1203, Lotus Heights, Hiranandani Gardens, Powai", "city": "Mumbai", "pin": "400076" },
+      "items": [
+        { "product_id": 18894, "size": "S", "qty": 1, "price": 949 },
+        { "product_id": 14448, "size": "UK 6", "qty": 1, "price": 2499 }
+      ],
+      "events": [
+        { "day": -3, "time": "13:02", "status": "placed", "text": "Order placed" },
+        { "day": -2, "time": "10:15", "status": "packed", "text": "Packed at the Bengaluru warehouse" },
+        { "day": -1, "time": "18:30", "status": "shipped", "text": "Shipped with BlueRoute Express, AWB 7741 2096 5530" },
+        { "day": 0, "time": "06:10", "status": "shipped", "text": "Reached the Bhiwandi hub" }
+      ],
+      "courier": { "name": "BlueRoute Express", "awb": "7741 2096 5530" }
+    },
+    {
+      "id": "FSH-48530",
+      "placed": -4,
+      "status": "out_for_delivery",
+      "eta": 0,
+      "payment": "Cash on delivery",
+      "address": { "name": "Neha Sharma", "line": "Flat 1203, Lotus Heights, Hiranandani Gardens, Powai", "city": "Mumbai", "pin": "400076" },
+      "items": [
+        { "product_id": 23276, "size": "Onesize", "qty": 1, "price": 1995 }
+      ],
+      "events": [
+        { "day": -4, "time": "21:45", "status": "placed", "text": "Order placed" },
+        { "day": -3, "time": "11:20", "status": "packed", "text": "Packed at the Bhiwandi warehouse" },
+        { "day": -2, "time": "16:05", "status": "shipped", "text": "Shipped with BlueRoute Express, AWB 7741 2071 8812" },
+        { "day": 0, "time": "08:35", "status": "out_for_delivery", "text": "Out for delivery from the Powai centre, by 7 pm today" }
+      ],
+      "courier": { "name": "BlueRoute Express", "awb": "7741 2071 8812" }
+    },
+    {
+      "id": "FSH-48213",
+      "placed": -8,
+      "status": "delivered",
+      "delivered": -3,
+      "payment": "UPI",
+      "address": { "name": "Neha Sharma", "line": "Flat 1203, Lotus Heights, Hiranandani Gardens, Powai", "city": "Mumbai", "pin": "400076" },
+      "items": [
+        { "product_id": 7421, "size": "M", "qty": 1, "price": 999 },
+        { "product_id": 35301, "size": "Onesize", "qty": 1, "price": 1390 }
+      ],
+      "events": [
+        { "day": -8, "time": "19:12", "status": "placed", "text": "Order placed" },
+        { "day": -7, "time": "10:02", "status": "packed", "text": "Packed at the Bhiwandi warehouse" },
+        { "day": -6, "time": "15:40", "status": "shipped", "text": "Shipped with BlueRoute Express, AWB 7741 1988 0423" },
+        { "day": -3, "time": "12:25", "status": "delivered", "text": "Delivered, received by Neha" }
+      ],
+      "courier": { "name": "BlueRoute Express", "awb": "7741 1988 0423" }
+    },
+    {
+      "id": "FSH-48090",
+      "placed": -10,
+      "status": "delivered",
+      "delivered": -5,
+      "payment": "Card ending 4417",
+      "address": { "name": "Neha Sharma", "line": "Flat 1203, Lotus Heights, Hiranandani Gardens, Powai", "city": "Mumbai", "pin": "400076" },
+      "items": [
+        { "product_id": 36940, "size": "Onesize", "qty": 1, "price": 3800 },
+        { "product_id": 1889, "size": "L", "qty": 1, "price": 699 }
+      ],
+      "events": [
+        { "day": -10, "time": "22:30", "status": "placed", "text": "Order placed" },
+        { "day": -9, "time": "09:55", "status": "packed", "text": "Packed at the Bhiwandi warehouse" },
+        { "day": -8, "time": "14:10", "status": "shipped", "text": "Shipped with BlueRoute Express, AWB 7741 1902 3367" },
+        { "day": -5, "time": "17:48", "status": "delivered", "text": "Delivered, received by Neha" }
+      ],
+      "courier": { "name": "BlueRoute Express", "awb": "7741 1902 3367" }
+    },
+    {
+      "id": "FSH-47920",
+      "placed": -16,
+      "status": "delivered",
+      "delivered": -11,
+      "payment": "UPI",
+      "address": { "name": "Neha Sharma", "line": "Flat 1203, Lotus Heights, Hiranandani Gardens, Powai", "city": "Mumbai", "pin": "400076" },
+      "items": [
+        { "product_id": 3802, "size": "UK 9", "qty": 1, "price": 2299 }
+      ],
+      "events": [
+        { "day": -16, "time": "18:05", "status": "placed", "text": "Order placed" },
+        { "day": -15, "time": "11:30", "status": "packed", "text": "Packed at the Bengaluru warehouse" },
+        { "day": -14, "time": "16:20", "status": "shipped", "text": "Shipped with BlueRoute Express, AWB 7741 1811 6604" },
+        { "day": -11, "time": "13:15", "status": "delivered", "text": "Delivered, received by Neha" }
+      ],
+      "courier": { "name": "BlueRoute Express", "awb": "7741 1811 6604" }
+    },
+    {
+      "id": "FSH-47388",
+      "placed": -20,
+      "status": "cancelled",
+      "payment": "UPI",
+      "address": { "name": "Neha Sharma", "line": "Flat 1203, Lotus Heights, Hiranandani Gardens, Powai", "city": "Mumbai", "pin": "400076" },
+      "items": [
+        { "product_id": 21294, "size": "Onesize", "qty": 1, "price": 3000 }
+      ],
+      "events": [
+        { "day": -20, "time": "12:40", "status": "placed", "text": "Order placed" },
+        { "day": -20, "time": "15:02", "status": "cancelled", "text": "Cancelled by you before dispatch; refunded to UPI" }
+      ],
+      "courier": null
+    }
+  ]
+}

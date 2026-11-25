@@ -92,6 +92,8 @@ substitutions:
   _HOLIDAYS_PK: ''
   _PROPERTY_AGENT: ''
   _PROPERTY_PK: ''
+  _FASHIO_AGENT: ''
+  _FASHIO_PK: ''
   _BELMONTE_AGENT: ''
   _BELMONTE_PK: ''
   # Empty in prod, so every prod page loads the runtime its npm release pins.
@@ -165,6 +167,8 @@ steps:
       - 'VITE_HOLIDAYS_PK=${_HOLIDAYS_PK}'
       - 'VITE_PROPERTY_AGENT=${_PROPERTY_AGENT}'
       - 'VITE_PROPERTY_PK=${_PROPERTY_PK}'
+      - 'VITE_FASHIO_AGENT=${_FASHIO_AGENT}'
+      - 'VITE_FASHIO_PK=${_FASHIO_PK}'
       - 'VITE_BELMONTE_AGENT=${_BELMONTE_AGENT}'
       - 'VITE_BELMONTE_PK=${_BELMONTE_PK}'
 
