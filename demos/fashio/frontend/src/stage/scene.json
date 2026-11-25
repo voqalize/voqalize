@@ -1,0 +1,371 @@
+{
+  "$schema": "../../../../../sdk/js/stage/stage.schema.json",
+  "stage": 1,
+  "id": "fashio",
+  "languages": ["en", "hi"],
+  "moves": [
+    {
+      "id": "site.go",
+      "class": "navigate",
+      "args": [
+        {
+          "name": "path",
+          "doc": "A page: /, /shop, /shop/<dept>, /shop/<dept>/<type>, /p/<product id>, /compare?ids=a,b, /wishlist, /bag, /checkout, /orders, /returns, /gifts, /about. Not /kiosk."
+        }
+      ],
+      "claims": ["opening the", "taking you to"],
+      "objects": ["page", "product", "bag", "wishlist", "orders", "returns", "gifts", "पेज"],
+      "doc": "Go to a page of the store, ringing the link, card or icon that leads there first."
+    },
+    {
+      "id": "shop.filter",
+      "class": "reversible",
+      "args": [
+        { "name": "dept", "optional": true, "enum": ["men", "women", "kids", "boys", "girls", "ethnic", "footwear", "accessories", "all"], "doc": "The department: the gender scope (men and women include unisex; boys and girls are kids; all: every product)." },
+        { "name": "types", "type": "array", "optional": true, "doc": "Article type ids from the catalogue (kurtas, heels, watches)." },
+        { "name": "brands", "type": "array", "optional": true },
+        { "name": "colours", "type": "array", "optional": true, "doc": "Catalogue colour names (Navy Blue, Maroon)." },
+        { "name": "sizes", "type": "array", "optional": true, "doc": "Size labels: M, XL, 32, UK 7. A product matches when one of them is in stock." },
+        { "name": "price_min", "type": "integer", "optional": true, "doc": "Rupees, the selling price." },
+        { "name": "price_max", "type": "integer", "optional": true, "doc": "Rupees, the selling price." },
+        { "name": "discount_min", "type": "integer", "optional": true, "doc": "At least this percent off MRP." },
+        { "name": "usage", "type": "array", "optional": true, "doc": "Occasion: Casual, Ethnic, Formal, Sports, Party, Smart Casual, Travel." },
+        { "name": "seasons", "type": "array", "optional": true, "doc": "Summer, Fall, Winter, Spring." },
+        { "name": "query", "optional": true, "doc": "Words the product name must contain (silk, floral, chanderi)." },
+        { "name": "sort", "optional": true, "enum": ["popular", "price_asc", "price_desc", "discount", "new"] }
+      ],
+      "claims": ["filtering", "narrowing", "showing you"],
+      "objects": ["filters", "filter", "results", "products", "kurtas", "फ़िल्टर"],
+      "doc": "Set the listing's whole search (absent fields are cleared). On /shop each filter control that changes is ringed and set in turn, then the grid follows. Navigates to /shop first when elsewhere."
+    },
+    {
+      "id": "shop.show",
+      "verb": "show",
+      "class": "look",
+      "args": [{ "name": "product_id", "doc": "A product id on screen, 7421." }],
+      "say": "{show: 7421} at the start of the sentence about one product on screen: its card is ringed.",
+      "doc": "Ring one product's card (listing, compare, wishlist, gifts or kiosk results), scrolling it into view. Changes nothing."
+    },
+    {
+      "id": "compare.show",
+      "class": "navigate",
+      "args": [{ "name": "ids", "type": "array", "doc": "Two to four product ids." }],
+      "claims": ["comparing them", "side by side"],
+      "objects": ["comparison", "compare", "तुलना"],
+      "doc": "Open /compare with these products side by side; the rows are ringed in turn."
+    },
+    {
+      "id": "product.size",
+      "class": "reversible",
+      "args": [{ "name": "product_id" }, { "name": "size", "doc": "A size label of the product: M, 32, UK 7, Onesize." }],
+      "doc": "On the product page: ring the size selector and select the size. Refused when the product has no such size; an out-of-stock size is refused with the sizes in stock."
+    },
+    {
+      "id": "size_chart.open",
+      "class": "look",
+      "args": [{ "name": "product_id" }, { "name": "size", "optional": true, "doc": "The row to ring." }],
+      "claims": ["opening the size chart"],
+      "objects": ["size chart", "साइज़ चार्ट"],
+      "doc": "Open the product's size chart drawer (right) and ring the row of the size, if given."
+    },
+    {
+      "id": "fit.fill",
+      "class": "reversible",
+      "args": [
+        { "name": "product_id" },
+        { "name": "height_cm", "type": "integer", "optional": true },
+        { "name": "usual_size", "optional": true, "doc": "The size they usually wear: S, M, 32, UK 7." },
+        { "name": "fit", "optional": true, "enum": ["snug", "regular", "relaxed"] }
+      ],
+      "doc": "On the product page's Find my size panel: open it and fill what the shopper said, each field ringed. Recommends nothing by itself."
+    },
+    {
+      "id": "fit.recommend",
+      "class": "reversible",
+      "args": [
+        { "name": "product_id" },
+        { "name": "size", "doc": "The recommended size, in stock." },
+        { "name": "reason", "doc": "One short sentence: why this size." },
+        { "name": "wanted", "optional": true, "doc": "The size the rule chose when it is out of stock (the card says so)." }
+      ],
+      "doc": "Show the fit pick on the Find my size panel (the size, the reason, and the out-of-stock size it replaces) and select the size."
+    },
+    {
+      "id": "wishlist.set",
+      "class": "reversible",
+      "args": [{ "name": "product_id" }, { "name": "on", "type": "boolean", "default": true }],
+      "claims": ["saving it to your wishlist", "adding it to your wishlist"],
+      "objects": ["wishlist", "विशलिस्ट"],
+      "doc": "Ring the product's heart and add it to (or take it off) the wishlist."
+    },
+    {
+      "id": "bag.add",
+      "class": "confirmed",
+      "args": [
+        { "name": "product_id" },
+        { "name": "size" },
+        { "name": "qty", "type": "integer", "default": 1 }
+      ],
+      "claims": ["adding it to your bag", "added it to your bag"],
+      "objects": ["bag", "बैग"],
+      "doc": "Ring Add to bag and add the product in that size (the bag count pulses). Refused for a size not in stock."
+    },
+    {
+      "id": "bag.gift",
+      "class": "reversible",
+      "args": [
+        { "name": "product_id" },
+        { "name": "size" },
+        { "name": "on", "type": "boolean", "default": true },
+        { "name": "note", "optional": true, "doc": "The gift note as the shopper dictated it, up to 150 characters." }
+      ],
+      "claims": ["gift wrapping", "adding the note"],
+      "objects": ["gift wrap", "note", "गिफ्ट"],
+      "doc": "On the bag: ring the line's Gift wrap toggle and set it (₹49 an item), and fill its note. Navigates to /bag first."
+    },
+    {
+      "id": "checkout.focus",
+      "class": "look",
+      "args": [{ "name": "field", "enum": ["contact", "address", "payment", "place"] }],
+      "doc": "On /checkout: ring a section the shopper fills themselves (name and phone, address, payment) or the Place order button. Fills nothing: personal details are typed by the shopper."
+    },
+    {
+      "id": "gifts.brief",
+      "class": "reversible",
+      "args": [
+        { "name": "recipient", "optional": true, "doc": "Her, Him, Mom, Dad, Sister, Brother, Friend, Partner, Kid." },
+        { "name": "occasion", "optional": true },
+        { "name": "budget_max", "type": "integer", "optional": true, "doc": "Rupees; 0 for no limit." },
+        { "name": "size", "optional": true, "doc": "Their size, if clothes or shoes are welcome." },
+        { "name": "colours", "type": "array", "optional": true },
+        { "name": "patterns", "type": "array", "optional": true, "doc": "Solid, Printed, Striped, Checked, Embroidered." },
+        { "name": "material", "optional": true, "doc": "Cotton, Silk, Leather, Steel." }
+      ],
+      "doc": "On /gifts: fill the gift brief as the shopper says it (absent fields are left as they are), each field ringed. Shows nothing by itself."
+    },
+    {
+      "id": "gifts.show",
+      "class": "reversible",
+      "args": [
+        { "name": "ids", "type": "array", "doc": "Three to six product ids." },
+        { "name": "reasons", "type": "array", "doc": "One short reason per product, same order." }
+      ],
+      "claims": ["here are", "showing you"],
+      "objects": ["gift", "gifts", "shortlist", "तोहफ़े"],
+      "doc": "On /gifts: show the gift shortlist, each card with its reason, ringed one by one."
+    },
+    {
+      "id": "orders.open",
+      "class": "navigate",
+      "args": [{ "name": "order_id", "doc": "FSH-48602." }],
+      "claims": ["opening your order"],
+      "objects": ["order", "tracking", "ऑर्डर"],
+      "doc": "On /orders: select the order and open its tracking and items, ringed."
+    },
+    {
+      "id": "orders.cancel_open",
+      "class": "look",
+      "args": [{ "name": "order_id" }],
+      "doc": "Open the cancel dialog for an order that is not yet dispatched (Placed or Packed), ringing its Cancel order button. Cancels nothing: the shopper presses it. Refused once shipped."
+    },
+    {
+      "id": "returns.fill",
+      "class": "reversible",
+      "args": [
+        { "name": "order_id" },
+        { "name": "product_id", "optional": true, "doc": "The item to return." },
+        { "name": "reason", "optional": true, "enum": ["size_small", "size_large", "not_as_pictured", "quality", "changed_mind", "damaged", "wrong_item"] },
+        { "name": "unused", "type": "boolean", "optional": true, "doc": "The shopper said it is unused (only after they said so)." },
+        { "name": "tags", "type": "boolean", "optional": true, "doc": "The shopper said the tags are intact (only after they said so)." }
+      ],
+      "doc": "On /returns: open the order's return form and fill what was said, each field ringed. Submits nothing: the shopper presses Submit return. Refused when the order is outside the 7-day window or not delivered."
+    },
+    {
+      "id": "kiosk.search",
+      "class": "reversible",
+      "args": [
+        { "name": "query", "optional": true },
+        { "name": "genders", "type": "array", "optional": true },
+        { "name": "types", "type": "array", "optional": true },
+        { "name": "colours", "type": "array", "optional": true },
+        { "name": "sizes", "type": "array", "optional": true },
+        { "name": "price_max", "type": "integer", "optional": true },
+        { "name": "usage", "type": "array", "optional": true }
+      ],
+      "doc": "On the kiosk: search the whole catalogue and show the results grid (absent fields are cleared)."
+    },
+    {
+      "id": "kiosk.show",
+      "class": "look",
+      "args": [{ "name": "product_id" }],
+      "doc": "On the kiosk: open one product full screen with its sizes, price and the QR code to its page."
+    },
+    {
+      "id": "kiosk.qr",
+      "class": "look",
+      "args": [{ "name": "product_id", "optional": true, "doc": "Absent: the shortlist's QR code." }],
+      "doc": "On the kiosk: show the big QR code that opens the product page (or the shortlist) on the shopper's phone."
+    },
+    {
+      "id": "kiosk.shortlist",
+      "class": "reversible",
+      "args": [{ "name": "product_id" }, { "name": "on", "type": "boolean", "default": true }],
+      "doc": "On the kiosk: add the product to (or take it off) the kiosk shortlist."
+    },
+    {
+      "id": "kiosk.assist",
+      "class": "reversible",
+      "args": [],
+      "doc": "On the kiosk: call a floor assistant (a banner says one is on the way)."
+    }
+  ],
+  "slices": [
+    {
+      "id": "screen",
+      "doc": "the page in front of the shopper",
+      "fields": [
+        { "name": "path" },
+        { "name": "page" },
+        { "name": "product_id", "optional": true },
+        { "name": "order_id", "optional": true },
+        { "name": "title", "optional": true }
+      ]
+    },
+    {
+      "id": "shop",
+      "doc": "the listing's search",
+      "fields": [
+        { "name": "summary" },
+        { "name": "count", "type": "integer" },
+        { "name": "dept", "optional": true },
+        { "name": "types", "type": "array", "optional": true },
+        { "name": "brands", "type": "array", "optional": true },
+        { "name": "colours", "type": "array", "optional": true },
+        { "name": "sizes", "type": "array", "optional": true },
+        { "name": "price_min", "type": "integer", "optional": true },
+        { "name": "price_max", "type": "integer", "optional": true },
+        { "name": "discount_min", "type": "integer", "optional": true },
+        { "name": "usage", "type": "array", "optional": true },
+        { "name": "seasons", "type": "array", "optional": true },
+        { "name": "query", "optional": true },
+        { "name": "sort", "optional": true },
+        { "name": "ids", "type": "array", "optional": true }
+      ]
+    },
+    {
+      "id": "product",
+      "doc": "the product page: the size picked and the Find my size panel",
+      "fields": [
+        { "name": "product_id" },
+        { "name": "size", "optional": true },
+        { "name": "height_cm", "type": "integer", "optional": true },
+        { "name": "usual_size", "optional": true },
+        { "name": "fit", "optional": true }
+      ]
+    },
+    {
+      "id": "bag",
+      "doc": "the bag",
+      "fields": [
+        { "name": "count", "type": "integer" },
+        { "name": "total", "type": "integer" },
+        { "name": "lines", "type": "array", "doc": "Each line as \"<product id>|<size>|<qty>|<gift: 0 or 1>\"." }
+      ]
+    },
+    {
+      "id": "wishlist",
+      "doc": "the wishlist",
+      "fields": [{ "name": "count", "type": "integer" }, { "name": "ids", "type": "array" }]
+    },
+    {
+      "id": "checkout",
+      "doc": "the checkout form: only whether each section is filled, never what the shopper typed",
+      "fields": [
+        { "name": "contact", "type": "boolean" },
+        { "name": "address", "type": "boolean" },
+        { "name": "payment", "type": "boolean" },
+        { "name": "order_id", "optional": true },
+        { "name": "total", "type": "integer", "optional": true }
+      ]
+    },
+    {
+      "id": "order",
+      "doc": "the order selected on /orders",
+      "fields": [{ "name": "order_id" }, { "name": "status", "optional": true }]
+    },
+    {
+      "id": "return",
+      "doc": "the return form",
+      "fields": [
+        { "name": "order_id" },
+        { "name": "product_id", "optional": true },
+        { "name": "reason", "optional": true },
+        { "name": "unused", "type": "boolean", "optional": true },
+        { "name": "tags", "type": "boolean", "optional": true },
+        { "name": "reference", "optional": true }
+      ]
+    },
+    {
+      "id": "gifts",
+      "doc": "the gift finder's brief and shortlist",
+      "fields": [
+        { "name": "recipient", "optional": true },
+        { "name": "occasion", "optional": true },
+        { "name": "budget_max", "type": "integer", "optional": true },
+        { "name": "size", "optional": true },
+        { "name": "colours", "type": "array", "optional": true },
+        { "name": "patterns", "type": "array", "optional": true },
+        { "name": "material", "optional": true },
+        { "name": "ids", "type": "array", "optional": true }
+      ]
+    },
+    {
+      "id": "kiosk",
+      "doc": "the kiosk: its search, the product open and the shortlist",
+      "fields": [
+        { "name": "summary", "optional": true },
+        { "name": "count", "type": "integer", "optional": true },
+        { "name": "ids", "type": "array", "optional": true },
+        { "name": "product_id", "optional": true },
+        { "name": "shortlist", "type": "array", "optional": true }
+      ]
+    }
+  ],
+  "events": [
+    { "id": "screen.viewed", "slice": "screen", "op": "set", "react": "silent", "note": "{by} opened {path}" },
+    { "id": "shop.changed", "slice": "shop", "op": "set", "note": "{by} changed the search: {summary}; {count} products match" },
+    { "id": "product.size_picked", "slice": "product", "op": "merge", "note": "{by} picked size {size} of product {product_id}" },
+    { "id": "fit.changed", "slice": "product", "op": "merge", "note": "{by} filled Find my size for {product_id}: height {height_cm}, usual size {usual_size}, fit {fit}" },
+    { "id": "bag.changed", "slice": "bag", "op": "set", "note": "{by} changed the bag: {count} items, total {total}" },
+    { "id": "wishlist.changed", "slice": "wishlist", "op": "set", "note": "{by} changed the wishlist: {count} products" },
+    { "id": "checkout.changed", "slice": "checkout", "op": "merge", "note": "{by} filled the checkout: contact {contact}, address {address}, payment {payment}; the details themselves stay on the page" },
+    {
+      "id": "order.placed",
+      "slice": "checkout",
+      "op": "merge",
+      "react": "speak",
+      "ask": "they placed the order themselves: thank them by first name in one line, say the order number and when it arrives",
+      "note": "{by} placed order {order_id} for {total} rupees"
+    },
+    { "id": "order.selected", "slice": "order", "op": "set", "note": "{by} opened order {order_id} ({status})" },
+    {
+      "id": "order.cancelled",
+      "slice": "order",
+      "op": "set",
+      "react": "speak",
+      "ask": "they cancelled the order themselves: confirm it in one line and say how the refund comes back",
+      "note": "{by} cancelled order {order_id}"
+    },
+    { "id": "return.changed", "slice": "return", "op": "merge", "note": "{by} changed the return for {order_id}: item {product_id}, reason {reason}, unused {unused}, tags {tags}" },
+    {
+      "id": "return.submitted",
+      "slice": "return",
+      "op": "merge",
+      "react": "speak",
+      "ask": "they submitted the return themselves: confirm it in one line with the pickup and refund timing",
+      "note": "{by} submitted a return for {order_id}, reference {reference}"
+    },
+    { "id": "gifts.changed", "slice": "gifts", "op": "set", "note": "{by} changed the gift brief: {recipient}, {occasion}, budget {budget_max}" },
+    { "id": "kiosk.changed", "slice": "kiosk", "op": "merge", "note": "{by} changed the kiosk: {summary}; {count} results" }
+  ]
+}

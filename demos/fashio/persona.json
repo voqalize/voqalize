@@ -1,0 +1,23 @@
+{
+  "$comment": "The one place the character lives. The frontend (avatar, still photo, UI copy) and the backend (voice, prompt, greeting, tests) both read this file. To change the character, edit character/name/voices and add the still photo the idle dock shows at frontend/src/characters/<character>.webp; roles is the label under the name for each of the agent's jobs (by landing page). To add a language, add it to languages and voices (and give the brain written lines for it in backend/lines.py).",
+  "character": "rohan",
+  "name": "Rohan",
+  "role": "Shopping assistant",
+  "roles": {
+    "shopping": "Shopping assistant",
+    "fit": "Size and fit",
+    "gifts": "Gift finder",
+    "orders": "Order tracking",
+    "returns": "Returns",
+    "kiosk": "Store kiosk"
+  },
+  "voices": {
+    "en": "omnivoice/rohan",
+    "hi": "omnivoice/rohan"
+  },
+  "languages": [
+    { "tag": "en", "label": "EN", "name": "English" },
+    { "tag": "hi", "label": "हिंदी", "name": "Hindi" }
+  ],
+  "default_language": "en"
+}
