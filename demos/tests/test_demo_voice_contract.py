@@ -258,6 +258,10 @@ DEMOS: dict[str, Expected] = {
     # visitor's Hindi moves both legs — karthik in both. Asserted in
     # test_property_e2e.py.
     "property": Expected(voice="omnivoice/karthik", language="en", provider="openai"),
+    # Hotel Belmonte's concierge (character, name and voice in
+    # belmonte/persona.json): English only, Kasia's voice, whatever the page
+    # asks. Asserted in test_belmonte_e2e.py.
+    "belmonte": Expected(voice="omnivoice/kasia", language="en", provider="openai"),
 }
 
 
