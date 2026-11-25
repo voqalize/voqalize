@@ -29,7 +29,7 @@ GREETING: Mapping[str, Mapping[str, str]] = {
         ),
         "hi": (
             "नमस्ते, मैं {name} हूँ, Fashio में आपका शॉपिंग असिस्टेंट। आज क्या ढूँढ रहे हैं, और "
-            "किसके लिए? मौका और बजट भी बता दीजिए, मैं सबसे अच्छे पीस निकाल देता हूँ।"
+            "किसके लिए? मौका और बजट भी बता दीजिए, मैं सबसे अच्छे पीस निकाल देती हूँ।"
         ),
     },
     "fit": {
@@ -72,7 +72,7 @@ GREETING: Mapping[str, Mapping[str, str]] = {
     },
     "kiosk": {
         "en": "Hi, I'm {name}, welcome to Fashio. Tell me what you're looking for, and I'll find it across our whole catalogue.",
-        "hi": "नमस्ते, मैं {name} हूँ, Fashio में आपका स्वागत है। बताइए क्या ढूँढ रहे हैं, मैं पूरे कैटलॉग में से निकाल देता हूँ।",
+        "hi": "नमस्ते, मैं {name} हूँ, Fashio में आपका स्वागत है। बताइए क्या ढूँढ रहे हैं, मैं पूरे कैटलॉग में से निकाल देती हूँ।",
     },
 }
 
@@ -124,6 +124,15 @@ SAID: Table = {
         "en": "Here's the {name}, {price}{off}. {stock} What size do you usually wear?",
         "hi": "ये रहा {name}, {price} का{off}। {stock} आप आमतौर पर कौन सा size पहनते हैं?",
     },
+    # Opening a product when their size is already known: the offer follows.
+    "open_known_add": {
+        "en": "Here's the {name}, {price}{off}. It's in stock in {size}; shall I add it to your bag?",
+        "hi": "ये रहा {name}, {price} का{off}। {size} स्टॉक में है, bag में डाल दूँ?",
+    },
+    "open_known": {
+        "en": "Here's the {name}, {price}{off}.",
+        "hi": "ये रहा {name}, {price} का{off}।",
+    },
     "open_one": {
         "en": "Here's the {name}, {price}{off}. It's one size, and it's in stock. Shall I add it to your bag?",
         "hi": "ये रहा {name}, {price} का{off}। ये one size है, और स्टॉक में है। bag में डाल दूँ?",
@@ -162,9 +171,9 @@ SAID: Table = {
     },
     "adding": {
         "en": "Adding the {name} in {size} to your bag.",
-        "hi": "{name}, size {size}, bag में डाल रहा हूँ।",
+        "hi": "{name}, size {size}, bag में डाल रही हूँ।",
     },
-    "adding_one": {"en": "Adding the {name} to your bag.", "hi": "{name} bag में डाल रहा हूँ।"},
+    "adding_one": {"en": "Adding the {name} to your bag.", "hi": "{name} bag में डाल रही हूँ।"},
     "added": {
         "en": "It's in your bag. Shall I take you to checkout, or keep looking?",
         "hi": "bag में आ गया। checkout पर चलें, या और देखें?",
@@ -178,8 +187,8 @@ SAID: Table = {
         "hi": "कौन सा डालूँ? पीस और size बता दीजिए।",
     },
     "checkout_contact": {
-        "en": "Type your name and phone number in the box I've highlighted; I never need them.",
-        "hi": "हाइलाइट किए गए बॉक्स में अपना नाम और फ़ोन नंबर टाइप कर दीजिए, मुझे उनकी ज़रूरत नहीं।",
+        "en": "Type your name and phone number in the highlighted box; I'll leave your details to you.",
+        "hi": "हाइलाइट किए गए बॉक्स में अपना नाम और फ़ोन नंबर टाइप कर दीजिए, आपकी details आप ही भरेंगे।",
     },
     "checkout_address": {
         "en": "Now type your delivery address in the highlighted section.",
@@ -192,6 +201,10 @@ SAID: Table = {
     "checkout_place": {
         "en": "When everything looks right, press Place order.",
         "hi": "सब ठीक लगे तो Place order दबा दीजिए।",
+    },
+    "checkout_again": {
+        "en": "Please type it yourself in the highlighted box; I never fill in personal details.",
+        "hi": "हाइलाइट किए गए बॉक्स में ख़ुद टाइप कर दीजिए, मैं निजी जानकारी कभी नहीं भरती।",
     },
     "bag_empty": {
         "en": "Your bag is empty right now. Shall we find something first?",
@@ -239,6 +252,10 @@ SAID: Table = {
     "why_same": {
         "en": "Your usual size fits this {cut} cut.",
         "hi": "इस {cut} कट में आपका रोज़ का size ही ठीक रहेगा।",
+    },
+    "why_oos": {
+        "en": "{wanted} is out of stock, so {size} is the nearest size in stock.",
+        "hi": "{wanted} ख़त्म है, तो स्टॉक में सबसे करीब {size} है।",
     },
     "why_slim_up": {
         "en": "It's a slim cut and you like it relaxed, so one size up.",
@@ -375,7 +392,7 @@ SAID: Table = {
     },
     "change_cancellable": {
         "en": "Once an order is placed, its delivery {what} can't be changed. It hasn't shipped yet, so I can open the cancel for you and you can reorder with the new {what}. Shall I?",
-        "hi": "order प्लेस होने के बाद डिलीवरी {what} नहीं बदल सकते। ये अभी निकला नहीं है, तो मैं कैंसल खोल देता हूँ और आप नए {what} के साथ दोबारा order कर सकते हैं। खोल दूँ?",
+        "hi": "order प्लेस होने के बाद डिलीवरी {what} नहीं बदल सकते। ये अभी निकला नहीं है, तो मैं कैंसल खोल देती हूँ और आप नए {what} के साथ दोबारा order कर सकते हैं। खोल दूँ?",
     },
     "change_shipped": {
         "en": "Once an order is placed, its delivery {what} can't be changed, and this one has already shipped. It should reach you by {eta}.",

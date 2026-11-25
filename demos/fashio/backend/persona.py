@@ -28,6 +28,8 @@ class Persona:
     languages: tuple[str, ...]
     language_names: dict[str, str]
     default_language: str
+    #: "female" or "male": how the character speaks of itself (Hindi verbs agree with it).
+    gender: str = "female"
 
     def voice(self, tag: str) -> Voice | str:
         """The voice for ``tag``, as the catalog member when there is one."""
@@ -64,6 +66,7 @@ def load(path: Path = PERSONA_FILE) -> Persona:
         languages=tuple(x["tag"] for x in langs),
         language_names={x["tag"]: x["name"] for x in langs},
         default_language=raw["default_language"],
+        gender=str(raw.get("gender") or "female"),
     )
 
 

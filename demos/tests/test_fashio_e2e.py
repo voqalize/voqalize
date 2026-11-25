@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
 from collections.abc import Iterator
 from datetime import date
 from typing import Any
@@ -190,7 +191,7 @@ async def test_the_tile_toggle_switches_mid_call_and_the_next_lines_are_hindi() 
     llm = ScriptedOpenAI(
         {
             ask: reply_and_call(
-                "देखता हूँ।", "search_products", dept="women", types=["kurtas"], price_max=1500
+                "देखती हूँ।", "search_products", dept="women", types=["kurtas"], price_max=1500
             )
         }
     )
@@ -1024,3 +1025,268 @@ async def test_no_redial_is_asked_of_a_voqalize_that_does_not_offer_it() -> None
         check_greeting(rig, greeting)
         assert _redials(rig.driver) == []
         check_voice_pair(rig, voice=PERSONA.voices["en"], language="en")
+
+
+# ─── Round 2: Hindi, edge cases, page changes ─────────────────────────────────
+
+#: A masculine first-person Hindi verb ("देता हूँ", "डाल रहा हूँ", "दूँगा"): the
+#: persona is a woman, so none of the brain's own Hindi may carry one.
+_MASCULINE = re.compile(r"(?:ता|रहा|चुका) (?:हूँ|हूं)|ूँगा|ूंगा|सकता हूँ")
+
+
+def _feminine(text: str) -> None:
+    assert not _MASCULINE.search(text), f"masculine first person in {text!r}"
+
+
+def test_no_written_hindi_line_is_masculine() -> None:
+    from voqalize_demos._loaded.fashio import lines
+
+    for table in (lines.GREETING, lines.SAID, lines.GIFT_WHY):
+        for key, row in table.items():
+            assert "hi" in row, key
+            _feminine(row["hi"])
+    for row in lines.LANDED.values():
+        for line in row["hi"]:
+            _feminine(line)
+    for line in lines.NUDGE["hi"]:
+        _feminine(line)
+    assert PERSONA.gender == "female"
+
+
+async def test_a_hindi_shopper_with_a_budget_in_hindi_words_hears_feminine_hindi() -> None:
+    ask = "मेरी बहन के लिए कुर्ता चाहिए, डेढ़ हज़ार तक।"
+    best = f.search(f.Search(dept="women", types=["kurtas"], price_max=1500))[0]
+    llm = ScriptedOpenAI(
+        {
+            ask: reply_and_call(
+                "एक सेकंड, देखती हूँ।", "search_products", dept="women", types=["kurtas"], price_max=1500
+            ),
+            "पहला वाला M में डाल दो।": call("propose_add", product_id=str(best["id"]), size="M"),
+        }
+    )
+    async with demo("fashio", llm) as rig:
+        greeting = await rig.driver.start_session(init={"page": "/", "lang": "hi"})
+        assert greeting is not None
+        texts = [greeting.text]
+        turn = await rig.driver.user_says(ask)
+        assert "'डेढ़ हज़ार' = 1500 rupees" in _inputs(llm)
+        assert _moves(rig, "shop.filter")[0]["args"]["price_max"] == 1500
+        assert "आपके हिसाब से" in turn.text and f.inr(best["price"]) in turn.text
+        texts.append(turn.text)
+        await _answer(rig, "shop.filter")
+        offer = await rig.driver.user_says("पहला वाला M में डाल दो।")
+        texts.append(offer.text)
+        assert f.in_stock(best, "M")
+        assert "bag में डाल दूँ?" in offer.text
+        yes = await rig.driver.user_says("हाँ।")
+        assert "डाल रही हूँ" in yes.text
+        texts.append(yes.text)
+        assert _moves(rig, "bag.add")
+        for t in texts:
+            _feminine(t)
+
+
+async def test_hindi_order_and_return_refusals_are_feminine_hindi() -> None:
+    llm = ScriptedOpenAI(
+        {
+            "48602 कैंसल कर दो।": call("cancel_order", order_id="FSH-48602"),
+            "48530 का पता बदलना है।": call("delivery_change", order_id="FSH-48530", what="address"),
+            "47920 से जूते return करने हैं।": call("start_return", order_id="FSH-47920"),
+        }
+    )
+    async with demo("fashio", llm) as rig:
+        await rig.driver.start_session(init={"page": "/orders", "lang": "hi"})
+        cancel = await rig.driver.user_says("48602 कैंसल कर दो।")
+        assert "कैंसल नहीं हो सकता" in cancel.text and not _moves(rig, "orders.cancel_open")
+        change = await rig.driver.user_says("48530 का पता बदलना है।")
+        assert "का पता नहीं बदल सकते" in change.text
+        ret = await rig.driver.user_says("47920 से जूते return करने हैं।")
+        assert "शुक्रवार, 13 नवंबर" in ret.text and "शुक्रवार, 20 नवंबर" in ret.text
+        for t in (cancel.text, change.text, ret.text):
+            _feminine(t)
+            assert not re.search(
+                r"[A-Za-z]{3,} [a-z]{3,} [a-z]{3,}", t.replace("Cancel order", "")
+            ), t
+
+
+async def test_out_for_delivery_cannot_be_cancelled_and_neither_date_nor_address_changes() -> None:
+    llm = ScriptedOpenAI(
+        {
+            "Cancel 48530.": call("cancel_order", order_id="FSH-48530"),
+            "Then deliver 48530 tomorrow instead.": call(
+                "delivery_change", order_id="FSH-48530", what="date"
+            ),
+            "Change the date on 48711 to Saturday.": call(
+                "delivery_change", order_id="FSH-48711", what="date"
+            ),
+            "And ship 48530 to my office.": call(
+                "delivery_change", order_id="FSH-48530", what="address"
+            ),
+        }
+    )
+    async with demo("fashio", llm) as rig:
+        await rig.driver.start_session(init={"page": "/orders"})
+        cancel = await rig.driver.user_says("Cancel 48530.")
+        assert "already shipped, so it can't be cancelled" in cancel.text
+        date_turn = await rig.driver.user_says("Then deliver 48530 tomorrow instead.")
+        assert "its delivery date can't be changed" in date_turn.text
+        packed = await rig.driver.user_says("Change the date on 48711 to Saturday.")
+        assert "its delivery date can't be changed" in packed.text and "Shall I?" in packed.text
+        await rig.driver.user_says("No, leave it.")
+        addr = await rig.driver.user_says("And ship 48530 to my office.")
+        assert "its delivery address can't be changed" in addr.text
+        assert not _moves(rig, "orders.cancel_open"), "nothing opened without a yes"
+
+
+async def test_tags_off_is_refused_and_never_ticked() -> None:
+    llm = ScriptedOpenAI(
+        {
+            "The T-shirt from 48090 is the wrong size, too small.": call(
+                "return_details", order_id="FSH-48090", product_id="1889", reason="size_small"
+            )
+        }
+    )
+    async with demo("fashio", llm) as rig:
+        await rig.driver.start_session(init={"page": "/returns?order=FSH-48090"})
+        asked = await rig.driver.user_says("The T-shirt from 48090 is the wrong size, too small.")
+        assert "unused, with its original tags still on?" in asked.text
+        turn = await rig.driver.user_says("It's unused but I took the tags off.")
+        assert "only unused items with the original tags" in turn.text
+        assert not any(m["args"].get("tags") for m in _moves(rig, "returns.fill"))
+
+
+async def test_a_tick_the_model_claims_without_the_shoppers_words_is_not_made() -> None:
+    """The model passes shopper_said_unused_with_tags=true though the shopper only
+    gave a reason: the brain still asks, and ticks nothing."""
+    llm = ScriptedOpenAI(
+        {
+            "Return the kurta from 48213, it's too big.": call(
+                "return_details",
+                order_id="FSH-48213",
+                product_id="7421",
+                reason="size_large",
+                shopper_said_unused_with_tags=True,
+            )
+        }
+    )
+    async with demo("fashio", llm) as rig:
+        await rig.driver.start_session(init={"page": "/returns"})
+        turn = await rig.driver.user_says("Return the kurta from 48213, it's too big.")
+        assert "unused, with its original tags still on?" in turn.text
+        assert not any(m["args"].get("unused") for m in _moves(rig, "returns.fill"))
+
+
+async def test_a_page_change_mid_call_switches_the_job_each_time() -> None:
+    llm = ScriptedOpenAI({"Where's my watch?": reply("Let me check your orders.")})
+    async with demo("fashio", llm) as rig:
+        await rig.driver.start_session(init={"page": "/p/7421", "lang": "en"})
+        assert _brain(rig).job == "fit"
+        await _event(rig, "screen.viewed", {"path": "/orders", "page": "orders"})
+        assert _brain(rig).job == "orders"
+        await rig.driver.user_says("Where's my watch?")
+        assert "your job here is order tracking" in _inputs(llm)
+        await _event(
+            rig, "screen.viewed", {"path": "/p/?id=6980", "page": "product", "product_id": "6980"}
+        )
+        assert _brain(rig).job == "fit" and _brain(rig).product_id == 6980
+        await _event(rig, "screen.viewed", {"path": "/gifts", "page": "gifts"})
+        assert _brain(rig).job == "gifts"
+
+
+# ─── Round 2: what the real-model check found ─────────────────────────────────
+
+
+async def test_opening_a_product_offers_the_size_already_said() -> None:
+    """She said "she's an M" in the first sentence: opening a kurta offers the M
+    instead of asking "what size do you usually wear?" again."""
+    best = _best()[0]
+    llm = ScriptedOpenAI(
+        {
+            _ASK: reply_and_call("Let me look.", "search_products", **_ASK_ARGS),
+            "Tell me more about the first one.": call("open_product", product_id=str(best["id"])),
+        }
+    )
+    async with demo("fashio", llm) as rig:
+        await rig.driver.start_session(init={"page": "/"})
+        await rig.driver.user_says(_ASK)
+        await _answer(rig, "shop.filter")
+        turn = await rig.driver.user_says("Tell me more about the first one.")
+        assert "usually wear" not in turn.text
+        assert "shall I add it" in turn.text and "in stock in M" in turn.text
+        await rig.driver.user_says("Yes.")
+        assert _moves(rig, "bag.add")[0]["args"]["size"] == "M"
+
+
+async def test_an_add_stays_held_across_one_question_then_add_it_adds() -> None:
+    llm = ScriptedOpenAI(
+        {
+            "I'm an M, relaxed.": call("size_advice", usual_size="M", fit="relaxed"),
+            "Show me the size chart for L.": call("size_chart", size="L"),
+        }
+    )
+    async with demo("fashio", llm) as rig:
+        await rig.driver.start_session(init={"page": "/p/3078"})
+        await rig.driver.user_says("I'm an M, relaxed.")
+        await rig.driver.user_says("Show me the size chart for L.")
+        assert not _moves(rig, "bag.add")
+        requests = len(llm.requests)
+        await rig.driver.user_says("Okay, add it.")
+        assert _moves(rig, "bag.add")[0]["args"] == {"product_id": "3078", "size": "L", "qty": 1}
+        assert len(llm.requests) == requests
+
+
+async def test_a_bare_ok_two_turns_on_is_not_a_yes_to_the_add() -> None:
+    llm = ScriptedOpenAI(
+        {
+            "I'm an M, relaxed.": call("size_advice", usual_size="M", fit="relaxed"),
+            "What fabric is it?": call("product_facts", product_id="3078"),
+            "Okay.": reply("Anything else?"),
+        }
+    )
+    async with demo("fashio", llm) as rig:
+        await rig.driver.start_session(init={"page": "/p/3078"})
+        await rig.driver.user_says("I'm an M, relaxed.")
+        await rig.driver.user_says("What fabric is it?")
+        await rig.driver.user_says("Okay.")
+        assert not _moves(rig, "bag.add")
+
+
+async def test_the_fit_card_says_why_when_the_size_is_out_of_stock() -> None:
+    llm = ScriptedOpenAI({"I wear XL.": call("size_advice", usual_size="XL")})
+    async with demo("fashio", llm) as rig:
+        await rig.driver.start_session(init={"page": "/p/6980"})
+        await rig.driver.user_says("I wear XL.")
+        (rec,) = _moves(rig, "fit.recommend")
+        assert rec["args"]["reason"] == "XL is out of stock, so XXL is the nearest size in stock."
+
+
+async def test_a_return_with_the_reason_given_goes_straight_to_the_unused_question() -> None:
+    llm = ScriptedOpenAI(
+        {
+            "The T-shirt from 48090, it doesn't fit.": call(
+                "start_return", order_id="FSH-48090", product_id="1889", reason="size_small"
+            )
+        }
+    )
+    async with demo("fashio", llm) as rig:
+        await rig.driver.start_session(init={"page": "/returns"})
+        turn = await rig.driver.user_says("The T-shirt from 48090, it doesn't fit.")
+        assert "unused, with its original tags still on?" in turn.text
+        assert _moves(rig, "returns.fill")[-1]["args"]["reason"] == "size_small"
+
+
+async def test_asked_twice_to_fill_a_detail_the_answer_changes_and_still_refuses() -> None:
+    llm = ScriptedOpenAI(
+        {
+            "Checkout please.": call("open_page", page="/checkout"),
+            "Can you fill in my phone?": call("guide_checkout", field="contact"),
+        }
+    )
+    async with demo("fashio", llm) as rig:
+        await rig.driver.start_session(init={"page": "/bag"})
+        await _event(rig, "bag.changed", {"count": 1, "total": 999, "lines": ["7421|M|1|0"]})
+        first = await rig.driver.user_says("Checkout please.")
+        assert _moves(rig, "checkout.focus")[0]["args"] == {"field": "contact"}
+        assert "Type your name and phone number" in first.text
+        second = await rig.driver.user_says("Can you fill in my phone?")
+        assert "I never fill in personal details" in second.text

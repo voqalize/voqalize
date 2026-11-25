@@ -34,6 +34,11 @@ _ORDERS: dict[str, Any] = _load("orders.json")
 
 PRODUCTS: list[dict[str, Any]] = CATALOG["products"]
 BY_ID: dict[int, dict[str, Any]] = {int(p["id"]): p for p in PRODUCTS}
+#: The products of each type, in catalogue order: a search or a gift pick by type
+#: reads only those (a tool must answer within the SDK's 20 ms budget).
+BY_TYPE: dict[str, list[dict[str, Any]]] = {}
+for _p in PRODUCTS:
+    BY_TYPE.setdefault(_p["type"], []).append(_p)
 TYPES: dict[str, dict[str, Any]] = CATALOG["types"]
 DEPARTMENTS: list[dict[str, Any]] = CATALOG["departments"]
 BRANDS: list[str] = CATALOG["brands"]
@@ -205,6 +210,10 @@ class Search:
         return summarise(self)
 
 
+#: Each product's words for a query, made once.
+_HAY: dict[int, str] = {}
+
+
 def matches(p: dict[str, Any], s: Search) -> bool:
     if s.dept and s.dept != "all":
         genders = _DEPT_GENDERS.get(s.dept)
@@ -233,7 +242,9 @@ def matches(p: dict[str, Any], s: Search) -> bool:
     if s.seasons and p["season"] not in s.seasons:
         return False
     if s.query:
-        hay = f"{p['name']} {p['brand']} {p['colour']} {type_label(p['type'])}".lower()
+        hay = _HAY.get(p["id"]) or _HAY.setdefault(
+            p["id"], f"{p['name']} {p['brand']} {p['colour']} {type_label(p['type'])}".lower()
+        )
         words = [w for w in re.split(r"[\W_]+", s.query.lower()) if len(w) >= 2]
         if not all(w in hay for w in words):
             return False
@@ -251,7 +262,11 @@ def sort_products(xs: list[dict[str, Any]], sort: str | None = "popular") -> lis
 
 
 def search(s: Search, products: list[dict[str, Any]] | None = None) -> list[dict[str, Any]]:
-    return sort_products([p for p in (products or PRODUCTS) if matches(p, s)], s.sort)
+    if products is None:
+        products = (
+            [p for t in dict.fromkeys(s.types) for p in BY_TYPE.get(t, [])] if s.types else PRODUCTS
+        )
+    return sort_products([p for p in products if matches(p, s)], s.sort)
 
 
 _SORT_LABEL = {
@@ -577,9 +592,7 @@ def pick_gifts(b: GiftBrief, n: int = 6) -> list[dict[str, Any]]:
     types = GIFTS["ideas"].get(side or "any", [])
     genders = _SIDE_GENDERS.get(side) if side else None
     pool: list[dict[str, Any]] = []
-    for p in PRODUCTS:
-        if p["type"] not in types:
-            continue
+    for p in (p for t in types for p in BY_TYPE.get(t, [])):
         if genders and p["gender"] not in genders:
             continue
         if b.budget_max and p["price"] > b.budget_max:

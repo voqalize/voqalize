@@ -334,6 +334,7 @@ class ChangeRequest(BaseModel):
 class ReturnRequest(BaseModel):
     order_id: str | None = None
     product_id: str | None = Field(default=None, description="The item, if they named it.")
+    reason: Reason | None = Field(default=None, description="The reason, if they already gave it.")
 
 
 class ReturnDetailsRequest(BaseModel):
@@ -381,6 +382,13 @@ class Pending:
     qty: int = 1
     note: str | None = None
     order_id: str | None = None
+    #: Turns since it was offered that did not answer it (a question in between).
+    stale: int = 0
+
+
+#: Words that ask for the add itself ("add it", "डाल दो"): enough for an add held
+#: across a turn that asked something else.
+_ADD_WORDS = re.compile(r"\b(add|bag|take it|i'll take)\b|डाल|जोड़", re.IGNORECASE)
 
 
 def _words(text: str) -> str:
@@ -427,7 +435,12 @@ def _canonical(path: str) -> tuple[str, dict[str, str]]:
     p = p.split("#", 1)[0]
     p = re.sub(r"^/demos/fashio", "", p) or "/"
     params = dict(kv.split("=", 1) for kv in query.split("&") if "=" in kv)
-    return p.rstrip("/") or "/", params
+    p = p.rstrip("/") or "/"
+    # The page's product URL is /p/?id=<id> (a file sits behind it on static
+    # hosting); the brain names the page /p/<id> either way.
+    if p == "/p" and params.get("id", "").isdigit():
+        p = f"/p/{params['id']}"
+    return p, params
 
 
 def _cap(text: str) -> str:
@@ -497,6 +510,8 @@ class FashioBrain(OpenAIBrain):
         self._spoken = SpokenAmounts(lambda: self.lang)
         #: The shopper's last few turns, as heard: what a budget is checked against.
         self._heard_recent: list[str] = []
+        #: The checkout section rung last: a second ask is said differently.
+        self._rung: str | None = None
         self._rejoined = False
 
     # ─── Session ────────────────────────────────────────────────────────
@@ -587,9 +602,23 @@ class FashioBrain(OpenAIBrain):
         pending = self.pending
         if pending is not None and pending.turn < self.turns:
             answer = _unused_said(msg.text) if pending.kind == "unused" else _yes_no(msg.text)
+            if (
+                answer == "yes"
+                and pending.stale
+                and pending.kind == "add"
+                and not _ADD_WORDS.search(msg.text)
+            ):
+                answer = None  # a bare "ok" two turns on is not a yes to the add
             if answer == "yes":
                 line = self._confirmed(pending)
                 async for speech in self.say_line(line, remember=True):
+                    yield speech
+                return
+            if answer is None and pending.kind in ("add", "note") and not pending.stale:
+                # A question in between ("show me the size chart"): the add stays
+                # held for one more turn, so "add it" afterwards needs no second ask.
+                pending.stale += 1
+                async for speech in self.respond(session):
                     yield speech
                 return
             self.pending = None
@@ -948,8 +977,10 @@ class FashioBrain(OpenAIBrain):
     def _show(self, p: dict[str, Any]) -> str:
         return f"{{show: {p['id']}}} "
 
-    def _nudge(self) -> str:
-        options = NUDGE[self.lang]
+    def _nudge(self, *, sized: bool = False) -> str:
+        """The nudge once a piece fits, never the same words two turns running; not
+        "check your size" when their size is already in the search."""
+        options = [o for i, o in enumerate(NUDGE[self.lang]) if not (sized and i == 1)]
         self._nudges += 1
         return options[self._nudges % len(options)]
 
@@ -966,7 +997,7 @@ class FashioBrain(OpenAIBrain):
         known = {t for t, name in _TOPICS if getattr(s, name) not in (None, [])}
         open_topics = [t for t, _ in _TOPICS if t not in known and t not in self.asked]
         if len(found) <= 3 or not open_topics:
-            return self._nudge()
+            return self._nudge(sized=bool(s.sizes))
         topic = open_topics[0]
         self.asked.add(topic)
         return ASK[topic][self.lang]
@@ -1138,7 +1169,7 @@ class FashioBrain(OpenAIBrain):
             "SAY: answer just what they asked, in two short sentences, then nudge. FACTS: "
             + self._row(p)
             + f". Season {p['season']}, year {p['year']}."
-            + (f" Model: {p['model']}." if p.get("model") else "")
+            + (f" {p['model']}" if p.get("model") else "")
             + (f" Size chart: {chart['title']}." if chart else "")
             + f" {f.POLICY['delivery']['summary']}"
         )
@@ -1161,6 +1192,18 @@ class FashioBrain(OpenAIBrain):
         elif p["scale"] == "one":
             self.pending = Pending("add", self.turns, p["id"], p["sizes"][0][0])
             say(self._said("open_one", **words))
+        elif (size := next((x for x in self.search.sizes if f.size_label(p, x)), None)) is not None:
+            # Their size is already known (it is in the search): offer it, never re-ask.
+            self._offer_add(p, size)
+            label = f.size_label(p, size)
+            held = self.pending
+            if label and held is not None and held.size == label and f.in_stock(p, label):
+                # One sentence, the name said once: "…, ₹760. It's in stock in M; shall I add it?"
+                say(self._said("open_known_add", size=label, **words))
+            else:
+                record = _OWED.get()
+                offer = record.line if record is not None and record.line else ""
+                say(self._said("open_known", **words) + " " + offer)
         else:
             say(self._said("open", stock=self._stock(p), **words))
         return f"Opened {p['id']}; you described it. You are now its size and fit advisor. FACTS: {self._row(p)}"
@@ -1319,6 +1362,9 @@ class FashioBrain(OpenAIBrain):
         ) or page.startswith(("/shop/", "/compare"))
         if not ok:
             return "Not a page here. Pages: /, /shop, /shop/<dept>, /wishlist, /bag, /checkout, /orders, /returns, /gifts, /about."
+        if page == "/checkout":
+            # Checkout is guided: the first section they type is rung and said.
+            return await self.guide_checkout(CheckoutRequest(field="contact"))
         self._send(
             "site.go", {"path": request.page if request.page.startswith("/compare") else page}
         )
@@ -1334,8 +1380,10 @@ class FashioBrain(OpenAIBrain):
         if self.path != "/checkout":
             self._send("site.go", {"path": "/checkout"})
             self.path = "/checkout"
+        again = self._rung == request.field
+        self._rung = request.field
         self._send("checkout.focus", {"field": request.field})
-        say(self._said(f"checkout_{request.field}"))
+        say(self._said("checkout_again" if again else f"checkout_{request.field}"))
         return f"Ringed {request.field}; they type it themselves. Filled so far: {self.checkout or 'nothing'}."
 
     # ─── Fit ────────────────────────────────────────────────────────────
@@ -1380,6 +1428,8 @@ class FashioBrain(OpenAIBrain):
             if answer.why == "same"
             else self._said(key)
         )
+        if answer.wanted:
+            reason = self._said("why_oos", wanted=answer.wanted, size=answer.size)
         args: dict[str, Any] = {"product_id": str(p["id"]), "size": answer.size, "reason": reason}
         if answer.wanted:
             args["wanted"] = answer.wanted
@@ -1835,6 +1885,12 @@ class FashioBrain(OpenAIBrain):
             say(self._return_refusal(o, chk, None))
             return f"Not returnable: {self._order_row(o)}. Window {f.POLICY['returns']['window_days']} days from delivery; today {f.fmt_date(f.today())}."
         p = self._return_item(o, request.product_id)
+        if p is not None and request.reason is not None:
+            return await self.return_details(
+                ReturnDetailsRequest(
+                    order_id=o["id"], product_id=str(p["id"]), reason=request.reason
+                )
+            )
         if self.path != "/returns":
             self._send("site.go", {"path": f"/returns?order={o['id']}"})
             self.path, self.job = "/returns", "returns"
