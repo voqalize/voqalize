@@ -94,6 +94,8 @@ substitutions:
   _PROPERTY_PK: ''
   _FASHIO_AGENT: ''
   _FASHIO_PK: ''
+  _BELMONTE_AGENT: ''
+  _BELMONTE_PK: ''
   # Empty in prod, so every prod page loads the runtime its npm release pins.
   # The dev trigger sets it to the dev host's `runtime/current.js`, the newest
   # runtime uploaded there, so an unreleased character is testable on dev
@@ -167,6 +169,8 @@ steps:
       - 'VITE_PROPERTY_PK=${_PROPERTY_PK}'
       - 'VITE_FASHIO_AGENT=${_FASHIO_AGENT}'
       - 'VITE_FASHIO_PK=${_FASHIO_PK}'
+      - 'VITE_BELMONTE_AGENT=${_BELMONTE_AGENT}'
+      - 'VITE_BELMONTE_PK=${_BELMONTE_PK}'
 
   # 2. Build the docs site (Astro Starlight, served at its own origin's root) →
   #    docs/dist. The avatar page's live session bakes in the avatar agent's

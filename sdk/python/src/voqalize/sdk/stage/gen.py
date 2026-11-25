@@ -21,6 +21,7 @@ is caught.
 from __future__ import annotations
 
 import json
+import keyword
 import re
 from typing import Any
 
@@ -97,6 +98,12 @@ def _py_type(arg: ArgSpec) -> str:
 
 
 def _py_field(arg: ArgSpec) -> list[str]:
+    if keyword.iskeyword(arg.name):
+        # The field would be `from: str`, a file that does not import.
+        raise ValueError(
+            f"argument {arg.name!r} is a Python keyword and cannot be a field of the "
+            "generated model; give it another name"
+        )
     kind = _py_type(arg)
     if arg.required:
         line = f"    {arg.name}: {kind}"
