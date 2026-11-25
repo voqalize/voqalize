@@ -258,6 +258,12 @@ DEMOS: dict[str, Expected] = {
     # visitor's Hindi moves both legs — karthik in both. Asserted in
     # test_property_e2e.py.
     "property": Expected(voice="omnivoice/karthik", language="en", provider="openai"),
+    # Fashio's one agent (today Riya) across its six jobs: the persona file
+    # (demos/fashio/persona.json) names the voice and languages; with no `lang`
+    # in the payload it opens in its default, English, and the toggle or the
+    # shopper's Hindi moves both legs — the same voice in both. Asserted in
+    # test_fashio_e2e.py.
+    "fashio": Expected(voice="omnivoice/riya", language="en", provider="openai"),
 }
 
 
