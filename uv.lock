@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 2
 requires-python = ">=3.12"
 resolution-markers = [
     "python_full_version >= '3.14' and sys_platform == 'win32'",
@@ -2303,6 +2303,10 @@ dev = [
 name = "voqalize-workspace"
 version = "0"
 source = { virtual = "." }
+dependencies = [
+    { name = "voqalize-agent-sdk" },
+    { name = "voqalize-demos" },
+]
 
 [package.dev-dependencies]
 dev = [
@@ -2314,6 +2318,10 @@ dev = [
 ]
 
 [package.metadata]
+requires-dist = [
+    { name = "voqalize-agent-sdk", editable = "sdk/python" },
+    { name = "voqalize-demos", editable = "demos" },
+]
 
 [package.metadata.requires-dev]
 dev = [
