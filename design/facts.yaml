@@ -574,7 +574,7 @@ facts:
       The latest release on npm. The owner's rule (2026-11-24) is that a demo
       uses the latest avatar runtime: the demos from fernhollow on (fernhollow,
       payroll_site, payroll_app, bank, insurance, dental, university, holidays,
-      property) depend on ^0.7.5, which loads from cdn.voqalize.com. The older
+      property, belmonte) depend on ^0.7.5, which loads from cdn.voqalize.com. The older
       demos, on hold by the owner's decision, still depend on ^0.6.3, which
       stays below 0.7 and loads from avatar.voqalize.com; the docs site pins
       0.7.0. A different repo, so no derive rule reaches it; the package README
@@ -1148,7 +1148,7 @@ facts:
     value: [travel, shopping, support, servicing, interview_bot, sugar, legal,
             lead_qual, aura, forge, avatar, orderdesk, kiosk, petwell, fernhollow,
             payroll_site, payroll_app, bank, insurance, dental, university,
-            holidays, property]
+            holidays, property, belmonte]
     source: demos/manifest.json
     verified: 2026-11-24
     derive:

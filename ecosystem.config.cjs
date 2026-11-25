@@ -56,6 +56,7 @@ const DEMOS = [
   'university',
   'holidays',
   'property',
+  'belmonte',
 ];
 
 module.exports = {
