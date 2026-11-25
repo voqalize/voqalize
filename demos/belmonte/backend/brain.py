@@ -53,6 +53,7 @@ from voqalize.sdk import (
     RTVIMessage,
     Session,
     Speech,
+    SpeechChunk,
     UserIdle,
     UserMessage,
 )
@@ -93,12 +94,30 @@ OUTLETS = ("dining", "bar")
 @dataclass
 class _Turn:
     """One turn's record: a line the brain owes whatever the model said (an
-    action that could not be done; its result reaches the model a turn late)."""
+    action that could not be done; its result reaches the model a turn late),
+    and the next step an action leaves for the guest."""
 
     must: str | None = None
+    #: A line the brain says after the model's words when they did not name
+    #: what the guest presses next (any of ``cover``): see ``BelmonteBrain._lead``.
+    then: str | None = None
+    cover: tuple[str, ...] = ()
+    #: What the model said this turn (its own words, not the brain's lines).
+    text: str = ""
 
 
 _TURN: ContextVar[_Turn | None] = ContextVar("belmonte_turn", default=None)
+
+
+async def _heard(turn: AsyncGenerator[Speech, None], record: _Turn) -> AsyncGenerator[Speech, None]:
+    """The model's turn, its words kept on the record."""
+    try:
+        async for s in turn:
+            if isinstance(s, SpeechChunk):
+                record.text += s.text
+            yield s
+    finally:
+        await turn.aclose()
 
 
 @dataclass
@@ -441,6 +460,10 @@ def resolve_outlet(said: str) -> str:
     return "bar" if any(w in s for w in ("bar", "drink", "wine", "beer", "cocktail")) else "dining"
 
 
+#: Allergen words a menu search may name (as hotel.json lists them, "nut"
+#: catching "tree nuts"); "shellfish" before "fish".
+_ALLERGENS = ("shellfish", "fish", "gluten", "dairy", "egg", "nut", "sesame", "soy")
+
 _FLOORS = {
     "high": ("high", "top", "upper"),
     "low": ("low", "ground", "bottom"),
@@ -564,12 +587,19 @@ class BelmonteBrain(OpenAIBrain):
         record = _Turn()
         token = _TURN.set(record)
         try:
-            turn = self.stage.cued(super().respond(session))
+            turn = _heard(self.stage.cued(super().respond(session)), record)
             async for event in self._fallback.speak_if_silent(self, turn):
                 yield event
+            said = record.text.lower()
             if record.must:
                 logger.info("belmonte: the brain says {!r}", record.must)
                 async for event in self.say_line(record.must, remember=True):
+                    yield event
+            elif record.then and said.strip() and not any(c in said for c in record.cover):
+                # The model said the action and stopped; the guest hears what is
+                # theirs to press next (the floor under "I'll select early check-in.").
+                logger.info("belmonte: the next step, in the brain's words: {!r}", record.then)
+                async for event in self.say_line(record.then, remember=True):
                     yield event
         finally:
             with contextlib.suppress(ValueError):
@@ -916,6 +946,14 @@ class BelmonteBrain(OpenAIBrain):
             record.must = said
         return f"Not done: {why} The guest has already been told: {said!r}"
 
+    def _lead(self, line: str, *cover: str) -> None:
+        """Beside an action that leaves a step for the guest: ``line`` is said if
+        the turn said nothing (``landed``), or after the model's words when they
+        named none of ``cover`` (the button, in lower case)."""
+        landed(line)
+        if (record := _TURN.get()) is not None:
+            record.then, record.cover = line, tuple(c.lower() for c in cover)
+
     # ── Hotel information ──
 
     @needs_result_now
@@ -974,8 +1012,9 @@ class BelmonteBrain(OpenAIBrain):
             )
         self.guest.checkin.confirmed = True
         self._send("checkin.confirm", {})
-        landed(
-            "Confirmed. Next, tap Scan ID on screen and hold up your driver's license or passport."
+        self._lead(
+            "Thank you. Next, tap Scan ID on screen and hold up your driver's license or passport.",
+            "scan id",
         )
         return "Confirmed. Next the guest taps Scan ID on screen themselves; you never see the ID."
 
@@ -1060,7 +1099,10 @@ class BelmonteBrain(OpenAIBrain):
             )
         c.early = choice.want
         self._send("checkin.early", {"want": "yes" if choice.want else "no"})
-        landed("Done. Have a look at the summary and press Complete check-in when you're ready.")
+        self._lead(
+            "Have a look at the summary and press Complete check-in when you're ready.",
+            "complete check-in",
+        )
         return f"Early check-in {'added, ' + h.money(h.CHECKIN['early']['fee']) if choice.want else 'declined'}. The review is on screen; the guest presses Complete check-in."
 
     # ── Check-out ──
@@ -1109,7 +1151,7 @@ class BelmonteBrain(OpenAIBrain):
                 "Sent. It's held off your balance while the front desk reviews it, within 24 hours."
             )
             return f"Sent to the front desk: {ln['label']}. {h.DATA['dispute_rule']}"
-        landed("I've written it up for the front desk. Shall I send it?")
+        self._lead("I've written it up for the front desk. Shall I send it?", "send")
         return f"The question about {ln['label']} ({h.money(ln['amount'])}) is filled in. Ask if they want it sent. {h.DATA['dispute_rule']}"
 
     @needs_result_now
@@ -1147,8 +1189,9 @@ class BelmonteBrain(OpenAIBrain):
             return self._missed("already checked out.", "You're already checked out.")
         self._send("checkout.open", {"part": "express"})
         bal = h.balance(g.folio(), g.disputes)
-        landed(
-            f"Here's your express check-out: {h.money(bal)} on your {h.GUEST['card']}. Press Check out now when you're ready."
+        self._lead(
+            f"Here's your express check-out: {h.money(bal)} on your {h.GUEST['card']}. Press Check out now when you're ready.",
+            "check out now",
         )
         return f"Express check-out is open: balance {h.money(bal)} on the {h.GUEST['card']}, receipt to {h.GUEST['email']}. The guest presses Check out now."
 
@@ -1221,10 +1264,10 @@ class BelmonteBrain(OpenAIBrain):
                     return "vegan" in i.get("diet", [])
                 if "vegetarian" in want or "veggie" in want:
                     return bool({"vegetarian", "vegan"} & set(i.get("diet", [])))
-                if "nut" in want:
-                    return not any("nut" in a for a in i.get("allergens", []))
-                if "dairy" in want:
-                    return "dairy" not in i.get("allergens", [])
+                allergens: list[str] = i.get("allergens", [])
+                if hit := next((a for a in _ALLERGENS if a in want), None):
+                    # "shellfish", "no nuts", "allergic to dairy": what lists none of it.
+                    return not any(hit in a for a in allergens)
                 if "non alcoholic" in want or "zero" in want or "mocktail" in want:
                     return not i.get("alcohol")
                 return any(w in text for w in want.split() if len(w) > 2)
@@ -1309,7 +1352,7 @@ class BelmonteBrain(OpenAIBrain):
         line = Line(item["id"], add.quantity, got, add.note or "")
         self.guest.carts[outlet].append(line)
         t = h.order_totals(outlet, self.guest.carts[outlet], 0)
-        landed(f"Added. Your order is {h.money(t.subtotal)} so far. Anything else?")
+        self._lead(f"Added. Your order is {h.money(t.subtotal)} so far. Anything else?", "?")
         return f"Added {self._line_words(outlet, line)} at {h.money(h.unit_price(outlet, line))} each. Order so far {h.money(t.subtotal)} before charges."
 
     async def remove_from_order(self, rm: RemoveItem) -> str:
@@ -1507,8 +1550,9 @@ class BelmonteBrain(OpenAIBrain):
         th = at[0]
         self._send("spa.slot", {"treatment_id": t["id"], "date": d, "time": tm, "therapist_id": th})
         _, _, total = h.spa_total(t["id"])
-        landed(
-            f"I've picked {h.clock(tm)} with {h.THERAPISTS[th]['name']}, {h.money(total)} in all. Press Book when you're ready."
+        self._lead(
+            f"I've picked {h.clock(tm)} with {h.THERAPISTS[th]['name']}, {h.money(total)} in all. Press Book when you're ready.",
+            "book",
         )
         return f"Picked {h.treatment_label(t)} {h.day(d)} at {h.clock(tm)} with {h.THERAPISTS[th]['name']}, {h.money(total)} including service. The guest presses Book. {h.SPA['cancellation']}"
 
@@ -1628,8 +1672,9 @@ class BelmonteBrain(OpenAIBrain):
             "activity.pick", {"activity_id": a["id"], "date": d, "time": tm, "guests": b.guests}
         )
         total = h.activity_total(a["id"], b.guests)
-        landed(
-            f"It's all set up{f', {h.money(total)} on your room' if total else ''}. Press Book to confirm."
+        self._lead(
+            f"It's all set up{f', {h.money(total)} on your room' if total else ''}. Press Book to confirm.",
+            "book",
         )
         return (
             f"{a['name']} {h.day(d)} at {h.clock(tm)} for {b.guests}: {h.money(total) if total else 'free'}. The guest presses Book."
@@ -1819,7 +1864,7 @@ class BelmonteBrain(OpenAIBrain):
             meet = "lobby" if "lobby" in q.meet.lower() or "wait" in q.meet.lower() else "room"
             args["meet"] = meet
         self._send("visitor.open", args)
-        landed(f"Here's {v['name']}'s request. Press Approve or Decline.")
+        self._lead(f"Here's {v['name']}'s request. Press Approve or Decline.", "approve", "decline")
         return (
             f"{v['name']}'s request is open"
             + (
@@ -1851,7 +1896,7 @@ class BelmonteBrain(OpenAIBrain):
         if q.note:
             args["note"] = q.note
         self._send("visitor.expect", args)
-        landed("It's filled in. Press Add visitor to put them on the list.")
+        self._lead("It's filled in. Press Add visitor to put them on the list.", "add visitor")
         return (
             f"{q.name}, {h.clock(a)} to {h.clock(b)}, is filled in. The guest presses Add visitor."
         )
@@ -2008,9 +2053,11 @@ class BelmonteBrain(OpenAIBrain):
             landed("It's open on screen. Tell me the rest and I'll fill it in.")
             return f"The request is open; still needed: {missing}."
         if fee:
-            landed(f"It's filled in: {h.money(fee)}, fixed fare. Press Send to book it.")
+            self._lead(
+                f"It's filled in: {h.money(fee)}, fixed fare. Press Send to book it.", "send"
+            )
             return f"Filled in. It costs {h.money(fee)}, so the guest presses Send."
-        landed("It's filled in. Shall I send it?")
+        self._lead("It's filled in. Shall I send it?", "send", "?")
         return "Filled in and ready. Ask if they want it sent, then call again with send=true."
 
 

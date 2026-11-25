@@ -734,6 +734,160 @@ async def test_visitors_requests_meetings_activities_and_policies() -> None:
         }
 
 
+async def test_allergens_policies_front_desk_and_what_the_hotel_does_not_offer() -> None:
+    llm = ScriptedOpenAI(
+        {
+            "gluten-free": replies(
+                call("show_menu", outlet="dining", search="gluten-free"),
+                reply("The Cobb salad and the New York strip are gluten-free."),
+            ),
+            "smoke": replies(call("hotel_info", topic="smoking"), reply("It's smoke-free.")),
+            "parking": replies(call("hotel_info", topic="parking"), reply("Valet is $52 a night.")),
+            "casino": replies(call("hotel_info", topic="casino"), reply("We don't have a casino.")),
+            "laundry": reply_and_call(
+                "Let me arrange that.", "front_desk_request", kind="laundry pickup", send=True
+            ),
+            "my car": reply_and_call(
+                "Your car, coming up.", "front_desk_request", kind="valet", time="now", send=True
+            ),
+            "Decline Priya": reply_and_call("Opening it.", "open_visitor", visitor="Priya Chen"),
+        }
+    )
+    answered: set[str] = set()
+    async with _rig(llm) as rig:
+        await rig.driver.start_session(init={"page": "dining", "lang": "en", "stay": ARRIVED})
+        brain = _brain(rig)
+
+        t = await rig.driver.user_says("What's gluten-free for lunch?")
+        check_turn(rig, t)
+        menu = tool_results_of(llm.captured_inputs[-1], "show_menu")[0]
+        assert "Cliffside Cobb salad $21.00" in menu and "New York strip" in menu
+        assert "Belmonte burger" not in menu and "Margherita" not in menu
+        assert "contains egg, dairy" in menu, "allergens are read with the item"
+        await _lands(rig.driver, answered)
+
+        t = await rig.driver.user_says("Can I smoke on the balcony?")
+        check_turn(rig, t)
+        info = tool_results_of(llm.captured_inputs[-1], "hotel_info")[-1]
+        assert "smoke-free, including vaping" in info and "$350 cleaning fee" in info
+        await _lands(rig.driver, answered)
+
+        t = await rig.driver.user_says("And what does parking cost?")
+        check_turn(rig, t)
+        info = tool_results_of(llm.captured_inputs[-1], "hotel_info")[-1]
+        assert "Valet parking is $52 a night; self-parking is $35 a night." in info
+        assert _move(rig, "info.open")["args"] == {"topic": "parking"}
+        await _lands(rig.driver, answered)
+
+        # Not offered: said plainly, nothing invented, nothing opened.
+        moves = len(_moves(rig))
+        t = await rig.driver.user_says("Is there a casino?")
+        check_turn(rig, t)
+        assert tool_results_of(llm.captured_inputs[-1], "hotel_info")[-1].startswith(
+            "No section on 'casino'"
+        )
+        t = await rig.driver.user_says("Can you send someone for my laundry?")
+        check_turn(rig, t, units=2)
+        assert t.units[-1].text.startswith("I can arrange housekeeping, maintenance")
+        assert len(_moves(rig)) == moves
+
+        t = await rig.driver.user_says("Can I have my car now please, yes")
+        check_turn(rig, t)
+        assert _move(rig, "request.fill")["args"] == {
+            "kind": "valet",
+            "time": "14:40",
+            "send": True,
+        }
+        await _lands(rig.driver, answered)
+
+        t = await rig.driver.user_says("Decline Priya please")
+        check_turn(rig, t)
+        assert _move(rig, "visitor.open")["args"] == {"visitor_id": "v-chen"}
+        await _lands(rig.driver, answered)
+        await _guest(
+            rig, "visitor.decided", {"id": "v-chen", "value": "declined", "label": "Priya Chen"}
+        )
+        assert brain.guest.visitors["v-chen"] == "declined"
+        assert _said_later(brain) == "Done, the front desk will let Priya Chen know."
+
+
+async def test_an_allergy_reads_what_lists_none_of_it() -> None:
+    llm = ScriptedOpenAI(
+        {
+            "shellfish": replies(
+                call("show_menu", outlet="dining", search="shellfish"),
+                reply("The burger and the Cobb salad list no shellfish."),
+            ),
+        }
+    )
+    async with _rig(llm) as rig:
+        await rig.driver.start_session(init={"page": "dining", "lang": "en", "stay": ARRIVED})
+        t = await rig.driver.user_says("What's for lunch? I'm allergic to shellfish.")
+        check_turn(rig, t)
+        menu = tool_results_of(llm.captured_inputs[-1], "show_menu")[0]
+        assert "Belmonte burger $26.00" in menu and "Grilled king salmon" in menu
+        assert "clam chowder" not in menu.lower(), "the chowder lists shellfish"
+
+
+async def test_an_action_that_leaves_a_button_for_the_guest_says_which() -> None:
+    """The model says the action and stops ("I'll set up the kayak tour."): the
+    guest still hears what is theirs to press; when it named the button, the
+    brain adds nothing."""
+    llm = ScriptedOpenAI(
+        {
+            "kayak": reply_and_call(
+                "I'll set up the kayak tour for two.",
+                "book_activity",
+                activity="kayak tour",
+                date="tomorrow",
+                time="10 am",
+                guests=2,
+            ),
+            "tennis": reply_and_call(
+                "Done, press Book to confirm the court.",
+                "book_activity",
+                activity="tennis",
+                date="tomorrow",
+                time="8 am",
+                guests=2,
+            ),
+        }
+    )
+    async with _rig(llm) as rig:
+        await rig.driver.start_session(init={"page": "activities", "lang": "en", "stay": ARRIVED})
+        t = await rig.driver.user_says("Book the kayak tour tomorrow at 10 for two")
+        check_turn(rig, t, units=2)
+        assert t.units[-1].text == "It's all set up, $178.00 on your room. Press Book to confirm."
+        t = await rig.driver.user_says("And tennis at 8 tomorrow for two")
+        check_turn(rig, t, units=1)
+
+
+async def test_switching_tabs_mid_call_by_hand_and_by_her_cue() -> None:
+    llm = ScriptedOpenAI(
+        {
+            "what's on": reply("{go: dining} Here's the in-room dining menu."),
+            "the spa": reply("Lovely, the spa is open."),
+        }
+    )
+    async with _rig(llm) as rig:
+        await rig.driver.start_session(init={"page": "home", "lang": "en", "stay": ARRIVED})
+        brain = _brain(rig)
+        t = await rig.driver.user_says("So what's on the menu?")
+        check_turn(rig, t)
+        cues = [
+            dict(c.get("payload") or {})
+            for c in rig.driver.ui_commands
+            if c.get("command") == "stage_cue"
+        ]
+        assert cues and cues[-1]["move"] == "app.go" and cues[-1]["args"] == ["dining"]
+        assert "{go" not in t.text, "a cue is never spoken"
+        # The guest taps over to the spa themselves: the next turn knows.
+        await _guest(rig, "stay.page", {"page": "spa"})
+        assert brain.guest.page == "spa"
+        await rig.driver.user_says("I'm looking at the spa now")
+        assert "Screen: spa." in input_texts(llm.captured_inputs[-1])
+
+
 async def test_the_scenario_switch_starts_the_stay_over() -> None:
     llm = ScriptedOpenAI({"hello": reply("Hello!")})
     async with _rig(llm) as rig:
