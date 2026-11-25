@@ -7,7 +7,7 @@ import { Gift, Minus, Plus, ShoppingBag, Trash2 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { Breadcrumbs } from "../components/Breadcrumbs";
 import { ProductImage } from "../components/ProductCard";
-import { discountPct, inr, useCatalog } from "../data/catalog";
+import { discountPct, inr, useCatalog, productPath } from "../data/catalog";
 import { type BagLine, POLICY, addDays, bagTotals, fmtDay, todayIST } from "../data/shop";
 import { lineProduct, useStore } from "../state/store";
 
@@ -51,12 +51,12 @@ function Line({ l }: { l: BagLine }) {
   const max = Math.min(5, p.sizes.find(([x]) => x === l.size)?.[1] ?? 5);
   return (
     <li className="bline" data-stage-thing={`product:${p.id}`}>
-      <Link to={`/p/${p.id}`} className="bline-img">
+      <Link to={productPath(p.id)} className="bline-img">
         <ProductImage id={p.id} alt={p.name} />
       </Link>
       <div className="bline-body">
         <p className="pc-brand">{p.brand}</p>
-        <Link to={`/p/${p.id}`} className="bline-name">
+        <Link to={productPath(p.id)} className="bline-name">
           {p.name}
         </Link>
         <p className="bline-meta">

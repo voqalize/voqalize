@@ -26,6 +26,7 @@ import {
   stockOf,
   summarise,
   typeLabel,
+  logicalPath,
 } from "../data/catalog";
 import { bagTotals, lineKey, POLICY } from "../data/shop";
 import { useStore } from "../state/store";
@@ -132,7 +133,10 @@ export function shopPerformers(): Pick<Performers<Spec>, ShopMoves> {
   return {
     "site.go": async ({ path }, c) => {
       await loadCatalog();
-      const p = normalPath(path);
+      const raw = normalPath(path);
+      // /p/?id=<id> (the URL) and /p/<id> (the logical path) are the same page.
+      const asked = logicalPath(raw.split("?")[0], raw.split("?")[1] ?? "");
+      const p = asked.startsWith("/p/") ? asked : raw;
       const bare = p.split("?")[0];
       if (bare === "/kiosk") c.refuse("path", "the kiosk is the in-store screen, not a page to send a shopper to", ["/", "/shop", "/gifts", "/orders"]);
       if (!PAGES.test(bare)) c.refuse("path", `the store has no page ${path}`, ["/", "/shop", "/shop/women", "/wishlist", "/bag", "/checkout", "/orders", "/returns", "/gifts", "/about"]);
@@ -308,11 +312,12 @@ export function shopPerformers(): Pick<Performers<Spec>, ShopMoves> {
       useStore.getState().openSizeChart(p.id, row);
       const values = row ? chart.rows.find((r) => r[0] === row) : undefined;
       c.done(values ? `${chart.title} open; ${row}: ${chart.columns.slice(1).map((col, i) => `${col} ${values[i + 1]}`).join(", ")} (${chart.unit})` : `${chart.title} open`);
-      if (row)
-        c.after(async () => {
-          const el = await waitFor(() => part(`chart-row:${row}`), 800);
-          await ringScroll(c, el, row);
-        });
+      // The next ring replaces the Size chart link's, which would otherwise stay
+      // up over the drawer: the row asked about, or the whole table.
+      c.after(async () => {
+        const el = await waitFor(() => part(row ? `chart-row:${row}` : "size-chart:table"), 800);
+        await ringScroll(c, el, row ?? chart.title);
+      });
       return null;
     },
 

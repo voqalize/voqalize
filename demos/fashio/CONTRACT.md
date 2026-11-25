@@ -3,7 +3,7 @@
 Fashio is an Indian fashion store (prices in INR) on a real product catalogue: the Fashion Product Images
 Dataset by Param Aggarwal (MIT, sourced from Myntra). The store brand, its policies and its UI are ours;
 the products (names, brands, prices, sizes, descriptions, images) are the dataset's. One agent, whose
-character, name, voices and languages live in `persona.json` (today Rohan, English and Hindi), does six
+character, name, voices and languages live in `persona.json` (today Riya, English and Hindi), does six
 jobs, one per landing page. Both sides build against this file; change it only in the same PR as the code.
 
 ## Data
@@ -99,7 +99,7 @@ shopper said so. Only the shopper's own click on Submit return sends it. Referen
 | --- | --- | --- |
 | `/` | home: campaigns, rails, departments | **shopping** (shopping assistant / site guide) |
 | `/shop`, `/shop/<dept>`, `/shop/<dept>/<type>` | listing: filters, sort, grid | shopping |
-| `/p/<id>` | product page | **fit** (size and fit advisor) |
+| `/p/?id=<id>` (logical name `/p/<id>`) | product page | **fit** (size and fit advisor) |
 | `/compare?ids=a,b` | side by side | shopping |
 | `/wishlist`, `/bag`, `/checkout`, `/about` | | shopping |
 | `/gifts` | gift finder | **gifts** |
@@ -107,7 +107,9 @@ shopper said so. Only the shopper's own click on Submit return sends it. Referen
 | `/returns` (`?order=<id>`) | returns from an order | **returns** |
 | `/kiosk` | full-screen in-store kiosk | **kiosk** |
 
-Persona `roles` label the dock per job. The call's `init` carries `{surface: "fashio-web", page: <path>,
+A product page's URL is `/p/?id=<id>` (one file serves it on static hosting, so it reloads and opens cold
+from a QR code); Stage moves, `screen.viewed` and the brain name it by the logical path `/p/<id>`, and an
+old `/p/<id>` URL still opens and moves to the `?id` form. Persona `roles` label the dock per job. The call's `init` carries `{surface: "fashio-web", page: <path>,
 lang: "en"|"hi"}`. The brain starts in the landing's job and follows `screen.viewed` to switch.
 
 ## Brain → page

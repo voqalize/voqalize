@@ -7,12 +7,11 @@
  * /shop, /shop/<dept>, /shop/<dept>/<type> (from the catalogue's departments),
  * /compare, /wishlist, /bag, /checkout, /orders, /returns, /gifts, /kiosk, /about.
  *
- * Product pages are NOT written one by one (4,623 of them). Instead one file
- * sits at /p/index.html, and the product link that must survive a cold open (a
- * kiosk QR code, a shared link: `shareUrl` in src/data/catalog.ts) is
- * /p/?id=<id>; the app's not-found route moves it on to /p/<id>. A pretty
- * /p/<id> works for every in-app visit; reloading one on static hosting falls
- * through to the apex, which is the known limit.
+ * Product pages are NOT written one by one (4,620 of them). Every product URL
+ * the app makes is /p/?id=<id> (`productPath` in src/data/catalog.ts), served
+ * by the one file at /p/index.html, so a reload, a shared link or a kiosk QR
+ * code opens the page cold. An old /p/<id> link still works inside the app and
+ * moves to the ?id form.
  */
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";

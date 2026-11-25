@@ -9,7 +9,7 @@ import { useEffect } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Breadcrumbs } from "../components/Breadcrumbs";
 import { ProductImage } from "../components/ProductCard";
-import { type Product, discountPct, getProduct, inr, typeLabel, useCatalog } from "../data/catalog";
+import { type Product, discountPct, getProduct, inr, typeLabel, useCatalog, productPath } from "../data/catalog";
 import { useStore } from "../state/store";
 
 const ROWS: { label: string; cell: (p: Product) => React.ReactNode }[] = [
@@ -75,10 +75,10 @@ export function Compare() {
                       <button type="button" className="ccard-x" aria-label={`Remove ${p.name}`} onClick={() => remove(p.id)}>
                         <X size={16} />
                       </button>
-                      <Link to={`/p/${p.id}`} className="ccard-img">
+                      <Link to={productPath(p.id)} className="ccard-img">
                         <ProductImage id={p.id} alt={p.name} />
                       </Link>
-                      <Link to={`/p/${p.id}`} className="ccard-name">
+                      <Link to={productPath(p.id)} className="ccard-name">
                         {p.name}
                       </Link>
                     </div>

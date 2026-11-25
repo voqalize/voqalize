@@ -11,7 +11,7 @@
 import { Heart } from "lucide-react";
 import { Link } from "react-router-dom";
 import { imgUrl, placeholderUrl } from "../data/assets";
-import { type Product, anyStock, discountPct, inr } from "../data/catalog";
+import { type Product, anyStock, discountPct, inr, productPath } from "../data/catalog";
 import { useStore } from "../state/store";
 
 export function ProductImage({ id, alt, w = 400, className, eager = false }: { id: number; alt: string; w?: 400 | 1080; className?: string; eager?: boolean }) {
@@ -67,7 +67,7 @@ export function ProductCard({ product: p, reason, onOpen, compact = false }: { p
           {body}
         </button>
       ) : (
-        <Link className="pc-link" to={`/p/${p.id}`}>
+        <Link className="pc-link" to={productPath(p.id)}>
           {body}
         </Link>
       )}

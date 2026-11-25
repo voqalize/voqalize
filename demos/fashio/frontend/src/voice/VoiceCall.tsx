@@ -35,7 +35,9 @@ function onSiteCommand(command: string, payload: unknown) {
 const currentPage = () => {
   const base = import.meta.env.BASE_URL.replace(/\/$/, "");
   const path = window.location.pathname;
-  return (path.startsWith(base) ? path.slice(base.length) : path) || "/";
+  const route = (path.startsWith(base) ? path.slice(base.length) : path) || "/";
+  // A product page's URL carries its id in the query (/p/?id=7421).
+  return /^\/p\/?$/.test(route) ? `${route}${window.location.search}` : route;
 };
 
 function useLiveCall(media: VoqalizeMedia) {

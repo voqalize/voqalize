@@ -367,12 +367,31 @@ export function sizeLabel(p: Product, said: string): string | undefined {
 }
 
 /**
- * A product page link that also works when opened cold (a QR code on a phone,
- * a reload on static hosting): `/p/?id=<id>` has a file behind it
- * (`dist/p/index.html`), and the page then moves to `/p/<id>`.
+ * A product page's URL: `/p/?id=<id>`. It has a file behind it on static
+ * hosting (`dist/p/index.html`), so a reload or a shared link opens the page
+ * cold. Inside the app (Stage performers, the brain) a product page is named
+ * by its logical path `/p/<id>`; `toUrl` and `logicalPath` convert.
  */
+export const productPath = (id: number | string): string => `/p/?id=${id}`;
+
+/** The product page's absolute URL, for QR codes and sharing. */
 export function shareUrl(id: number | string, origin: string = window.location.origin): string {
   return `${origin}${import.meta.env.BASE_URL}p/?id=${id}`;
+}
+
+/** A logical path (`/p/7421`) as the URL the router goes to (`/p/?id=7421`). */
+export function toUrl(path: string): string {
+  const m = /^\/p\/(\d+)$/.exec(path);
+  return m ? productPath(m[1]) : path;
+}
+
+/** The router's location as a logical path: `/p/?id=7421` is `/p/7421`. */
+export function logicalPath(pathname: string, search: string): string {
+  if (/^\/p\/?$/.test(pathname)) {
+    const id = new URLSearchParams(search).get("id");
+    if (id && /^\d+$/.test(id)) return `/p/${id}`;
+  }
+  return pathname;
 }
 
 /** The colour swatch's CSS background. */

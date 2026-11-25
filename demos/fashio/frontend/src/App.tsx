@@ -1,5 +1,6 @@
 import { Suspense, lazy, useEffect, useRef } from "react";
 import { BrowserRouter, Outlet, Route, Routes, useLocation, useNavigate } from "react-router-dom";
+import { logicalPath, toUrl } from "./data/catalog";
 import { Footer } from "./components/Footer";
 import { Header } from "./components/Header";
 import { About } from "./pages/About";
@@ -33,10 +34,12 @@ export const debugMode = () => {
 function Shell() {
   const navigate = useNavigate();
   const location = useLocation();
-  const path = useRef(location.pathname);
-  path.current = location.pathname;
-  useEffect(() => bindRouter((to) => navigate(to), () => path.current), [navigate]);
-  useStageReport(location.pathname, location.search);
+  // Performers and the brain name a product page /p/<id>; its URL is /p/?id=<id>.
+  const logical = logicalPath(location.pathname, location.search);
+  const path = useRef(logical);
+  path.current = logical;
+  useEffect(() => bindRouter((to) => navigate(toUrl(to)), () => path.current), [navigate]);
+  useStageReport(logical, location.search);
   if (new URLSearchParams(location.search).has("debug")) {
     try {
       sessionStorage.setItem("fashio-debug", "1");
@@ -50,7 +53,7 @@ function Shell() {
   }, [debug]);
   useEffect(() => {
     window.scrollTo(0, 0);
-  }, [location.pathname]);
+  }, [logical]);
   // The kiosk is a full-screen in-store screen: no store header or footer.
   const kiosk = location.pathname.startsWith("/kiosk");
   return (
@@ -79,6 +82,7 @@ export function App() {
           <Route path="shop" element={<Shop />} />
           <Route path="shop/:dept" element={<Shop />} />
           <Route path="shop/:dept/:type" element={<Shop />} />
+          <Route path="p" element={<ProductPage />} />
           <Route path="p/:id" element={<ProductPage />} />
           <Route path="compare" element={<Compare />} />
           <Route path="wishlist" element={<Wishlist />} />

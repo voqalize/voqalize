@@ -10,7 +10,7 @@ import { AlertCircle, Ban, Check, ChevronLeft, CreditCard, Info, MapPin, Package
 import { useEffect, useRef } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { ProductImage } from "../components/ProductCard";
-import { getProduct, inr, useCatalog } from "../data/catalog";
+import { getProduct, inr, useCatalog, productPath } from "../data/catalog";
 import { CUSTOMER, POLICY, TRACK_STEPS, canCancel, fmtDate, fmtDay, refundNote, returnCheck, statusLabel, todayIST } from "../data/shop";
 import { sendEvent } from "../stage/host";
 import { type ViewOrder, returnedSet, useOrders, useOrdersUi } from "../state/orders";
@@ -218,12 +218,12 @@ function Detail({ o, back }: { o: ViewOrder; back: () => void }) {
             const check = o.status === "delivered" ? returnCheck(o, i.product_id, returned) : null;
             return (
               <li key={`${i.product_id}|${i.size}`} className="ord-item">
-                <Link to={`/p/${i.product_id}`} className="ord-item-img">
+                <Link to={productPath(i.product_id)} className="ord-item-img">
                   <ProductImage id={i.product_id} alt={p?.name ?? "Product"} />
                 </Link>
                 <div className="ord-item-body">
                   <p className="ord-item-brand">{p?.brand ?? ""}</p>
-                  <Link to={`/p/${i.product_id}`} className="ord-item-name">
+                  <Link to={productPath(i.product_id)} className="ord-item-name">
                     {p?.name ?? `Product ${i.product_id}`}
                   </Link>
                   <p className="svc-muted">

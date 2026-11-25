@@ -1,5 +1,5 @@
 /**
- * A product (/p/<id>): the gallery (the dataset's one image at two sizes, and
+ * A product (/p/?id=<id>, also /p/<id>): the gallery (the dataset's one image at two sizes, and
  * the colour variants' thumbnails), brand, name, price with MRP and discount,
  * sizes with stock (nothing preselected), the size chart drawer, Find my size,
  * Add to bag and wishlist, delivery and returns, the detail's description and
@@ -8,13 +8,13 @@
  */
 import { Heart, RotateCcw, ShoppingBag, Truck } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Breadcrumbs } from "../components/Breadcrumbs";
 import { FitPanel } from "../components/FitPanel";
 import { ProductImage } from "../components/ProductCard";
 import { Rail } from "../components/Rail";
 import { SizeChartDrawer, chartFor } from "../components/SizeChart";
-import { type Product, department, discountPct, getProduct, inr, isOneSize, loadDetail, stockOf, typeLabel, useCatalog, variantsOf } from "../data/catalog";
+import { type Product, department, discountPct, getProduct, inr, isOneSize, loadDetail, stockOf, typeLabel, useCatalog, variantsOf, productPath } from "../data/catalog";
 import { POLICY, addDays, fmtDay, todayIST } from "../data/shop";
 import { useStore } from "../state/store";
 import { NotFoundBody } from "./NotFound";
@@ -27,7 +27,15 @@ function deptOf(p: Product): string {
 }
 
 export function ProductPage() {
-  const { id = "" } = useParams();
+  const params = useParams();
+  const [query] = useSearchParams();
+  const navigate = useNavigate();
+  // /p/?id=<id> is the URL (it reloads on static hosting); /p/<id> still opens.
+  const id = params.id ?? query.get("id") ?? "";
+  // The old pretty form moves to the URL that reloads on static hosting.
+  useEffect(() => {
+    if (params.id) navigate(productPath(params.id), { replace: true });
+  }, [params.id, navigate]);
   const ready = useCatalog((s) => !!s.index);
   const p = useCatalog((s) => s.byId.get(Number(id)));
   if (!ready) return <ProductSkeleton />;
@@ -125,7 +133,7 @@ function ProductView({ p }: { p: Product }) {
           {variants.length > 1 ? (
             <div className="pdp-thumbs" aria-label="Colours">
               {variants.slice(0, 8).map((v) => (
-                <button key={v.id} type="button" className={`pdp-thumb${shot === v.id ? " is-on" : ""}`} onMouseEnter={() => setShot(v.id)} onFocus={() => setShot(v.id)} onClick={() => (v.id === p.id ? setShot(p.id) : navigate(`/p/${v.id}`))} aria-label={`${v.colour}${v.id === p.id ? " (this one)" : ""}`}>
+                <button key={v.id} type="button" className={`pdp-thumb${shot === v.id ? " is-on" : ""}`} onMouseEnter={() => setShot(v.id)} onFocus={() => setShot(v.id)} onClick={() => (v.id === p.id ? setShot(p.id) : navigate(productPath(v.id)))} aria-label={`${v.colour}${v.id === p.id ? " (this one)" : ""}`}>
                   <ProductImage id={v.id} alt="" />
                 </button>
               ))}
@@ -162,7 +170,7 @@ function ProductView({ p }: { p: Product }) {
               </p>
               <div className="pdp-colour-row">
                 {variants.map((v) => (
-                  <Link key={v.id} to={`/p/${v.id}`} className={`pdp-colour${v.id === p.id ? " is-on" : ""}`} aria-current={v.id === p.id ? "true" : undefined} title={v.colour}>
+                  <Link key={v.id} to={productPath(v.id)} className={`pdp-colour${v.id === p.id ? " is-on" : ""}`} aria-current={v.id === p.id ? "true" : undefined} title={v.colour}>
                     <ProductImage id={v.id} alt={v.colour} />
                   </Link>
                 ))}
@@ -204,7 +212,7 @@ function ProductView({ p }: { p: Product }) {
                 ))}
               </div>
               {nudge && !size ? <p className="pdp-warn">Pick a size first.</p> : null}
-              {p.model ? <p className="pdp-model">The {p.model}.</p> : null}
+              {p.model ? <p className="pdp-model">{p.model}</p> : null}
             </div>
           )}
 
