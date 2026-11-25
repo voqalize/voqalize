@@ -15,7 +15,7 @@ in the console or with `update_site_settings` over
 
 ## Change settings over MCP
 
-`update_site_settings(tenant, site_id, settings, expected_updated_at="")`.
+`update_site_settings(organization, site_id, settings, expected_updated_at="")`.
 
 - **`settings` is a JSON merge patch** over `site.settings` as `get_site` shows
   it. Name only what changes: an object merges key by key, `null` puts a key

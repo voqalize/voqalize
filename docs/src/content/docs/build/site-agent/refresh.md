@@ -90,16 +90,16 @@ A site points at its versions by role, each a field `get_site` shows:
 
 ## Review in full
 
-Review is open to a tenant owner or admin, in the console or over
+Review is open to an organization owner or admin, in the console or over
 [MCP](/reference/mcp/#site-agent-tools).
 
-`get_site_version(tenant, site_id, version)` returns the version with its
+`get_site_version(organization, site_id, version)` returns the version with its
 review state, its checks, its conflicts and its `review_flags`: what the checks
 kept but want a person to look at. Read the knowledge itself with
 `read_site_knowledge` ([parts](/build/site-agent/knowledge/#what-a-version-holds)),
 or try it on your live site with a [preview](/build/site-agent/preview/).
 
-`review_site_version(tenant, site_id, version, decision, resolutions=None, notes="", publish_anyway=None)`,
+`review_site_version(organization, site_id, version, decision, resolutions=None, notes="", publish_anyway=None)`,
 with `decision` `approve` or `reject`:
 
 - **Only a version waiting for review can be approved**: `ready_for_review` or
@@ -119,7 +119,7 @@ with `decision` `approve` or `reject`:
 
 ## Publish in full
 
-`publish_site_version(tenant, site_id, version, confirm=False, publish_anyway=None)`.
+`publish_site_version(organization, site_id, version, confirm=False, publish_anyway=None)`.
 
 - **Without `confirm: true` nothing is published.** The answer is
   `published: false` and `changes`: what this version would change against the

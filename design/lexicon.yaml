@@ -75,9 +75,9 @@ terms:
     word: the avatar
     retired: [video agent, digital human]
 
-  - concept: The account that owns agents, keys and sessions
-    word: tenant
-    retired: [workspace]
+  - concept: The account that owns agents, keys, sessions and members
+    word: organization
+    retired: [tenant, workspace]
 
   - concept: The person on the call
     word: user

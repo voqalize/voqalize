@@ -3,8 +3,8 @@ title: Usage and limits
 description: What Voqalize counts per billing period, how session duration is measured, the limits that apply today, and the one gap that tells you your embed is broken.
 ---
 
-`get_usage(tenant, period="")` on [the MCP server](/reference/mcp/) returns one
-tenant's counters for one billing period. `period` is `YYYY-MM` in UTC; empty
+`get_usage(organization, period="")` on [the MCP server](/reference/mcp/) returns one
+organization's counters for one billing period. `period` is `YYYY-MM` in UTC; empty
 means the current month, and a period with no sessions returns zeros.
 
 | Field | What it counts |
@@ -48,8 +48,8 @@ causes:
 | Limit | Value | What happens |
 |---|---|---|
 | Session length | 1 hour | The session ends with `end_reason` `max_duration`. A session still `active` five minutes past the hour reads `lost`. |
-| MCP tool calls | 120 per minute, per tenant | The call fails with the tool error `Too many requests. Slow down and retry.` Back off and call again. |
-| `sessions.connect` | Rate limited per tenant | A `429` with a `Retry-After` header, in seconds. Wait that long and retry. |
+| MCP tool calls | 120 per minute, per organization | The call fails with the tool error `Too many requests. Slow down and retry.` Back off and call again. |
+| `sessions.connect` | Rate limited per organization | A `429` with a `Retry-After` header, in seconds. Wait that long and retry. |
 | `metadata` on a session | 10 keys, 256 characters per value | The request is refused. |
 
 Concurrent sessions, included minutes and storage are set per plan. Ask us

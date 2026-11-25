@@ -556,7 +556,7 @@ because they are SDK surface; what changes is what we teach.
 
 - Python 3.12, uv, ruff, pyright, pytest. pnpm for the frontends.
 - Never `--no-verify`, never force-push, never bypass hooks.
-- This repo is **public**. No secrets, tenant ids, agent ids or node addresses in
+- This repo is **public**. No secrets, organization ids, agent ids or node addresses in
   committed source. Publishable (`pk_live_`) keys and demo agent ids are injected
   as Cloud Build substitutions; the cloudbuild YAMLs here are **templates** whose
   real values live in the triggers.

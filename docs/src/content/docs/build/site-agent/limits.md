@@ -11,7 +11,7 @@ the feature is linked from each group.
 
 | Limit | Value | Past it |
 |---|---|---|
-| Sites per primary origin, per tenant | One | `site_origin_exists`, naming the site that has it. |
+| Sites per primary origin, per organization | One | `site_origin_exists`, naming the site that has it. |
 | Previous live key after **Rotate key** | Works for 24 hours | Refused. |
 
 See [Roll back, roles and the console](/build/site-agent/manage/#replace-the-key).
@@ -82,5 +82,5 @@ See [Previews and invites](/build/site-agent/preview/).
 | `list_sites` `limit` | At most 100 |
 | Versions per `get_site` page | 10 |
 
-Calls count towards the MCP server's per-tenant rate limit; see
-[MCP server](/reference/mcp/#auth-tenancy-and-limits).
+Calls count towards the MCP server's per-organization rate limit; see
+[MCP server](/reference/mcp/#auth-organizations-and-limits).

@@ -29,11 +29,11 @@ left it, and adds what comes after the first call.
 
 ## Add the site
 
-A tenant owner or admin adds the site in the console's **Add a site**, or a
+An organization owner or admin adds the site in the console's **Add a site**, or a
 coding agent does it with `create_site` over [MCP](/reference/mcp/#site-agent-tools).
 Both take the site's home page, an `https://` address on one public host, and
 the languages the assistant speaks; English when you choose none. The origin of
-that address is the site's **primary origin**, and a tenant has one site per
+that address is the site's **primary origin**, and an organization has one site per
 primary origin.
 
 The answer carries the **snippet**: the script tag for your pages, with the
@@ -84,7 +84,7 @@ says how to let it in.
 
 ## Review and publish the first version
 
-A tenant owner or admin reads the new version and decides. In the console this
+An organization owner or admin reads the new version and decides. In the console this
 is the site's review; over MCP it is `get_site_version` and
 `read_site_knowledge` to read, then:
 
@@ -131,7 +131,7 @@ open pages, search, show a section, point at things and, through the site tools
 the reviewed version holds, act on the page. It never places an order or
 presses a payment control.
 
-Each call is a session in your tenant, read back like any other in
+Each call is a session in your organization, read back like any other in
 [Operate](/operate/) and kept for 30 days.
 [What is sent](/build/site-agent/security/#what-is-sent) lists exactly what
 crosses during a call.

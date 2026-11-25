@@ -35,7 +35,7 @@ Windows, use WSL2. The kit's preflight says in plain words what is missing.
 An owner or admin's coding agent, connected to the
 [MCP server](/reference/mcp/#site-agent-tools):
 
-- **Calls `start_self_study(tenant, site_id)`.** It is refused with
+- **Calls `start_self_study(organization, site_id)`.** It is refused with
   `run_in_progress` while any other study of the site runs. The study is
   `refresh` when the site has a study version to start from, else `initial`,
   and it expires 24 hours after it starts.

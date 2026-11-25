@@ -29,7 +29,7 @@ import { AmbientPresence, DemoGate, type AmbientPresencePalette, useVoqalizeMedi
 import { connectRequest, withRealHeaders, demo } from './config';
 import { asUiAction, type CallEnded, type UiAction } from './actions.gen';
 
-// Tenant + agent + pk resolve per-environment from the shared demos config
+// Organization + agent + pk resolve per-environment from the shared demos config
 // (src/config.ts), driven by Vite env vars.
 const LEAD = demo;
 

@@ -66,7 +66,7 @@ jobs:
           pnpm --version
 
       # Every demo UI, built standalone and assembled exactly as the deploy does.
-      # No VITE_* wiring is passed: the per-demo tenant/agent/publishable key are
+      # No VITE_* wiring is passed: the per-demo organization/agent/publishable key are
       # trigger substitutions, and a demo built without them renders a clear
       # "publishableKey is required" rather than failing the build — so this
       # proves the build, not the provisioning.

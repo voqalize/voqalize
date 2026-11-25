@@ -58,30 +58,30 @@ holds reaches visitors.
 
 ### Read before you edit
 
-`read_site_knowledge(tenant, site_id, part)` returns one
+`read_site_knowledge(organization, site_id, part)` returns one
 [part](#what-a-version-holds) a page at a time: 12,000 characters by
 default, `limit` from 1,000 to 40,000, and `cursor` for the next page.
 `version` defaults to the published version, else the newest.
 
 ### The draft lifecycle
 
-- **`start_knowledge_edit(tenant, site_id, base_version=None)`** opens a draft
+- **`start_knowledge_edit(organization, site_id, base_version=None)`** opens a draft
   from a stored version, the published one by default. A `starter` version
   cannot be edited: run a study first. A site has one open draft; a second is
   refused with `draft_exists`, naming it. The answer has the `draft` (its
   `revision` starts at 0), its first `check`, and `kit`, a signed link to the
   study kit.
-- **`edit_knowledge(tenant, site_id, ops, expected_revision)`** applies a list
+- **`edit_knowledge(organization, site_id, ops, expected_revision)`** applies a list
   of operations in order, all or none, and returns the draft and its checks.
   `expected_revision` is the `revision` you last saw; another edit since is
   refused with `draft_changed`. A draft that fails its checks is still saved:
   the errors are the answer.
-- **`check_knowledge_edit(tenant, site_id)`** returns the draft and runs its
+- **`check_knowledge_edit(organization, site_id)`** returns the draft and runs its
   checks again.
-- **`submit_knowledge_edit(tenant, site_id, owner_tested=False)`** turns the
+- **`submit_knowledge_edit(organization, site_id, owner_tested=False)`** turns the
   draft into version `latest + 1` with `origin` `knowledge_edit`, makes it the
   site's preview, and closes the draft. It is never published on its own.
-- **`discard_knowledge_edit(tenant, site_id)`** throws the draft away. Stored
+- **`discard_knowledge_edit(organization, site_id)`** throws the draft away. Stored
   versions are untouched.
 
 A draft expires 7 days after it was started, and an expired draft is gone.
@@ -139,7 +139,7 @@ Every edit returns `check`:
 A new or changed site tool, or a changed navigation, needs a passing run of the
 study kit on the draft:
 
-- Call `get_draft_bundle(tenant, site_id)`. Its `url` downloads the draft as a
+- Call `get_draft_bundle(organization, site_id)`. Its `url` downloads the draft as a
   `tar.gz`, for the current `revision` only, and expires ten minutes after it
   is made; fetch a new one after each edit. Treat it as a secret.
 - Unpack it and run the kit's `run_adapter_checks.mjs` against it.

@@ -55,7 +55,7 @@ correlation_id}`. The codes `sessions.connect` returns are in
 [Error codes](/reference/errors/#refused-before-your-brain-is-dialled). Quote the
 `correlation_id` when you ask us about one.
 
-The route is rate limited per tenant. A refused request is a `429` with a
+The route is rate limited per organization. A refused request is a `429` with a
 `Retry-After` header in seconds: wait that long and send it again.
 
 ## The catalog: `catalog.get`
@@ -84,11 +84,11 @@ Every field, and the tables rendered from it, is in
 
 Every API key names one agent, so no key can create an agent or mint another
 key. Management therefore runs on [the MCP server](/reference/mcp/), where your
-coding agent signs in with OAuth and no long-lived tenant-wide credential sits in
+coding agent signs in with OAuth and no long-lived organization-wide credential sits in
 an environment variable.
 
 If your integration cannot hold an OAuth client (a CI job that provisions
-agents, or a product creating tenants for its own customers), **ask us**:
+agents, or a product creating organizations for its own customers), **ask us**:
 HTTP access to the operations you need can be enabled for your account.
 
 ## Read next
